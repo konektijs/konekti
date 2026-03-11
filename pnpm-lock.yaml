@@ -46,7 +46,11 @@ importers:
 
   packages/core: {}
 
-  packages/create-konekti: {}
+  packages/create-konekti:
+    dependencies:
+      '@konekti/cli':
+        specifier: workspace:*
+        version: link:../cli
 
   packages/di:
     dependencies:
@@ -65,9 +69,7 @@ importers:
         specifier: workspace:*
         version: link:../core
 
-  packages/jwt: {}
-
-  packages/module:
+  packages/jwt:
     dependencies:
       '@konekti-internal/di':
         specifier: workspace:*
@@ -75,6 +77,39 @@ importers:
       '@konekti/core':
         specifier: workspace:*
         version: link:../core
+      '@konekti/http':
+        specifier: workspace:*
+        version: link:../http
+      '@konekti/passport':
+        specifier: workspace:*
+        version: link:../passport
+
+  packages/module:
+    dependencies:
+      '@konekti-internal/di':
+        specifier: workspace:*
+        version: link:../di
+      '@konekti/config':
+        specifier: workspace:*
+        version: link:../config
+      '@konekti/core':
+        specifier: workspace:*
+        version: link:../core
+      '@konekti/http':
+        specifier: workspace:*
+        version: link:../http
+
+  packages/passport:
+    dependencies:
+      '@konekti-internal/di':
+        specifier: workspace:*
+        version: link:../di
+      '@konekti/core':
+        specifier: workspace:*
+        version: link:../core
+      '@konekti/http':
+        specifier: workspace:*
+        version: link:../http
 
   packages/prisma: {}
 
