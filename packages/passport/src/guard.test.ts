@@ -1,0 +1,175 @@
+import { describe, expect, it } from 'vitest';
+
+import { Controller, Get, createDispatcher, createHandlerMapping } from '@konekti/http';
+import type { FrameworkRequest, FrameworkResponse } from '@konekti/http';
+import { Container } from '@konekti-internal/di';
+
+import { RequireScopes, UseAuth } from './decorators';
+import { createPassportProviders } from './module';
+import { createPassportJsStrategyBridge } from './passport-js';
+import type { AuthStrategy } from './types';
+
+function createRequest(path: string): FrameworkRequest {
+  return {
+    body: undefined,
+    cookies: {},
+    headers: {},
+    method: 'GET',
+    params: {},
+    path,
+    query: {},
+    raw: {},
+    url: path,
+  };
+}
+
+function createResponse(): FrameworkResponse & { body?: unknown } {
+  return {
+    committed: false,
+    headers: {},
+    redirect(status, location) {
+      this.setStatus(status);
+      this.setHeader('Location', location);
+      this.committed = true;
+    },
+    send(body) {
+      this.body = body;
+      this.committed = true;
+    },
+    setHeader(name, value) {
+      this.headers[name] = value;
+    },
+    setStatus(code) {
+      this.statusCode = code;
+    },
+    statusCode: 200,
+  };
+}
+
+describe('AuthGuard', () => {
+  it('can run a non-jwt strategy through the generic passport core', async () => {
+    class MockStrategy implements AuthStrategy {
+      async authenticate() {
+        return {
+          claims: { source: 'mock' },
+          scopes: ['mock:read'],
+          subject: 'mock-user',
+        };
+      }
+    }
+
+    class ProtectedController {
+      getProfile(_input: unknown, ctx: { principal?: { subject: string } }) {
+        return { subject: ctx.principal?.subject };
+      }
+    }
+
+    Controller('/profile')(ProtectedController);
+    Get('/')(ProtectedController.prototype, 'getProfile');
+    const descriptor = Object.getOwnPropertyDescriptor(ProtectedController.prototype, 'getProfile')!;
+    Reflect.apply(UseAuth('mock'), undefined, [ProtectedController.prototype, 'getProfile', descriptor]);
+    Reflect.apply(RequireScopes('mock:read'), undefined, [ProtectedController.prototype, 'getProfile', descriptor]);
+
+    const root = new Container().register(
+      ProtectedController,
+      MockStrategy,
+      ...createPassportProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: MockStrategy }]),
+    );
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
+      rootContainer: root,
+    });
+    const response = createResponse();
+
+    await dispatcher.dispatch(createRequest('/profile'), response);
+
+    expect(response.body).toEqual({ subject: 'mock-user' });
+  });
+
+  it('adapts a Passport.js-style strategy success callback to principal population', async () => {
+    class PassportLikeGoogleStrategy {
+      success?: (user: unknown, info?: unknown) => void;
+
+      authenticate() {
+        this.success?.({
+          email: 'google@example.com',
+          id: 'google-user-1',
+          scopes: ['profile:read'],
+        });
+      }
+    }
+
+    const googleBridge = createPassportJsStrategyBridge('google', PassportLikeGoogleStrategy);
+
+    class ProtectedController {
+      getProfile(_input: unknown, ctx: { principal?: { subject: string } }) {
+        return { subject: ctx.principal?.subject };
+      }
+    }
+
+    Controller('/oauth')(ProtectedController);
+    Get('/profile')(ProtectedController.prototype, 'getProfile');
+    const descriptor = Object.getOwnPropertyDescriptor(ProtectedController.prototype, 'getProfile')!;
+    Reflect.apply(UseAuth('google'), undefined, [ProtectedController.prototype, 'getProfile', descriptor]);
+
+    const root = new Container().register(
+      ProtectedController,
+      PassportLikeGoogleStrategy,
+      ...googleBridge.providers,
+      ...createPassportProviders({ defaultStrategy: 'google' }, [googleBridge.strategy]),
+    );
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
+      rootContainer: root,
+    });
+    const response = createResponse();
+
+    await dispatcher.dispatch(createRequest('/oauth/profile'), response);
+
+    expect(response.body).toEqual({ subject: 'google-user-1' });
+  });
+
+  it('supports Passport.js redirect flow without executing the protected handler', async () => {
+    let handlerCalled = false;
+
+    class PassportLikeGoogleStrategy {
+      redirect?: (url: string, status?: number) => void;
+
+      authenticate() {
+        this.redirect?.('https://accounts.google.com/o/oauth2/v2/auth', 302);
+      }
+    }
+
+    const googleBridge = createPassportJsStrategyBridge('google', PassportLikeGoogleStrategy);
+
+    class LoginController {
+      login() {
+        handlerCalled = true;
+        return { ok: true };
+      }
+    }
+
+    Controller('/oauth')(LoginController);
+    Get('/google')(LoginController.prototype, 'login');
+    const descriptor = Object.getOwnPropertyDescriptor(LoginController.prototype, 'login')!;
+    Reflect.apply(UseAuth('google'), undefined, [LoginController.prototype, 'login', descriptor]);
+
+    const root = new Container().register(
+      LoginController,
+      PassportLikeGoogleStrategy,
+      ...googleBridge.providers,
+      ...createPassportProviders({ defaultStrategy: 'google' }, [googleBridge.strategy]),
+    );
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: LoginController }]),
+      rootContainer: root,
+    });
+    const response = createResponse();
+
+    await dispatcher.dispatch(createRequest('/oauth/google'), response);
+
+    expect(handlerCalled).toBe(false);
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.Location).toBe('https://accounts.google.com/o/oauth2/v2/auth');
+  });
+});
