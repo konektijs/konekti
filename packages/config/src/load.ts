@@ -5,6 +5,9 @@ import { KonektiError } from '@konekti/core';
 
 import type { ConfigDictionary, ConfigLoadOptions } from './types';
 
+/**
+ * `.env` 파일 내용을 단순한 key-value 맵으로 파싱한다.
+ */
 function parseEnvFile(content: string): Record<string, string> {
   const parsed: Record<string, string> = {};
 
@@ -31,7 +34,7 @@ function parseEnvFile(content: string): Record<string, string> {
 }
 
 /**
- * Loads and validates configuration using the configured precedence order.
+ * 정해진 우선순서에 따라 설정을 병합하고 검증한다.
  */
 export function loadConfig(options: ConfigLoadOptions): ConfigDictionary {
   const cwd = options.cwd ?? process.cwd();
@@ -42,7 +45,7 @@ export function loadConfig(options: ConfigLoadOptions): ConfigDictionary {
 
   const envFileValues = existsSync(envFile) ? parseEnvFile(readFileSync(envFile, 'utf8')) : {};
 
-  // Precedence is total and deterministic: defaults < env file < process env < runtime overrides.
+  // 우선순서는 항상 고정된다: defaults < env file < process env < runtime overrides.
   const merged: ConfigDictionary = {
     ...defaults,
     ...envFileValues,

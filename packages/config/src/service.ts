@@ -3,7 +3,7 @@ import { KonektiError } from '@konekti/core';
 import type { ConfigDictionary } from './types';
 
 /**
- * Minimal typed accessor over normalized configuration values.
+ * 정규화된 설정 값을 읽기 위한 최소한의 typed accessor다.
  */
 export class ConfigService {
   constructor(private readonly values: ConfigDictionary) {}
@@ -20,9 +20,6 @@ export class ConfigService {
     return this.values[key] as T | undefined;
   }
 
-  /**
-   * Returns a shallow copy of the normalized config state.
-   */
   snapshot(): ConfigDictionary {
     return { ...this.values };
   }
