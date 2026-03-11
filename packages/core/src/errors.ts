@@ -1,0 +1,39 @@
+export interface KonektiErrorOptions {
+  code?: string;
+  cause?: unknown;
+  meta?: Record<string, unknown>;
+}
+
+/**
+ * Base framework error for transport-agnostic failures.
+ */
+export class KonektiError extends Error {
+  readonly code: string;
+  readonly meta?: Record<string, unknown>;
+
+  constructor(message: string, options: KonektiErrorOptions = {}) {
+    super(message, options.cause instanceof Error ? { cause: options.cause } : undefined);
+
+    this.name = new.target.name;
+    this.code = options.code ?? 'KONEKTI_ERROR';
+    this.meta = options.meta;
+
+    if (!(options.cause instanceof Error) && options.cause !== undefined) {
+      Object.defineProperty(this, 'cause', {
+        configurable: true,
+        enumerable: false,
+        value: options.cause,
+        writable: true,
+      });
+    }
+  }
+}
+
+/**
+ * Raised when an internal contract assumption is violated.
+ */
+export class InvariantError extends KonektiError {
+  constructor(message: string, options: Omit<KonektiErrorOptions, 'code'> = {}) {
+    super(message, { ...options, code: 'INVARIANT_ERROR' });
+  }
+}
