@@ -76,7 +76,7 @@ function normalizeProvider(provider: Provider): NormalizedProvider {
 }
 
 /**
- * Minimal explicit-token dependency injection container.
+ * 명시적 토큰 기반 DI를 처리하는 최소 컨테이너 구현이다.
  */
 export class Container {
   private readonly registrations = new Map<Token, NormalizedProvider>();
@@ -91,6 +91,9 @@ export class Container {
     this.singletonCache = singletonCache ?? new Map<Token, Promise<unknown>>();
   }
 
+  /**
+   * 하나 이상의 provider를 현재 컨테이너 경계에 등록한다.
+   */
   register(...providers: Provider[]): this {
     for (const provider of providers) {
       const normalized = normalizeProvider(provider);
@@ -101,19 +104,22 @@ export class Container {
     return this;
   }
 
+  /**
+   * 현재 컨테이너나 상위 컨테이너에서 토큰을 해석할 수 있는지 확인한다.
+   */
   has(token: Token): boolean {
     return this.lookupProvider(token) !== undefined;
   }
 
   /**
-   * Creates a child container that owns request-scoped provider instances.
+   * 요청 스코프 전용 provider 인스턴스를 소유하는 자식 컨테이너를 만든다.
    */
   createRequestScope(): Container {
     return new Container(this, true, this.root().singletonCache);
   }
 
   /**
-   * Resolves a token from the current container boundary.
+   * 현재 컨테이너 경계에서 토큰을 해석하고 scope 규칙에 따라 캐시한다.
    */
   async resolve<T>(token: Token<T>): Promise<T> {
     const provider = this.lookupProvider(token);
@@ -145,12 +151,15 @@ export class Container {
     return this.parent?.lookupProvider(token);
   }
 
+  /**
+   * scope에 맞는 캐시 저장소를 반환하고, 잘못된 request-scope 접근을 차단한다.
+   */
   private cacheFor(scope: Scope, token: Token) {
     if (scope === 'singleton') {
       return this.root().singletonCache;
     }
 
-    // Request-scoped providers must never resolve from the root container.
+    // request-scope provider는 루트 컨테이너에서 직접 resolve되면 안 된다.
     if (!this.requestScopeEnabled) {
       throw new RequestScopeResolutionError(
         `Request-scoped provider ${String(token)} cannot be resolved outside request scope.`,
@@ -160,6 +169,9 @@ export class Container {
     return this.requestCache;
   }
 
+  /**
+   * 정규화된 provider 정의를 실제 인스턴스나 값으로 구체화한다.
+   */
   private async instantiate<T>(provider: NormalizedProvider<T>): Promise<T> {
     switch (provider.type) {
       case 'value':
