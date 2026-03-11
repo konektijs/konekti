@@ -1,6 +1,4 @@
 export type JwtAlgorithm = 'HS256';
-export type JwtOrm = 'Prisma' | 'Drizzle';
-export type JwtDatabase = 'PostgreSQL' | 'MySQL';
 
 export interface JwtVerifierOptions {
   algorithms: JwtAlgorithm[];
