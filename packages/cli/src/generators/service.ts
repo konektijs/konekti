@@ -16,5 +16,18 @@ export function generateServiceFiles(name: string): GeneratedFile[] {
 `,
       path: `${kebab}.service.ts`,
     },
+    {
+      content: `import { describe, expect, it } from 'vitest';
+
+import { ${pascal} } from './${kebab}.service';
+
+describe('${pascal}', () => {
+  it('returns the default payload', () => {
+    expect(new ${pascal}().get${toPascalCase(name)}()).toEqual({ ok: true });
+  });
+});
+`,
+      path: `${kebab}.service.test.ts`,
+    },
   ];
 }

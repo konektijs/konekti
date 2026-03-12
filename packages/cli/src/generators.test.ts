@@ -14,4 +14,10 @@ describe('CLI generators', () => {
     expect(generateRepoFiles('User')[0]?.path).toBe('user.repo.ts');
     expect(generateDtoFiles('User')[0]?.path).toBe('user.dto.ts');
   });
+
+  it('emits test templates for controller, service, and repo generators', () => {
+    expect(generateControllerFiles('User')[1]?.path).toBe('user.controller.test.ts');
+    expect(generateServiceFiles('User')[1]?.path).toBe('user.service.test.ts');
+    expect(generateRepoFiles('User')[1]?.path).toBe('user.repo.test.ts');
+  });
 });

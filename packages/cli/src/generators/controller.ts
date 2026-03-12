@@ -22,5 +22,18 @@ export { ${pascal} };
 `,
       path: `${kebab}.controller.ts`,
     },
+    {
+      content: `import { describe, expect, it } from 'vitest';
+
+import { ${pascal} } from './${kebab}.controller';
+
+describe('${pascal}', () => {
+  it('returns the default payload', () => {
+    expect(new ${pascal}().get${toPascalCase(name)}()).toEqual({ ok: true });
+  });
+});
+`,
+      path: `${kebab}.controller.test.ts`,
+    },
   ];
 }
