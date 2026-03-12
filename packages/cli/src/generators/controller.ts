@@ -10,14 +10,13 @@ export function generateControllerFiles(name: string): GeneratedFile[] {
     {
       content: `import { Controller, Get } from '@konekti/http';
 
+@Controller('/${kebab}')
 class ${pascal} {
+  @Get('/')
   get${toPascalCase(name)}() {
     return { ok: true };
   }
 }
-
-Controller('/${kebab}')(${pascal});
-Get('/')( ${pascal}.prototype, 'get${toPascalCase(name)}');
 
 export { ${pascal} };
 `,

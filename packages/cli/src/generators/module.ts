@@ -8,11 +8,10 @@ export function generateModuleFiles(name: string): GeneratedFile[] {
 
   return [
     {
-      content: `import { defineModule } from '@konekti-internal/module';
+      content: `import { Module } from '@konekti/core';
 
+@Module({})
 class ${pascal} {}
-
-defineModule(${pascal}, {});
 
 export { ${pascal} };
 `,
