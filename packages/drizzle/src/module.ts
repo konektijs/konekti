@@ -3,6 +3,7 @@ import { defineModule, type ModuleType } from '@konekti-internal/module';
 
 import { DrizzleDatabase } from './database';
 import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE } from './tokens';
+import { DrizzleTransactionInterceptor } from './transaction';
 import type { DrizzleDatabaseLike, DrizzleModuleOptions } from './types';
 
 export function createDrizzleProviders<
@@ -20,6 +21,7 @@ export function createDrizzleProviders<
       useValue: options.dispose,
     },
     DrizzleDatabase,
+    DrizzleTransactionInterceptor,
   ];
 }
 
@@ -31,7 +33,7 @@ export function createDrizzleModule<
   class DrizzleModule {}
 
   return defineModule(DrizzleModule, {
-    exports: [DrizzleDatabase],
+    exports: [DrizzleDatabase, DrizzleTransactionInterceptor],
     providers: createDrizzleProviders(options),
   });
 }

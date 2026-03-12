@@ -11,5 +11,6 @@ export interface DrizzleModuleOptions<TDatabase extends DrizzleDatabaseLike<TTra
 
 export interface DrizzleHandleProvider<TDatabase extends DrizzleDatabaseLike<TTransactionDatabase, TTransactionOptions>, TTransactionDatabase = TDatabase, TTransactionOptions = unknown> {
   current(): TDatabase | TTransactionDatabase;
+  requestTransaction<T>(fn: () => Promise<T>, signal?: AbortSignal, options?: TTransactionOptions): Promise<T>;
   transaction<T>(fn: () => Promise<T>, options?: TTransactionOptions): Promise<T>;
 }

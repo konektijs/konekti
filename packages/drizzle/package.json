@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@konekti/core": "workspace:*",
+    "@konekti/http": "workspace:*",
     "@konekti-internal/di": "workspace:*",
     "@konekti-internal/module": "workspace:*"
   }
