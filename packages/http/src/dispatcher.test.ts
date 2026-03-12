@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Container } from '@konekti-internal/di';
 
-import type { FrameworkRequest, FrameworkResponse, InterceptorContext, MiddlewareContext } from '@konekti/http';
+import type { FrameworkRequest, FrameworkResponse, InterceptorContext, MiddlewareContext, RequestObservationContext } from '@konekti/http';
 import {
   FromBody,
   createDispatcher,
@@ -41,11 +41,15 @@ function createResponse(): FrameworkResponse & { body?: unknown } {
   };
 }
 
-function createRequest(path: string, method = 'GET'): FrameworkRequest {
+function createRequest(
+  path: string,
+  method = 'GET',
+  headers: FrameworkRequest['headers'] = {},
+): FrameworkRequest {
   return {
     body: undefined,
     cookies: {},
-    headers: {},
+    headers,
     method,
     params: {},
     path,
@@ -118,10 +122,10 @@ describe('dispatcher runtime', () => {
     });
 
     const response = createResponse();
-    await dispatcher.dispatch(createRequest('/health/123'), response);
+    await dispatcher.dispatch(createRequest('/health/123', 'GET', { 'x-request-id': 'req-health-123' }), response);
 
     expect(response.body).toEqual({
-      currentRequestId: undefined,
+      currentRequestId: 'req-health-123',
       id: '123',
       ok: true,
     });
@@ -134,6 +138,69 @@ describe('dispatcher runtime', () => {
       'interceptor:after',
       'module:after',
       'app:after',
+    ]);
+  });
+
+  it('notifies request observers across start, match, success, error, and finish seams', async () => {
+    const events: string[] = [];
+
+    class RequestLogger {
+      onHandlerMatched(context: RequestObservationContext) {
+        events.push(`match:${context.handler?.methodName}`);
+      }
+
+      onRequestError(context: RequestObservationContext) {
+        events.push(`error:${context.requestContext.requestId ?? 'none'}`);
+      }
+
+      onRequestFinish(context: RequestObservationContext) {
+        events.push(`finish:${context.requestContext.request.path}`);
+      }
+
+      onRequestStart(context: RequestObservationContext) {
+        events.push(`start:${context.requestContext.requestId ?? 'none'}`);
+      }
+
+      onRequestSuccess(context: RequestObservationContext, value: unknown) {
+        events.push(`success:${context.handler?.methodName}:${String((value as { ok?: boolean }).ok)}`);
+      }
+    }
+
+    @Controller('/health')
+    class HealthController {
+      @Get('/')
+      getHealth() {
+        return { ok: true };
+      }
+
+      @Get('/boom')
+      fail() {
+        throw new Error('boom');
+      }
+    }
+
+    const root = new Container().register(RequestLogger, HealthController);
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: HealthController }]),
+      observers: [RequestLogger],
+      rootContainer: root,
+    });
+
+    const successResponse = createResponse();
+    await dispatcher.dispatch(createRequest('/health', 'GET', { 'x-request-id': 'req-observer-1' }), successResponse);
+
+    const errorResponse = createResponse();
+    await dispatcher.dispatch(createRequest('/health/boom', 'GET', { 'x-request-id': 'req-observer-2' }), errorResponse);
+
+    expect(events).toEqual([
+      'start:req-observer-1',
+      'match:getHealth',
+      'success:getHealth:true',
+      'finish:/health',
+      'start:req-observer-2',
+      'match:fail',
+      'error:req-observer-2',
+      'finish:/health/boom',
     ]);
   });
 
@@ -237,7 +304,7 @@ describe('dispatcher runtime', () => {
     });
     const response = createResponse();
 
-    await dispatcher.dispatch(createRequest('/errors/boom'), response);
+    await dispatcher.dispatch(createRequest('/errors/boom', 'GET', { 'x-request-id': 'req-boom-1' }), response);
 
     expect(response.statusCode).toBe(500);
     expect(response.body).toEqual({
@@ -246,7 +313,7 @@ describe('dispatcher runtime', () => {
         details: undefined,
         message: 'Internal server error.',
         meta: undefined,
-        requestId: undefined,
+        requestId: 'req-boom-1',
         status: 500,
       },
     });
@@ -314,7 +381,7 @@ describe('dispatcher runtime', () => {
       {
         body: { name: '' },
         cookies: {},
-        headers: {},
+        headers: { 'x-request-id': 'req-users-400' },
         method: 'POST',
         params: {},
         path: '/users',
@@ -339,7 +406,7 @@ describe('dispatcher runtime', () => {
         ],
         message: 'Validation failed.',
         meta: undefined,
-        requestId: undefined,
+        requestId: 'req-users-400',
         status: 400,
       },
     });

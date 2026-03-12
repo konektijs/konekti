@@ -10,11 +10,11 @@ import { createPassportProviders } from './module';
 import { createPassportJsStrategyBridge } from './passport-js';
 import type { AuthStrategy } from './types';
 
-function createRequest(path: string): FrameworkRequest {
+function createRequest(path: string, headers: FrameworkRequest['headers'] = {}): FrameworkRequest {
   return {
     body: undefined,
     cookies: {},
-    headers: {},
+    headers,
     method: 'GET',
     params: {},
     path,
@@ -80,7 +80,7 @@ describe('AuthGuard', () => {
     });
     const response = createResponse();
 
-    await dispatcher.dispatch(createRequest('/profile'), response);
+    await dispatcher.dispatch(createRequest('/profile', { 'x-request-id': 'req-auth-401' }), response);
 
     expect(response.body).toEqual({ subject: 'mock-user' });
   });
@@ -112,7 +112,7 @@ describe('AuthGuard', () => {
     });
     const response = createResponse();
 
-    await dispatcher.dispatch(createRequest('/profile'), response);
+    await dispatcher.dispatch(createRequest('/profile', { 'x-request-id': 'req-auth-401' }), response);
 
     expect(response.statusCode).toBe(401);
     expect(response.body).toEqual({
@@ -121,7 +121,7 @@ describe('AuthGuard', () => {
         details: undefined,
         message: 'Authentication required.',
         meta: undefined,
-        requestId: undefined,
+        requestId: 'req-auth-401',
         status: 401,
       },
     });
@@ -159,7 +159,7 @@ describe('AuthGuard', () => {
     });
     const response = createResponse();
 
-    await dispatcher.dispatch(createRequest('/profile'), response);
+    await dispatcher.dispatch(createRequest('/profile', { 'x-request-id': 'req-auth-403' }), response);
 
     expect(response.statusCode).toBe(403);
     expect(response.body).toEqual({
@@ -168,7 +168,7 @@ describe('AuthGuard', () => {
         details: undefined,
         message: 'Access denied.',
         meta: undefined,
-        requestId: undefined,
+        requestId: 'req-auth-403',
         status: 403,
       },
     });
