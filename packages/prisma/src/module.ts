@@ -1,0 +1,29 @@
+import type { Provider } from '@konekti-internal/di';
+import { defineModule, type ModuleType } from '@konekti-internal/module';
+
+import { PrismaService } from './service';
+import { PRISMA_CLIENT } from './tokens';
+import type { PrismaClientLike, PrismaModuleOptions } from './types';
+
+export function createPrismaProviders<TClient extends PrismaClientLike<TTransactionClient>, TTransactionClient = TClient>(
+  options: PrismaModuleOptions<TClient, TTransactionClient>,
+): Provider[] {
+  return [
+    {
+      provide: PRISMA_CLIENT,
+      useValue: options.client,
+    },
+    PrismaService,
+  ];
+}
+
+export function createPrismaModule<TClient extends PrismaClientLike<TTransactionClient>, TTransactionClient = TClient>(
+  options: PrismaModuleOptions<TClient, TTransactionClient>,
+): ModuleType {
+  class PrismaModule {}
+
+  return defineModule(PrismaModule, {
+    exports: [PrismaService],
+    providers: createPrismaProviders(options),
+  });
+}
