@@ -267,6 +267,8 @@ async function createFrameworkRequest(request: import('node:http').IncomingMessa
 
 export class NodeHttpAdapter implements HttpApplicationAdapter {
   private server?: import('node:http').Server;
+  private readonly retryDelayMs = 150;
+  private readonly retryLimit = 20;
 
   constructor(private readonly port: number) {}
 
@@ -286,18 +288,30 @@ export class NodeHttpAdapter implements HttpApplicationAdapter {
         return;
       }
 
-      const onError = (error: Error) => {
-        server.off('listening', onListening);
-        reject(error);
-      };
-      const onListening = () => {
-        server.off('error', onError);
-        resolve();
+      const tryListen = (attempt: number) => {
+        const onError = (error: NodeJS.ErrnoException) => {
+          server.off('listening', onListening);
+
+          if (error.code === 'EADDRINUSE' && attempt < this.retryLimit) {
+            setTimeout(() => {
+              tryListen(attempt + 1);
+            }, this.retryDelayMs);
+            return;
+          }
+
+          reject(error);
+        };
+        const onListening = () => {
+          server.off('error', onError);
+          resolve();
+        };
+
+        server.once('error', onError);
+        server.once('listening', onListening);
+        server.listen(this.port);
       };
 
-      server.once('error', onError);
-      server.once('listening', onListening);
-      server.listen(this.port);
+      tryListen(0);
     });
   }
 
