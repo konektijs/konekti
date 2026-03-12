@@ -4,7 +4,8 @@ import { Inject } from '@konekti/core';
 import { ConfigService } from '@konekti/config';
 import { Controller, Get, type FrameworkRequest, type FrameworkResponse, type HttpApplicationAdapter } from '@konekti/http';
 
-import { bootstrapApplication, defineModule } from './bootstrap';
+import { bootstrapApplication, defineModule, KonektiFactory } from './bootstrap';
+import type { ApplicationLogger } from './types';
 
 describe('bootstrapApplication', () => {
   it('registers ConfigService as a bootstrap-level provider', async () => {
@@ -95,6 +96,17 @@ describe('bootstrapApplication', () => {
     expect(app.state).toBe('closed');
   });
 
+  it('creates applications through KonektiFactory', async () => {
+    class AppModule {}
+    defineModule(AppModule, {});
+
+    const app = await KonektiFactory.create(AppModule, {
+      mode: 'test',
+    });
+
+    expect(app.rootModule).toBe(AppModule);
+  });
+
   it('fails before listen when config validation rejects bootstrap config', async () => {
     class AppModule {}
     defineModule(AppModule, {});
@@ -178,6 +190,15 @@ describe('bootstrapApplication', () => {
 
   it('unwinds initialized providers when bootstrap hooks fail', async () => {
     const events: string[] = [];
+    const loggerEvents: string[] = [];
+    const logger: ApplicationLogger = {
+      error(message, error, context) {
+        loggerEvents.push(`error:${context}:${message}:${error instanceof Error ? error.message : 'none'}`);
+      },
+      log(message, context) {
+        loggerEvents.push(`log:${context}:${message}`);
+      },
+    };
 
     class AppService {
       onApplicationBootstrap() {
@@ -205,6 +226,7 @@ describe('bootstrapApplication', () => {
 
     await expect(
       bootstrapApplication({
+        logger,
         mode: 'test',
         rootModule: AppModule,
       }),
@@ -216,5 +238,55 @@ describe('bootstrapApplication', () => {
       'module:destroy',
       'app:shutdown:bootstrap-failed',
     ]);
+    expect(loggerEvents).toContain('error:KonektiFactory:Failed to bootstrap application.:boom');
+  });
+
+  it('logs startup milestones, route mappings, and adapter start failures', async () => {
+    const loggerEvents: string[] = [];
+    const logger: ApplicationLogger = {
+      error(message, error, context) {
+        loggerEvents.push(`error:${context}:${message}:${error instanceof Error ? error.message : 'none'}`);
+      },
+      log(message, context) {
+        loggerEvents.push(`log:${context}:${message}`);
+      },
+    };
+
+    @Controller('/health')
+    class HealthController {
+      @Get('/')
+      getHealth() {
+        return { ok: true };
+      }
+    }
+
+    const adapter: HttpApplicationAdapter = {
+      async close() {},
+      async listen() {
+        throw new Error('port already in use');
+      },
+    };
+
+    class AppModule {}
+    defineModule(AppModule, {
+      controllers: [HealthController],
+    });
+
+    const app = await bootstrapApplication({
+      adapter,
+      logger,
+      mode: 'test',
+      rootModule: AppModule,
+    });
+
+    expect(loggerEvents).toEqual([
+      'log:KonektiFactory:Starting Konekti application...',
+      'log:InstanceLoader:AppModule dependencies initialized',
+      'log:RoutesResolver:HealthController {/health}',
+      'log:RouterExplorer:Mapped {/health, GET} route',
+    ]);
+
+    await expect(app.listen()).rejects.toThrow('port already in use');
+    expect(loggerEvents).toContain('error:KonektiApplication:Failed to start the HTTP adapter.:port already in use');
   });
 });

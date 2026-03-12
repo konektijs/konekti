@@ -13,13 +13,16 @@ import {
 } from '@konekti/http';
 
 import { ModuleGraphError, ModuleVisibilityError } from './errors';
+import { createConsoleApplicationLogger } from './logger';
 import type {
   Application,
+  ApplicationLogger,
   ApplicationState,
   BootstrapApplicationOptions,
   BootstrapModuleOptions,
   BootstrapResult,
   CompiledModule,
+  CreateApplicationOptions,
   ModuleDefinition,
   ModuleType,
   OnApplicationBootstrap,
@@ -291,6 +294,7 @@ class KonektiApplication implements Application {
     readonly dispatcher: Dispatcher,
     private readonly adapter: ReturnType<typeof createNoopHttpApplicationAdapter>,
     lifecycleInstances: unknown[],
+    private readonly logger: ApplicationLogger,
   ) {
     this.lifecycleInstances = lifecycleInstances;
   }
@@ -321,8 +325,15 @@ class KonektiApplication implements Application {
     }
 
     await this.ready();
-    await this.adapter.listen(this.dispatcher);
+    try {
+      await this.adapter.listen(this.dispatcher);
+    } catch (error) {
+      this.logger.error('Failed to start the HTTP adapter.', error, 'KonektiApplication');
+      throw error;
+    }
+
     this.applicationState = 'ready';
+    this.logger.log('Konekti application successfully started.', 'KonektiApplication');
   }
 
   dispatch = async (...args: Parameters<Dispatcher['dispatch']>): Promise<void> => {
@@ -422,51 +433,109 @@ function createHandlerSources(modules: CompiledModule[]): HandlerSource[] {
   );
 }
 
+function logCompiledModules(logger: ApplicationLogger, modules: CompiledModule[]): void {
+  for (const compiledModule of modules) {
+    logger.log(`${compiledModule.type.name} dependencies initialized`, 'InstanceLoader');
+  }
+}
+
+function logRouteMappings(
+  logger: ApplicationLogger,
+  descriptors: ReturnType<typeof createHandlerMapping>['descriptors'],
+): void {
+  const byController = new Map<string, { controllerPath: string; descriptors: typeof descriptors }>();
+
+  for (const descriptor of descriptors) {
+    const key = descriptor.controllerToken.name;
+    const current = byController.get(key);
+
+    if (current) {
+      current.descriptors.push(descriptor);
+      continue;
+    }
+
+    byController.set(key, {
+      controllerPath: descriptor.metadata.controllerPath || '/',
+      descriptors: [descriptor],
+    });
+  }
+
+  for (const [controllerName, value] of byController) {
+    logger.log(`${controllerName} {${value.controllerPath}}`, 'RoutesResolver');
+
+    for (const descriptor of value.descriptors) {
+      logger.log(`Mapped {${descriptor.route.path}, ${descriptor.route.method}} route`, 'RouterExplorer');
+    }
+  }
+}
+
 /**
  * config 로딩, bootstrap-level provider 등록, 모듈 부트스트랩, lifecycle hook 실행까지를 묶어
  * Phase 2A 애플리케이션 셸을 만든다.
  */
 export async function bootstrapApplication(options: BootstrapApplicationOptions): Promise<Application> {
-  const configValues = loadConfig(options);
-  const config = new ConfigService(configValues);
-  const runtimeProviders: Provider[] = [
-    ...(options.providers ?? []),
-    {
-      provide: ConfigService,
-      useValue: config,
-    },
-  ];
-  const bootstrapped = bootstrapModule(options.rootModule, { providers: runtimeProviders });
-  const lifecycleProviders = [
-    ...runtimeProviders,
-    ...bootstrapped.modules.flatMap((compiledModule) => compiledModule.definition.providers ?? []),
-  ];
-  const lifecycleInstances = await resolveLifecycleInstances(bootstrapped.container, lifecycleProviders);
+  const logger = options.logger ?? createConsoleApplicationLogger();
+  let lifecycleInstances: unknown[] = [];
 
   try {
+    logger.log('Starting Konekti application...', 'KonektiFactory');
+    const configValues = loadConfig(options);
+    const config = new ConfigService(configValues);
+    const runtimeProviders: Provider[] = [
+      ...(options.providers ?? []),
+      {
+        provide: ConfigService,
+        useValue: config,
+      },
+    ];
+    const bootstrapped = bootstrapModule(options.rootModule, { providers: runtimeProviders });
+    const lifecycleProviders = [
+      ...runtimeProviders,
+      ...bootstrapped.modules.flatMap((compiledModule) => compiledModule.definition.providers ?? []),
+    ];
+    lifecycleInstances = await resolveLifecycleInstances(bootstrapped.container, lifecycleProviders);
+
     await runBootstrapHooks(lifecycleInstances);
+    logCompiledModules(logger, bootstrapped.modules);
+
+    const handlerMapping = createHandlerMapping(createHandlerSources(bootstrapped.modules));
+    logRouteMappings(logger, handlerMapping.descriptors);
+
+    const dispatcher = createDispatcher({
+       appMiddleware: options.middleware ?? [],
+       handlerMapping,
+       observers: options.observers ?? [],
+       rootContainer: bootstrapped.container,
+     });
+
+    return new KonektiApplication(
+      config,
+      bootstrapped.container,
+      resolveEnvFile(options),
+      options.mode,
+      bootstrapped.modules,
+      options.rootModule,
+      dispatcher,
+      options.adapter ?? createNoopHttpApplicationAdapter(),
+      lifecycleInstances,
+      logger,
+    );
   } catch (error) {
-    await runShutdownHooks(lifecycleInstances, 'bootstrap-failed');
+    logger.error('Failed to bootstrap application.', error, 'KonektiFactory');
+
+    if (lifecycleInstances.length > 0) {
+      await runShutdownHooks(lifecycleInstances, 'bootstrap-failed');
+    }
+
     throw error;
   }
+}
 
-  const handlerMapping = createHandlerMapping(createHandlerSources(bootstrapped.modules));
-  const dispatcher = createDispatcher({
-     appMiddleware: options.middleware ?? [],
-     handlerMapping,
-     observers: options.observers ?? [],
-     rootContainer: bootstrapped.container,
-   });
-
-  return new KonektiApplication(
-    config,
-    bootstrapped.container,
-    resolveEnvFile(options),
-    options.mode,
-    bootstrapped.modules,
-    options.rootModule,
-    dispatcher,
-    options.adapter ?? createNoopHttpApplicationAdapter(),
-    lifecycleInstances,
-  );
+export class KonektiFactory {
+  static async create(rootModule: ModuleType, options: CreateApplicationOptions): Promise<Application> {
+    return bootstrapApplication({
+      ...options,
+      rootModule,
+    });
+  }
 }
