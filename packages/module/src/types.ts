@@ -48,15 +48,23 @@ export interface OnApplicationShutdown {
   onApplicationShutdown(signal?: string): MaybePromise<void>;
 }
 
+export interface ApplicationLogger {
+  error(message: string, error?: unknown, context?: string): void;
+  log(message: string, context?: string): void;
+}
+
 export type ApplicationState = 'bootstrapped' | 'ready' | 'closed';
 
 export interface BootstrapApplicationOptions extends ConfigLoadOptions {
   adapter?: HttpApplicationAdapter;
+  logger?: ApplicationLogger;
   middleware?: MiddlewareLike[];
   observers?: RequestObserverLike[];
   providers?: Provider[];
   rootModule: ModuleType;
 }
+
+export type CreateApplicationOptions = Omit<BootstrapApplicationOptions, 'rootModule'>;
 
 export interface Application {
   readonly config: ConfigService;
