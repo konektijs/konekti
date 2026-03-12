@@ -7,7 +7,13 @@ import { defineAuthRequirement, getOwnAuthRequirement } from './metadata';
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 type StandardClassDecoratorFn = (value: Function, context: ClassDecoratorContext) => void;
 type StandardMethodDecoratorFn = (value: Function, context: ClassMethodDecoratorContext) => void;
-type ClassOrMethodDecoratorLike = StandardClassDecoratorFn & StandardMethodDecoratorFn;
+type LegacyClassDecorator = (target: Function) => void;
+type LegacyMethodDecorator = (target: object, propertyKey: MetadataPropertyKey) => void;
+type ClassOrMethodDecoratorLike =
+  & LegacyClassDecorator
+  & LegacyMethodDecorator
+  & StandardClassDecoratorFn
+  & StandardMethodDecoratorFn;
 type RequirementPatch = { scopes?: string[]; strategy?: string };
 
 const standardClassRequirementKey = Symbol.for('konekti.passport.standard.class-auth');
