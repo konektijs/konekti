@@ -74,8 +74,23 @@ import { konektiBabelDecoratorsPlugin } from './tooling/vite/src';
 export default defineConfig({
   plugins: [konektiBabelDecoratorsPlugin()],
   test: {
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'packages',
+          include: ['packages/**/*.test.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'apps',
+          include: ['apps/**/*.test.ts'],
+        },
+      },
+    ],
     environment: 'node',
-    include: ['packages/**/*.test.ts', 'apps/**/*.test.ts'],
   },
 });
 `;
@@ -600,6 +615,8 @@ describe('generated app', () => {
     await app.dispatch(createRequest('/health'), response);
 
     expect(response.body).toEqual({ ok: true, service: '${projectName}' });
+
+    await app.close();
   });
 
   it('stores a verified principal for the protected profile route', async () => {
@@ -619,6 +636,8 @@ describe('generated app', () => {
     await app.dispatch(createRequest('/health/profile', 'Bearer ' + token), response);
 
     expect(response.body).toEqual({ subject: 'starter-user' });
+
+    await app.close();
   });
 });
 `;
