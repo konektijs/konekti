@@ -94,6 +94,11 @@ export interface Dispatcher {
   dispatch(request: FrameworkRequest, response: FrameworkResponse): Promise<void>;
 }
 
+export interface RequestObservationContext {
+  handler?: HandlerDescriptor;
+  requestContext: RequestContext;
+}
+
 export type Next = () => Promise<void>;
 
 export interface MiddlewareContext {
@@ -126,6 +131,14 @@ export interface InterceptorContext {
 
 export interface Interceptor {
   intercept(context: InterceptorContext, next: CallHandler): MaybePromise<unknown>;
+}
+
+export interface RequestObserver {
+  onHandlerMatched?(context: RequestObservationContext): MaybePromise<void>;
+  onRequestError?(context: RequestObservationContext, error: unknown): MaybePromise<void>;
+  onRequestFinish?(context: RequestObservationContext): MaybePromise<void>;
+  onRequestStart?(context: RequestObservationContext): MaybePromise<void>;
+  onRequestSuccess?(context: RequestObservationContext, value: unknown): MaybePromise<void>;
 }
 
 export interface ArgumentResolverContext {
@@ -165,3 +178,4 @@ export interface Validator {
 export type MiddlewareLike = Middleware | Token<Middleware>;
 export type GuardLike = Guard | Token<Guard>;
 export type InterceptorLike = Interceptor | Token<Interceptor>;
+export type RequestObserverLike = RequestObserver | Token<RequestObserver>;

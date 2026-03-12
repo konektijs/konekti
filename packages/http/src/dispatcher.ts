@@ -1,7 +1,7 @@
 import { InvariantError, type Token } from '@konekti/core';
 import type { Container } from '@konekti-internal/di';
 
-import { HandlerNotFoundError } from './errors';
+import { HandlerNotFoundError, RequestAbortedError } from './errors';
 import { HttpException, InternalServerException, NotFoundException, createErrorResponse } from './exceptions';
 import { DefaultBinder } from './binding';
 import { runGuardChain } from './guards';
@@ -19,6 +19,9 @@ import type {
   HandlerMapping,
   InterceptorContext,
   MiddlewareLike,
+  RequestObserver,
+  RequestObserverLike,
+  RequestObservationContext,
   RequestContext,
 } from './types';
 
@@ -28,6 +31,7 @@ const defaultValidator = new DefaultValidator();
 export interface CreateDispatcherOptions {
   appMiddleware?: MiddlewareLike[];
   handlerMapping: HandlerMapping;
+  observers?: RequestObserverLike[];
   rootContainer: Container;
 }
 
@@ -36,6 +40,14 @@ function createDispatchRequest(request: FrameworkRequest): FrameworkRequest {
     ...request,
     params: { ...request.params },
   };
+}
+
+function readRequestId(request: FrameworkRequest): string | undefined {
+  const raw = request.headers['x-request-id'] ?? request.headers['X-Request-Id'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const normalized = value?.trim();
+
+  return normalized ? normalized : undefined;
 }
 
 function createDispatchContext(
@@ -47,6 +59,7 @@ function createDispatchContext(
     container: rootContainer.createRequestScope(),
     metadata: {},
     request,
+    requestId: readRequestId(request),
     response,
   });
 }
@@ -98,6 +111,12 @@ async function writeSuccessResponse(handler: HandlerDescriptor, response: Framew
   await response.send(value);
 }
 
+function ensureRequestNotAborted(request: FrameworkRequest): void {
+  if (request.signal?.aborted) {
+    throw new RequestAbortedError();
+  }
+}
+
 function toHttpException(error: unknown): HttpException {
   if (error instanceof HttpException) {
     return error;
@@ -122,7 +141,43 @@ async function writeErrorResponse(error: unknown, response: FrameworkResponse, r
   await response.send(createErrorResponse(httpError, requestId));
 }
 
-async function dispatchMatchedHandler(handler: HandlerDescriptor, requestContext: RequestContext): Promise<void> {
+function isRequestObserver(value: RequestObserverLike): value is RequestObserver {
+  return typeof value === 'object' && value !== null;
+}
+
+async function resolveRequestObserver(
+  definition: RequestObserverLike,
+  requestContext: RequestContext,
+): Promise<RequestObserver> {
+  if (isRequestObserver(definition)) {
+    return definition;
+  }
+
+  return requestContext.container.resolve(definition as Token<RequestObserver>);
+}
+
+async function notifyObservers(
+  observers: RequestObserverLike[],
+  requestContext: RequestContext,
+  callback: (observer: RequestObserver, context: RequestObservationContext) => Promise<void> | void,
+  handler?: HandlerDescriptor,
+): Promise<void> {
+  const context: RequestObservationContext = {
+    handler,
+    requestContext,
+  };
+
+  for (const definition of observers) {
+    const observer = await resolveRequestObserver(definition, requestContext);
+    await callback(observer, context);
+  }
+}
+
+async function dispatchMatchedHandler(
+  handler: HandlerDescriptor,
+  requestContext: RequestContext,
+  observers: RequestObserverLike[],
+): Promise<void> {
   const guardContext: GuardContext = {
     handler,
     requestContext,
@@ -138,20 +193,38 @@ async function dispatchMatchedHandler(handler: HandlerDescriptor, requestContext
     return;
   }
 
-  const result = await runInterceptorChain(handler.route.interceptors ?? [], interceptorContext, () =>
-    invokeControllerHandler(handler, requestContext),
-  );
+  const result = await runInterceptorChain(handler.route.interceptors ?? [], interceptorContext, async () => {
+    const value = await invokeControllerHandler(handler, requestContext);
 
-  await writeSuccessResponse(handler, requestContext.response, result);
+    ensureRequestNotAborted(requestContext.request);
+    await writeSuccessResponse(handler, requestContext.response, value);
+
+    return value;
+  });
+
+  await notifyObservers(
+    observers,
+    requestContext,
+    async (observer, context) => {
+      await observer.onRequestSuccess?.(context, result);
+    },
+    handler,
+  );
 }
 
 export function createDispatcher(options: CreateDispatcherOptions): Dispatcher {
   return {
     async dispatch(request: FrameworkRequest, response: FrameworkResponse): Promise<void> {
       const requestContext = createDispatchContext(createDispatchRequest(request), response, options.rootContainer);
+      const observers = options.observers ?? [];
 
       await runWithRequestContext(requestContext, async () => {
+        await notifyObservers(observers, requestContext, async (observer, context) => {
+          await observer.onRequestStart?.(context);
+        });
+
         try {
+          ensureRequestNotAborted(requestContext.request);
           await runMiddlewareChain(options.appMiddleware ?? [], {
             request: requestContext.request,
             requestContext,
@@ -168,17 +241,40 @@ export function createDispatcher(options: CreateDispatcherOptions): Dispatcher {
             }
 
             updateRequestParams(requestContext, match.params);
+            await notifyObservers(
+              observers,
+              requestContext,
+              async (observer, context) => {
+                await observer.onHandlerMatched?.(context);
+              },
+              match.descriptor,
+            );
 
             await runMiddlewareChain(match.descriptor.metadata.moduleMiddleware ?? [], {
               request: requestContext.request,
               requestContext,
               response,
             }, async () => {
-              await dispatchMatchedHandler(match.descriptor, requestContext);
+              await dispatchMatchedHandler(match.descriptor, requestContext, observers);
             });
           });
         } catch (error) {
+          if (error instanceof RequestAbortedError || requestContext.request.signal?.aborted) {
+            return;
+          }
+
+          await notifyObservers(
+            observers,
+            requestContext,
+            async (observer, context) => {
+              await observer.onRequestError?.(context, error);
+            },
+          );
           await writeErrorResponse(error, response, requestContext.requestId);
+        } finally {
+          await notifyObservers(observers, requestContext, async (observer, context) => {
+            await observer.onRequestFinish?.(context);
+          });
         }
       });
     },
