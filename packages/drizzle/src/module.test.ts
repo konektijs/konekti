@@ -98,4 +98,56 @@ describe('@konekti/drizzle', () => {
       'dispose:true',
     ]);
   });
+
+  it('rolls back open request transactions before dispose on shutdown', async () => {
+    const events: string[] = [];
+    const transactionDatabase = {};
+    const database = {
+      async transaction<T>(callback: (value: typeof transactionDatabase) => Promise<T>): Promise<T> {
+        events.push('transaction:start');
+
+        try {
+          return await callback(transactionDatabase);
+        } catch (error) {
+          events.push('transaction:rollback');
+          throw error;
+        } finally {
+          events.push('transaction:end');
+        }
+      },
+    };
+
+    const DrizzleModule = createDrizzleModule<typeof database, typeof transactionDatabase>({
+      database,
+      dispose() {
+        events.push('dispose');
+      },
+    });
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [DrizzleModule],
+    });
+
+    const app = await bootstrapApplication({
+      mode: 'test',
+      rootModule: AppModule,
+    });
+    const drizzle = await app.container.resolve(DrizzleDatabase<typeof database, typeof transactionDatabase>);
+
+    const openTransaction = drizzle.requestTransaction(
+      async () => new Promise<never>(() => undefined),
+    );
+
+    await app.close();
+
+    await expect(openTransaction).rejects.toThrow('Application shutdown interrupted an open request transaction.');
+    expect(events).toEqual([
+      'transaction:start',
+      'transaction:rollback',
+      'transaction:end',
+      'dispose',
+    ]);
+  });
 });
