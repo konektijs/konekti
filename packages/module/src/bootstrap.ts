@@ -452,10 +452,11 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
 
   const handlerMapping = createHandlerMapping(createHandlerSources(bootstrapped.modules));
   const dispatcher = createDispatcher({
-    appMiddleware: options.middleware ?? [],
-    handlerMapping,
-    rootContainer: bootstrapped.container,
-  });
+     appMiddleware: options.middleware ?? [],
+     handlerMapping,
+     observers: options.observers ?? [],
+     rootContainer: bootstrapped.container,
+   });
 
   return new KonektiApplication(
     config,

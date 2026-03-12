@@ -1,7 +1,7 @@
 import type { ConfigLoadOptions, ConfigMode, ConfigService } from '@konekti/config';
 import type { Constructor, MaybePromise, Token } from '@konekti/core';
 import type { Container, Provider } from '@konekti-internal/di';
-import type { Dispatcher, HttpApplicationAdapter, MiddlewareLike } from '@konekti/http';
+import type { Dispatcher, HttpApplicationAdapter, MiddlewareLike, RequestObserverLike } from '@konekti/http';
 
 export type ModuleType = Constructor & { definition?: ModuleDefinition };
 export type ControllerType = Constructor;
@@ -53,6 +53,7 @@ export type ApplicationState = 'bootstrapped' | 'ready' | 'closed';
 export interface BootstrapApplicationOptions extends ConfigLoadOptions {
   adapter?: HttpApplicationAdapter;
   middleware?: MiddlewareLike[];
+  observers?: RequestObserverLike[];
   providers?: Provider[];
   rootModule: ModuleType;
 }
