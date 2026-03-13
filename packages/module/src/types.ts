@@ -1,6 +1,6 @@
 import type { ConfigLoadOptions, ConfigMode, ConfigService } from '@konekti/config';
 import type { Constructor, MaybePromise, Token } from '@konekti/core';
-import type { Container, Provider } from '@konekti-internal/di';
+import type { Container, Provider } from '@konekti/di';
 import type { Dispatcher, HttpApplicationAdapter, MiddlewareLike, RequestObserverLike } from '@konekti/http';
 
 export type ModuleType = Constructor & { definition?: ModuleDefinition };

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { Container, type Provider } from '@konekti-internal/di';
+import { Container, type Provider } from '@konekti/di';
 import { ConfigService, loadConfig } from '@konekti/config';
 import { InvariantError, defineModuleMetadata, getClassDiMetadata, getModuleMetadata, type Token } from '@konekti/core';
 import {
