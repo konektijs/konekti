@@ -47,10 +47,11 @@ export async function runCreateKonekti(argv = process.argv.slice(2)): Promise<vo
     targetDirectory: resolve(answers.targetDirectory),
   };
 
-  await scaffoldKonektiApp(options);
-
   process.stdout.write(`${createTierNote(answers.orm, answers.database)}\n`);
   process.stdout.write(`Installing dependencies with ${answers.packageManager}...\n`);
+
+  await scaffoldKonektiApp(options);
+
   process.stdout.write('Done.\n');
   process.stdout.write(`Next steps:\n  cd ${answers.targetDirectory}\n  ${answers.packageManager === 'npm' ? 'npm run dev' : `${answers.packageManager} dev`}\n`);
 }

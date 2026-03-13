@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "create-konekti": "./src/index.ts"
+    "create-konekti": "./bin/create-konekti.mjs"
   },
   "exports": {
     ".": "./src/index.ts"
@@ -14,6 +14,7 @@
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@konekti/cli": "workspace:*"
+    "@konekti/cli": "workspace:*",
+    "tsx": "^4.20.4"
   }
 }
