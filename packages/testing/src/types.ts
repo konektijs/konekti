@@ -1,6 +1,6 @@
 import type { Token } from '@konekti/core';
-import type { Container, Provider } from '@konekti-internal/di';
-import type { BootstrapResult, BootstrapModuleOptions, ModuleType } from '@konekti-internal/module';
+import type { Container, Provider } from '@konekti/di';
+import type { BootstrapResult, BootstrapModuleOptions, ModuleType } from '@konekti/runtime';
 
 export interface TestingModuleOptions extends BootstrapModuleOptions {
   rootModule: ModuleType;

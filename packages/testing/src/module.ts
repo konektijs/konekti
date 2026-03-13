@@ -1,6 +1,6 @@
 import type { Token } from '@konekti/core';
-import type { ClassType, Provider } from '@konekti-internal/di';
-import { bootstrapModule } from '@konekti-internal/module';
+import type { ClassType, Provider } from '@konekti/di';
+import { bootstrapModule } from '@konekti/runtime';
 
 import type { TestingModuleBuilder, TestingModuleOptions, TestingModuleRef } from './types';
 
