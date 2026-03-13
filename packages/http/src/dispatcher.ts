@@ -1,5 +1,5 @@
 import { InvariantError, type Token } from '@konekti/core';
-import type { Container } from '@konekti-internal/di';
+import type { Container } from '@konekti/di';
 
 import { HandlerNotFoundError, RequestAbortedError } from './errors';
 import { HttpException, InternalServerException, NotFoundException, createErrorResponse } from './exceptions';

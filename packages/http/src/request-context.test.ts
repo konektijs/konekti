@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { Container } from '@konekti-internal/di';
+import { Container } from '@konekti/di';
 
 import { assertRequestContext, createRequestContext, getCurrentRequestContext, runWithRequestContext } from './request-context';
 import type { RequestContext } from './types';

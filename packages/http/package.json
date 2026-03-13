@@ -1,7 +1,7 @@
 {
   "name": "@konekti/http",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -11,7 +11,7 @@
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@konekti-internal/di": "workspace:*",
+    "@konekti/di": "workspace:*",
     "@konekti/core": "workspace:*"
   }
 }

@@ -1,5 +1,5 @@
 import type { Constructor, MaybePromise, MetadataPropertyKey, MetadataSource, Token } from '@konekti/core';
-import type { RequestScopeContainer } from '@konekti-internal/di';
+import type { RequestScopeContainer } from '@konekti/di';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 

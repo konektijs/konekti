@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { Container } from '@konekti-internal/di';
+import { Container } from '@konekti/di';
 
 import type { FrameworkRequest, FrameworkResponse, InterceptorContext, MiddlewareContext, RequestObservationContext } from '@konekti/http';
 import {
