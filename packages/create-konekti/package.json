@@ -7,7 +7,10 @@
     "create-konekti": "./bin/create-konekti.mjs"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "pnpm exec babel src --extensions .ts --ignore 'src/**/*.test.ts' --out-dir dist --config-file ../../tooling/babel/babel.config.cjs && pnpm exec tsc -p tsconfig.build.json",
@@ -16,5 +19,11 @@
   "dependencies": {
     "@konekti/cli": "workspace:*",
     "tsx": "^4.20.4"
-  }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "bin"
+  ]
 }
