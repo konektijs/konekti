@@ -1,10 +1,10 @@
 import type { Provider } from '@konekti/di';
 import { defineModule, type ModuleType } from '@konekti/runtime';
 
-import { DrizzleDatabase } from './database';
-import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE } from './tokens';
-import { DrizzleTransactionInterceptor } from './transaction';
-import type { DrizzleDatabaseLike, DrizzleModuleOptions } from './types';
+import { DrizzleDatabase } from './database.js';
+import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE } from './tokens.js';
+import { DrizzleTransactionInterceptor } from './transaction.js';
+import type { DrizzleDatabaseLike, DrizzleModuleOptions } from './types.js';
 
 export function createDrizzleProviders<
   TDatabase extends DrizzleDatabaseLike<TTransactionDatabase, TTransactionOptions>,

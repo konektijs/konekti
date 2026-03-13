@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 
 import { describe, expect, it } from 'vitest';
 
-import { loadConfig } from './load';
-import { ConfigService } from './service';
+import { loadConfig } from './load.js';
+import { ConfigService } from './service.js';
 
 describe('loadConfig', () => {
   it('merges defaults, env file, process env, and runtime overrides in order', () => {

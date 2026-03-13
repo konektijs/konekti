@@ -1,8 +1,8 @@
 import { Inject } from '@konekti/core';
 import type { Interceptor, InterceptorContext } from '@konekti/http';
 
-import { PrismaService } from './service';
-import type { PrismaClientLike } from './types';
+import { PrismaService } from './service.js';
+import type { PrismaClientLike } from './types.js';
 
 @Inject([PrismaService])
 export class PrismaTransactionInterceptor implements Interceptor {

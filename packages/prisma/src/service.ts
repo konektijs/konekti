@@ -3,8 +3,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { OnApplicationShutdown, OnModuleInit } from '@konekti/runtime';
 import { Inject } from '@konekti/core';
 
-import { PRISMA_CLIENT } from './tokens';
-import type { PrismaClientLike, PrismaHandleProvider } from './types';
+import { PRISMA_CLIENT } from './tokens.js';
+import type { PrismaClientLike, PrismaHandleProvider } from './types.js';
 
 @Inject([PRISMA_CLIENT])
 export class PrismaService<TClient extends PrismaClientLike<TTransactionClient>, TTransactionClient = TClient>

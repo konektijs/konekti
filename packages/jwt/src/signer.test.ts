@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { DefaultJwtSigner } from './signer';
-import { DefaultJwtVerifier } from './verifier';
+import { DefaultJwtSigner } from './signer.js';
+import { DefaultJwtVerifier } from './verifier.js';
 
 describe('DefaultJwtSigner', () => {
   it('creates an access token that the verifier accepts', async () => {

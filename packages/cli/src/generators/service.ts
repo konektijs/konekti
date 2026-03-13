@@ -1,6 +1,6 @@
-import type { GenerateOptions, GeneratedFile } from '../types';
+import type { GenerateOptions, GeneratedFile } from '../types.js';
 
-import { toKebabCase, toPascalCase } from './utils';
+import { toKebabCase, toPascalCase } from './utils.js';
 
 export function generateServiceFiles(name: string, _options: GenerateOptions = {}): GeneratedFile[] {
   const kebab = toKebabCase(name);

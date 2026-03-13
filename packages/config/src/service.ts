@@ -1,6 +1,6 @@
 import { KonektiError } from '@konekti/core';
 
-import type { ConfigDictionary } from './types';
+import type { ConfigDictionary } from './types.js';
 
 /**
  * 정규화된 설정 값을 읽기 위한 최소한의 typed accessor다.

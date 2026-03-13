@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { Controller, Get } from './decorators';
-import { RouteConflictError } from './errors';
-import { createHandlerMapping } from './mapping';
+import { Controller, Get } from './decorators.js';
+import { RouteConflictError } from './errors.js';
+import { createHandlerMapping } from './mapping.js';
 
 describe('handler mapping', () => {
   it('normalizes paths and extracts path params', () => {

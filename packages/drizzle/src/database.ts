@@ -3,8 +3,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { OnApplicationShutdown } from '@konekti/runtime';
 import { Inject } from '@konekti/core';
 
-import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE } from './tokens';
-import type { DrizzleDatabaseLike, DrizzleHandleProvider } from './types';
+import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE } from './tokens.js';
+import type { DrizzleDatabaseLike, DrizzleHandleProvider } from './types.js';
 
 @Inject([DRIZZLE_DATABASE, DRIZZLE_DISPOSE])
 export class DrizzleDatabase<

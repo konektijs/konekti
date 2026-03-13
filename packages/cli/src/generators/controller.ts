@@ -1,6 +1,6 @@
-import type { GeneratedFile } from '../types';
+import type { GeneratedFile } from '../types.js';
 
-import { toKebabCase, toPascalCase } from './utils';
+import { toKebabCase, toPascalCase } from './utils.js';
 
 export function generateControllerFiles(name: string): GeneratedFile[] {
   const kebab = toKebabCase(name);

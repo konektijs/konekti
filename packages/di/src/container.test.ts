@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Inject, Scope } from '@konekti/core';
 
-import { Container } from './container';
+import { Container } from './container.js';
 
 describe('Container', () => {
   it('caches singleton providers', async () => {

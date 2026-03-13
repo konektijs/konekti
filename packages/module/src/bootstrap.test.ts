@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Global, Inject, Module, defineModuleMetadata } from '@konekti/core';
 
-import { bootstrapModule } from './bootstrap';
+import { bootstrapModule } from './bootstrap.js';
 
 describe('bootstrapModule', () => {
   it('boots a simple module graph deterministically', () => {

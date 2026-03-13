@@ -2,8 +2,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { Inject } from '@konekti/core';
 
-import { JwtExpiredTokenError, JwtInvalidTokenError } from './errors';
-import type { JwtClaims, JwtPrincipal, JwtVerifierOptions } from './types';
+import { JwtExpiredTokenError, JwtInvalidTokenError } from './errors.js';
+import type { JwtClaims, JwtPrincipal, JwtVerifierOptions } from './types.js';
 
 export const JWT_OPTIONS = Symbol.for('konekti.jwt.options');
 

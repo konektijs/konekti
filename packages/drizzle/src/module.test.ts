@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Inject } from '@konekti/core';
 import { bootstrapApplication, defineModule } from '@konekti/runtime';
 
-import { createDrizzleModule, DrizzleDatabase } from './index';
+import { createDrizzleModule, DrizzleDatabase } from './index.js';
 
 describe('@konekti/drizzle', () => {
   it('exposes current database handles, transaction callbacks, and optional disposal', async () => {

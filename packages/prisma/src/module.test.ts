@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Inject } from '@konekti/core';
 import { bootstrapApplication, defineModule } from '@konekti/runtime';
 
-import { createPrismaModule, PrismaService } from './index';
+import { createPrismaModule, PrismaService } from './index.js';
 
 describe('@konekti/prisma', () => {
   it('connects, reuses transaction-scoped handles, and disconnects through lifecycle hooks', async () => {

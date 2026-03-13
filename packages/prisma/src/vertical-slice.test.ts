@@ -16,7 +16,7 @@ import {
   type FrameworkResponse,
 } from '@konekti/http';
 
-import { createPrismaModule, PrismaService, PrismaTransactionInterceptor } from './index';
+import { createPrismaModule, PrismaService, PrismaTransactionInterceptor } from './index.js';
 
 function createResponse(events?: string[]): FrameworkResponse & { body?: unknown } {
   return {

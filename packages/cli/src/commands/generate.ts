@@ -1,13 +1,13 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { GenerateOptions, GeneratedFile, GeneratorKind } from '../types';
+import type { GenerateOptions, GeneratedFile, GeneratorKind } from '../types.js';
 
-import { generateControllerFiles } from '../generators/controller';
-import { generateDtoFiles } from '../generators/dto';
-import { generateModuleFiles } from '../generators/module';
-import { generateRepoFiles } from '../generators/repo';
-import { generateServiceFiles } from '../generators/service';
+import { generateControllerFiles } from '../generators/controller.js';
+import { generateDtoFiles } from '../generators/dto.js';
+import { generateModuleFiles } from '../generators/module.js';
+import { generateRepoFiles } from '../generators/repo.js';
+import { generateServiceFiles } from '../generators/service.js';
 
 function generateFiles(kind: GeneratorKind, name: string, options: GenerateOptions = {}): GeneratedFile[] {
   switch (kind) {

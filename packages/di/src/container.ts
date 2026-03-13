@@ -4,7 +4,7 @@ import {
   ContainerResolutionError,
   InvalidProviderError,
   RequestScopeResolutionError,
-} from './errors';
+} from './errors.js';
 import type {
   ClassType,
   ClassProvider,
@@ -13,7 +13,7 @@ import type {
   Provider,
   Scope,
   ValueProvider,
-} from './types';
+} from './types.js';
 
 function isClassConstructor(value: Provider): value is ClassType {
   return typeof value === 'function';

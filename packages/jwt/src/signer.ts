@@ -2,9 +2,9 @@ import { createHmac } from 'node:crypto';
 
 import { Inject } from '@konekti/core';
 
-import { JwtInvalidTokenError } from './errors';
-import type { JwtClaims, JwtVerifierOptions } from './types';
-import { JWT_OPTIONS } from './verifier';
+import { JwtInvalidTokenError } from './errors.js';
+import type { JwtClaims, JwtVerifierOptions } from './types.js';
+import { JWT_OPTIONS } from './verifier.js';
 
 function encodeBase64Url(value: Buffer | string): string {
   return Buffer.from(value)

@@ -1,8 +1,8 @@
 import { Inject } from '@konekti/core';
 import type { Interceptor, InterceptorContext } from '@konekti/http';
 
-import { DrizzleDatabase } from './database';
-import type { DrizzleDatabaseLike } from './types';
+import { DrizzleDatabase } from './database.js';
+import type { DrizzleDatabaseLike } from './types.js';
 
 @Inject([DrizzleDatabase])
 export class DrizzleTransactionInterceptor implements Interceptor {

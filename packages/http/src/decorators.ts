@@ -7,7 +7,7 @@ import {
   type MetadataSource,
 } from '@konekti/core';
 
-import type { GuardLike, HttpMethod, InterceptorLike } from './types';
+import type { GuardLike, HttpMethod, InterceptorLike } from './types.js';
 
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 type StandardClassDecoratorFn = (value: Function, context: ClassDecoratorContext) => void;

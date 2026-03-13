@@ -7,8 +7,8 @@ import {
   AuthenticationFailedError,
   AuthenticationRequiredError,
   AuthStrategyResolutionError,
-} from './errors';
-import { getAuthRequirement } from './metadata';
+} from './errors.js';
+import { getAuthRequirement } from './metadata.js';
 import {
   AUTH_STRATEGY_REGISTRY,
   PASSPORT_OPTIONS,
@@ -18,7 +18,7 @@ import {
   type AuthStrategyResult,
   type AuthStrategyRegistry,
   type PassportModuleOptions,
-} from './types';
+} from './types.js';
 
 function isAuthHandledResult(result: AuthStrategyResult): result is AuthHandledResult {
   return typeof result === 'object' && result !== null && 'handled' in result && result.handled === true;

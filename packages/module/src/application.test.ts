@@ -4,8 +4,8 @@ import { Inject } from '@konekti/core';
 import { ConfigService } from '@konekti/config';
 import { Controller, Get, type FrameworkRequest, type FrameworkResponse, type HttpApplicationAdapter } from '@konekti/http';
 
-import { bootstrapApplication, defineModule, KonektiFactory } from './bootstrap';
-import type { ApplicationLogger } from './types';
+import { bootstrapApplication, defineModule, KonektiFactory } from './bootstrap.js';
+import type { ApplicationLogger } from './types.js';
 
 describe('bootstrapApplication', () => {
   it('registers ConfigService as a bootstrap-level provider', async () => {

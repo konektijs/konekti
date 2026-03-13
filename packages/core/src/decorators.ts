@@ -3,8 +3,8 @@ import {
   defineModuleMetadata,
   type ClassDiMetadata,
   type ModuleMetadata,
-} from './metadata';
-import type { Token } from './types';
+} from './metadata.js';
+import type { Token } from './types.js';
 
 type StandardClassDecoratorFn = (value: Function, context: ClassDecoratorContext) => void;
 

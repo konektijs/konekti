@@ -12,7 +12,7 @@ import {
   SuccessStatus,
   UseGuard,
   UseInterceptor,
-} from './decorators';
+} from './decorators.js';
 
 describe('http decorators', () => {
   it('writes controller and route metadata using decorator syntax', () => {

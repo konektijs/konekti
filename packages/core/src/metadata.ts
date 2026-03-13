@@ -1,4 +1,4 @@
-import type { MetadataPropertyKey, MetadataSource, Token } from './types';
+import type { MetadataPropertyKey, MetadataSource, Token } from './types.js';
 
 export interface ModuleMetadata {
   imports?: unknown[];

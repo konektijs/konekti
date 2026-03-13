@@ -1,7 +1,7 @@
 import { getDtoBindingSchema, type Constructor, type MetadataPropertyKey, type MetadataSource } from '@konekti/core';
 
-import { BadRequestException, type HttpExceptionDetail } from './exceptions';
-import type { ArgumentResolverContext, Binder, Converter, ConverterTarget, FrameworkRequest } from './types';
+import { BadRequestException, type HttpExceptionDetail } from './exceptions.js';
+import type { ArgumentResolverContext, Binder, Converter, ConverterTarget, FrameworkRequest } from './types.js';
 
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 

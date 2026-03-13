@@ -1,6 +1,6 @@
 import { metadataSymbol, type MetadataPropertyKey } from '@konekti/core';
 
-import type { AuthRequirement } from './types';
+import type { AuthRequirement } from './types.js';
 
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 

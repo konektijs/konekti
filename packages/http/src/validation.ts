@@ -1,7 +1,7 @@
 import type { Constructor } from '@konekti/core';
 
-import { BadRequestException, type HttpExceptionDetail } from './exceptions';
-import type { ValidationAdapter, ValidationIssue, Validator } from './types';
+import { BadRequestException, type HttpExceptionDetail } from './exceptions.js';
+import type { ValidationAdapter, ValidationIssue, Validator } from './types.js';
 
 interface StaticValidatorTarget<T = unknown> extends Constructor<T> {
   validate?(value: T): Promise<readonly ValidationIssue[] | void> | readonly ValidationIssue[] | void;

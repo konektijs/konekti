@@ -4,11 +4,11 @@ import { Controller, Get, createDispatcher, createHandlerMapping } from '@konekt
 import type { FrameworkRequest, FrameworkResponse, GuardContext } from '@konekti/http';
 import { Container } from '@konekti/di';
 
-import { RequireScopes, UseAuth } from './decorators';
-import { AuthenticationRequiredError } from './errors';
-import { createPassportProviders } from './module';
-import { createPassportJsStrategyBridge } from './passport-js';
-import type { AuthStrategy } from './types';
+import { RequireScopes, UseAuth } from './decorators.js';
+import { AuthenticationRequiredError } from './errors.js';
+import { createPassportProviders } from './module.js';
+import { createPassportJsStrategyBridge } from './passport-js.js';
+import type { AuthStrategy } from './types.js';
 
 function createRequest(path: string, headers: FrameworkRequest['headers'] = {}): FrameworkRequest {
   return {

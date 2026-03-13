@@ -1,7 +1,7 @@
 import { UseGuard } from '@konekti/http';
 
-import { AuthGuard } from './guard';
-import { getOwnAuthRequirement } from './metadata';
+import { AuthGuard } from './guard.js';
+import { getOwnAuthRequirement } from './metadata.js';
 
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 type StandardClassDecoratorFn = (value: Function, context: ClassDecoratorContext) => void;

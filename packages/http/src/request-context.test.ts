@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { Container } from '@konekti/di';
 
-import { assertRequestContext, createRequestContext, getCurrentRequestContext, runWithRequestContext } from './request-context';
-import type { RequestContext } from './types';
+import { assertRequestContext, createRequestContext, getCurrentRequestContext, runWithRequestContext } from './request-context.js';
+import type { RequestContext } from './types.js';
 
 function createMockContext(): RequestContext {
   const root = new Container();

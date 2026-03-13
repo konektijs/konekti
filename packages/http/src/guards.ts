@@ -1,7 +1,7 @@
 import type { Token } from '@konekti/core';
 
-import { ForbiddenException } from './exceptions';
-import type { Guard, GuardContext, GuardLike, RequestContext } from './types';
+import { ForbiddenException } from './exceptions.js';
+import type { Guard, GuardContext, GuardLike, RequestContext } from './types.js';
 
 function isGuard(value: GuardLike): value is Guard {
   return typeof value === 'object' && value !== null && 'canActivate' in value;

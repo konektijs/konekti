@@ -1,4 +1,4 @@
-import type { Middleware } from './types';
+import type { Middleware } from './types.js';
 
 export interface CorsOptions {
   allowCredentials?: boolean;

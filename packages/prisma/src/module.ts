@@ -1,10 +1,10 @@
 import type { Provider } from '@konekti/di';
 import { defineModule, type ModuleType } from '@konekti/runtime';
 
-import { PrismaService } from './service';
-import { PRISMA_CLIENT } from './tokens';
-import { PrismaTransactionInterceptor } from './transaction';
-import type { PrismaClientLike, PrismaModuleOptions } from './types';
+import { PrismaService } from './service.js';
+import { PRISMA_CLIENT } from './tokens.js';
+import { PrismaTransactionInterceptor } from './transaction.js';
+import type { PrismaClientLike, PrismaModuleOptions } from './types.js';
 
 export function createPrismaProviders<TClient extends PrismaClientLike<TTransactionClient>, TTransactionClient = TClient>(
   options: PrismaModuleOptions<TClient, TTransactionClient>,

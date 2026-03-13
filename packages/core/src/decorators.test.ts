@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { Global, Inject, Module, Scope } from './decorators';
-import { getClassDiMetadata, getModuleMetadata } from './metadata';
+import { Global, Inject, Module, Scope } from './decorators.js';
+import { getClassDiMetadata, getModuleMetadata } from './metadata.js';
 
 describe('core decorators', () => {
   it('writes module metadata through decorators', () => {

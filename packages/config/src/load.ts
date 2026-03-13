@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { KonektiError } from '@konekti/core';
 
-import type { ConfigDictionary, ConfigLoadOptions } from './types';
+import type { ConfigDictionary, ConfigLoadOptions } from './types.js';
 
 /**
  * `.env` 파일 내용을 단순한 key-value 맵으로 파싱한다.

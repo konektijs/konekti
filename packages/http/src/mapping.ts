@@ -1,6 +1,6 @@
 import { getControllerMetadata, getRouteMetadata, type Constructor, type MetadataPropertyKey } from '@konekti/core';
 
-import { RouteConflictError } from './errors';
+import { RouteConflictError } from './errors.js';
 import type {
   FrameworkRequest,
   GuardLike,
@@ -10,7 +10,7 @@ import type {
   HandlerSource,
   InterceptorLike,
   HttpMethod,
-} from './types';
+} from './types.js';
 
 function normalizePath(path: string): string {
   const segments = path.split('/').filter(Boolean);

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Inject, Module } from '@konekti/core';
 
-import { createTestingModule } from './module';
+import { createTestingModule } from './module.js';
 
 describe('@konekti/testing', () => {
   it('creates a testing module and resolves providers from the module graph', async () => {

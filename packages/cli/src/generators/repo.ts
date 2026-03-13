@@ -1,6 +1,6 @@
-import type { GenerateOptions, GeneratedFile, GeneratorPreset } from '../types';
+import type { GenerateOptions, GeneratedFile, GeneratorPreset } from '../types.js';
 
-import { toKebabCase, toPascalCase } from './utils';
+import { toKebabCase, toPascalCase } from './utils.js';
 
 function createRepoImplementation(resource: string, preset: GeneratorPreset): string {
   if (preset === 'prisma') {

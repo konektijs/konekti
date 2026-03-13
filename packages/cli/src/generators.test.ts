@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { generateControllerFiles } from './generators/controller';
-import { generateDtoFiles } from './generators/dto';
-import { generateModuleFiles } from './generators/module';
-import { generateRepoFiles } from './generators/repo';
-import { generateServiceFiles } from './generators/service';
+import { generateControllerFiles } from './generators/controller.js';
+import { generateDtoFiles } from './generators/dto.js';
+import { generateModuleFiles } from './generators/module.js';
+import { generateRepoFiles } from './generators/repo.js';
+import { generateServiceFiles } from './generators/service.js';
 
 describe('CLI generators', () => {
   it('follow naming conventions for default generators', () => {

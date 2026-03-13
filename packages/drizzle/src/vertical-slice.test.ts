@@ -16,7 +16,7 @@ import {
   type FrameworkResponse,
 } from '@konekti/http';
 
-import { createDrizzleModule, DrizzleDatabase, DrizzleTransactionInterceptor } from './index';
+import { createDrizzleModule, DrizzleDatabase, DrizzleTransactionInterceptor } from './index.js';
 
 function createResponse(events?: string[]): FrameworkResponse & { body?: unknown } {
   return {

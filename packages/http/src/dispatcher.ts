@@ -1,14 +1,14 @@
 import { InvariantError, type Token } from '@konekti/core';
 import type { Container } from '@konekti/di';
 
-import { HandlerNotFoundError, RequestAbortedError } from './errors';
-import { HttpException, InternalServerException, NotFoundException, createErrorResponse } from './exceptions';
-import { DefaultBinder } from './binding';
-import { runGuardChain } from './guards';
-import { runInterceptorChain } from './interceptors';
-import { runMiddlewareChain } from './middleware';
-import { createRequestContext, runWithRequestContext } from './request-context';
-import { DefaultValidator } from './validation';
+import { HandlerNotFoundError, RequestAbortedError } from './errors.js';
+import { HttpException, InternalServerException, NotFoundException, createErrorResponse } from './exceptions.js';
+import { DefaultBinder } from './binding.js';
+import { runGuardChain } from './guards.js';
+import { runInterceptorChain } from './interceptors.js';
+import { runMiddlewareChain } from './middleware.js';
+import { createRequestContext, runWithRequestContext } from './request-context.js';
+import { DefaultValidator } from './validation.js';
 import type {
   ArgumentResolverContext,
   Dispatcher,
@@ -23,7 +23,7 @@ import type {
   RequestObserverLike,
   RequestObservationContext,
   RequestContext,
-} from './types';
+} from './types.js';
 
 const defaultBinder = new DefaultBinder();
 const defaultValidator = new DefaultValidator();

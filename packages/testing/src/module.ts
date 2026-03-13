@@ -2,7 +2,7 @@ import type { Token } from '@konekti/core';
 import type { ClassType, Provider } from '@konekti/di';
 import { bootstrapModule } from '@konekti/runtime';
 
-import type { TestingModuleBuilder, TestingModuleOptions, TestingModuleRef } from './types';
+import type { TestingModuleBuilder, TestingModuleOptions, TestingModuleRef } from './types.js';
 
 function normalizeOverride<T>(token: Token<T>, value: Provider<T> | T): Provider<T> {
   if (typeof value === 'function') {

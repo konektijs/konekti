@@ -12,8 +12,8 @@ import {
   type MiddlewareLike,
 } from '@konekti/http';
 
-import { ModuleGraphError, ModuleVisibilityError } from './errors';
-import { createConsoleApplicationLogger } from './logger';
+import { ModuleGraphError, ModuleVisibilityError } from './errors.js';
+import { createConsoleApplicationLogger } from './logger.js';
 import type {
   Application,
   ApplicationLogger,
@@ -29,7 +29,7 @@ import type {
   OnApplicationShutdown,
   OnModuleDestroy,
   OnModuleInit,
-} from './types';
+} from './types.js';
 
 function providerToken(provider: Provider): Token {
   if (typeof provider === 'function') {

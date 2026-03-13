@@ -13,7 +13,7 @@ import {
   getModuleMetadata,
   getOwnClassDiMetadata,
   getRouteMetadata,
-} from './metadata';
+} from './metadata.js';
 
 describe('metadata helpers', () => {
   it('round-trips module metadata', () => {

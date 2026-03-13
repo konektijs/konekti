@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { FromBody, FromPath, Optional } from './decorators';
-import { BadRequestException } from './exceptions';
-import { DefaultBinder } from './binding';
-import type { ArgumentResolverContext, FrameworkRequest, FrameworkResponse, ValidationIssue } from './types';
-import { DefaultValidator } from './validation';
+import { FromBody, FromPath, Optional } from './decorators.js';
+import { BadRequestException } from './exceptions.js';
+import { DefaultBinder } from './binding.js';
+import type { ArgumentResolverContext, FrameworkRequest, FrameworkResponse, ValidationIssue } from './types.js';
+import { DefaultValidator } from './validation.js';
 
 function createRequest(overrides: Partial<FrameworkRequest> = {}): FrameworkRequest {
   return {

@@ -6,7 +6,7 @@ import type {
   InterceptorContext,
   InterceptorLike,
   RequestContext,
-} from './types';
+} from './types.js';
 
 function isInterceptor(value: InterceptorLike): value is Interceptor {
   return typeof value === 'object' && value !== null && 'intercept' in value;

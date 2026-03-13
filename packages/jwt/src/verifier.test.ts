@@ -2,8 +2,8 @@ import { createHmac } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { JwtExpiredTokenError, JwtInvalidTokenError } from './errors';
-import { DefaultJwtVerifier } from './verifier';
+import { JwtExpiredTokenError, JwtInvalidTokenError } from './errors.js';
+import { DefaultJwtVerifier } from './verifier.js';
 
 function encodeBase64Url(value: string): string {
   return Buffer.from(value, 'utf8')
