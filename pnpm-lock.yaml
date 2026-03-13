@@ -67,96 +67,96 @@ importers:
 
   packages/drizzle:
     dependencies:
-      '@konekti-internal/di':
-        specifier: workspace:*
-        version: link:../di
-      '@konekti-internal/module':
-        specifier: workspace:*
-        version: link:../module
       '@konekti/core':
         specifier: workspace:*
         version: link:../core
+      '@konekti/di':
+        specifier: workspace:*
+        version: link:../di
       '@konekti/http':
         specifier: workspace:*
         version: link:../http
+      '@konekti/runtime':
+        specifier: workspace:*
+        version: link:../module
 
   packages/http:
     dependencies:
-      '@konekti-internal/di':
-        specifier: workspace:*
-        version: link:../di
       '@konekti/core':
         specifier: workspace:*
         version: link:../core
+      '@konekti/di':
+        specifier: workspace:*
+        version: link:../di
 
   packages/jwt:
     dependencies:
-      '@konekti-internal/di':
-        specifier: workspace:*
-        version: link:../di
       '@konekti/core':
         specifier: workspace:*
         version: link:../core
+      '@konekti/di':
+        specifier: workspace:*
+        version: link:../di
 
   packages/module:
     dependencies:
-      '@konekti-internal/di':
-        specifier: workspace:*
-        version: link:../di
       '@konekti/config':
         specifier: workspace:*
         version: link:../config
       '@konekti/core':
         specifier: workspace:*
         version: link:../core
+      '@konekti/di':
+        specifier: workspace:*
+        version: link:../di
       '@konekti/http':
         specifier: workspace:*
         version: link:../http
 
   packages/passport:
     dependencies:
-      '@konekti-internal/di':
-        specifier: workspace:*
-        version: link:../di
       '@konekti/core':
         specifier: workspace:*
         version: link:../core
+      '@konekti/di':
+        specifier: workspace:*
+        version: link:../di
       '@konekti/http':
         specifier: workspace:*
         version: link:../http
 
   packages/prisma:
     dependencies:
-      '@konekti-internal/di':
-        specifier: workspace:*
-        version: link:../di
-      '@konekti-internal/module':
-        specifier: workspace:*
-        version: link:../module
       '@konekti/core':
         specifier: workspace:*
         version: link:../core
+      '@konekti/di':
+        specifier: workspace:*
+        version: link:../di
       '@konekti/http':
         specifier: workspace:*
         version: link:../http
+      '@konekti/runtime':
+        specifier: workspace:*
+        version: link:../module
 
   packages/testing:
     dependencies:
-      '@konekti-internal/di':
-        specifier: workspace:*
-        version: link:../di
-      '@konekti-internal/module':
-        specifier: workspace:*
-        version: link:../module
       '@konekti/config':
         specifier: workspace:*
         version: link:../config
       '@konekti/core':
         specifier: workspace:*
         version: link:../core
+      '@konekti/di':
+        specifier: workspace:*
+        version: link:../di
       '@konekti/http':
         specifier: workspace:*
         version: link:../http
+      '@konekti/runtime':
+        specifier: workspace:*
+        version: link:../module
 
   tooling/babel: {}
 
