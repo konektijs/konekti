@@ -1,7 +1,7 @@
 {
   "name": "@konekti/jwt",
   "version": "0.0.0",
-  "private": true,
+  "private": false,
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -12,6 +12,6 @@
   },
   "dependencies": {
     "@konekti/core": "workspace:*",
-    "@konekti-internal/di": "workspace:*"
+    "@konekti/di": "workspace:*"
   }
 }

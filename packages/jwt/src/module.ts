@@ -1,4 +1,4 @@
-import type { Provider } from '@konekti-internal/di';
+import type { Provider } from '@konekti/di';
 
 import type { JwtVerifierOptions } from './types';
 import { DefaultJwtSigner } from './signer';
