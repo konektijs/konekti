@@ -47,7 +47,7 @@ The scaffold now emits the same single-project layout for `pnpm`, `npm`, and `ya
 The starter app includes:
 
 - `src/app.ts` with JWT + passport wiring
-- `src/node-http-adapter.ts` with request-signal support
+- `src/main.ts` with runtime-owned node bootstrap defaults
 - `src/examples/user.repo.ts` with preset-aware ORM access
 - `src/app.test.ts` proving the runtime path works end-to-end
 
