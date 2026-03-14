@@ -4,12 +4,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import { scaffoldKonektiApp } from './bootstrap/scaffold.js';
 
 const createdDirectories: string[] = [];
 const repoRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
+
+beforeAll(() => {
+  execFileSync('pnpm', ['build'], { cwd: repoRoot, stdio: 'inherit' });
+});
 
 afterEach(() => {
   for (const directory of createdDirectories.splice(0)) {
@@ -37,8 +41,9 @@ describe('scaffoldKonektiApp', () => {
     expect(packageJson).not.toContain('@konekti-internal/');
     expect(packageJson).not.toContain('workspaces');
     expect(existsSync(join(targetDirectory, 'src', 'app.ts'))).toBe(true);
+    expect(existsSync(join(targetDirectory, 'src', 'node-http-adapter.ts'))).toBe(false);
     expect(existsSync(join(targetDirectory, 'apps'))).toBe(false);
-    expect(readFileSync(join(targetDirectory, 'src', 'main.ts'), 'utf8')).toContain('@konekti/runtime');
+    expect(readFileSync(join(targetDirectory, 'src', 'main.ts'), 'utf8')).toContain('runNodeApplication');
     expect(readFileSync(join(targetDirectory, 'vitest.config.ts'), 'utf8')).not.toContain('tooling/');
   });
 
@@ -104,10 +109,10 @@ describe('scaffoldKonektiApp', () => {
     execFileSync('npm', ['run', 'test'], { cwd: npmDirectory, stdio: 'inherit' });
     execFileSync('npm', ['exec', '--', 'konekti', 'g', 'repo', 'Account'], { cwd: npmDirectory, stdio: 'inherit' });
 
-    execFileSync('yarn', ['run', 'typecheck'], { cwd: yarnDirectory, stdio: 'inherit' });
-    execFileSync('yarn', ['run', 'build'], { cwd: yarnDirectory, stdio: 'inherit' });
-    execFileSync('yarn', ['run', 'test'], { cwd: yarnDirectory, stdio: 'inherit' });
-    execFileSync('yarn', ['konekti', 'g', 'repo', 'Ledger'], { cwd: yarnDirectory, stdio: 'inherit' });
+    execFileSync('corepack', ['yarn', 'run', 'typecheck'], { cwd: yarnDirectory, stdio: 'inherit' });
+    execFileSync('corepack', ['yarn', 'run', 'build'], { cwd: yarnDirectory, stdio: 'inherit' });
+    execFileSync('corepack', ['yarn', 'run', 'test'], { cwd: yarnDirectory, stdio: 'inherit' });
+    execFileSync('corepack', ['yarn', 'konekti', 'g', 'repo', 'Ledger'], { cwd: yarnDirectory, stdio: 'inherit' });
 
     expect(readFileSync(join(npmDirectory, 'src', 'account.repo.ts'), 'utf8')).toContain('this.prisma.current()');
     expect(readFileSync(join(yarnDirectory, 'src', 'ledger.repo.ts'), 'utf8')).toContain('this.database.current()');

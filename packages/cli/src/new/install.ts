@@ -3,8 +3,8 @@ import { spawn } from 'node:child_process';
 import type { PackageManager } from './types.js';
 
 export async function installDependencies(targetDirectory: string, packageManager: PackageManager): Promise<void> {
-  const command = packageManager;
-  const args = packageManager === 'yarn' ? [] : ['install'];
+  const command = packageManager === 'yarn' ? 'corepack' : packageManager;
+  const args = packageManager === 'yarn' ? ['yarn'] : ['install'];
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn(command, args, {
