@@ -11,3 +11,9 @@ export class ModuleVisibilityError extends KonektiError {
     super(message, { code: 'MODULE_VISIBILITY_ERROR' });
   }
 }
+
+export class ModuleInjectionMetadataError extends KonektiError {
+  constructor(message: string) {
+    super(message, { code: 'MODULE_INJECTION_METADATA_ERROR' });
+  }
+}

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Global, Inject, Module, defineModuleMetadata } from '@konekti/core';
 
 import { bootstrapModule } from './bootstrap.js';
+import { ModuleInjectionMetadataError } from './errors.js';
 
 describe('bootstrapModule', () => {
   it('boots a simple module graph deterministically', () => {
@@ -51,6 +52,89 @@ describe('bootstrapModule', () => {
     });
 
     expect(() => bootstrapModule(BillingModule)).toThrow('not visible through a global module');
+  });
+
+  it('fails when a provider declares constructor dependencies without @Inject metadata', () => {
+    class Logger {}
+
+    class BillingService {
+      constructor(readonly logger: Logger) {}
+    }
+
+    class BillingModule {}
+    defineModuleMetadata(BillingModule, {
+      providers: [Logger, BillingService],
+    });
+
+    expect(() => bootstrapModule(BillingModule)).toThrow(ModuleInjectionMetadataError);
+    expect(() => bootstrapModule(BillingModule)).toThrow('Provider BillingService in module BillingModule');
+  });
+
+  it('fails when a class provider inject list is shorter than its constructor arity', () => {
+    class Logger {}
+    class Metrics {}
+
+    class BillingService {
+      constructor(
+        readonly logger: Logger,
+        readonly metrics: Metrics,
+      ) {}
+    }
+
+    class BillingModule {}
+    defineModuleMetadata(BillingModule, {
+      providers: [
+        Logger,
+        Metrics,
+        {
+          provide: BillingService,
+          inject: [Logger],
+          useClass: BillingService,
+        },
+      ],
+    });
+
+    expect(() => bootstrapModule(BillingModule)).toThrow(ModuleInjectionMetadataError);
+    expect(() => bootstrapModule(BillingModule)).toThrow('constructor parameter #1');
+  });
+
+  it('fails when a controller declares constructor dependencies without @Inject metadata', () => {
+    class Logger {}
+
+    class BillingController {
+      constructor(readonly logger: Logger) {}
+    }
+
+    class BillingModule {}
+    defineModuleMetadata(BillingModule, {
+      controllers: [BillingController],
+      providers: [Logger],
+    });
+
+    expect(() => bootstrapModule(BillingModule)).toThrow(ModuleInjectionMetadataError);
+    expect(() => bootstrapModule(BillingModule)).toThrow('Controller BillingController in module BillingModule');
+  });
+
+  it('allows class providers to satisfy constructor dependencies with provider.inject', () => {
+    class Logger {}
+
+    class BillingService {
+      constructor(readonly logger: Logger) {}
+    }
+
+    class BillingModule {}
+    defineModuleMetadata(BillingModule, {
+      providers: [
+        Logger,
+        {
+          provide: BillingService,
+          inject: [Logger],
+          useClass: BillingService,
+        },
+      ],
+    });
+
+    expect(() => bootstrapModule(BillingModule)).not.toThrow();
   });
 
   it('allows exported providers from a global module without direct imports', () => {

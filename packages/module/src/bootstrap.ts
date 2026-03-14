@@ -12,7 +12,7 @@ import {
   type MiddlewareLike,
 } from '@konekti/http';
 
-import { ModuleGraphError, ModuleVisibilityError } from './errors.js';
+import { ModuleGraphError, ModuleInjectionMetadataError, ModuleVisibilityError } from './errors.js';
 import { createConsoleApplicationLogger } from './logger.js';
 import type {
   Application,
@@ -77,6 +77,72 @@ function providerScope(provider: Provider): 'singleton' | 'request' {
 
 function createRuntimeTokenSet(providers: Provider[] = []): Set<Token> {
   return new Set(providers.map((provider) => providerToken(provider)));
+}
+
+function requiredConstructorParameters(target: Function): number {
+  return target.length;
+}
+
+function validateClassInjectionMetadata(
+  subject: string,
+  implementation: Function,
+  inject: readonly Token[],
+  scope: string,
+  remedy: string,
+): void {
+  const required = requiredConstructorParameters(implementation);
+
+  if (required === 0 || inject.length >= required) {
+    return;
+  }
+
+  const missingIndex = inject.length;
+  const configured = inject.length;
+  const parameterWord = required === 1 ? 'parameter' : 'parameters';
+  const tokenWord = configured === 1 ? 'token is' : 'tokens are';
+
+  throw new ModuleInjectionMetadataError(
+    `${subject} in ${scope} declares ${required} constructor ${parameterWord} but only ${configured} injection ${tokenWord} configured. Add ${remedy} for constructor parameter #${missingIndex}.`,
+  );
+}
+
+function validateProviderInjectionMetadata(provider: Provider, scope: string): void {
+  if (typeof provider === 'function') {
+    validateClassInjectionMetadata(
+      `Provider ${provider.name || '<anonymous>'}`,
+      provider,
+      getClassDiMetadata(provider)?.inject ?? [],
+      scope,
+      '@Inject([...]) metadata',
+    );
+    return;
+  }
+
+  if ('useClass' in provider) {
+    const providedName = String(provider.provide);
+    const implementationName = provider.useClass.name || '<anonymous>';
+    const subject = provider.provide === provider.useClass
+      ? `Provider ${implementationName}`
+      : `Provider ${providedName} (${implementationName})`;
+
+    validateClassInjectionMetadata(
+      subject,
+      provider.useClass,
+      provider.inject ?? getClassDiMetadata(provider.useClass)?.inject ?? [],
+      scope,
+      provider.inject ? 'provider.inject entries' : '@Inject([...]) metadata or provider.inject entries',
+    );
+  }
+}
+
+function validateControllerInjectionMetadata(controller: ModuleType, scope: string): void {
+  validateClassInjectionMetadata(
+    `Controller ${controller.name || '<anonymous>'}`,
+    controller,
+    getClassDiMetadata(controller)?.inject ?? [],
+    scope,
+    '@Inject([...]) metadata',
+  );
 }
 
 function hasMethod<TName extends string>(
@@ -167,9 +233,17 @@ function compileModule(
   return compiledModule;
 }
 
-function validateCompiledModules(modules: CompiledModule[], runtimeProviderTokens: Set<Token>): void {
+function validateCompiledModules(
+  modules: CompiledModule[],
+  runtimeProviders: Provider[],
+  runtimeProviderTokens: Set<Token>,
+): void {
   const compiledByType = new Map(modules.map((compiledModule) => [compiledModule.type, compiledModule]));
   const globalExportedTokens = new Set<Token>();
+
+  for (const provider of runtimeProviders) {
+    validateProviderInjectionMetadata(provider, 'bootstrap runtime');
+  }
 
   for (const compiledModule of modules) {
     if (!compiledModule.definition.global) {
@@ -182,6 +256,7 @@ function validateCompiledModules(modules: CompiledModule[], runtimeProviderToken
   }
 
   for (const compiledModule of modules) {
+    const scope = `module ${compiledModule.type.name}`;
     const importedModules = (compiledModule.definition.imports ?? []).map((imported) => compiledByType.get(imported)!);
     const importedExportedTokens = new Set<Token>(
       importedModules.flatMap((imported) => Array.from(imported.exportedTokens)),
@@ -194,6 +269,8 @@ function validateCompiledModules(modules: CompiledModule[], runtimeProviderToken
     ]);
 
     for (const provider of compiledModule.definition.providers ?? []) {
+      validateProviderInjectionMetadata(provider, scope);
+
       for (const token of providerDependencies(provider)) {
         if (!accessibleTokens.has(token)) {
           throw new ModuleVisibilityError(
@@ -206,6 +283,8 @@ function validateCompiledModules(modules: CompiledModule[], runtimeProviderToken
     }
 
     for (const controller of compiledModule.definition.controllers ?? []) {
+      validateControllerInjectionMetadata(controller, scope);
+
       for (const token of controllerDependencies(controller)) {
         if (!accessibleTokens.has(token)) {
           throw new ModuleVisibilityError(
@@ -240,10 +319,11 @@ function validateCompiledModules(modules: CompiledModule[], runtimeProviderToken
  */
 export function compileModuleGraph(rootModule: ModuleType, options: BootstrapModuleOptions = {}): CompiledModule[] {
   const ordered: CompiledModule[] = [];
-  const runtimeProviderTokens = createRuntimeTokenSet(options.providers);
+  const runtimeProviders = options.providers ?? [];
+  const runtimeProviderTokens = createRuntimeTokenSet(runtimeProviders);
 
   compileModule(rootModule, runtimeProviderTokens, new Map(), new Set(), ordered);
-  validateCompiledModules(ordered, runtimeProviderTokens);
+  validateCompiledModules(ordered, runtimeProviders, runtimeProviderTokens);
 
   return ordered;
 }
