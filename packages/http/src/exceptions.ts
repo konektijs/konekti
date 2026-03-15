@@ -71,6 +71,12 @@ export class ConflictException extends HttpException {
   }
 }
 
+export class PayloadTooLargeException extends HttpException {
+  constructor(message = 'Payload too large.', options: Omit<HttpExceptionOptions, 'code'> = {}) {
+    super(413, message, { ...options, code: 'PAYLOAD_TOO_LARGE' });
+  }
+}
+
 export class InternalServerException extends HttpException {
   constructor(message = 'Internal server error.', options: Omit<HttpExceptionOptions, 'code'> = {}) {
     super(500, message, { ...options, code: 'INTERNAL_SERVER_ERROR' });

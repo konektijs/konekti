@@ -13,8 +13,16 @@ import {
 } from '@konekti/http';
 
 import { bootstrapApplication } from './bootstrap.js';
+import { compressResponse } from './compression.js';
 import { createConsoleApplicationLogger } from './logger.js';
+import { parseMultipart, type MultipartOptions, type UploadedFile } from './multipart.js';
 import type { Application, ApplicationLogger, CreateApplicationOptions, ModuleType } from './types.js';
+
+declare module '@konekti/http' {
+  interface FrameworkRequest {
+    files?: UploadedFile[];
+  }
+}
 
 export interface NodeHttpAdapterOptions {
   port?: number;
@@ -25,9 +33,11 @@ export interface NodeHttpAdapterOptions {
 export type NodeApplicationSignal = 'SIGINT' | 'SIGTERM';
 
 export interface BootstrapNodeApplicationOptions extends Omit<CreateApplicationOptions, 'adapter' | 'logger' | 'middleware'> {
+  compression?: boolean;
   cors?: false | CorsOptions;
   logger?: ApplicationLogger;
   middleware?: MiddlewareLike[];
+  multipart?: MultipartOptions;
   port?: number;
   retryDelayMs?: number;
   retryLimit?: number;
@@ -44,12 +54,15 @@ export class NodeHttpApplicationAdapter implements HttpApplicationAdapter {
     private readonly port: number,
     private readonly retryDelayMs = 150,
     private readonly retryLimit = 20,
+    private readonly compression = false,
+    private readonly multipartOptions?: MultipartOptions,
   ) {}
 
   async listen(dispatcher: Dispatcher): Promise<void> {
     this.server = createServer(async (request, response) => {
-      const frameworkRequest = await createFrameworkRequest(request, response);
-      const frameworkResponse = createFrameworkResponse(response);
+      const signal = createRequestSignal(request, response);
+      const frameworkRequest = await createFrameworkRequest(request, signal, this.multipartOptions);
+      const frameworkResponse = createFrameworkResponse(response, this.compression ? request.headers['accept-encoding'] as string | undefined : undefined);
 
       await dispatcher.dispatch(frameworkRequest, frameworkResponse);
 
@@ -111,11 +124,13 @@ export class NodeHttpApplicationAdapter implements HttpApplicationAdapter {
   }
 }
 
-export function createNodeHttpAdapter(options: NodeHttpAdapterOptions = {}): HttpApplicationAdapter {
+export function createNodeHttpAdapter(options: NodeHttpAdapterOptions = {}, compression = false, multipartOptions?: MultipartOptions): HttpApplicationAdapter {
   return new NodeHttpApplicationAdapter(
     resolveNodePort(options.port),
     options.retryDelayMs,
     options.retryLimit,
+    compression,
+    multipartOptions,
   );
 }
 
@@ -127,7 +142,7 @@ export async function bootstrapNodeApplication(
 
   return bootstrapApplication({
     ...options,
-    adapter: createNodeHttpAdapter(options),
+    adapter: createNodeHttpAdapter(options, options.compression ?? false, options.multipart),
     logger,
     middleware: createNodeMiddleware(options),
     rootModule,
@@ -163,7 +178,7 @@ export async function runNodeApplication(
   return app;
 }
 
-function createFrameworkResponse(response: import('node:http').ServerResponse): FrameworkResponse {
+function createFrameworkResponse(response: import('node:http').ServerResponse, acceptEncoding?: string): FrameworkResponse {
   return {
     committed: response.headersSent || response.writableEnded,
     headers: {},
@@ -182,7 +197,16 @@ function createFrameworkResponse(response: import('node:http').ServerResponse): 
         response.setHeader('Content-Type', 'application/json; charset=utf-8');
       }
 
-      response.end(body === undefined ? '' : JSON.stringify(body));
+      const serialized = body === undefined ? '' : JSON.stringify(body);
+      const contentType = response.getHeader('Content-Type') as string | undefined;
+
+      if (acceptEncoding && serialized.length >= 1) {
+        const buf = Buffer.from(serialized, 'utf8');
+        this.committed = true;
+        return compressResponse(response, buf, acceptEncoding, contentType);
+      }
+
+      response.end(serialized);
       this.committed = true;
     },
     setHeader(name, value) {
@@ -198,15 +222,31 @@ function createFrameworkResponse(response: import('node:http').ServerResponse): 
 
 async function createFrameworkRequest(
   request: import('node:http').IncomingMessage,
-  response: import('node:http').ServerResponse,
+  signal: AbortSignal,
+  multipartOptions?: MultipartOptions,
 ): Promise<FrameworkRequest> {
   const url = new URL(request.url ?? '/', 'http://localhost');
   const headers = Object.fromEntries(
     Object.entries(request.headers).map(([name, value]) => [name, Array.isArray(value) ? value.join(', ') : value]),
   );
 
-  return {
-    body: await readRequestBody(request),
+  const contentType = headers['content-type'];
+  const isMultipart = typeof contentType === 'string' && contentType.includes('multipart/form-data');
+
+  let body: unknown;
+  let files: UploadedFile[] | undefined;
+
+  if (isMultipart) {
+    const result = await parseMultipart(request, multipartOptions);
+
+    body = result.fields;
+    files = result.files;
+  } else {
+    body = await readRequestBody(request, headers['content-type']);
+  }
+
+  const frameworkRequest: FrameworkRequest = {
+    body,
     cookies: {},
     headers,
     method: request.method ?? 'GET',
@@ -214,9 +254,15 @@ async function createFrameworkRequest(
     path: url.pathname,
     query: Object.fromEntries(url.searchParams.entries()),
     raw: request,
-    signal: createRequestSignal(request, response),
+    signal,
     url: url.pathname + url.search,
   };
+
+  if (files) {
+    frameworkRequest.files = files;
+  }
+
+  return frameworkRequest;
 }
 
 function createNodeMiddleware(options: BootstrapNodeApplicationOptions): MiddlewareLike[] {
@@ -301,7 +347,7 @@ async function closeFromSignal(app: Application, logger: ApplicationLogger, sign
   }
 }
 
-async function readRequestBody(request: import('node:http').IncomingMessage): Promise<unknown> {
+async function readRequestBody(request: import('node:http').IncomingMessage, contentType: string | string[] | undefined): Promise<unknown> {
   const chunks: Uint8Array[] = [];
 
   for await (const chunk of request) {
@@ -318,7 +364,6 @@ async function readRequestBody(request: import('node:http').IncomingMessage): Pr
     return undefined;
   }
 
-  const contentType = request.headers['content-type'];
   const primaryContentType = Array.isArray(contentType) ? contentType[0] : contentType;
 
   if (typeof primaryContentType === 'string' && primaryContentType.includes('application/json')) {
