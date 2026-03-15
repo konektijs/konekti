@@ -1,5 +1,6 @@
 import type { Constructor, MaybePromise, MetadataPropertyKey, MetadataSource, Token } from '@konekti/core';
 import type { RequestScopeContainer } from '@konekti/di';
+export type { ValidationIssue, Validator } from '@konekti/dto-validator';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
 
@@ -158,21 +159,6 @@ export interface Binder {
 
 export interface Converter {
   convert(value: unknown, target: ConverterTarget): MaybePromise<unknown>;
-}
-
-export interface ValidationIssue {
-  code: string;
-  field?: string;
-  message: string;
-  source?: MetadataSource;
-}
-
-export interface ValidationAdapter<T = unknown> {
-  validate(value: T): MaybePromise<readonly ValidationIssue[] | void>;
-}
-
-export interface Validator {
-  validate(value: unknown, target: Constructor): MaybePromise<void>;
 }
 
 export type MiddlewareLike = Middleware | Token<Middleware>;
