@@ -14,6 +14,7 @@ import {
 
 import { ModuleGraphError, ModuleInjectionMetadataError, ModuleVisibilityError } from './errors.js';
 import { createConsoleApplicationLogger } from './logger.js';
+import { APPLICATION_LOGGER } from './tokens.js';
 import type {
   Application,
   ApplicationLogger,
@@ -566,6 +567,10 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
       {
         provide: ConfigService,
         useValue: config,
+      },
+      {
+        provide: APPLICATION_LOGGER,
+        useValue: logger,
       },
     ];
     const bootstrapped = bootstrapModule(options.rootModule, { providers: runtimeProviders });

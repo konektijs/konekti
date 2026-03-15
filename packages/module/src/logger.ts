@@ -10,11 +10,12 @@ function colorize(value: string, color: string, enabled: boolean): string {
   return enabled ? `${color}${value}${RESET}` : value;
 }
 
-function formatLog(level: 'ERROR' | 'LOG', context: string, message: string, color: boolean): string {
+function formatLog(level: 'DEBUG' | 'ERROR' | 'LOG' | 'WARN', context: string, message: string, color: boolean): string {
   const prefix = colorize('[Konekti]', BRIGHT_GREEN, color);
   const pid = colorize(String(process.pid), BRIGHT_YELLOW, color);
   const timestamp = colorize(new Date().toLocaleString('en-US'), DIM, color);
-  const levelLabel = colorize(level, level === 'ERROR' ? BRIGHT_RED : BRIGHT_GREEN, color);
+  const levelColor = level === 'ERROR' || level === 'WARN' ? BRIGHT_RED : BRIGHT_GREEN;
+  const levelLabel = colorize(level, levelColor, color);
   const contextLabel = colorize(`[${context}]`, BRIGHT_YELLOW, color);
 
   return `${prefix} ${pid} - ${timestamp} ${levelLabel} ${contextLabel} ${message}`;
@@ -22,6 +23,9 @@ function formatLog(level: 'ERROR' | 'LOG', context: string, message: string, col
 
 export function createConsoleApplicationLogger(): ApplicationLogger {
   return {
+    debug(message, context = 'Konekti') {
+      console.debug(formatLog('DEBUG', context, message, Boolean(process.stdout.isTTY)));
+    },
     error(message, error, context = 'Konekti') {
       console.error(formatLog('ERROR', context, message, Boolean(process.stderr.isTTY)));
 
@@ -31,6 +35,9 @@ export function createConsoleApplicationLogger(): ApplicationLogger {
     },
     log(message, context = 'Konekti') {
       console.log(formatLog('LOG', context, message, Boolean(process.stdout.isTTY)));
+    },
+    warn(message, context = 'Konekti') {
+      console.warn(formatLog('WARN', context, message, Boolean(process.stderr.isTTY)));
     },
   };
 }

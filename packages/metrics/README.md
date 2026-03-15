@@ -1,0 +1,111 @@
+# @konekti/metrics
+
+Prometheus metrics endpoint for konekti applications. Mount `MetricsModule` to expose a `/metrics` scrape target with Node.js default metrics collected out of the box.
+
+## Installation
+
+```bash
+pnpm add @konekti/metrics
+```
+
+## Quick Start
+
+```typescript
+import { bootstrapApplication, defineModule } from '@konekti/runtime';
+import { MetricsModule } from '@konekti/metrics';
+
+class AppModule {}
+
+defineModule(AppModule, {
+  imports: [
+    MetricsModule.forRoot(),
+  ],
+});
+
+await bootstrapApplication({ rootModule: AppModule });
+// GET /metrics → Prometheus text format
+```
+
+## Core API
+
+### `MetricsModule.forRoot(options?)`
+
+Registers a Prometheus metrics endpoint and returns a `ModuleType` to import into any module.
+
+```typescript
+interface MetricsModuleOptions {
+  path?: string;              // scrape path (default: '/metrics')
+  defaultMetrics?: boolean;   // collect Node.js default metrics (default: true)
+  middleware?: MiddlewareLike[];
+}
+
+class MetricsModule {
+  static forRoot(options?: MetricsModuleOptions): ModuleType;
+}
+```
+
+**Endpoint served:**
+
+| Route | Description |
+|-------|-------------|
+| `GET /metrics` (default) | Prometheus text format. `Content-Type` is set automatically. |
+
+---
+
+## Configuration
+
+### Custom scrape path
+
+```typescript
+MetricsModule.forRoot({ path: '/internal/metrics' })
+// → GET /internal/metrics
+```
+
+### Disable default metrics
+
+By default, `prom-client`'s `collectDefaultMetrics()` is called, which registers standard Node.js process and GC metrics. Disable it to register only your own custom metrics:
+
+```typescript
+MetricsModule.forRoot({ defaultMetrics: false })
+```
+
+### Middleware
+
+Add middleware (e.g. auth guards) to the metrics route:
+
+```typescript
+MetricsModule.forRoot({
+  middleware: [ipAllowlistMiddleware],
+})
+```
+
+---
+
+## Custom Metrics
+
+`MetricsModule` creates a dedicated `prom-client` `Registry` instance per `forRoot()` call. To expose custom metrics on the same registry, create and register them before calling `forRoot()` — or use `prom-client` directly with its default global registry alongside this module.
+
+```typescript
+import { Counter, Registry } from 'prom-client';
+
+// Using the global registry (separate from MetricsModule's internal registry)
+const httpRequests = new Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'status'],
+});
+
+httpRequests.inc({ method: 'GET', status: '200' });
+```
+
+> **Note:** `MetricsModule` uses its own isolated `Registry`. To share a registry between custom metrics and the endpoint, inject a shared `Registry` instance by extending or wrapping this module.
+
+---
+
+## Dependencies
+
+| Package | Role |
+|---------|------|
+| `@konekti/http` | `Controller`, `Get`, `RequestContext`, `MiddlewareLike` |
+| `@konekti/runtime` | `defineModule`, `ModuleType` |
+| `prom-client` | Prometheus metrics collection and formatting |

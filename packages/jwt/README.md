@@ -1,0 +1,149 @@
+# @konekti/jwt
+
+HTTP-agnostic JWT token core — signs access tokens and verifies them to a normalized `JwtPrincipal`.
+
+## What this package does
+
+`@konekti/jwt` knows nothing about HTTP requests, routes, or auth guards. It owns:
+
+- Signing access tokens with HS256 (`DefaultJwtSigner.signAccessToken`)
+- Verifying tokens: shape → algorithm → signature → claims (`exp`, `nbf`, `iss`, `aud`)
+- Normalising verified claims to a `JwtPrincipal` (unified `sub`, `roles`, `scopes` arrays)
+
+The package that calls this (typically an app-local JWT strategy registered with `@konekti/passport`) is responsible for extracting the bearer token from the request. This package only handles what happens after extraction.
+
+## Installation
+
+```bash
+npm install @konekti/jwt
+```
+
+## Quick Start
+
+### Register with DI
+
+```typescript
+import { Module } from '@konekti/core';
+import { createJwtCoreProviders } from '@konekti/jwt';
+
+@Module({
+  providers: [
+    ...createJwtCoreProviders({
+      secret: process.env.JWT_SECRET!,
+      issuer: 'my-app',
+      audience: 'my-app-clients',
+      expiresIn: 3600, // seconds
+    }),
+  ],
+  exports: ['JwtVerifier', 'JwtSigner'],
+})
+export class JwtModule {}
+```
+
+### Sign a token
+
+```typescript
+import { DefaultJwtSigner } from '@konekti/jwt';
+
+@Service()
+export class AuthService {
+  constructor(private signer: DefaultJwtSigner) {}
+
+  async issueToken(userId: string, roles: string[]) {
+    return this.signer.signAccessToken({
+      sub: userId,
+      roles,
+      scopes: ['read:profile'],
+    });
+    // → 'eyJhbGci...'
+  }
+}
+```
+
+### Verify a token
+
+```typescript
+import { DefaultJwtVerifier } from '@konekti/jwt';
+
+const verifier = container.resolve<DefaultJwtVerifier>('JwtVerifier');
+const principal = await verifier.verifyAccessToken(token);
+// principal: { sub: 'user-123', roles: ['admin'], scopes: ['read:profile'], claims: {...} }
+```
+
+### Standalone (no DI)
+
+```typescript
+import { DefaultJwtSigner, DefaultJwtVerifier } from '@konekti/jwt';
+
+const opts = { secret: 'super-secret', issuer: 'test', audience: 'test', expiresIn: 60 };
+const signer = new DefaultJwtSigner(opts);
+const verifier = new DefaultJwtVerifier(opts);
+
+const token = await signer.signAccessToken({ sub: 'u1', roles: [] });
+const principal = await verifier.verifyAccessToken(token);
+```
+
+## Key API
+
+| Export | Location | Description |
+|---|---|---|
+| `DefaultJwtVerifier` | `src/verifier.ts` | `verifyAccessToken(token) → JwtPrincipal` |
+| `DefaultJwtSigner` | `src/signer.ts` | `signAccessToken(claims) → string` |
+| `createJwtCoreProviders(options)` | `src/module.ts` | Registers options, verifier, and signer in one call |
+| `JwtPrincipal` | `src/types.ts` | `{ sub, roles, scopes, claims }` |
+| `JwtClaims` | `src/types.ts` | Raw claims shape |
+| `JwtVerifierOptions` | `src/types.ts` | `{ secret, issuer?, audience?, algorithms? }` |
+| `JwtVerifier` | `src/types.ts` | Interface for custom verifier implementations |
+| `JwtSigner` | `src/types.ts` | Interface for custom signer implementations |
+
+## Architecture
+
+### Verifier pipeline
+
+```text
+verifyAccessToken(token)
+  1. Split and base64url-decode header + payload + signature
+  2. Check algorithm is in the allowed list (currently HS256)
+  3. Verify HMAC-SHA256 signature
+  4. Validate claims: exp, nbf, iss, aud
+  5. normalizePrincipal(payload) → JwtPrincipal
+```
+
+### Principal normalization
+
+`normalizePrincipal()` provides a stable shape to the layer above:
+- Requires `sub` — throws if missing
+- Normalizes `roles` to an array (accepts undefined → `[]`)
+- Unifies `scope` (space-separated string) and `scopes` (array) into a single `scopes: string[]`
+- Preserves the original raw claims in `claims`
+
+This means the caller (e.g., a passport strategy) never has to branch on claim shape variants.
+
+### Signer defaults
+
+If `iss`, `aud`, `iat`, or `exp` are absent from the claims passed to `signAccessToken`, the signer fills them from the options. This ensures framework-level access tokens always have the required metadata.
+
+### Algorithm design
+
+Two separate checks exist: "is this algorithm in the allowlist?" and "does this implementation support it?". Currently both gate on HS256, but the separation makes it safe to extend one without accidentally opening the other.
+
+## File reading order for contributors
+
+1. `src/types.ts` — `JwtVerifierOptions`, `JwtClaims`, `JwtPrincipal`, `JwtVerifier`, `JwtSigner`
+2. `src/errors.ts` — typed JWT errors (expired, invalid signature, missing claim, etc.)
+3. `src/verifier.ts` — `DefaultJwtVerifier`, `normalizePrincipal`
+4. `src/signer.ts` — `DefaultJwtSigner`, defaults filling
+5. `src/module.ts` — `createJwtCoreProviders`
+6. `src/verifier.test.ts` — happy path, expired token, invalid signature
+7. `src/signer.test.ts` — sign/verify roundtrip
+
+## Related packages
+
+- `@konekti/passport` — the auth strategy/guard layer that calls this token core
+- `@konekti/http` — how auth failures become HTTP responses
+
+## One-liner mental model
+
+```text
+@konekti/jwt = HTTP-agnostic token core: sign → verify → normalize to JwtPrincipal
+```

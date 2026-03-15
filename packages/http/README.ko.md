@@ -1,0 +1,188 @@
+# @konekti/http
+
+route metadata를 request 처리 체인으로 바꾸는 HTTP 실행 레이어.
+
+## 이 패키지가 하는 일
+
+`@konekti/http`는 단순 라우터가 아니라 전체 request 실행 런타임이다. 다음을 소유한다:
+
+- `FrameworkRequest` / `FrameworkResponse` / `RequestContext` — adapter, middleware, guard, interceptor, controller 사이의 공통 언어
+- Route와 DTO 데코레이터 (`@Controller`, `@Get`, `@Post`, `@FromBody`, `@FromPath` 등)
+- Routing table 구성 (`createHandlerMapping`)
+- Request DTO binding과 validation
+- middleware → guard → interceptor → bind → validate → handler 호출을 순서대로 실행하는 dispatcher
+- HTTP exception 클래스와 canonical error envelope
+
+## 설치
+
+```bash
+npm install @konekti/http
+```
+
+## 빠른 시작
+
+### Controller 정의
+
+```typescript
+import { Controller, Get, Post, FromBody, FromPath } from '@konekti/http';
+import { IsString, MinLength } from '@konekti/dto-validator';
+import type { RequestContext } from '@konekti/http';
+
+class CreateUserDto {
+  @FromBody()
+  @IsString()
+  @MinLength(2)
+  name!: string;
+}
+
+class GetUserParams {
+  @FromPath()
+  @IsString()
+  id!: string;
+}
+
+@Controller('/users')
+export class UserController {
+  @Post('/')
+  async create(input: CreateUserDto, ctx: RequestContext) {
+    return { created: input.name };
+  }
+
+  @Get('/:id')
+  async getById(input: GetUserParams, ctx: RequestContext) {
+    return { id: input.id };
+  }
+}
+```
+
+### HTTP exception 던지기
+
+```typescript
+import { NotFoundException, BadRequestException } from '@konekti/http';
+
+throw new NotFoundException('User not found');
+throw new BadRequestException('Invalid input', { field: 'email', message: 'must be valid' });
+```
+
+### Dispatcher 생성 (`@konekti/runtime`이 bootstrap 시 처리)
+
+```typescript
+import { createHandlerMapping, createDispatcher } from '@konekti/http';
+
+const mapping = createHandlerMapping(controllers);
+const dispatcher = createDispatcher({ mapping, container, middleware, guards });
+```
+
+## 핵심 API
+
+### 타입
+
+| Export | 위치 | 설명 |
+|---|---|---|
+| `FrameworkRequest` | `src/types.ts` | Adapter에 독립적인 request shape |
+| `FrameworkResponse` | `src/types.ts` | Adapter에 독립적인 response shape |
+| `RequestContext` | `src/request-context.ts` | 런타임 context: request, response, principal, requestId, container |
+
+### Route 데코레이터
+
+| 데코레이터 | 설명 |
+|---|---|
+| `@Controller(path)` | 클래스를 base path를 가진 controller로 지정 |
+| `@Get(path)` / `@Post(path)` / `@Put(path)` / `@Patch(path)` / `@Delete(path)` | HTTP method route |
+
+### DTO binding 데코레이터
+
+| 데코레이터 | 설명 |
+|---|---|
+| `@FromBody()` | request body에서 필드 바인딩 (strict allowlist, 알 수 없는 필드 차단) |
+| `@FromPath()` | URL path parameter에서 필드 바인딩 |
+| `@FromQuery()` | query string에서 필드 바인딩 |
+| `@FromHeader()` | request header에서 필드 바인딩 |
+| `@FromCookie()` | cookie에서 필드 바인딩 |
+| `@Optional()` | binding을 optional로 표시 (binder 레벨) |
+
+> Validation 데코레이터 (`@IsString`, `@IsEmail` 등)는 이 패키지가 아니라 `@konekti/dto-validator`에서 가져온다.
+
+### 런타임 helper
+
+| Export | 위치 | 설명 |
+|---|---|---|
+| `createHandlerMapping(controllers)` | `src/mapping.ts` | controller 메타데이터에서 normalized routing table 생성 |
+| `createDispatcher(options)` | `src/dispatcher.ts` | request dispatch 함수 생성 |
+| `createCorsMiddleware(options)` | `src/cors.ts` | CORS middleware 함수 반환 |
+| `createRequestContext()` | `src/request-context.ts` | ALS 기반 context factory |
+
+### Exception
+
+| Export | 상태 코드 |
+|---|---|
+| `BadRequestException` | 400 |
+| `UnauthorizedException` | 401 |
+| `ForbiddenException` | 403 |
+| `NotFoundException` | 404 |
+| `ConflictException` | 409 |
+| `InternalServerException` | 500 |
+
+## 구조
+
+### Dispatcher 실행 순서
+
+```text
+들어오는 요청
+  → RequestContext 생성
+  → app middleware
+  → route match
+  → module middleware
+  → guard chain  (허용 / 거부)
+  → interceptor chain  (전후 wrapper)
+  → request DTO binding  (fromBody / fromPath / fromQuery / ...)
+  → DTO validation  (@konekti/dto-validator 사용)
+  → controller method(input, ctx)
+  → 성공 response 작성
+  → catch → canonical error response 작성
+```
+
+### DTO binding 보안
+
+binder는 단순 필드 복사가 아니다. 두 가지 정책이 적용된다:
+
+1. **`@FromBody`의 strict allowlist** — DTO에 선언되지 않은 request body 필드는 자동으로 제거되어 mass-assignment 공격을 방지한다.
+2. **위험한 key 차단** — `__proto__`, `constructor`, `prototype` 같은 key는 무조건 거부된다.
+
+### Routing table 구성
+
+`createHandlerMapping()`은 요청이 들어오기 전에 실행된다:
+- controller base path와 각 route path를 결합
+- 중복 슬래시 정규화
+- named path param 추출 (`:id` → param 이름)
+- 중복 route 충돌 시 빠른 실패
+
+### Request context와 ALS
+
+`RequestContext`는 `AsyncLocalStorage`에 저장된다. request, response, `requestId`, 인증된 `principal` (auth guard가 설정), request-scoped DI `container`를 담는다. request 안에서 실행되는 모든 코드는 prop drilling 없이 context에 접근할 수 있다.
+
+## 파일 읽기 순서 (기여자용)
+
+1. `src/types.ts` — `FrameworkRequest`, `FrameworkResponse`, `RequestContext`
+2. `src/decorators.ts` — route와 DTO binding 메타데이터 writer
+3. `src/mapping.ts` — routing table 구성 + 충돌 감지
+4. `src/binding.ts` — request 각 부분에서 DTO 인스턴스화
+5. `src/validation.ts` — DTO validation adapter
+6. `src/request-context.ts` — ALS 기반 context
+7. `src/dispatcher.ts` — 실행 체인 순서 결정
+8. `src/exceptions.ts` — HTTP exception family + error envelope
+9. `src/binding.test.ts` — binding 정책 (allowlist, 위험한 key, 400 detail shape)
+10. `src/dispatcher.test.ts` — middleware/guard/interceptor 순서, canonical error 코드
+
+## 관련 패키지
+
+- `@konekti/core` — route와 DTO 메타데이터가 저장되는 곳
+- `@konekti/dto-validator` — DTO validation 단계에서 사용하는 validation 엔진
+- `@konekti/runtime` — bootstrap 시 routing table과 dispatcher 조립
+- `@konekti/passport` — guard chain에 연결되는 auth guard
+
+## 한 줄 mental model
+
+```text
+@konekti/http = route metadata → DTO binding → middleware/guard/interceptor 체인 → handler 호출
+```

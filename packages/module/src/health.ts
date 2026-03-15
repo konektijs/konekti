@@ -15,8 +15,11 @@ export interface HealthModuleOptions {
   path?: string;
 }
 
+export type ReadinessCheck = () => boolean | Promise<boolean>;
+
 export function createHealthModule(options: HealthModuleOptions = {}): ModuleType {
   const basePath = options.path ?? '';
+  const readinessChecks: ReadinessCheck[] = [];
 
   @Controller(basePath)
   class HealthController {
@@ -26,12 +29,25 @@ export function createHealthModule(options: HealthModuleOptions = {}): ModuleTyp
     }
 
     @Get('/ready')
-    ready(): ReadinessStatus {
+    async ready(_input: undefined, ctx: import('@konekti/http').RequestContext): Promise<ReadinessStatus> {
+      for (const check of readinessChecks) {
+        const result = await check();
+
+        if (!result) {
+          ctx.response.setStatus(503);
+          return { status: 'unavailable' };
+        }
+      }
+
       return { status: 'ready' };
     }
   }
 
-  class HealthModule {}
+  class HealthModule {
+    static addReadinessCheck(fn: ReadinessCheck): void {
+      readinessChecks.push(fn);
+    }
+  }
 
   defineModule(HealthModule, {
     controllers: [HealthController],

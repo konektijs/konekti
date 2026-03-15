@@ -1,5 +1,5 @@
 {
-  "name": "@konekti/openapi",
+  "name": "@konekti/metrics",
   "version": "0.0.0",
   "private": false,
   "type": "module",
@@ -14,9 +14,12 @@
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@konekti/core": "workspace:*",
     "@konekti/http": "workspace:*",
-    "@konekti/runtime": "workspace:*"
+    "@konekti/runtime": "workspace:*",
+    "prom-client": "^15.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

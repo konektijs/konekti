@@ -49,8 +49,10 @@ export interface OnApplicationShutdown {
 }
 
 export interface ApplicationLogger {
+  debug(message: string, context?: string): void;
   error(message: string, error?: unknown, context?: string): void;
   log(message: string, context?: string): void;
+  warn(message: string, context?: string): void;
 }
 
 export type ApplicationState = 'bootstrapped' | 'ready' | 'closed';

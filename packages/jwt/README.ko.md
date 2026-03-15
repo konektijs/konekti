@@ -1,0 +1,149 @@
+# @konekti/jwt
+
+HTTP를 모르는 JWT token core — access token을 서명하고 검증하여 정규화된 `JwtPrincipal`을 반환한다.
+
+## 이 패키지가 하는 일
+
+`@konekti/jwt`는 HTTP request, route, auth guard를 전혀 알지 못한다. 다음을 소유한다:
+
+- HS256으로 access token 서명 (`DefaultJwtSigner.signAccessToken`)
+- 토큰 검증: shape → algorithm → signature → claims (`exp`, `nbf`, `iss`, `aud`)
+- 검증된 claims를 `JwtPrincipal`로 정규화 (통합된 `sub`, `roles`, `scopes` 배열)
+
+이 패키지를 호출하는 쪽(일반적으로 `@konekti/passport`에 등록된 app-local JWT strategy)이 request에서 bearer token을 추출할 책임을 진다. 이 패키지는 추출 이후의 처리만 담당한다.
+
+## 설치
+
+```bash
+npm install @konekti/jwt
+```
+
+## 빠른 시작
+
+### DI에 등록
+
+```typescript
+import { Module } from '@konekti/core';
+import { createJwtCoreProviders } from '@konekti/jwt';
+
+@Module({
+  providers: [
+    ...createJwtCoreProviders({
+      secret: process.env.JWT_SECRET!,
+      issuer: 'my-app',
+      audience: 'my-app-clients',
+      expiresIn: 3600, // 초
+    }),
+  ],
+  exports: ['JwtVerifier', 'JwtSigner'],
+})
+export class JwtModule {}
+```
+
+### 토큰 서명
+
+```typescript
+import { DefaultJwtSigner } from '@konekti/jwt';
+
+@Service()
+export class AuthService {
+  constructor(private signer: DefaultJwtSigner) {}
+
+  async issueToken(userId: string, roles: string[]) {
+    return this.signer.signAccessToken({
+      sub: userId,
+      roles,
+      scopes: ['read:profile'],
+    });
+    // → 'eyJhbGci...'
+  }
+}
+```
+
+### 토큰 검증
+
+```typescript
+import { DefaultJwtVerifier } from '@konekti/jwt';
+
+const verifier = container.resolve<DefaultJwtVerifier>('JwtVerifier');
+const principal = await verifier.verifyAccessToken(token);
+// principal: { sub: 'user-123', roles: ['admin'], scopes: ['read:profile'], claims: {...} }
+```
+
+### 독립형 사용 (DI 없이)
+
+```typescript
+import { DefaultJwtSigner, DefaultJwtVerifier } from '@konekti/jwt';
+
+const opts = { secret: 'super-secret', issuer: 'test', audience: 'test', expiresIn: 60 };
+const signer = new DefaultJwtSigner(opts);
+const verifier = new DefaultJwtVerifier(opts);
+
+const token = await signer.signAccessToken({ sub: 'u1', roles: [] });
+const principal = await verifier.verifyAccessToken(token);
+```
+
+## 핵심 API
+
+| Export | 위치 | 설명 |
+|---|---|---|
+| `DefaultJwtVerifier` | `src/verifier.ts` | `verifyAccessToken(token) → JwtPrincipal` |
+| `DefaultJwtSigner` | `src/signer.ts` | `signAccessToken(claims) → string` |
+| `createJwtCoreProviders(options)` | `src/module.ts` | options, verifier, signer를 한 번에 등록 |
+| `JwtPrincipal` | `src/types.ts` | `{ sub, roles, scopes, claims }` |
+| `JwtClaims` | `src/types.ts` | raw claims shape |
+| `JwtVerifierOptions` | `src/types.ts` | `{ secret, issuer?, audience?, algorithms? }` |
+| `JwtVerifier` | `src/types.ts` | custom verifier 구현을 위한 인터페이스 |
+| `JwtSigner` | `src/types.ts` | custom signer 구현을 위한 인터페이스 |
+
+## 구조
+
+### Verifier 파이프라인
+
+```text
+verifyAccessToken(token)
+  1. header + payload + signature를 분리하고 base64url 디코딩
+  2. algorithm이 허용 목록에 있는지 확인 (현재 HS256)
+  3. HMAC-SHA256 signature 검증
+  4. claims 검증: exp, nbf, iss, aud
+  5. normalizePrincipal(payload) → JwtPrincipal
+```
+
+### Principal 정규화
+
+`normalizePrincipal()`은 상위 레이어에 안정적인 shape를 제공한다:
+- `sub` 필수 — 없으면 throw
+- `roles`를 배열로 정규화 (undefined → `[]`)
+- 공백으로 구분된 `scope` 문자열과 `scopes` 배열을 하나의 `scopes: string[]`으로 통합
+- 원본 raw claims를 `claims`에 보존
+
+덕분에 호출 측(예: passport strategy)은 claim shape 변형에 대해 분기할 필요가 없다.
+
+### Signer 기본값
+
+`signAccessToken`에 전달된 claims에 `iss`, `aud`, `iat`, `exp`가 없으면 signer가 options에서 채워준다. 이를 통해 framework 레벨의 access token이 항상 필수 메타데이터를 가지도록 보장한다.
+
+### Algorithm 설계
+
+두 가지 별도 확인이 존재한다: "이 algorithm이 허용 목록에 있는가?"와 "이 구현이 실제로 지원하는가?". 현재 둘 다 HS256을 기준으로 하지만, 분리 덕분에 하나를 확장할 때 다른 쪽이 의도치 않게 열리는 것을 방지할 수 있다.
+
+## 파일 읽기 순서 (기여자용)
+
+1. `src/types.ts` — `JwtVerifierOptions`, `JwtClaims`, `JwtPrincipal`, `JwtVerifier`, `JwtSigner`
+2. `src/errors.ts` — 타입이 있는 JWT 에러 (만료, 유효하지 않은 signature, missing claim 등)
+3. `src/verifier.ts` — `DefaultJwtVerifier`, `normalizePrincipal`
+4. `src/signer.ts` — `DefaultJwtSigner`, 기본값 채우기
+5. `src/module.ts` — `createJwtCoreProviders`
+6. `src/verifier.test.ts` — happy path, 만료된 토큰, 유효하지 않은 signature
+7. `src/signer.test.ts` — sign/verify roundtrip
+
+## 관련 패키지
+
+- `@konekti/passport` — 이 token core를 호출하는 auth strategy/guard 레이어
+- `@konekti/http` — auth 실패가 HTTP response로 변환되는 방식
+
+## 한 줄 mental model
+
+```text
+@konekti/jwt = HTTP를 모르는 token core: 서명 → 검증 → JwtPrincipal로 정규화
+```

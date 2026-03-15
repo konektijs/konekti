@@ -189,12 +189,14 @@ describe('bootstrapApplication', () => {
   it('runs node applications with runtime-owned defaults', async () => {
     const loggerEvents: string[] = [];
     const logger: ApplicationLogger = {
+      debug() {},
       error(message, error, context) {
         loggerEvents.push(`error:${context}:${message}:${error instanceof Error ? error.message : 'none'}`);
       },
       log(message, context) {
         loggerEvents.push(`log:${context}:${message}`);
       },
+      warn() {},
     };
 
     @Controller('/health')
@@ -337,12 +339,14 @@ describe('bootstrapApplication', () => {
     const events: string[] = [];
     const loggerEvents: string[] = [];
     const logger: ApplicationLogger = {
+      debug() {},
       error(message, error, context) {
         loggerEvents.push(`error:${context}:${message}:${error instanceof Error ? error.message : 'none'}`);
       },
       log(message, context) {
         loggerEvents.push(`log:${context}:${message}`);
       },
+      warn() {},
     };
 
     class AppService {
@@ -389,12 +393,14 @@ describe('bootstrapApplication', () => {
   it('logs startup milestones, route mappings, and adapter start failures', async () => {
     const loggerEvents: string[] = [];
     const logger: ApplicationLogger = {
+      debug() {},
       error(message, error, context) {
         loggerEvents.push(`error:${context}:${message}:${error instanceof Error ? error.message : 'none'}`);
       },
       log(message, context) {
         loggerEvents.push(`log:${context}:${message}`);
       },
+      warn() {},
     };
 
     @Controller('/health')

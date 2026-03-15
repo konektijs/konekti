@@ -1,0 +1,188 @@
+# @konekti/http
+
+The HTTP execution layer that turns route metadata into a request processing chain.
+
+## What this package does
+
+`@konekti/http` is not a router — it is the full request execution runtime. It owns:
+
+- `FrameworkRequest` / `FrameworkResponse` / `RequestContext` — the common language between adapters, middleware, guards, interceptors, and controllers
+- Route and DTO decorators (`@Controller`, `@Get`, `@Post`, `@FromBody`, `@FromPath`, etc.)
+- Routing table construction (`createHandlerMapping`)
+- Request DTO binding and validation
+- The dispatcher that sequences middleware → guards → interceptors → bind → validate → handler invocation
+- HTTP exception classes and the canonical error envelope
+
+## Installation
+
+```bash
+npm install @konekti/http
+```
+
+## Quick Start
+
+### Define a controller
+
+```typescript
+import { Controller, Get, Post, FromBody, FromPath } from '@konekti/http';
+import { IsString, MinLength } from '@konekti/dto-validator';
+import type { RequestContext } from '@konekti/http';
+
+class CreateUserDto {
+  @FromBody()
+  @IsString()
+  @MinLength(2)
+  name!: string;
+}
+
+class GetUserParams {
+  @FromPath()
+  @IsString()
+  id!: string;
+}
+
+@Controller('/users')
+export class UserController {
+  @Post('/')
+  async create(input: CreateUserDto, ctx: RequestContext) {
+    return { created: input.name };
+  }
+
+  @Get('/:id')
+  async getById(input: GetUserParams, ctx: RequestContext) {
+    return { id: input.id };
+  }
+}
+```
+
+### Throw HTTP exceptions
+
+```typescript
+import { NotFoundException, BadRequestException } from '@konekti/http';
+
+throw new NotFoundException('User not found');
+throw new BadRequestException('Invalid input', { field: 'email', message: 'must be valid' });
+```
+
+### Create a dispatcher (done by `@konekti/runtime` during bootstrap)
+
+```typescript
+import { createHandlerMapping, createDispatcher } from '@konekti/http';
+
+const mapping = createHandlerMapping(controllers);
+const dispatcher = createDispatcher({ mapping, container, middleware, guards });
+```
+
+## Key API
+
+### Types
+
+| Export | Location | Description |
+|---|---|---|
+| `FrameworkRequest` | `src/types.ts` | Adapter-agnostic request shape |
+| `FrameworkResponse` | `src/types.ts` | Adapter-agnostic response shape |
+| `RequestContext` | `src/request-context.ts` | Runtime context: request, response, principal, requestId, container |
+
+### Route decorators
+
+| Decorator | Description |
+|---|---|
+| `@Controller(path)` | Marks a class as a controller with a base path |
+| `@Get(path)` / `@Post(path)` / `@Put(path)` / `@Patch(path)` / `@Delete(path)` | HTTP method route |
+
+### DTO binding decorators
+
+| Decorator | Description |
+|---|---|
+| `@FromBody()` | Bind field from request body (strict allowlist, blocks unknown fields) |
+| `@FromPath()` | Bind field from URL path parameter |
+| `@FromQuery()` | Bind field from query string |
+| `@FromHeader()` | Bind field from request header |
+| `@FromCookie()` | Bind field from cookie |
+| `@Optional()` | Mark binding as optional (binder-level) |
+
+> Validation decorators (`@IsString`, `@IsEmail`, etc.) come from `@konekti/dto-validator`, not this package.
+
+### Runtime helpers
+
+| Export | Location | Description |
+|---|---|---|
+| `createHandlerMapping(controllers)` | `src/mapping.ts` | Builds the normalized routing table from controller metadata |
+| `createDispatcher(options)` | `src/dispatcher.ts` | Creates the request dispatch function |
+| `createCorsMiddleware(options)` | `src/cors.ts` | Returns a CORS middleware function |
+| `createRequestContext()` | `src/request-context.ts` | ALS-backed context factory |
+
+### Exceptions
+
+| Export | Status Code |
+|---|---|
+| `BadRequestException` | 400 |
+| `UnauthorizedException` | 401 |
+| `ForbiddenException` | 403 |
+| `NotFoundException` | 404 |
+| `ConflictException` | 409 |
+| `InternalServerException` | 500 |
+
+## Architecture
+
+### Dispatcher execution order
+
+```text
+incoming request
+  → RequestContext creation
+  → app middleware
+  → route match
+  → module middleware
+  → guard chain  (allow / deny)
+  → interceptor chain  (before/after wrapper)
+  → request DTO binding  (fromBody / fromPath / fromQuery / ...)
+  → DTO validation  (via @konekti/dto-validator)
+  → controller method(input, ctx)
+  → success response write
+  → catch → canonical error response write
+```
+
+### DTO binding security
+
+The binder is not a simple field copy. Two policies are enforced:
+
+1. **Strict allowlist on `@FromBody`** — any field in the request body that is not declared in the DTO is silently dropped, preventing mass-assignment attacks.
+2. **Dangerous key blocking** — keys like `__proto__`, `constructor`, and `prototype` are rejected unconditionally.
+
+### Routing table construction
+
+`createHandlerMapping()` runs before any request. It:
+- Combines the controller base path with each route path
+- Normalises duplicate slashes
+- Extracts named path params (`:id` → param name)
+- Fails fast on duplicate route conflicts
+
+### Request context and ALS
+
+`RequestContext` is stored in `AsyncLocalStorage`. It carries the request, response, `requestId`, the authenticated `principal` (set by auth guards), and the request-scoped DI `container`. Any code that runs within a request can access the context without prop drilling.
+
+## File reading order for contributors
+
+1. `src/types.ts` — `FrameworkRequest`, `FrameworkResponse`, `RequestContext`
+2. `src/decorators.ts` — route and DTO binding metadata writers
+3. `src/mapping.ts` — routing table build + conflict detection
+4. `src/binding.ts` — DTO instantiation from request parts
+5. `src/validation.ts` — DTO validation adapter
+6. `src/request-context.ts` — ALS-backed context
+7. `src/dispatcher.ts` — execution chain sequencing
+8. `src/exceptions.ts` — HTTP exception family + error envelope
+9. `src/binding.test.ts` — binding policies (allowlist, dangerous keys, 400 detail shape)
+10. `src/dispatcher.test.ts` — middleware/guard/interceptor ordering, canonical error codes
+
+## Related packages
+
+- `@konekti/core` — where route and DTO metadata is stored
+- `@konekti/dto-validator` — validation engine used by the DTO validation step
+- `@konekti/runtime` — assembles the routing table and dispatcher during bootstrap
+- `@konekti/passport` — auth guard that plugs into the guard chain
+
+## One-liner mental model
+
+```text
+@konekti/http = route metadata → DTO binding → middleware/guard/interceptor chain → handler invocation
+```

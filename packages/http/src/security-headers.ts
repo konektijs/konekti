@@ -7,6 +7,7 @@ export interface SecurityHeadersOptions {
   strictTransportSecurity?: string | false;
   xContentTypeOptions?: false;
   xFrameOptions?: string | false;
+  xXssProtection?: string | false;
 }
 
 const DEFAULTS = {
@@ -16,6 +17,7 @@ const DEFAULTS = {
   strictTransportSecurity: 'max-age=15552000; includeSubDomains',
   xContentTypeOptions: 'nosniff',
   xFrameOptions: 'SAMEORIGIN',
+  xXssProtection: '0',
 } as const;
 
 export function createSecurityHeadersMiddleware(options: SecurityHeadersOptions = {}): Middleware {
@@ -25,6 +27,7 @@ export function createSecurityHeadersMiddleware(options: SecurityHeadersOptions 
   const hsts = 'strictTransportSecurity' in options ? options.strictTransportSecurity : DEFAULTS.strictTransportSecurity;
   const xcto = 'xContentTypeOptions' in options ? options.xContentTypeOptions : DEFAULTS.xContentTypeOptions;
   const xfo = 'xFrameOptions' in options ? options.xFrameOptions : DEFAULTS.xFrameOptions;
+  const xxp = 'xXssProtection' in options ? options.xXssProtection : DEFAULTS.xXssProtection;
 
   return {
     async handle(context, next) {
@@ -52,6 +55,10 @@ export function createSecurityHeadersMiddleware(options: SecurityHeadersOptions 
 
       if (xfo) {
         context.response.setHeader('X-Frame-Options', xfo);
+      }
+
+      if (xxp) {
+        context.response.setHeader('X-XSS-Protection', xxp);
       }
     },
   };

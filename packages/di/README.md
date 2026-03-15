@@ -1,0 +1,116 @@
+# @konekti/di
+
+The minimal token-based DI container that powers every Konekti app.
+
+## What this package does
+
+`@konekti/di` provides an explicit token-based dependency injection container. It handles three provider shapes (class, factory, value), two scopes (singleton, request), and a four-method public API. The goal is not a full-featured DI framework — it is the smallest container that covers Konekti's bootstrap and request-lifecycle scenarios reliably.
+
+The `@Inject()` and `@Scope()` decorators that annotate your application classes live in `@konekti/core`. This package owns the container runtime that reads that metadata and turns tokens into instances.
+
+## Installation
+
+```bash
+npm install @konekti/di
+```
+
+## Quick Start
+
+```typescript
+import { Container } from '@konekti/di';
+import { Inject, Scope } from '@konekti/core';
+
+const LOGGER = Symbol('Logger');
+
+class Logger {
+  log(msg: string) { console.log(msg); }
+}
+
+@Scope('singleton')
+class UserService {
+  constructor(@Inject(LOGGER) private logger: Logger) {}
+
+  greet(name: string) {
+    this.logger.log(`Hello, ${name}`);
+  }
+}
+
+const container = new Container();
+container.register(
+  { provide: LOGGER, useClass: Logger },
+  UserService,
+);
+
+const svc = container.resolve<UserService>(UserService);
+svc.greet('world');
+```
+
+### Request scope
+
+```typescript
+const requestContainer = container.createRequestScope();
+
+// request-scoped providers are isolated per-request
+const handler = requestContainer.resolve<RequestHandler>(RequestHandler);
+```
+
+## Key API
+
+| Export | Location | Description |
+|---|---|---|
+| `Container` | `src/container.ts` | The DI container |
+| `container.register(...providers)` | `src/container.ts` | Register one or more providers |
+| `container.has(token)` | `src/container.ts` | Check if a token is registered |
+| `container.resolve<T>(token)` | `src/container.ts` | Resolve a token to an instance |
+| `container.createRequestScope()` | `src/container.ts` | Create a child container for a single request |
+| `ClassProvider` | `src/types.ts` | `{ provide, useClass, scope? }` |
+| `FactoryProvider` | `src/types.ts` | `{ provide, useFactory, inject?, scope? }` |
+| `ValueProvider` | `src/types.ts` | `{ provide, useValue }` |
+| `Scope` | `src/types.ts` | `'singleton' \| 'request'` |
+
+## Architecture
+
+### Provider normalization
+
+All incoming provider shapes — bare class, `useClass`, `useFactory`, `useValue` — are normalized to a `NormalizedProvider` before storage. This means the resolve path never branches on shape: it always knows which inject list to use, which scope applies, and which instantiation path to take.
+
+### Scope-aware caching
+
+The container separates **where to find a provider** from **where to cache its instance**:
+
+- **singleton** → cache in root container, shared across all requests
+- **request** → cache in the child container created by `createRequestScope()`
+
+A provider can be registered in the root but cached in the request child. This is the mechanism that makes request-scoped providers per-request without re-registering them.
+
+### Why resolving request-scoped providers from root fails
+
+Resolving a `request`-scoped provider directly from the root container throws an error. This is an intentional safeguard — a request scope needs a request boundary, and allowing root resolution would let request dependencies silently behave like singletons.
+
+### Instantiation paths
+
+```text
+value   → return the value directly
+factory → resolve inject deps, then call useFactory(...deps)
+class   → resolve inject deps, then call new useClass(...deps)
+```
+
+## File reading order for contributors
+
+1. `packages/core/src/decorators.ts` — `@Inject()` and `@Scope()` decorator definitions
+2. `src/types.ts` — `ClassProvider`, `FactoryProvider`, `ValueProvider`, `Scope`
+3. `src/container.ts` — `normalizeProvider`, `register`, `resolve`, `createRequestScope`
+4. `src/errors.ts` — typed DI errors
+5. `src/container.test.ts` — singleton caching, factory injection, request isolation
+
+## Related packages
+
+- `@konekti/core` — `Token`, `@Inject()`, `@Scope()` decorator definitions
+- `@konekti/runtime` — assembles the module graph and calls `container.register()` during bootstrap
+- `@konekti/http` — creates a request scope container per incoming HTTP request
+
+## One-liner mental model
+
+```text
+@konekti/di = minimal container that resolves tokens to instances using normalized providers and scope-aware caches
+```

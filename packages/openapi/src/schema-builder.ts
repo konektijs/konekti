@@ -1,4 +1,5 @@
 import type { HandlerDescriptor, HttpMethod } from '@konekti/http';
+import { getControllerTags, getMethodApiMetadata } from './decorators.js';
 
 type OpenApiOperationMethod = Lowercase<HttpMethod>;
 
@@ -11,10 +12,17 @@ export interface OpenApiResponseObject {
   description: string;
 }
 
+export interface OpenApiSecurityRequirementObject {
+  [scheme: string]: string[];
+}
+
 export interface OpenApiOperationObject {
   operationId: string;
   tags: string[];
+  summary?: string;
+  description?: string;
   responses: Record<string, OpenApiResponseObject>;
+  security?: OpenApiSecurityRequirementObject[];
 }
 
 export interface OpenApiPathItemObject {
@@ -33,15 +41,19 @@ export interface BuildOpenApiDocumentOptions {
   version: string;
 }
 
-function normalizeControllerTag(descriptor: HandlerDescriptor): string {
-  return descriptor.controllerToken.name || 'Controller';
+function resolveControllerTags(descriptor: HandlerDescriptor): string[] {
+  const decorated = getControllerTags(descriptor.controllerToken);
+  if (decorated && decorated.length > 0) {
+    return decorated;
+  }
+  return [descriptor.controllerToken.name || 'Controller'];
 }
 
 function normalizeOperationId(descriptor: HandlerDescriptor): string {
-  const controller = normalizeControllerTag(descriptor);
+  const tag = resolveControllerTags(descriptor)[0] ?? 'Controller';
   const path = descriptor.route.path.replaceAll('/', '_').replaceAll(':', '').replaceAll('-', '_');
 
-  return `${controller}_${descriptor.methodName}_${descriptor.route.method.toLowerCase()}${path}`;
+  return `${tag}_${descriptor.methodName}_${descriptor.route.method.toLowerCase()}${path}`;
 }
 
 export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): OpenApiDocument {
@@ -52,16 +64,36 @@ export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): Open
     const method = descriptor.route.method.toLowerCase() as OpenApiOperationMethod;
     const pathItem = paths[path] ?? {};
 
-    pathItem[method] = {
+    const tags = resolveControllerTags(descriptor);
+    const methodMeta = getMethodApiMetadata(descriptor.controllerToken, descriptor.methodName);
+
+    const responses: Record<string, OpenApiResponseObject> = {};
+
+    if (methodMeta?.responses && methodMeta.responses.length > 0) {
+      for (const resp of methodMeta.responses) {
+        responses[String(resp.status)] = {
+          description: resp.description ?? 'OK',
+        };
+      }
+    } else {
+      responses['200'] = { description: 'OK' };
+    }
+
+    const security: OpenApiSecurityRequirementObject[] | undefined =
+      methodMeta?.security && methodMeta.security.length > 0
+        ? methodMeta.security.map((scheme) => ({ [scheme]: [] }))
+        : undefined;
+
+    const operation: OpenApiOperationObject = {
       operationId: normalizeOperationId(descriptor),
-      responses: {
-        '200': {
-          description: 'OK',
-        },
-      },
-      tags: [normalizeControllerTag(descriptor)],
+      responses,
+      tags,
+      ...(methodMeta?.operation?.summary !== undefined && { summary: methodMeta.operation.summary }),
+      ...(methodMeta?.operation?.description !== undefined && { description: methodMeta.operation.description }),
+      ...(security !== undefined && { security }),
     };
 
+    pathItem[method] = operation;
     paths[path] = pathItem;
   }
 

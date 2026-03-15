@@ -1,0 +1,111 @@
+# @konekti/metrics
+
+Konekti 애플리케이션을 위한 Prometheus 메트릭 엔드포인트. `MetricsModule`을 마운트하면 Node.js 기본 메트릭이 자동으로 수집되고 `/metrics` 스크레이프 타겟이 노출됩니다.
+
+## 설치
+
+```bash
+pnpm add @konekti/metrics
+```
+
+## 빠른 시작
+
+```typescript
+import { bootstrapApplication, defineModule } from '@konekti/runtime';
+import { MetricsModule } from '@konekti/metrics';
+
+class AppModule {}
+
+defineModule(AppModule, {
+  imports: [
+    MetricsModule.forRoot(),
+  ],
+});
+
+await bootstrapApplication({ rootModule: AppModule });
+// GET /metrics → Prometheus 텍스트 형식
+```
+
+## 핵심 API
+
+### `MetricsModule.forRoot(options?)`
+
+Prometheus 메트릭 엔드포인트를 등록하고 어느 모듈에나 import할 수 있는 `ModuleType`을 반환합니다.
+
+```typescript
+interface MetricsModuleOptions {
+  path?: string;              // 스크레이프 경로 (기본값: '/metrics')
+  defaultMetrics?: boolean;   // Node.js 기본 메트릭 수집 (기본값: true)
+  middleware?: MiddlewareLike[];
+}
+
+class MetricsModule {
+  static forRoot(options?: MetricsModuleOptions): ModuleType;
+}
+```
+
+**제공되는 엔드포인트:**
+
+| 라우트 | 설명 |
+|--------|------|
+| `GET /metrics` (기본값) | Prometheus 텍스트 형식. `Content-Type`이 자동으로 설정됩니다. |
+
+---
+
+## 설정
+
+### 커스텀 스크레이프 경로
+
+```typescript
+MetricsModule.forRoot({ path: '/internal/metrics' })
+// → GET /internal/metrics
+```
+
+### 기본 메트릭 비활성화
+
+기본적으로 `prom-client`의 `collectDefaultMetrics()`가 호출되어 표준 Node.js 프로세스 및 GC 메트릭을 등록합니다. 직접 커스텀 메트릭만 등록하려면 비활성화하세요:
+
+```typescript
+MetricsModule.forRoot({ defaultMetrics: false })
+```
+
+### 미들웨어
+
+메트릭 라우트에 미들웨어(예: 인증 가드)를 추가합니다:
+
+```typescript
+MetricsModule.forRoot({
+  middleware: [ipAllowlistMiddleware],
+})
+```
+
+---
+
+## 커스텀 메트릭
+
+`MetricsModule`은 `forRoot()` 호출마다 전용 `prom-client` `Registry` 인스턴스를 생성합니다. 같은 레지스트리에 커스텀 메트릭을 노출하려면 `forRoot()`를 호출하기 전에 메트릭을 생성하고 등록하거나, 이 모듈과 함께 `prom-client`의 기본 전역 레지스트리를 직접 사용하세요.
+
+```typescript
+import { Counter } from 'prom-client';
+
+// 전역 레지스트리 사용 (MetricsModule의 내부 레지스트리와 별개)
+const httpRequests = new Counter({
+  name: 'http_requests_total',
+  help: '총 HTTP 요청 수',
+  labelNames: ['method', 'status'],
+});
+
+httpRequests.inc({ method: 'GET', status: '200' });
+```
+
+> **참고:** `MetricsModule`은 자체 격리된 `Registry`를 사용합니다. 커스텀 메트릭과 엔드포인트 사이에 레지스트리를 공유하려면 이 모듈을 확장하거나 래핑해서 공유 `Registry` 인스턴스를 주입하세요.
+
+---
+
+## 의존성
+
+| 패키지 | 역할 |
+|--------|------|
+| `@konekti/http` | `Controller`, `Get`, `RequestContext`, `MiddlewareLike` |
+| `@konekti/runtime` | `defineModule`, `ModuleType` |
+| `prom-client` | Prometheus 메트릭 수집 및 포맷팅 |

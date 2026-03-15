@@ -1,0 +1,162 @@
+# @konekti/passport
+
+Strategy-agnostic auth execution layer for Konekti — routes any `AuthStrategy` through a generic `AuthGuard` into the request context.
+
+## What this package does
+
+`@konekti/passport` does not implement any concrete auth provider (JWT parsing, Google OAuth, local credentials). Its job is to ensure that *whatever strategy you plug in*, auth runs consistently in the Konekti request lifecycle:
+
+1. `UseAuth('<strategy>')` and `RequireScopes(...)` decorators write auth metadata and attach `AuthGuard` to the route
+2. At request time, `AuthGuard` reads the requirement, looks up the strategy by name, calls `strategy.authenticate(context)`, gets a principal, checks scopes, and populates `requestContext.principal`
+3. Auth errors map to `UnauthorizedException` (401) or `ForbiddenException` (403)
+4. Passport.js strategies can be bridged in via `createPassportJsStrategyBridge()`
+
+## Installation
+
+```bash
+npm install @konekti/passport
+```
+
+## Quick Start
+
+### Declare auth requirements on a route
+
+```typescript
+import { UseAuth, RequireScopes } from '@konekti/passport';
+import { Controller, Get } from '@konekti/http';
+import type { RequestContext } from '@konekti/http';
+
+@Controller('/profile')
+export class ProfileController {
+  @Get('/')
+  @UseAuth('jwt')           // strategy name registered in the app
+  @RequireScopes('read:profile')
+  async getProfile(_: never, ctx: RequestContext) {
+    return { user: ctx.principal };
+  }
+}
+```
+
+### Register providers (done once in your auth module)
+
+```typescript
+import { Module } from '@konekti/core';
+import { createPassportProviders } from '@konekti/passport';
+
+@Module({
+  providers: [
+    ...createPassportProviders({ defaultStrategy: 'jwt' }),
+    JwtStrategy, // your app-local strategy that implements AuthStrategy
+  ],
+})
+export class AuthModule {}
+```
+
+### Implement an AuthStrategy
+
+```typescript
+import type { AuthStrategy, GuardContext, AuthStrategyResult } from '@konekti/passport';
+import { DefaultJwtVerifier } from '@konekti/jwt';
+
+export class JwtStrategy implements AuthStrategy {
+  constructor(private verifier: DefaultJwtVerifier) {}
+
+  async authenticate(context: GuardContext): Promise<AuthStrategyResult> {
+    const authHeader = context.request.headers['authorization'];
+    const token = authHeader?.replace(/^Bearer /, '');
+    if (!token) return { type: 'unauthenticated' };
+
+    const principal = await this.verifier.verifyAccessToken(token);
+    return { type: 'authenticated', principal };
+  }
+}
+```
+
+### Bridge a Passport.js strategy
+
+```typescript
+import { createPassportJsStrategyBridge } from '@konekti/passport';
+import { Strategy as LocalStrategy } from 'passport-local';
+
+const localBridge = createPassportJsStrategyBridge(
+  'local',
+  LocalStrategy,
+  { usernameField: 'email' },
+  async (email, password, done) => {
+    const user = await userService.validate(email, password);
+    if (!user) return done(null, false);
+    done(null, user);
+  },
+  (passportUser) => ({ sub: passportUser.id, roles: passportUser.roles, scopes: [] }),
+);
+```
+
+## Key API
+
+| Export | Location | Description |
+|---|---|---|
+| `AuthStrategy` | `src/types.ts` | Interface: `authenticate(context) → AuthStrategyResult` |
+| `AuthStrategyResult` | `src/types.ts` | `{ type: 'authenticated', principal }` or `{ type: 'unauthenticated' }` or `{ type: 'handled' }` |
+| `AuthGuard` | `src/guard.ts` | Generic guard that reads auth requirements and calls the strategy |
+| `UseAuth(strategyName)` | `src/decorators.ts` | Sets the strategy + attaches `AuthGuard` to the route |
+| `RequireScopes(...scopes)` | `src/decorators.ts` | Declares required scopes + attaches `AuthGuard` |
+| `createPassportProviders(opts)` | `src/module.ts` | Registers strategy registry and default strategy wiring |
+| `createPassportJsStrategyBridge(...)` | `src/passport-js.ts` | Wraps a Passport.js strategy as a Konekti `AuthStrategy` |
+| `AuthRequirement` | `src/types.ts` | `{ strategy?, scopes? }` — merged from class + method level |
+
+## Architecture
+
+### Guard execution flow
+
+```text
+request arrives at route with @UseAuth / @RequireScopes
+  → AuthGuard.canActivate(context)
+  → read merged auth requirement (class + method)
+  → determine strategy name (explicit or default)
+  → resolve strategy from request-scoped container
+  → strategy.authenticate(context)
+  → if unauthenticated → throw UnauthorizedException (401)
+  → if authenticated → scope check
+  → if scopes missing → throw ForbiddenException (403)
+  → requestContext.principal = principal
+```
+
+### Why auth metadata uses merge semantics
+
+`@UseAuth` and `@RequireScopes` can be applied at both the class level and the method level. The guard reads merged requirements: a class-level strategy with per-method scopes is a common pattern. The metadata layer in `src/metadata.ts` owns this merge logic.
+
+### AuthGuard is provider-agnostic by design
+
+`AuthGuard` never references JWT, Google, or any concrete provider. It only:
+- Knows the strategy *name*
+- Looks up the strategy *instance* from the DI container
+- Calls `authenticate`
+- Maps the result to `principal` or exception
+
+This means adding a new auth strategy requires only implementing `AuthStrategy` and registering it — the guard does not change.
+
+### Passport.js bridge
+
+`createPassportJsStrategyBridge()` adapts Passport.js's `success`/`fail`/`redirect`/`error` callback protocol to Konekti's `AuthStrategyResult`. The `mapPrincipal` argument normalizes the passport user object to the app-local principal shape. The bridge does not own account upsert or JWT issuance — those remain in app service code.
+
+## File reading order for contributors
+
+1. `src/types.ts` — `AuthStrategy`, `AuthStrategyResult`, `AuthRequirement`, `GuardContext`
+2. `src/metadata.ts` — class + method requirement storage and merge
+3. `src/decorators.ts` — `UseAuth`, `RequireScopes` — metadata write + `AuthGuard` attachment
+4. `src/errors.ts` — auth-specific error types
+5. `src/guard.ts` — `AuthGuard` — strategy lookup, authenticate, scope check, principal population
+6. `src/module.ts` — `createPassportProviders`
+7. `src/passport-js.ts` — `createPassportJsStrategyBridge`
+8. `src/guard.test.ts` — non-JWT strategy flow, 401/403 mapping, principal population, scope enforcement, Passport.js bridge paths
+
+## Related packages
+
+- `@konekti/jwt` — implements `AuthStrategy` using JWT token verification; strategy code lives in your app, not here
+- `@konekti/http` — `AuthGuard` is a guard in the `@konekti/http` dispatcher's guard chain
+
+## One-liner mental model
+
+```text
+@konekti/passport = strategy-agnostic auth execution: any AuthStrategy → AuthGuard → principal in RequestContext
+```

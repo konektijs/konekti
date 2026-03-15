@@ -1,9 +1,9 @@
-import type { Middleware } from './types.js';
+import type { MiddlewareContext, Middleware } from './types.js';
 
 export interface RateLimitOptions {
   limit: number;
   windowMs: number;
-  keyResolver?: (request: { headers: Readonly<Record<string, string | string[] | undefined>>; path: string }) => string;
+  keyResolver?: (ctx: MiddlewareContext) => string;
 }
 
 interface WindowEntry {
@@ -11,8 +11,8 @@ interface WindowEntry {
   resetAt: number;
 }
 
-function defaultKeyResolver(request: { headers: Readonly<Record<string, string | string[] | undefined>> }): string {
-  const forwarded = request.headers['x-forwarded-for'];
+function defaultKeyResolver(ctx: MiddlewareContext): string {
+  const forwarded = ctx.request.headers['x-forwarded-for'];
   const ip = Array.isArray(forwarded) ? forwarded[0] : forwarded ?? 'unknown';
 
   return ip;
@@ -24,8 +24,8 @@ export function createRateLimitMiddleware(options: RateLimitOptions): Middleware
   return {
     async handle(context, next) {
       const key = options.keyResolver
-        ? options.keyResolver(context.request)
-        : defaultKeyResolver(context.request);
+        ? options.keyResolver(context)
+        : defaultKeyResolver(context);
 
       const now = Date.now();
       const entry = store.get(key);
