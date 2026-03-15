@@ -1,5 +1,6 @@
+import { getDtoBindingSchema, getDtoValidationSchema, type Constructor, type DtoFieldValidationRule } from '@konekti/core';
 import type { HandlerDescriptor, HttpMethod } from '@konekti/http';
-import { getControllerTags, getMethodApiMetadata } from './decorators.js';
+import { getControllerTags, getMethodApiMetadata, type ApiResponseMetadata } from './decorators.js';
 
 type OpenApiOperationMethod = Lowercase<HttpMethod>;
 
@@ -10,10 +11,47 @@ export interface OpenApiInfoObject {
 
 export interface OpenApiResponseObject {
   description: string;
+  content?: Record<string, OpenApiMediaTypeObject>;
 }
 
 export interface OpenApiSecurityRequirementObject {
   [scheme: string]: string[];
+}
+
+export interface OpenApiSchemaObject {
+  $ref?: string;
+  type?: 'array' | 'boolean' | 'integer' | 'number' | 'object' | 'string';
+  format?: string;
+  description?: string;
+  properties?: Record<string, OpenApiSchemaObject>;
+  items?: OpenApiSchemaObject;
+  required?: string[];
+  enum?: unknown[];
+  additionalProperties?: boolean;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+}
+
+export interface OpenApiMediaTypeObject {
+  schema: OpenApiSchemaObject;
+}
+
+export interface OpenApiRequestBodyObject {
+  content: Record<string, OpenApiMediaTypeObject>;
+  required?: boolean;
+}
+
+export interface OpenApiSecuritySchemeObject {
+  type: 'http';
+  scheme: 'bearer';
+  bearerFormat?: string;
+}
+
+export interface OpenApiComponentsObject {
+  schemas?: Record<string, OpenApiSchemaObject>;
+  securitySchemes?: Record<string, OpenApiSecuritySchemeObject>;
 }
 
 export interface OpenApiOperationObject {
@@ -22,6 +60,7 @@ export interface OpenApiOperationObject {
   summary?: string;
   description?: string;
   responses: Record<string, OpenApiResponseObject>;
+  requestBody?: OpenApiRequestBodyObject;
   security?: OpenApiSecurityRequirementObject[];
 }
 
@@ -33,6 +72,7 @@ export interface OpenApiDocument {
   openapi: '3.1.0';
   info: OpenApiInfoObject;
   paths: Record<string, OpenApiPathItemObject>;
+  components?: OpenApiComponentsObject;
 }
 
 export interface BuildOpenApiDocumentOptions {
@@ -56,8 +96,296 @@ function normalizeOperationId(descriptor: HandlerDescriptor): string {
   return `${tag}_${descriptor.methodName}_${descriptor.route.method.toLowerCase()}${path}`;
 }
 
+type DtoBindingEntry = ReturnType<typeof getDtoBindingSchema>[number];
+type DtoValidationEntry = ReturnType<typeof getDtoValidationSchema>[number];
+
+function propertyName(propertyKey: string | number | symbol): string {
+  return typeof propertyKey === 'string' ? propertyKey : String(propertyKey);
+}
+
+function collectDtoEntries(dto: Constructor) {
+  const bindingEntries = getDtoBindingSchema(dto);
+  const validationEntries = getDtoValidationSchema(dto);
+  const bindingMap = new Map(bindingEntries.map((entry) => [entry.propertyKey, entry]));
+  const validationMap = new Map(validationEntries.map((entry) => [entry.propertyKey, entry]));
+  const propertyKeys = new Set([...bindingMap.keys(), ...validationMap.keys()]);
+
+  return Array.from(propertyKeys).map((propertyKey) => ({
+    binding: bindingMap.get(propertyKey),
+    name: propertyName(propertyKey),
+    validation: validationMap.get(propertyKey),
+  }));
+}
+
+function createSchemaRef(name: string): OpenApiSchemaObject {
+  return {
+    $ref: `#/components/schemas/${name}`,
+  };
+}
+
+function inferPrimitiveTypeFromRules(rules: readonly DtoFieldValidationRule[]): OpenApiSchemaObject | undefined {
+  const hasRule = <TKind extends DtoFieldValidationRule['kind']>(kind: TKind) =>
+    rules.find((rule): rule is Extract<DtoFieldValidationRule, { kind: TKind }> => rule.kind === kind);
+
+  const nestedRule = hasRule('nested');
+  const arrayRule = hasRule('array');
+  const intRule = hasRule('int');
+  const numberRule = hasRule('number');
+  const booleanRule = hasRule('boolean');
+  const dateRule = hasRule('date');
+  const objectRule = hasRule('object');
+  const stringRule = hasRule('string');
+  const enumRule = hasRule('enum');
+
+  if (nestedRule && nestedRule.each) {
+    return { items: createSchemaRef(nestedRule.dto.name), type: 'array' };
+  }
+
+  if (nestedRule) {
+    return createSchemaRef(nestedRule.dto.name);
+  }
+
+  if (arrayRule) {
+    return { items: inferEachItemSchema(rules) ?? {}, type: 'array' };
+  }
+
+  if (enumRule) {
+    const first = enumRule.values[0];
+    const inferredType = typeof first === 'number' ? 'number' : typeof first === 'boolean' ? 'boolean' : 'string';
+    return {
+      enum: [...enumRule.values],
+      type: inferredType,
+    };
+  }
+
+  if (intRule) {
+    return { type: 'integer' };
+  }
+
+  if (numberRule) {
+    return { type: 'number' };
+  }
+
+  if (booleanRule) {
+    return { type: 'boolean' };
+  }
+
+  if (dateRule) {
+    return { format: 'date-time', type: 'string' };
+  }
+
+  if (objectRule) {
+    return { additionalProperties: true, type: 'object' };
+  }
+
+  if (stringRule) {
+    return { type: 'string' };
+  }
+
+  return undefined;
+}
+
+function inferEachItemSchema(rules: readonly DtoFieldValidationRule[]): OpenApiSchemaObject | undefined {
+  const nestedRule = rules.find(
+    (rule): rule is Extract<DtoFieldValidationRule, { kind: 'nested' }> => rule.kind === 'nested' && Boolean(rule.each),
+  );
+
+  if (nestedRule) {
+    return createSchemaRef(nestedRule.dto.name);
+  }
+
+  const enumRule = rules.find(
+    (rule): rule is Extract<DtoFieldValidationRule, { kind: 'enum' }> => rule.kind === 'enum' && Boolean(rule.each),
+  );
+
+  if (enumRule) {
+    const first = enumRule.values[0];
+    return {
+      enum: [...enumRule.values],
+      type: typeof first === 'number' ? 'number' : typeof first === 'boolean' ? 'boolean' : 'string',
+    };
+  }
+
+  if (rules.some((rule) => rule.kind === 'string' || ((rule.kind === 'minLength' || rule.kind === 'maxLength') && rule.each))) {
+    return { type: 'string' };
+  }
+
+  if (rules.some((rule) => rule.kind === 'int' && Boolean(rule.each))) {
+    return { type: 'integer' };
+  }
+
+  if (rules.some((rule) => rule.kind === 'number' && Boolean(rule.each))) {
+    return { type: 'number' };
+  }
+
+  if (rules.some((rule) => rule.kind === 'boolean' && Boolean(rule.each))) {
+    return { type: 'boolean' };
+  }
+
+  return undefined;
+}
+
+function applyValidationConstraints(schema: OpenApiSchemaObject, rules: readonly DtoFieldValidationRule[]): OpenApiSchemaObject {
+  const nextSchema: OpenApiSchemaObject = { ...schema };
+
+  for (const rule of rules) {
+    if (rule.kind === 'minLength' && !rule.each && nextSchema.type === 'string') {
+      nextSchema.minLength = rule.value;
+    }
+
+    if (rule.kind === 'maxLength' && !rule.each && nextSchema.type === 'string') {
+      nextSchema.maxLength = rule.value;
+    }
+
+    if (rule.kind === 'min' && !rule.each && (nextSchema.type === 'number' || nextSchema.type === 'integer')) {
+      nextSchema.minimum = rule.value;
+    }
+
+    if (rule.kind === 'max' && !rule.each && (nextSchema.type === 'number' || nextSchema.type === 'integer')) {
+      nextSchema.maximum = rule.value;
+    }
+
+    if (rule.kind === 'validatorjs' && nextSchema.type === 'string') {
+      if (rule.validator === 'email') {
+        nextSchema.format = 'email';
+      }
+
+      if (rule.validator === 'uuid') {
+        nextSchema.format = 'uuid';
+      }
+
+      if (rule.validator === 'url') {
+        nextSchema.format = 'uri';
+      }
+
+      if (rule.validator === 'dateString' || rule.validator === 'iso8601') {
+        nextSchema.format = 'date-time';
+      }
+    }
+  }
+
+  return nextSchema;
+}
+
+function isPropertyRequired(binding: DtoBindingEntry | undefined, validation: DtoValidationEntry | undefined): boolean {
+  if (binding?.metadata.optional) {
+    return false;
+  }
+
+  if (validation?.rules.some((rule) => rule.kind === 'optional')) {
+    return false;
+  }
+
+  return true;
+}
+
+function ensureComponentSchemaFromEntries(
+  schemaName: string,
+  entries: ReturnType<typeof collectDtoEntries>,
+  componentSchemas: Record<string, OpenApiSchemaObject>,
+): OpenApiSchemaObject {
+  if (componentSchemas[schemaName]) {
+    return createSchemaRef(schemaName);
+  }
+
+  componentSchemas[schemaName] = {
+    additionalProperties: false,
+    properties: {},
+    type: 'object',
+  };
+
+  const properties: Record<string, OpenApiSchemaObject> = {};
+  const required: string[] = [];
+
+  for (const entry of entries) {
+    const rules = entry.validation?.rules ?? [];
+
+    for (const rule of rules) {
+      if (rule.kind === 'nested') {
+        ensureComponentSchema(rule.dto, componentSchemas);
+      }
+    }
+
+    const inferred = inferPrimitiveTypeFromRules(rules) ?? { type: 'string' };
+    properties[entry.name] = applyValidationConstraints(inferred, rules);
+
+    if (isPropertyRequired(entry.binding, entry.validation)) {
+      required.push(entry.name);
+    }
+  }
+
+  componentSchemas[schemaName] = {
+    additionalProperties: false,
+    properties,
+    ...(required.length > 0 && { required }),
+    type: 'object',
+  };
+
+  return createSchemaRef(schemaName);
+}
+
+function ensureComponentSchema(
+  dto: Constructor,
+  componentSchemas: Record<string, OpenApiSchemaObject>,
+): OpenApiSchemaObject {
+  return ensureComponentSchemaFromEntries(dto.name, collectDtoEntries(dto), componentSchemas);
+}
+
+function createRequestBody(
+  dto: Constructor | undefined,
+  componentSchemas: Record<string, OpenApiSchemaObject>,
+): OpenApiRequestBodyObject | undefined {
+  if (!dto) {
+    return undefined;
+  }
+
+  const entries = collectDtoEntries(dto).filter((entry) => entry.binding?.metadata.source === 'body' || entry.binding === undefined);
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  const schemaName = entries.length === collectDtoEntries(dto).length ? dto.name : `${dto.name}RequestBody`;
+  ensureComponentSchemaFromEntries(schemaName, entries, componentSchemas);
+
+  return {
+    content: {
+      'application/json': {
+        schema: createSchemaRef(schemaName),
+      },
+    },
+    required: true,
+  };
+}
+
+function createResponseObject(
+  response: ApiResponseMetadata,
+  componentSchemas: Record<string, OpenApiSchemaObject>,
+): OpenApiResponseObject {
+  const schema = response.schema
+    ? response.schema
+    : response.type
+      ? ensureComponentSchema(response.type, componentSchemas)
+      : undefined;
+
+  return {
+    description: response.description ?? 'OK',
+    ...(schema
+      ? {
+          content: {
+            'application/json': {
+              schema,
+            },
+          },
+        }
+      : {}),
+  };
+}
+
 export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): OpenApiDocument {
   const paths: Record<string, OpenApiPathItemObject> = {};
+  const componentSchemas: Record<string, OpenApiSchemaObject> = {};
+  let hasBearerAuth = false;
 
   for (const descriptor of options.descriptors) {
     const path = descriptor.route.path;
@@ -71,12 +399,10 @@ export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): Open
 
     if (methodMeta?.responses && methodMeta.responses.length > 0) {
       for (const resp of methodMeta.responses) {
-        responses[String(resp.status)] = {
-          description: resp.description ?? 'OK',
-        };
+        responses[String(resp.status)] = createResponseObject(resp, componentSchemas);
       }
     } else {
-      responses['200'] = { description: 'OK' };
+      responses[String(descriptor.route.successStatus ?? 200)] = { description: 'OK' };
     }
 
     const security: OpenApiSecurityRequirementObject[] | undefined =
@@ -84,12 +410,19 @@ export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): Open
         ? methodMeta.security.map((scheme) => ({ [scheme]: [] }))
         : undefined;
 
+    if (security?.some((requirement) => Object.keys(requirement).includes('bearerAuth'))) {
+      hasBearerAuth = true;
+    }
+
     const operation: OpenApiOperationObject = {
       operationId: normalizeOperationId(descriptor),
       responses,
       tags,
       ...(methodMeta?.operation?.summary !== undefined && { summary: methodMeta.operation.summary }),
       ...(methodMeta?.operation?.description !== undefined && { description: methodMeta.operation.description }),
+      ...(createRequestBody(descriptor.route.request, componentSchemas) !== undefined && {
+        requestBody: createRequestBody(descriptor.route.request, componentSchemas),
+      }),
       ...(security !== undefined && { security }),
     };
 
@@ -97,7 +430,23 @@ export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): Open
     paths[path] = pathItem;
   }
 
+  const components: OpenApiComponentsObject = {
+    ...(Object.keys(componentSchemas).length > 0 && { schemas: componentSchemas }),
+    ...(hasBearerAuth
+      ? {
+          securitySchemes: {
+            bearerAuth: {
+              bearerFormat: 'JWT',
+              scheme: 'bearer',
+              type: 'http',
+            },
+          },
+        }
+      : {}),
+  };
+
   return {
+    ...(Object.keys(components).length > 0 && { components }),
     info: {
       title: options.title,
       version: options.version,

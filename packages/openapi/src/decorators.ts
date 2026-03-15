@@ -8,6 +8,7 @@ export interface ApiOperationOptions {
 export interface ApiResponseOptions {
   status: number;
   description?: string;
+  schema?: Record<string, unknown>;
   type?: Constructor;
 }
 
@@ -19,6 +20,7 @@ export interface ApiOperationMetadata {
 export interface ApiResponseMetadata {
   status: number;
   description?: string;
+  schema?: Record<string, unknown>;
   type?: Constructor;
 }
 
@@ -99,8 +101,31 @@ export function ApiOperation(options: ApiOperationOptions): MethodDecoratorFn {
   };
 }
 
+function normalizeApiResponseOptions(
+  statusOrOptions: number | ApiResponseOptions,
+  options?: Omit<ApiResponseOptions, 'status'>,
+): ApiResponseOptions {
+  if (typeof statusOrOptions === 'number') {
+    return {
+      status: statusOrOptions,
+      ...options,
+    };
+  }
+
+  return statusOrOptions;
+}
+
 /** Declare an expected HTTP response for a controller method. */
-export function ApiResponse(options: ApiResponseOptions): MethodDecoratorFn {
+export function ApiResponse(status: number, options?: Omit<ApiResponseOptions, 'status'>): MethodDecoratorFn;
+/** Declare an expected HTTP response for a controller method. */
+export function ApiResponse(options: ApiResponseOptions): MethodDecoratorFn;
+/** Declare an expected HTTP response for a controller method. */
+export function ApiResponse(
+  statusOrOptions: number | ApiResponseOptions,
+  options?: Omit<ApiResponseOptions, 'status'>,
+): MethodDecoratorFn {
+  const normalized = normalizeApiResponseOptions(statusOrOptions, options);
+
   return (_value, context) => {
     const bag = context.metadata as MetadataBag;
     let map = bag[openApiMethodResponsesKey] as Map<MetadataPropertyKey, ApiResponseMetadata[]> | undefined;
@@ -114,7 +139,12 @@ export function ApiResponse(options: ApiResponseOptions): MethodDecoratorFn {
 
     map.set(context.name, [
       ...existing,
-      { description: options.description, status: options.status, type: options.type },
+      {
+        description: normalized.description,
+        schema: normalized.schema,
+        status: normalized.status,
+        type: normalized.type,
+      },
     ]);
   };
 }

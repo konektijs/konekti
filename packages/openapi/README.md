@@ -25,7 +25,7 @@ import {
 @Controller('/users')
 class UsersController {
   @ApiOperation({ summary: 'List all users' })
-  @ApiResponse({ status: 200, description: 'Array of users' })
+  @ApiResponse(200, { description: 'Array of users' })
   @Get('/')
   listUsers() {
     return [];
@@ -33,7 +33,7 @@ class UsersController {
 
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a user' })
-  @ApiResponse({ status: 201, description: 'Created user' })
+  @ApiResponse(201, { description: 'Created user' })
   @Post('/')
   createUser() {
     return {};
@@ -116,19 +116,19 @@ interface ApiOperationOptions {
 getProduct() { ... }
 ```
 
-### `@ApiResponse(options)`
+### `@ApiResponse(status, options)`
 
 Documents a response for a handler.
 
 ```typescript
 interface ApiResponseOptions {
-  status: number;
   description?: string;
-  type?: Constructor;   // response body schema (future use)
+  schema?: Record<string, unknown>;
+  type?: Constructor;
 }
 
-@ApiResponse({ status: 200, description: 'The product' })
-@ApiResponse({ status: 404, description: 'Not found' })
+@ApiResponse(200, { description: 'The product', type: ProductDto })
+@ApiResponse(404, { description: 'Not found' })
 @Get('/:id')
 getProduct() { ... }
 ```
@@ -173,9 +173,10 @@ The generated document follows OpenAPI 3.1.0:
 }
 ```
 
-- **`operationId`** is auto-generated as `ControllerName_methodName`.
+- **`operationId`** is auto-generated from the primary tag, handler name, HTTP method, and normalized route path.
 - **`tags`** default to the controller class name when `@ApiTag` is not used.
 - **`security`** schemes are only included in the document when at least one handler uses `@ApiBearerAuth()`.
+- Request DTOs decorated with `@konekti/dto-validator` are emitted as `components.schemas` entries and linked through `requestBody`.
 
 ---
 

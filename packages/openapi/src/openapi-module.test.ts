@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { IsBoolean, IsOptional, IsString, MinLength, ValidateNested } from '@konekti/dto-validator';
 import { Controller, Get, Post, createHandlerMapping, type FrameworkRequest, type FrameworkResponse } from '@konekti/http';
+import { FromBody, RequestDto } from '@konekti/http';
 import { bootstrapApplication, defineModule } from '@konekti/runtime';
 
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTag } from './decorators.js';
 import { OpenApiModule } from './openapi-module.js';
 
 type TestFrameworkResponse = FrameworkResponse & { body?: unknown };
@@ -45,14 +48,52 @@ function createResponse(): TestFrameworkResponse {
 }
 
 describe('OpenApiModule', () => {
-  it('serves a valid OpenAPI 3.1 document at /openapi.json', async () => {
+  it('serves an augmented OpenAPI 3.1 document with DTO schemas at /openapi.json', async () => {
+    class AddressDto {
+      @FromBody('city')
+      @IsString()
+      @MinLength(1)
+      city = '';
+    }
+
+    class CreateUserRequest {
+      @FromBody('name')
+      @IsString()
+      @MinLength(1)
+      name = '';
+
+      @FromBody('nickname')
+      @IsOptional()
+      @IsString()
+      nickname?: string;
+
+      @FromBody('address')
+      @ValidateNested(() => AddressDto)
+      address = new AddressDto();
+    }
+
+    class UserResponseDto {
+      @IsString()
+      id = '';
+
+      @IsBoolean()
+      created = true;
+    }
+
+    @ApiTag('users')
     @Controller('/users')
     class UsersController {
+      @ApiOperation({ description: 'Creates a new user in the starter system.', summary: 'Create user' })
+      @ApiBearerAuth()
+      @ApiResponse(201, { description: 'Created', type: UserResponseDto })
       @Get('/')
       listUsers() {
         return [{ id: '1' }];
       }
 
+      @RequestDto(CreateUserRequest)
+      @ApiOperation({ summary: 'Create user' })
+      @ApiResponse(201, { description: 'Created', type: UserResponseDto })
       @Post('/')
       createUser() {
         return { id: '2' };
@@ -84,6 +125,58 @@ describe('OpenApiModule', () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).toEqual(
       expect.objectContaining({
+        components: expect.objectContaining({
+          schemas: expect.objectContaining({
+            AddressDto: {
+              additionalProperties: false,
+              properties: {
+                city: {
+                  minLength: 1,
+                  type: 'string',
+                },
+              },
+              required: ['city'],
+              type: 'object',
+            },
+            CreateUserRequest: {
+              additionalProperties: false,
+              properties: {
+                address: {
+                  $ref: '#/components/schemas/AddressDto',
+                },
+                name: {
+                  minLength: 1,
+                  type: 'string',
+                },
+                nickname: {
+                  type: 'string',
+                },
+              },
+              required: ['name', 'address'],
+              type: 'object',
+            },
+            UserResponseDto: {
+              additionalProperties: false,
+              properties: {
+                created: {
+                  type: 'boolean',
+                },
+                id: {
+                  type: 'string',
+                },
+              },
+              required: ['id', 'created'],
+              type: 'object',
+            },
+          }),
+          securitySchemes: {
+            bearerAuth: {
+              bearerFormat: 'JWT',
+              scheme: 'bearer',
+              type: 'http',
+            },
+          },
+        }),
         info: {
           title: 'Test API',
           version: '1.0.0',
@@ -92,10 +185,47 @@ describe('OpenApiModule', () => {
         paths: {
           '/users': {
             get: expect.objectContaining({
-              tags: ['UsersController'],
+              responses: {
+                '201': {
+                  content: {
+                    'application/json': {
+                      schema: {
+                        $ref: '#/components/schemas/UserResponseDto',
+                      },
+                    },
+                  },
+                  description: 'Created',
+                },
+              },
+              security: [{ bearerAuth: [] }],
+              summary: 'Create user',
+              tags: ['users'],
             }),
             post: expect.objectContaining({
-              tags: ['UsersController'],
+              requestBody: {
+                content: {
+                  'application/json': {
+                    schema: {
+                      $ref: '#/components/schemas/CreateUserRequest',
+                    },
+                  },
+                },
+                required: true,
+              },
+              responses: {
+                '201': {
+                  content: {
+                    'application/json': {
+                      schema: {
+                        $ref: '#/components/schemas/UserResponseDto',
+                      },
+                    },
+                  },
+                  description: 'Created',
+                },
+              },
+              summary: 'Create user',
+              tags: ['users'],
             }),
           },
         },
