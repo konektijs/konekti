@@ -1,4 +1,4 @@
-import type { MetadataPropertyKey, MetadataSource, Token } from './types.js';
+import type { Constructor, MaybePromise, MetadataPropertyKey, MetadataSource, Token } from './types.js';
 
 export interface ModuleMetadata {
   imports?: unknown[];
@@ -30,6 +30,130 @@ export interface DtoFieldBindingMetadata {
   optional?: boolean;
 }
 
+export interface ValidationIssueMetadata {
+  code: string;
+  field?: string;
+  message: string;
+  source?: MetadataSource;
+}
+
+export type ValidationRuleResult = boolean | void | ValidationIssueMetadata | readonly ValidationIssueMetadata[];
+
+export interface ValidationDecoratorOptions {
+  code?: string;
+  each?: boolean;
+  message?: string;
+}
+
+export interface CustomValidationDecoratorOptions extends ValidationDecoratorOptions {
+  source?: MetadataSource;
+}
+
+export interface CustomFieldValidationContext<T = unknown> {
+  dto: T;
+  propertyKey: MetadataPropertyKey;
+}
+
+export type CustomFieldValidator<T = unknown> = (
+  value: unknown,
+  context: CustomFieldValidationContext<T>,
+) => MaybePromise<ValidationRuleResult>;
+
+export type CustomClassValidator<T = unknown> = (value: T) => MaybePromise<ValidationRuleResult>;
+
+export type ConditionalFieldValidator<T = unknown> = (
+  dto: T,
+  value: unknown,
+) => MaybePromise<boolean>;
+
+export type DtoFieldValidationRule =
+  | ({ kind: 'validateIf'; validateIf: ConditionalFieldValidator } & ValidationDecoratorOptions)
+  | ({ kind: 'defined' } & ValidationDecoratorOptions)
+  | ({ kind: 'optional' } & ValidationDecoratorOptions)
+  | ({ kind: 'equals'; value: unknown } & ValidationDecoratorOptions)
+  | ({ kind: 'notEquals'; value: unknown } & ValidationDecoratorOptions)
+  | ({ kind: 'empty' } & ValidationDecoratorOptions)
+  | ({ kind: 'notEmpty' } & ValidationDecoratorOptions)
+  | ({ kind: 'in'; values: readonly unknown[] } & ValidationDecoratorOptions)
+  | ({ kind: 'notIn'; values: readonly unknown[] } & ValidationDecoratorOptions)
+  | ({ kind: 'string' } & ValidationDecoratorOptions)
+  | ({ kind: 'number'; allowNaN?: boolean } & ValidationDecoratorOptions)
+  | ({ kind: 'boolean' } & ValidationDecoratorOptions)
+  | ({ kind: 'date' } & ValidationDecoratorOptions)
+  | ({ kind: 'array' } & ValidationDecoratorOptions)
+  | ({ kind: 'object' } & ValidationDecoratorOptions)
+  | ({ kind: 'enum'; values: readonly unknown[] } & ValidationDecoratorOptions)
+  | ({ kind: 'int' } & ValidationDecoratorOptions)
+  | ({ kind: 'divisibleBy'; value: number } & ValidationDecoratorOptions)
+  | ({ kind: 'positive' } & ValidationDecoratorOptions)
+  | ({ kind: 'negative' } & ValidationDecoratorOptions)
+  | ({ kind: 'min'; value: number } & ValidationDecoratorOptions)
+  | ({ kind: 'max'; value: number } & ValidationDecoratorOptions)
+  | ({ kind: 'minDate'; value: Date } & ValidationDecoratorOptions)
+  | ({ kind: 'maxDate'; value: Date } & ValidationDecoratorOptions)
+  | ({ kind: 'contains'; value: string } & ValidationDecoratorOptions)
+  | ({ kind: 'notContains'; value: string } & ValidationDecoratorOptions)
+  | ({ kind: 'length'; min: number; max?: number } & ValidationDecoratorOptions)
+  | ({ kind: 'minLength'; value: number } & ValidationDecoratorOptions)
+  | ({ kind: 'maxLength'; value: number } & ValidationDecoratorOptions)
+  | ({ kind: 'nested'; dto: Constructor } & ValidationDecoratorOptions)
+  | ({
+      kind: 'validatorjs';
+      validator:
+        | 'alpha'
+        | 'alphanumeric'
+        | 'ascii'
+        | 'base64'
+        | 'booleanString'
+        | 'currency'
+        | 'dataURI'
+        | 'dateString'
+        | 'decimal'
+        | 'email'
+        | 'fqdn'
+        | 'hexColor'
+        | 'hexadecimal'
+        | 'ip'
+        | 'isbn'
+        | 'issn'
+        | 'json'
+        | 'jwt'
+        | 'locale'
+        | 'lowercase'
+        | 'magnetURI'
+        | 'matches'
+        | 'mimeType'
+        | 'mobilePhone'
+        | 'mongoId'
+        | 'numberString'
+        | 'port'
+        | 'postalCode'
+        | 'rgbColor'
+        | 'rfc3339'
+        | 'semVer'
+        | 'uppercase'
+        | 'url'
+        | 'uuid'
+        | 'iso8601'
+        | 'latitude'
+        | 'longitude'
+        | 'latLong';
+      args?: readonly unknown[];
+    } & ValidationDecoratorOptions)
+  | ({ kind: 'arrayContains'; values: readonly unknown[] } & ValidationDecoratorOptions)
+  | ({ kind: 'arrayNotContains'; values: readonly unknown[] } & ValidationDecoratorOptions)
+  | ({ kind: 'arrayNotEmpty' } & ValidationDecoratorOptions)
+  | ({ kind: 'arrayMinSize'; value: number } & ValidationDecoratorOptions)
+  | ({ kind: 'arrayMaxSize'; value: number } & ValidationDecoratorOptions)
+  | ({ kind: 'arrayUnique'; selector?: (value: unknown) => unknown } & ValidationDecoratorOptions)
+  | ({ kind: 'custom'; validate: CustomFieldValidator; source?: MetadataSource } & ValidationDecoratorOptions);
+
+export interface ClassValidationRule {
+  code?: string;
+  message?: string;
+  validate: CustomClassValidator;
+}
+
 export interface InjectionMetadata {
   token: unknown;
   optional?: boolean;
@@ -55,7 +179,9 @@ if (!symbolWithMetadata.metadata) {
 const standardControllerMetadataKey = Symbol.for('konekti.standard.controller');
 const standardRouteMetadataKey = Symbol.for('konekti.standard.route');
 const standardDtoBindingMetadataKey = Symbol.for('konekti.standard.dto-binding');
+const standardDtoValidationMetadataKey = Symbol.for('konekti.standard.dto-validation');
 const standardInjectionMetadataKey = Symbol.for('konekti.standard.injection');
+const standardClassValidationMetadataKey = Symbol.for('konekti.standard.class-validation');
 
 interface StandardRouteMetadataRecord {
   guards?: unknown[];
@@ -67,6 +193,7 @@ interface StandardRouteMetadataRecord {
 }
 
 type StandardDtoBindingRecord = Partial<DtoFieldBindingMetadata>;
+type StandardDtoValidationRecord = DtoFieldValidationRule[];
 
 type StandardInjectionRecord = Partial<InjectionMetadata>;
 
@@ -75,16 +202,20 @@ export const metadataKeys = {
   controller: Symbol.for('konekti.metadata.controller'),
   route: Symbol.for('konekti.metadata.route'),
   dtoFieldBinding: Symbol.for('konekti.metadata.dto-field-binding'),
+  dtoFieldValidation: Symbol.for('konekti.metadata.dto-field-validation'),
   injection: Symbol.for('konekti.metadata.injection'),
   classDi: Symbol.for('konekti.metadata.class-di'),
+  classValidation: Symbol.for('konekti.metadata.class-validation'),
 } as const;
 
 const moduleMetadataStore = new WeakMap<Function, ModuleMetadata>();
 const controllerMetadataStore = new WeakMap<Function, ControllerMetadata>();
 const routeMetadataStore = new WeakMap<object, Map<MetadataPropertyKey, RouteMetadata>>();
 const dtoFieldBindingStore = new WeakMap<object, Map<MetadataPropertyKey, DtoFieldBindingMetadata>>();
+const dtoFieldValidationStore = new WeakMap<object, Map<MetadataPropertyKey, DtoFieldValidationRule[]>>();
 const injectionMetadataStore = new WeakMap<object, Map<MetadataPropertyKey, InjectionMetadata>>();
 const classDiMetadataStore = new WeakMap<Function, ClassDiMetadata>();
+const classValidationStore = new WeakMap<Function, ClassValidationRule[]>();
 
 function cloneModuleMetadata(metadata: ModuleMetadata): ModuleMetadata {
   return {
@@ -197,6 +328,22 @@ function getStandardDtoBindingMap(target: object): Map<MetadataPropertyKey, Stan
         | Map<MetadataPropertyKey, StandardDtoBindingRecord>
         | undefined)
     : undefined;
+}
+
+function getStandardDtoValidationMap(target: object): Map<MetadataPropertyKey, StandardDtoValidationRecord> | undefined {
+  const constructor = (target as { constructor?: Function }).constructor;
+
+  return constructor
+    ? (getStandardMetadataBag(constructor)?.[standardDtoValidationMetadataKey] as
+        | Map<MetadataPropertyKey, StandardDtoValidationRecord>
+        | undefined)
+    : undefined;
+}
+
+function getStandardClassValidationRules(target: Function): ClassValidationRule[] | undefined {
+  const rules = getStandardMetadataBag(target)?.[standardClassValidationMetadataKey] as ClassValidationRule[] | undefined;
+
+  return rules ? [...rules] : undefined;
 }
 
 function getStandardInjectionMap(target: object): Map<MetadataPropertyKey, StandardInjectionRecord> | undefined {
@@ -349,6 +496,19 @@ export function defineDtoFieldBindingMetadata(
   getOrCreatePropertyMap(dtoFieldBindingStore, target).set(propertyKey, { ...metadata });
 }
 
+export function appendDtoFieldValidationRule(
+  target: object,
+  propertyKey: MetadataPropertyKey,
+  rule: DtoFieldValidationRule,
+): void {
+  const map = getOrCreatePropertyMap(dtoFieldValidationStore, target);
+  map.set(propertyKey, [rule, ...(map.get(propertyKey) ?? [])]);
+}
+
+export function appendClassValidationRule(target: Function, rule: ClassValidationRule): void {
+  classValidationStore.set(target, [rule, ...(classValidationStore.get(target) ?? [])]);
+}
+
 /**
  * 클래스 필드에 주입 메타데이터를 저장한다.
  */
@@ -378,6 +538,30 @@ export function getDtoBindingSchema(dto: new (...args: never[]) => unknown) {
     .filter(
       (entry): entry is { propertyKey: MetadataPropertyKey; metadata: DtoFieldBindingMetadata } => entry.metadata !== undefined,
     );
+}
+
+export function getDtoFieldValidationRules(target: object, propertyKey: MetadataPropertyKey): readonly DtoFieldValidationRule[] {
+  const stored = dtoFieldValidationStore.get(target)?.get(propertyKey) ?? [];
+  const standard = getStandardDtoValidationMap(target)?.get(propertyKey) ?? [];
+
+  return [...standard, ...stored];
+}
+
+export function getDtoValidationSchema(dto: new (...args: never[]) => unknown) {
+  const stored = dtoFieldValidationStore.get(dto.prototype) ?? new Map<MetadataPropertyKey, DtoFieldValidationRule[]>();
+  const standard = getStandardDtoValidationMap(dto.prototype) ?? new Map<MetadataPropertyKey, StandardDtoValidationRecord>();
+  const keys = new Set<MetadataPropertyKey>([...stored.keys(), ...standard.keys()]);
+
+  return Array.from(keys)
+    .map((propertyKey) => ({
+      propertyKey,
+      rules: getDtoFieldValidationRules(dto.prototype, propertyKey),
+    }))
+    .filter((entry) => entry.rules.length > 0);
+}
+
+export function getClassValidationRules(target: Function): readonly ClassValidationRule[] {
+  return [...(getStandardClassValidationRules(target) ?? []), ...(classValidationStore.get(target) ?? [])];
 }
 
 /**
