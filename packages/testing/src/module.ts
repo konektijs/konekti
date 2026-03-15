@@ -4,25 +4,24 @@ import { bootstrapModule } from '@konekti/runtime';
 
 import type { TestingModuleBuilder, TestingModuleOptions, TestingModuleRef } from './types.js';
 
+function isProviderDescriptor<T>(value: Provider<T> | T): value is Provider<T> {
+  return typeof value === 'object' && value !== null && ('useClass' in value || 'useFactory' in value || 'useValue' in value);
+}
+
+function isClassConstructor<T>(value: Provider<T> | T): value is ClassType<T> {
+  return typeof value === 'function';
+}
+
 function normalizeOverride<T>(token: Token<T>, value: Provider<T> | T): Provider<T> {
-  if (typeof value === 'function') {
-    return {
-      provide: token,
-      useClass: value as unknown as ClassType<T>,
-    };
+  if (isProviderDescriptor(value)) {
+    return { ...value, provide: token } as Provider<T>;
   }
 
-  if (typeof value === 'object' && value !== null && ('useClass' in value || 'useFactory' in value || 'useValue' in value)) {
-    return {
-      ...value,
-      provide: token,
-    } as Provider<T>;
+  if (isClassConstructor(value)) {
+    return { provide: token, useClass: value };
   }
 
-  return {
-    provide: token,
-    useValue: value,
-  };
+  return { provide: token, useValue: value };
 }
 
 class DefaultTestingModuleBuilder implements TestingModuleBuilder {

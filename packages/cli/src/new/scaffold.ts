@@ -624,6 +624,7 @@ async function resolvePackageSpecs(targetDirectory: string, options: CreateKonek
   }
 
   const tarballs = new Map<string, string>();
+  const packedFiles = new Set(readdirSync(outputDirectory));
 
   for (const packageName of packageNames) {
     const packageDirectory = PACKAGE_DIRECTORY_BY_NAME[packageName];
@@ -632,7 +633,7 @@ async function resolvePackageSpecs(targetDirectory: string, options: CreateKonek
     ) as { version: string };
     const tarball = expectedTarballName(packageName, packageVersion.version);
 
-    if (!readdirSync(outputDirectory).includes(tarball)) {
+    if (!packedFiles.has(tarball)) {
       throw new Error(`Unable to locate packed tarball for ${packageName}.`);
     }
 
