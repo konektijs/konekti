@@ -4,11 +4,11 @@ import type { Container } from '@konekti/di';
 import { HandlerNotFoundError, RequestAbortedError } from './errors.js';
 import { HttpException, InternalServerException, NotFoundException, createErrorResponse } from './exceptions.js';
 import { DefaultBinder } from './binding.js';
+import { HttpDtoValidationAdapter } from './dto-validation-adapter.js';
 import { runGuardChain } from './guards.js';
 import { runInterceptorChain } from './interceptors.js';
 import { runMiddlewareChain } from './middleware.js';
 import { createRequestContext, runWithRequestContext } from './request-context.js';
-import { DefaultValidator } from './validation.js';
 import type {
   ArgumentResolverContext,
   Dispatcher,
@@ -26,7 +26,7 @@ import type {
 } from './types.js';
 
 const defaultBinder = new DefaultBinder();
-const defaultValidator = new DefaultValidator();
+const defaultValidator = new HttpDtoValidationAdapter();
 
 export interface CreateDispatcherOptions {
   appMiddleware?: MiddlewareLike[];
