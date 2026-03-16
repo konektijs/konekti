@@ -25,6 +25,7 @@ declare module '@konekti/http' {
 }
 
 export interface NodeHttpAdapterOptions {
+  maxBodySize?: number;
   port?: number;
   retryDelayMs?: number;
   retryLimit?: number;
@@ -36,6 +37,7 @@ export interface BootstrapNodeApplicationOptions extends Omit<CreateApplicationO
   compression?: boolean;
   cors?: false | CorsOptions;
   logger?: ApplicationLogger;
+  maxBodySize?: number;
   middleware?: MiddlewareLike[];
   multipart?: MultipartOptions;
   port?: number;
@@ -56,12 +58,13 @@ export class NodeHttpApplicationAdapter implements HttpApplicationAdapter {
     private readonly retryLimit = 20,
     private readonly compression = false,
     private readonly multipartOptions?: MultipartOptions,
+    private readonly maxBodySize = 1 * 1024 * 1024,
   ) {}
 
   async listen(dispatcher: Dispatcher): Promise<void> {
     this.server = createServer(async (request, response) => {
       const signal = createRequestSignal(request, response);
-      const frameworkRequest = await createFrameworkRequest(request, signal, this.multipartOptions);
+      const frameworkRequest = await createFrameworkRequest(request, signal, this.multipartOptions, this.maxBodySize);
       const frameworkResponse = createFrameworkResponse(response, this.compression ? request.headers['accept-encoding'] as string | undefined : undefined);
 
       await dispatcher.dispatch(frameworkRequest, frameworkResponse);
@@ -133,6 +136,7 @@ export function createNodeHttpAdapter(options: NodeHttpAdapterOptions = {}, comp
     options.retryLimit,
     compression,
     multipartOptions,
+    options.maxBodySize,
   );
 }
 
@@ -227,6 +231,7 @@ async function createFrameworkRequest(
   request: import('node:http').IncomingMessage,
   signal: AbortSignal,
   multipartOptions?: MultipartOptions,
+  maxBodySize = 1 * 1024 * 1024,
 ): Promise<FrameworkRequest> {
   const url = new URL(request.url ?? '/', 'http://localhost');
   const headers = Object.fromEntries(
@@ -245,7 +250,7 @@ async function createFrameworkRequest(
     body = result.fields;
     files = result.files;
   } else {
-    body = await readRequestBody(request, headers['content-type']);
+    body = await readRequestBody(request, headers['content-type'], maxBodySize);
   }
 
   const frameworkRequest: FrameworkRequest = {
@@ -359,11 +364,19 @@ async function closeFromSignal(app: Application, logger: ApplicationLogger, sign
   }
 }
 
-async function readRequestBody(request: import('node:http').IncomingMessage, contentType: string | string[] | undefined): Promise<unknown> {
+async function readRequestBody(request: import('node:http').IncomingMessage, contentType: string | string[] | undefined, maxBodySize = 1 * 1024 * 1024): Promise<unknown> {
   const chunks: Uint8Array[] = [];
+  let totalSize = 0;
 
   for await (const chunk of request) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+    const buf: Uint8Array = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
+    totalSize += buf.byteLength;
+
+    if (totalSize > maxBodySize) {
+      throw new BadRequestException('Request body exceeds the size limit.');
+    }
+
+    chunks.push(buf);
   }
 
   if (chunks.length === 0) {

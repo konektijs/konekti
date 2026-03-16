@@ -31,7 +31,7 @@ Concrete evidence lives in:
 
 - `packages/http/src/dispatcher.ts`
 - `packages/http/src/dispatcher.test.ts`
-- `packages/module/src/application.test.ts`
+- `packages/runtime/src/application.test.ts`
 - `packages/prisma/src/vertical-slice.test.ts`
 
 ## data and auth stance

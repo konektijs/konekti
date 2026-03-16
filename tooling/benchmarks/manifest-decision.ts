@@ -2,7 +2,7 @@ import { performance } from 'node:perf_hooks';
 
 import { defineClassDiMetadata, Module } from '../../packages/core/src/index';
 import { Controller, Get } from '../../packages/http/src/index';
-import { KonektiFactory, type ApplicationLogger, type ModuleType } from '../../packages/module/src/index';
+import { KonektiFactory, type ApplicationLogger, type ModuleType } from '../../packages/runtime/src/index';
 
 type ConstructorToken = new (...args: never[]) => unknown;
 

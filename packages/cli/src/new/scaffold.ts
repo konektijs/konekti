@@ -21,7 +21,7 @@ const PACKAGE_DIRECTORY_BY_NAME = {
   '@konekti/openapi': 'openapi',
   '@konekti/passport': 'passport',
   '@konekti/prisma': 'prisma',
-  '@konekti/runtime': 'module',
+  '@konekti/runtime': 'runtime',
   '@konekti/testing': 'testing',
 } as const;
 

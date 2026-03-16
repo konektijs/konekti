@@ -4,7 +4,7 @@
     "baseUrl": ".",
     "paths": {
       "@konekti/http": ["../http/dist/index.d.ts"],
-      "@konekti/runtime": ["../module/dist/index.d.ts"]
+      "@konekti/runtime": ["../runtime/dist/index.d.ts"]
     },
     "rootDir": "src",
     "types": ["node"]
