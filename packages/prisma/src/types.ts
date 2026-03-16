@@ -12,6 +12,7 @@ export interface PrismaClientLike<TTransactionClient = PrismaTransactionClient> 
 
 export interface PrismaModuleOptions<TClient extends PrismaClientLike<TTransactionClient>, TTransactionClient = TClient> {
   client: TClient;
+  strictTransactions?: boolean;
 }
 
 export interface PrismaHandleProvider<TClient extends PrismaClientLike<TTransactionClient>, TTransactionClient = TClient> {

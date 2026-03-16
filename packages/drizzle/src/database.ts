@@ -4,10 +4,14 @@ import { raceWithAbort } from '@konekti/runtime';
 import type { OnApplicationShutdown } from '@konekti/runtime';
 import { Inject } from '@konekti/core';
 
-import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE } from './tokens.js';
+import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE, DRIZZLE_OPTIONS } from './tokens.js';
 import type { DrizzleDatabaseLike, DrizzleHandleProvider } from './types.js';
 
-@Inject([DRIZZLE_DATABASE, DRIZZLE_DISPOSE])
+interface DrizzleDatabaseOptions {
+  strictTransactions: boolean;
+}
+
+@Inject([DRIZZLE_DATABASE, DRIZZLE_DISPOSE, DRIZZLE_OPTIONS])
 export class DrizzleDatabase<
   TDatabase extends DrizzleDatabaseLike<TTransactionDatabase, TTransactionOptions>,
   TTransactionDatabase = TDatabase,
@@ -23,6 +27,7 @@ export class DrizzleDatabase<
   constructor(
     private readonly database: TDatabase,
     private readonly dispose?: (database: TDatabase) => Promise<void> | void,
+    private readonly databaseOptions: DrizzleDatabaseOptions = { strictTransactions: false },
   ) {}
 
   current(): TDatabase | TTransactionDatabase {
@@ -49,6 +54,9 @@ export class DrizzleDatabase<
     }
 
     if (typeof this.database.transaction !== 'function') {
+      if (this.databaseOptions.strictTransactions) {
+        throw new Error('Transaction not supported: Drizzle database does not implement transaction.');
+      }
       return fn();
     }
 
@@ -63,6 +71,9 @@ export class DrizzleDatabase<
     }
 
     if (typeof this.database.transaction !== 'function') {
+      if (this.databaseOptions.strictTransactions) {
+        throw new Error('Transaction not supported: Drizzle database does not implement transaction.');
+      }
       return fn();
     }
 

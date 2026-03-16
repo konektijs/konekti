@@ -2,7 +2,7 @@ import type { Provider } from '@konekti/di';
 import { defineModule, type ModuleType } from '@konekti/runtime';
 
 import { DrizzleDatabase } from './database.js';
-import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE } from './tokens.js';
+import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE, DRIZZLE_OPTIONS } from './tokens.js';
 import { DrizzleTransactionInterceptor } from './transaction.js';
 import type { DrizzleDatabaseLike, DrizzleModuleOptions } from './types.js';
 
@@ -19,6 +19,10 @@ export function createDrizzleProviders<
     {
       provide: DRIZZLE_DISPOSE,
       useValue: options.dispose,
+    },
+    {
+      provide: DRIZZLE_OPTIONS,
+      useValue: { strictTransactions: options.strictTransactions ?? false },
     },
     DrizzleDatabase,
     DrizzleTransactionInterceptor,

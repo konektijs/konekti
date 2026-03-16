@@ -7,6 +7,7 @@ export interface DrizzleDatabaseLike<TTransactionDatabase = unknown, TTransactio
 export interface DrizzleModuleOptions<TDatabase extends DrizzleDatabaseLike<TTransactionDatabase, TTransactionOptions>, TTransactionDatabase = TDatabase, TTransactionOptions = unknown> {
   database: TDatabase;
   dispose?: (database: TDatabase) => MaybePromise<void>;
+  strictTransactions?: boolean;
 }
 
 export interface DrizzleHandleProvider<TDatabase extends DrizzleDatabaseLike<TTransactionDatabase, TTransactionOptions>, TTransactionDatabase = TDatabase, TTransactionOptions = unknown> {

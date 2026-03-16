@@ -4,10 +4,14 @@ import { raceWithAbort } from '@konekti/runtime';
 import type { OnApplicationShutdown, OnModuleInit } from '@konekti/runtime';
 import { Inject } from '@konekti/core';
 
-import { PRISMA_CLIENT } from './tokens.js';
+import { PRISMA_CLIENT, PRISMA_OPTIONS } from './tokens.js';
 import type { PrismaClientLike, PrismaHandleProvider } from './types.js';
 
-@Inject([PRISMA_CLIENT])
+interface PrismaServiceOptions {
+  strictTransactions: boolean;
+}
+
+@Inject([PRISMA_CLIENT, PRISMA_OPTIONS])
 export class PrismaService<TClient extends PrismaClientLike<TTransactionClient>, TTransactionClient = TClient>
   implements PrismaHandleProvider<TClient, TTransactionClient>, OnModuleInit, OnApplicationShutdown
 {
@@ -17,7 +21,10 @@ export class PrismaService<TClient extends PrismaClientLike<TTransactionClient>,
     settled: Promise<void>;
   }>();
 
-  constructor(private readonly client: TClient) {}
+  constructor(
+    private readonly client: TClient,
+    private readonly serviceOptions: PrismaServiceOptions = { strictTransactions: false },
+  ) {}
 
   current(): TClient | TTransactionClient {
     return this.transactions.getStore() ?? this.client;
@@ -49,6 +56,9 @@ export class PrismaService<TClient extends PrismaClientLike<TTransactionClient>,
     }
 
     if (typeof this.client.$transaction !== 'function') {
+      if (this.serviceOptions.strictTransactions) {
+        throw new Error('Transaction not supported: Prisma client does not implement $transaction.');
+      }
       return fn();
     }
 
@@ -63,6 +73,9 @@ export class PrismaService<TClient extends PrismaClientLike<TTransactionClient>,
     }
 
     if (typeof this.client.$transaction !== 'function') {
+      if (this.serviceOptions.strictTransactions) {
+        throw new Error('Transaction not supported: Prisma client does not implement $transaction.');
+      }
       return fn();
     }
 
