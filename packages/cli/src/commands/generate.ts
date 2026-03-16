@@ -93,9 +93,14 @@ export function runGenerateCommand(kind: GeneratorKind, name: string, baseDirect
 
   const writtenPaths = files.map((file) => {
     const filePath = join(domainDirectory, file.path);
+
+    if (!options.force && existsSync(filePath)) {
+      return null;
+    }
+
     writeFileSync(filePath, file.content, 'utf8');
     return filePath;
-  });
+  }).filter((filePath): filePath is string => filePath !== null);
 
   const arrayKey = moduleArrayKey(kind);
   if (arrayKey !== null) {

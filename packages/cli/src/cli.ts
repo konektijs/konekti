@@ -49,7 +49,7 @@ function usage(): string {
   return [
     newUsage(),
     '',
-    'Usage: konekti g <kind> <name> [--preset <generic|prisma|drizzle>] [--target-directory <path>]',
+    'Usage: konekti g <kind> <name> [--preset <generic|prisma|drizzle>] [--target-directory <path>] [--force]',
     'Aliases: konekti generate <kind> <name>',
   ].join('\n');
 }
@@ -188,6 +188,11 @@ function parseGenerateArgs(argv: string[]): ParsedCliArgs {
 
       targetDirectory = next;
       index += 1;
+      continue;
+    }
+
+    if (option === '--force' || option === '-f') {
+      parsedOptions.force = true;
       continue;
     }
 
