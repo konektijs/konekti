@@ -173,7 +173,7 @@ function createProjectTsconfigBuild(): string {
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
-    "emitDeclarationOnly": false,
+    "emitDeclarationOnly": true,
     "outDir": "dist"
   },
   "exclude": ["src/**/*.test.ts"]
@@ -747,7 +747,7 @@ async function resolvePackageSpecs(targetDirectory: string, options: BootstrapOp
 
   const missingBuildOutput = packageNames.some((packageName) => !existsSync(join(repoRoot, 'packages', PACKAGE_DIRECTORY_BY_NAME[packageName], 'dist')));
 
-  if (missingBuildOutput || options.dependencySource === 'local') {
+  if (missingBuildOutput) {
     await runWorkspaceBuild(repoRoot);
   }
 
