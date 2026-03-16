@@ -12,10 +12,16 @@ interface WindowEntry {
 }
 
 function defaultKeyResolver(ctx: MiddlewareContext): string {
-  const forwarded = ctx.request.headers['x-forwarded-for'];
-  const ip = Array.isArray(forwarded) ? forwarded[0] : forwarded ?? 'unknown';
+  const raw = ctx.request.raw as { socket?: { remoteAddress?: string } } | undefined;
+  return raw?.socket?.remoteAddress ?? 'unknown';
+}
 
-  return ip;
+function evictExpiredEntries(store: Map<string, WindowEntry>, now: number): void {
+  for (const [key, entry] of store) {
+    if (now >= entry.resetAt) {
+      store.delete(key);
+    }
+  }
 }
 
 export function createRateLimitMiddleware(options: RateLimitOptions): Middleware {
@@ -31,6 +37,7 @@ export function createRateLimitMiddleware(options: RateLimitOptions): Middleware
       const entry = store.get(key);
 
       if (!entry || now >= entry.resetAt) {
+        evictExpiredEntries(store, now);
         store.set(key, { count: 1, resetAt: now + options.windowMs });
         return next();
       }

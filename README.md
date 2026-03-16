@@ -6,7 +6,7 @@ Planning and contract documents are maintained separately in the private `konekt
 
 ## Current status
 
-- private bootstrap monorepo
+- private workspace implementing the canonical CLI-first bootstrap contract
 - workspace/package surface initialized
 - Phase 1 foundation baseline is in place
 - Phase 2 runtime baseline (`2A`-`2E`) is implemented and verified in this repo

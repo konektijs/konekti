@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 
 import { Inject } from '@konekti/core';
 
-import { JwtInvalidTokenError } from './errors.js';
+import { JwtConfigurationError, JwtInvalidTokenError } from './errors.js';
 import type { JwtClaims, JwtVerifierOptions } from './types.js';
 import { JWT_OPTIONS } from './verifier.js';
 
@@ -22,11 +22,11 @@ export class DefaultJwtSigner {
     const secret = this.options.secret;
 
     if (!secret) {
-      throw new JwtInvalidTokenError('JWT secret is not configured.');
+      throw new JwtConfigurationError('JWT secret is not configured.');
     }
 
     if (!this.options.algorithms.includes('HS256')) {
-      throw new JwtInvalidTokenError('JWT algorithm is not allowed.');
+      throw new JwtConfigurationError('JWT signer requires HS256 in the allowed algorithms list.');
     }
 
     const now = Math.floor(Date.now() / 1000);

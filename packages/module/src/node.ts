@@ -83,9 +83,11 @@ export class NodeHttpApplicationAdapter implements HttpApplicationAdapter {
           server.off('listening', onListening);
 
           if (error.code === 'EADDRINUSE' && attempt < this.retryLimit) {
-            setTimeout(() => {
-              tryListen(attempt + 1);
-            }, this.retryDelayMs);
+            server.close(() => {
+              setTimeout(() => {
+                tryListen(attempt + 1);
+              }, this.retryDelayMs);
+            });
             return;
           }
 
@@ -200,10 +202,11 @@ function createFrameworkResponse(response: import('node:http').ServerResponse, a
       const serialized = body === undefined ? '' : JSON.stringify(body);
       const contentType = response.getHeader('Content-Type') as string | undefined;
 
-      if (acceptEncoding && serialized.length >= 1) {
+      if (acceptEncoding && serialized.length >= 256) {
         const buf = Buffer.from(serialized, 'utf8');
         this.committed = true;
-        return compressResponse(response, buf, acceptEncoding, contentType);
+        void compressResponse(response, buf, acceptEncoding, contentType);
+        return;
       }
 
       response.end(serialized);

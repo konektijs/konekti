@@ -1,8 +1,8 @@
 import { resolve } from 'node:path';
 
-import { createTierNote, promptForCreateKonektiAnswers } from '../new/prompt.js';
-import { scaffoldKonektiApp } from '../new/scaffold.js';
-import type { CreateKonektiAnswers, NewCommandOptions } from '../new/types.js';
+import { createTierNote, promptForBootstrapAnswers } from '../new/prompt.js';
+import { scaffoldBootstrapApp } from '../new/scaffold.js';
+import type { BootstrapAnswers, NewCommandOptions } from '../new/types.js';
 
 type CliStream = {
   write(message: string): unknown;
@@ -14,8 +14,8 @@ export interface NewCommandRuntimeOptions extends NewCommandOptions {
   stdout?: CliStream;
 }
 
-function parseArgs(argv: string[]): Partial<CreateKonektiAnswers> {
-  const parsed: Partial<CreateKonektiAnswers> = {};
+function parseArgs(argv: string[]): Partial<BootstrapAnswers> {
+  const parsed: Partial<BootstrapAnswers> = {};
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -27,15 +27,15 @@ function parseArgs(argv: string[]): Partial<CreateKonektiAnswers> {
         index += 1;
         break;
       case '--orm':
-        parsed.orm = next as CreateKonektiAnswers['orm'];
+        parsed.orm = next as BootstrapAnswers['orm'];
         index += 1;
         break;
       case '--database':
-        parsed.database = next as CreateKonektiAnswers['database'];
+        parsed.database = next as BootstrapAnswers['database'];
         index += 1;
         break;
       case '--package-manager':
-        parsed.packageManager = next as CreateKonektiAnswers['packageManager'];
+        parsed.packageManager = next as BootstrapAnswers['packageManager'];
         index += 1;
         break;
       case '--target-directory':
@@ -66,7 +66,7 @@ export async function runNewCommand(argv: string[], runtime: NewCommandRuntimeOp
   const stderr = runtime.stderr ?? process.stderr;
 
   try {
-    const answers = await promptForCreateKonektiAnswers(parseArgs(argv));
+    const answers = await promptForBootstrapAnswers(parseArgs(argv));
     const options = {
       ...answers,
       dependencySource: runtime.dependencySource,
@@ -78,7 +78,7 @@ export async function runNewCommand(argv: string[], runtime: NewCommandRuntimeOp
     stdout.write(`${createTierNote(answers.orm, answers.database)}\n`);
     stdout.write(`Installing dependencies with ${answers.packageManager}...\n`);
 
-    await scaffoldKonektiApp(options);
+    await scaffoldBootstrapApp(options);
 
     stdout.write('Done.\n');
     stdout.write(

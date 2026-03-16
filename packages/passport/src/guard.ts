@@ -1,6 +1,7 @@
 import { ForbiddenException, UnauthorizedException, type GuardContext } from '@konekti/http';
 import type { Principal } from '@konekti/http';
 import { Inject, type Token } from '@konekti/core';
+import { ContainerResolutionError } from '@konekti/di';
 
 import {
   AuthenticationExpiredError,
@@ -61,7 +62,13 @@ export class AuthGuard implements AuthGuardContract {
       throw new AuthStrategyResolutionError(`No auth strategy registered for ${strategyName}.`);
     }
 
-    const strategy = await context.requestContext.container.resolve(strategyToken as Token<AuthStrategy>);
+    const strategy = await context.requestContext.container.resolve(strategyToken as Token<AuthStrategy>).catch((error: unknown) => {
+      if (error instanceof ContainerResolutionError) {
+        throw new AuthStrategyResolutionError(`Failed to resolve auth strategy "${strategyName}": ${error.message}`);
+      }
+
+      throw error;
+    });
 
     try {
       const result = await strategy.authenticate(context);

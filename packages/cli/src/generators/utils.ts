@@ -13,3 +13,18 @@ export function toPascalCase(value: string): string {
     .map((segment) => segment[0].toUpperCase() + segment.slice(1))
     .join('');
 }
+
+export function toPlural(value: string): string {
+  if (value.endsWith('s') || value.endsWith('x') || value.endsWith('z') || value.endsWith('ch') || value.endsWith('sh')) {
+    return `${value}es`;
+  }
+
+  if (value.endsWith('y') && value.length > 1) {
+    const beforeY = value[value.length - 2];
+    if (!'aeiou'.includes(beforeY)) {
+      return `${value.slice(0, -1)}ies`;
+    }
+  }
+
+  return `${value}s`;
+}

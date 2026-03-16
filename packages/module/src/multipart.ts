@@ -37,6 +37,14 @@ export function parseMultipart(request: IncomingMessage, options: MultipartOptio
     const fields: Record<string, string | string[]> = {};
     const files: UploadedFile[] = [];
     let fileCount = 0;
+    let settled = false;
+
+    const rejectOnce = (error: Error) => {
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    };
 
     bb.on('field', (name, value) => {
       const existing = fields[name];
@@ -55,7 +63,7 @@ export function parseMultipart(request: IncomingMessage, options: MultipartOptio
 
       if (fileCount > maxFiles) {
         fileStream.resume();
-        reject(new PayloadTooLargeException(`Exceeded maximum file count of ${String(maxFiles)}.`));
+        rejectOnce(new PayloadTooLargeException(`Exceeded maximum file count of ${String(maxFiles)}.`));
         return;
       }
 
@@ -67,7 +75,7 @@ export function parseMultipart(request: IncomingMessage, options: MultipartOptio
 
         if (totalSize > maxFileSize) {
           fileStream.destroy();
-          reject(new PayloadTooLargeException(`File "${fieldname}" exceeds the maximum size of ${String(maxFileSize)} bytes.`));
+          rejectOnce(new PayloadTooLargeException(`File "${fieldname}" exceeds the maximum size of ${String(maxFileSize)} bytes.`));
           return;
         }
 
@@ -84,14 +92,17 @@ export function parseMultipart(request: IncomingMessage, options: MultipartOptio
         });
       });
 
-      fileStream.on('error', reject);
+      fileStream.on('error', rejectOnce);
     });
 
     bb.on('finish', () => {
-      resolve({ fields, files });
+      if (!settled) {
+        settled = true;
+        resolve({ fields, files });
+      }
     });
 
-    bb.on('error', reject);
+    bb.on('error', rejectOnce);
 
     request.pipe(bb);
   });

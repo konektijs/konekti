@@ -161,7 +161,7 @@ function runValidatorJs(rule: Extract<DtoFieldValidationRule, { kind: 'validator
     case 'booleanString': return validator.isBoolean(value);
     case 'currency': return validator.isCurrency(value, rule.args?.[0] as validator.IsCurrencyOptions | undefined);
     case 'dataURI': return validator.isDataURI(value);
-    case 'dateString': return validator.isISO8601(value);
+    case 'dateString': return validator.isDate(value);
     case 'decimal': return validator.isDecimal(value);
     case 'email': return validator.isEmail(value, rule.args?.[0] as validator.IsEmailOptions | undefined);
     case 'fqdn': return validator.isFQDN(value, rule.args?.[0] as validator.IsFQDNOptions | undefined);
@@ -321,9 +321,12 @@ async function applyPropertyRules(
   fieldPath: string,
   source: ValidationIssue['source'],
 ): Promise<ValidationIssue[]> {
+  let conditionallySkip = false;
+
   for (const rule of rules) {
     if (rule.kind === 'validateIf' && !(await rule.validateIf(dto, value))) {
-      return [];
+      conditionallySkip = true;
+      break;
     }
   }
 
@@ -335,6 +338,7 @@ async function applyPropertyRules(
 
   for (const rule of rules) {
     if (rule.kind === 'validateIf' || rule.kind === 'optional') continue;
+    if (conditionallySkip && rule.kind !== 'defined' && rule.kind !== 'notEmpty') continue;
     if ((value === undefined || value === null) && rule.kind !== 'defined' && rule.kind !== 'notEmpty' && rule.kind !== 'empty') continue;
     issues.push(...(await evaluateRule(rule, value, dto, propertyKey, fieldPath, source)));
   }

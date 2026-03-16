@@ -20,3 +20,9 @@ export class JwtExpiredTokenError extends JwtVerificationError {
     super(message, { code: 'JWT_EXPIRED' });
   }
 }
+
+export class JwtConfigurationError extends KonektiError {
+  constructor(message: string) {
+    super(message, { code: 'JWT_CONFIGURATION_ERROR' });
+  }
+}

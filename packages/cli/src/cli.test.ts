@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -8,6 +9,18 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { runCli } from './cli.js';
 
 const createdDirectories: string[] = [];
+
+function run(command: string, args: string[], cwd: string): void {
+  const result = spawnSync(command, args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(' ')} failed with exit code ${result.status ?? 1}\n${result.stdout ?? ''}\n${result.stderr ?? ''}`);
+  }
+}
 
 afterEach(() => {
   for (const directory of createdDirectories.splice(0)) {
@@ -104,19 +117,27 @@ describe('CLI command runner', () => {
     createdDirectories.push(targetDirectory);
     const stdoutBuffer: string[] = [];
 
+    const projectDirectory = join(targetDirectory, 'starter-app');
+
     const exitCode = await runCli(['new', 'starter-app', '--orm', 'Prisma', '--database', 'PostgreSQL', '--package-manager', 'pnpm'], {
       cwd: targetDirectory,
       dependencySource: 'local',
       repoRoot,
       stderr: { write: () => undefined },
       stdout: { write: (message) => stdoutBuffer.push(message) },
-      skipInstall: true,
     });
 
     expect(exitCode).toBe(0);
-    expect(readFileSync(join(targetDirectory, 'starter-app', 'package.json'), 'utf8')).toContain('@konekti/runtime');
+    expect(readFileSync(join(projectDirectory, 'package.json'), 'utf8')).toContain('@konekti/runtime');
     expect(stdoutBuffer.join('')).toContain('Installing dependencies with pnpm');
-  }, 20000);
+    expect(existsSync(join(projectDirectory, 'node_modules'))).toBe(true);
+
+    run('pnpm', ['typecheck'], projectDirectory);
+    run('pnpm', ['build'], projectDirectory);
+    run('pnpm', ['test'], projectDirectory);
+    run('pnpm', ['exec', 'konekti', 'g', 'repo', 'User'], projectDirectory);
+    expect(existsSync(join(projectDirectory, 'src', 'users', 'user.repo.ts'))).toBe(true);
+  }, 60000);
 
   it('returns a non-zero exit code for invalid commands', async () => {
     const stderrBuffer: string[] = [];

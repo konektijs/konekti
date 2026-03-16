@@ -4,7 +4,7 @@ export type PackageManager = 'npm' | 'pnpm' | 'yarn';
 export type SupportTier = 'official' | 'preview' | 'recommended';
 export type DependencySource = 'local' | 'published';
 
-export interface CreateKonektiOptions {
+export interface BootstrapOptions {
   database: DatabaseFamily;
   dependencySource?: DependencySource;
   orm: OrmFamily;
@@ -15,12 +15,12 @@ export interface CreateKonektiOptions {
   targetDirectory: string;
 }
 
-export interface CreatePrompt {
-  key: keyof CreateKonektiAnswers | 'tierNote';
+export interface BootstrapPrompt {
+  key: keyof BootstrapAnswers | 'tierNote';
   label: string;
 }
 
-export interface CreateKonektiAnswers {
+export interface BootstrapAnswers {
   database: DatabaseFamily;
   orm: OrmFamily;
   packageManager: PackageManager;
@@ -33,3 +33,7 @@ export interface NewCommandOptions {
   repoRoot?: string;
   skipInstall?: boolean;
 }
+
+export type CreateKonektiOptions = BootstrapOptions;
+export type CreatePrompt = BootstrapPrompt;
+export type CreateKonektiAnswers = BootstrapAnswers;

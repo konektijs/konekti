@@ -9,11 +9,14 @@ export interface MetricsModuleOptions {
 }
 
 export class MetricsModule {
+  private static registeredRegistries = new WeakSet<Registry>();
+
   static forRoot(options: MetricsModuleOptions = {}): ModuleType {
     const metricsPath = options.path ?? '/metrics';
     const registry = new Registry();
 
-    if (options.defaultMetrics !== false) {
+    if (options.defaultMetrics !== false && !MetricsModule.registeredRegistries.has(registry)) {
+      MetricsModule.registeredRegistries.add(registry);
       collectDefaultMetrics({ register: registry });
     }
 

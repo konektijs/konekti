@@ -25,7 +25,8 @@ export async function raceWithAbort<T>(fn: () => Promise<T>, signal: AbortSignal
  * Normalises an abort reason into an `Error` with `name = 'AbortError'`.
  */
 export function createAbortError(reason: unknown): Error {
-  const error = reason instanceof Error ? reason : new Error('Request aborted before response commit.');
+  const message = reason instanceof Error ? reason.message : 'Request aborted before response commit.';
+  const error = new Error(message);
   error.name = 'AbortError';
   return error;
 }

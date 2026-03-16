@@ -25,7 +25,13 @@ function parseEnvFile(content: string): Record<string, string> {
     }
 
     const key = trimmed.slice(0, equalsIndex).trim();
-    const value = trimmed.slice(equalsIndex + 1).trim();
+    const rawValue = trimmed.slice(equalsIndex + 1).trim();
+
+    const value =
+      (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+      (rawValue.startsWith("'") && rawValue.endsWith("'"))
+        ? rawValue.slice(1, -1)
+        : rawValue;
 
     parsed[key] = value;
   }
@@ -45,11 +51,24 @@ export function loadConfig(options: ConfigLoadOptions): ConfigDictionary {
 
   const envFileValues = existsSync(envFile) ? parseEnvFile(readFileSync(envFile, 'utf8')) : {};
 
-  // 우선순서는 항상 고정된다: defaults < env file < process env < runtime overrides.
+  const knownKeys = new Set([
+    ...Object.keys(defaults),
+    ...Object.keys(envFileValues),
+    ...Object.keys(runtimeOverrides),
+  ]);
+
+  const filteredProcessEnv: Record<string, string | undefined> = {};
+
+  for (const key of knownKeys) {
+    if (Object.prototype.hasOwnProperty.call(processEnv, key)) {
+      filteredProcessEnv[key] = processEnv[key];
+    }
+  }
+
   const merged: ConfigDictionary = {
     ...defaults,
     ...envFileValues,
-    ...processEnv,
+    ...filteredProcessEnv,
     ...runtimeOverrides,
   };
 

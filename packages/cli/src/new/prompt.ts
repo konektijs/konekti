@@ -1,9 +1,9 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
-import type { CreateKonektiAnswers, CreatePrompt, DatabaseFamily, OrmFamily, PackageManager, SupportTier } from './types.js';
+import type { BootstrapAnswers, BootstrapPrompt, DatabaseFamily, OrmFamily, PackageManager, SupportTier } from './types.js';
 
-const PROMPTS: CreatePrompt[] = [
+const PROMPTS: BootstrapPrompt[] = [
   { key: 'projectName', label: 'Project name' },
   { key: 'orm', label: 'ORM' },
   { key: 'database', label: 'Database' },
@@ -12,7 +12,7 @@ const PROMPTS: CreatePrompt[] = [
   { key: 'targetDirectory', label: 'Target directory' },
 ];
 
-export function getCreateKonektiPrompts(): CreatePrompt[] {
+export function getBootstrapPrompts(): BootstrapPrompt[] {
   return [...PROMPTS];
 }
 
@@ -42,9 +42,9 @@ export function createTierNote(orm: OrmFamily, database: DatabaseFamily): string
   return 'This combination is in preview. Core support exists, but docs/examples/test coverage may be narrower than the recommended path.';
 }
 
-export async function promptForCreateKonektiAnswers(
-  partial: Partial<CreateKonektiAnswers> = {},
-): Promise<CreateKonektiAnswers> {
+export async function promptForBootstrapAnswers(
+  partial: Partial<BootstrapAnswers> = {},
+): Promise<BootstrapAnswers> {
   const rl = createInterface({ input, output });
 
   try {
@@ -65,3 +65,6 @@ export async function promptForCreateKonektiAnswers(
     rl.close();
   }
 }
+
+export const getCreateKonektiPrompts = getBootstrapPrompts;
+export const promptForCreateKonektiAnswers = promptForBootstrapAnswers;

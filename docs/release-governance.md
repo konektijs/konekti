@@ -23,7 +23,7 @@ These packages are the intended public release surface once the repository leave
 ## versioning policy
 
 - semver for public packages
-- minor releases preserve generated starter commands, toolchain config shapes, and the documented bootstrap paths
+- minor releases preserve generated starter commands, toolchain config shapes, and the documented canonical CLI bootstrap contract
 - major releases may require app updates when a public contract moves; those releases must ship migration notes in the same window
 - coordinated workspace releases happen when public package contracts move together
 - internal workspace version bumps follow the public release train but are not public API promises on their own
@@ -45,7 +45,7 @@ These packages are the intended public release surface once the repository leave
 `pnpm verify:release-candidate` currently proves:
 
 - package typecheck + build succeed from the monorepo root
-- scaffolded starter projects work outside the repo-local app path through the packed CLI/bootstrap codepaths that underlie the canonical `@konekti/cli` flow
+- scaffolded starter projects are verified through the packed CLI entrypoint and starter scaffolding exercised by the CLI test suite that runs inside `pnpm verify:release-candidate`
 - `pnpm`, `npm`, and `yarn` starter projects all pass `typecheck`, `build`, `test`, and `konekti g repo ...`
 - generated starter projects expose runtime-owned `/health` + `/ready`, `/metrics`, and `/openapi.json`
 - CLI bins and packed package artifacts work from `dist` output rather than `src`-only execution

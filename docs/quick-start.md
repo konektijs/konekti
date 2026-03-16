@@ -40,7 +40,7 @@ pnpm build
 pnpm test
 ```
 
-The scaffold now emits the same single-project layout for `pnpm`, `npm`, and `yarn`, with command wrappers that stay package-manager aware.
+The scaffold now emits the same single-project layout for `pnpm`, `npm`, and `yarn`, with generated commands and install steps that stay package-manager aware.
 
 ## first generated app shape
 

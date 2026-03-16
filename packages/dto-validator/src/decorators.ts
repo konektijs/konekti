@@ -21,6 +21,10 @@ const standardDtoValidationMetadataKey = Symbol.for('konekti.standard.dto-valida
 const standardClassValidationMetadataKey = Symbol.for('konekti.standard.class-validation');
 
 function getStandardMetadataBag(metadata: unknown): StandardMetadataBag {
+  if (metadata === null || metadata === undefined) {
+    throw new Error('Decorator metadata is not available. Ensure your environment supports TC39 decorator metadata (Stage 3).');
+  }
+
   void metadataSymbol;
   return metadata as StandardMetadataBag;
 }
@@ -57,11 +61,11 @@ function appendStandardDtoValidationRule(
   rule: DtoFieldValidationRule,
 ): void {
   const map = getStandardDtoValidationMap(metadata);
-  map.set(propertyKey, [rule, ...(map.get(propertyKey) ?? [])]);
+  map.set(propertyKey, [...(map.get(propertyKey) ?? []), rule]);
 }
 
 function appendStandardClassValidationRule(metadata: unknown, rule: ClassValidationRule): void {
-  getStandardClassValidationList(metadata).unshift(rule);
+  getStandardClassValidationList(metadata).push(rule);
 }
 
 function createValidationDecorator(ruleFactory: () => DtoFieldValidationRule): FieldDecoratorLike {

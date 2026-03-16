@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { Inject } from '@konekti/core';
 
-import { JwtExpiredTokenError, JwtInvalidTokenError } from './errors.js';
+import { JwtConfigurationError, JwtExpiredTokenError, JwtInvalidTokenError } from './errors.js';
 import type { JwtClaims, JwtPrincipal, JwtVerifierOptions } from './types.js';
 
 export const JWT_OPTIONS = Symbol.for('konekti.jwt.options');
@@ -72,20 +72,16 @@ export class DefaultJwtVerifier {
     const algorithms = this.options.algorithms;
 
     if (!secret) {
-      throw new JwtInvalidTokenError('JWT secret is not configured.');
+      throw new JwtConfigurationError('JWT secret is not configured.');
     }
 
-    if (!header.alg || !algorithms.includes(header.alg as JwtVerifierOptions['algorithms'][number])) {
+    if (!header.alg || !algorithms.includes(header.alg as JwtVerifierOptions['algorithms'][number]) || header.alg !== 'HS256') {
       throw new JwtInvalidTokenError('JWT algorithm is not allowed.');
     }
 
-    if (header.alg !== 'HS256') {
-      throw new JwtInvalidTokenError('JWT algorithm is not supported.');
-    }
-
     const expected = encodeBase64Url(createHmac('sha256', secret).update(`${headerSegment}.${payloadSegment}`).digest());
-    const expectedBuf = Buffer.from(expected);
-    const actualBuf = Buffer.from(signatureSegment);
+    const expectedBuf = Buffer.from(expected, 'base64url');
+    const actualBuf = Buffer.from(signatureSegment, 'base64url');
 
     if (expectedBuf.length !== actualBuf.length || !timingSafeEqual(expectedBuf, actualBuf)) {
       throw new JwtInvalidTokenError();

@@ -457,11 +457,18 @@ export function getRouteMetadata(
     return undefined;
   }
 
+  const method = stored?.method ?? standard?.method;
+  const path = stored?.path ?? standard?.path;
+
+  if (method === undefined || path === undefined) {
+    throw new Error(`Route metadata for property key "${String(propertyKey)}" is missing required "method" or "path".`);
+  }
+
   return {
     guards: mergeUnique(stored?.guards, standard?.guards),
     interceptors: mergeUnique(stored?.interceptors, standard?.interceptors),
-    method: stored?.method ?? standard!.method,
-    path: stored?.path ?? standard!.path,
+    method,
+    path,
     request: stored?.request ?? standard?.request,
     successStatus: stored?.successStatus ?? standard?.successStatus,
   };
@@ -502,11 +509,11 @@ export function appendDtoFieldValidationRule(
   rule: DtoFieldValidationRule,
 ): void {
   const map = getOrCreatePropertyMap(dtoFieldValidationStore, target);
-  map.set(propertyKey, [rule, ...(map.get(propertyKey) ?? [])]);
+  map.set(propertyKey, [...(map.get(propertyKey) ?? []), rule]);
 }
 
 export function appendClassValidationRule(target: Function, rule: ClassValidationRule): void {
-  classValidationStore.set(target, [rule, ...(classValidationStore.get(target) ?? [])]);
+  classValidationStore.set(target, [...(classValidationStore.get(target) ?? []), rule]);
 }
 
 /**
