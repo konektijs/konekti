@@ -18,6 +18,12 @@ export class RequestScopeResolutionError extends KonektiError {
   }
 }
 
+export class ScopeMismatchError extends KonektiError {
+  constructor(message: string) {
+    super(message, { code: 'SCOPE_MISMATCH' });
+  }
+}
+
 export class CircularDependencyError extends KonektiError {
   constructor(chain: readonly unknown[]) {
     const path = chain.map((t) => CircularDependencyError.tokenName(t)).join(' -> ');
