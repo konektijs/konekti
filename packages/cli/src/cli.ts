@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -235,8 +235,6 @@ export async function runCli(
     }
 
     const targetDirectory = resolve(cwd, parsedCommand.parsed.targetDirectory ?? resolveDefaultTargetDirectory(cwd));
-
-    mkdirSync(targetDirectory, { recursive: true });
 
     const files = runGenerateCommand(parsedCommand.parsed.kind, parsedCommand.parsed.name, targetDirectory, {
       ...parsedCommand.parsed.options,

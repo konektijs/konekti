@@ -10,3 +10,8 @@ export type GeneratorPreset = 'drizzle' | 'generic' | 'prisma';
 export interface GenerateOptions {
   preset?: GeneratorPreset;
 }
+
+export interface ModuleRegistration {
+  className: string;
+  kind: 'controller' | 'provider';
+}

@@ -39,10 +39,63 @@ describe('CLI command runner', () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(readFileSync(join(workspaceDirectory, 'apps', 'starter-app', 'src', 'user.repo.ts'), 'utf8')).toContain(
+    expect(readFileSync(join(workspaceDirectory, 'apps', 'starter-app', 'src', 'users', 'user.repo.ts'), 'utf8')).toContain(
       'this.prisma.current()',
     );
-    expect(stdoutBuffer.join('')).toContain('Generated 2 file(s):');
+    expect(stdoutBuffer.join('')).toContain('Generated 3 file(s):');
+  });
+
+  it('places generated files under a domain subdirectory and auto-creates the module', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    createdDirectories.push(workspaceDirectory);
+
+    mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ name: 'test-app', private: true }, null, 2),
+    );
+
+    const stdoutBuffer: string[] = [];
+    const exitCode = await runCli(['g', 'service', 'Post'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('posts/post.service.ts');
+    expect(stdoutBuffer.join('')).toContain('posts/post.module.ts');
+
+    const moduleContent = readFileSync(join(workspaceDirectory, 'src', 'posts', 'post.module.ts'), 'utf8');
+    expect(moduleContent).toContain('PostService');
+    expect(moduleContent).toContain("from './post.service'");
+  });
+
+  it('registers controller into existing module when present', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    createdDirectories.push(workspaceDirectory);
+
+    const domainDir = join(workspaceDirectory, 'src', 'orders');
+    mkdirSync(domainDir, { recursive: true });
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ name: 'test-app', private: true }, null, 2),
+    );
+    writeFileSync(
+      join(domainDir, 'order.module.ts'),
+      `import { Module } from '@konekti/core';\n\n@Module({\n  controllers: [],\n  providers: [],\n})\nclass OrderModule {}\n\nexport { OrderModule };\n`,
+    );
+
+    const exitCode = await runCli(['g', 'controller', 'Order'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(0);
+    const moduleContent = readFileSync(join(domainDir, 'order.module.ts'), 'utf8');
+    expect(moduleContent).toContain('OrderController');
+    expect(moduleContent).toContain("from './order.controller'");
   });
 
   it('creates a new starter project through the CLI', async () => {
