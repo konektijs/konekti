@@ -2,9 +2,9 @@ import { createHmac } from 'node:crypto';
 
 import { Inject } from '@konekti/core';
 
-import { JwtConfigurationError, JwtInvalidTokenError } from './errors.js';
-import type { JwtClaims, JwtVerifierOptions } from './types.js';
-import { JWT_OPTIONS } from './verifier.js';
+import { JwtConfigurationError } from './errors.js';
+import type { JwtAlgorithm, JwtClaims, JwtVerifierOptions } from './types.js';
+import { HMAC_HASH, JWT_OPTIONS } from './verifier.js';
 
 function encodeBase64Url(value: Buffer | string): string {
   return Buffer.from(value)
@@ -19,8 +19,10 @@ export class DefaultJwtSigner {
   constructor(private readonly options: JwtVerifierOptions) {}
 
   async signAccessToken(claims: JwtClaims): Promise<string> {
-    if (!this.options.algorithms.includes('HS256')) {
-      throw new JwtConfigurationError('JWT signer requires HS256 in the allowed algorithms list.');
+    const algorithm: JwtAlgorithm | undefined = this.options.algorithms.find((alg) => alg in HMAC_HASH);
+
+    if (!algorithm) {
+      throw new JwtConfigurationError('JWT signer requires at least one HMAC algorithm (HS256, HS384, or HS512) in the allowed algorithms list.');
     }
 
     const activeKey = this.options.keys?.[0];
@@ -40,14 +42,15 @@ export class DefaultJwtSigner {
       iss: claims.iss ?? this.options.issuer,
     };
     const header: Record<string, string> = {
-      alg: 'HS256',
+      alg: algorithm,
       typ: 'JWT',
       ...(activeKey ? { kid: activeKey.kid } : {}),
     };
     const headerSegment = encodeBase64Url(JSON.stringify(header));
     const payloadSegment = encodeBase64Url(JSON.stringify(payload));
+    const hash = HMAC_HASH[algorithm];
     const signatureSegment = encodeBase64Url(
-      createHmac('sha256', secret).update(`${headerSegment}.${payloadSegment}`).digest(),
+      createHmac(hash, secret).update(`${headerSegment}.${payloadSegment}`).digest(),
     );
 
     return `${headerSegment}.${payloadSegment}.${signatureSegment}`;
