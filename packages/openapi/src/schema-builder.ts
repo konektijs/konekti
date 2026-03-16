@@ -34,6 +34,14 @@ export interface OpenApiSchemaObject {
   maxLength?: number;
 }
 
+export interface OpenApiParameterObject {
+  name: string;
+  in: 'cookie' | 'header' | 'path' | 'query';
+  required?: boolean;
+  schema: OpenApiSchemaObject;
+  description?: string;
+}
+
 export interface OpenApiMediaTypeObject {
   schema: OpenApiSchemaObject;
 }
@@ -59,6 +67,7 @@ export interface OpenApiOperationObject {
   tags: string[];
   summary?: string;
   description?: string;
+  parameters?: OpenApiParameterObject[];
   responses: Record<string, OpenApiResponseObject>;
   requestBody?: OpenApiRequestBodyObject;
   security?: OpenApiSecurityRequirementObject[];
@@ -81,6 +90,10 @@ export interface BuildOpenApiDocumentOptions {
   version: string;
 }
 
+function expressPathToOpenApi(path: string): string {
+  return path.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, '{$1}');
+}
+
 function resolveControllerTags(descriptor: HandlerDescriptor): string[] {
   const decorated = getControllerTags(descriptor.controllerToken);
   if (decorated && decorated.length > 0) {
@@ -91,7 +104,11 @@ function resolveControllerTags(descriptor: HandlerDescriptor): string[] {
 
 function normalizeOperationId(descriptor: HandlerDescriptor): string {
   const tag = resolveControllerTags(descriptor)[0] ?? 'Controller';
-  const path = descriptor.route.path.replaceAll('/', '_').replaceAll(':', '').replaceAll('-', '_');
+  const path = expressPathToOpenApi(descriptor.route.path)
+    .replaceAll('/', '_')
+    .replaceAll('{', '')
+    .replaceAll('}', '')
+    .replaceAll('-', '_');
 
   return `${tag}_${descriptor.methodName}_${descriptor.route.method.toLowerCase()}${path}`;
 }
@@ -331,6 +348,36 @@ function ensureComponentSchema(
   return ensureComponentSchemaFromEntries(dto.name, collectDtoEntries(dto), componentSchemas);
 }
 
+function createParameters(
+  dto: Constructor | undefined,
+  componentSchemas: Record<string, OpenApiSchemaObject>,
+): OpenApiParameterObject[] {
+  if (!dto) {
+    return [];
+  }
+
+  const entries = collectDtoEntries(dto).filter(
+    (entry) => entry.binding?.metadata.source === 'path' || entry.binding?.metadata.source === 'query' || entry.binding?.metadata.source === 'header',
+  );
+
+  return entries.map((entry) => {
+    const source = entry.binding!.metadata.source as 'header' | 'path' | 'query';
+    const rules = entry.validation?.rules ?? [];
+    const inferred = inferPrimitiveTypeFromRules(rules) ?? { type: 'string' as const };
+    const schema = applyValidationConstraints(inferred, rules);
+    const isRequired = source === 'path' ? true : isPropertyRequired(entry.binding, entry.validation);
+
+    const ensuredSchema = '$ref' in schema ? ensureComponentSchema(dto, componentSchemas) : schema;
+
+    return {
+      in: source,
+      name: entry.binding!.metadata.key ?? entry.name,
+      required: isRequired,
+      schema: ensuredSchema,
+    };
+  });
+}
+
 function createRequestBody(
   dto: Constructor | undefined,
   componentSchemas: Record<string, OpenApiSchemaObject>,
@@ -388,9 +435,9 @@ export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): Open
   let hasBearerAuth = false;
 
   for (const descriptor of options.descriptors) {
-    const path = descriptor.route.path;
+    const openApiPath = expressPathToOpenApi(descriptor.route.path);
     const method = descriptor.route.method.toLowerCase() as OpenApiOperationMethod;
-    const pathItem = paths[path] ?? {};
+    const pathItem = paths[openApiPath] ?? {};
 
     const tags = resolveControllerTags(descriptor);
     const methodMeta = getMethodApiMetadata(descriptor.controllerToken, descriptor.methodName);
@@ -421,6 +468,10 @@ export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): Open
       ...(methodMeta?.operation?.summary !== undefined && { summary: methodMeta.operation.summary }),
       ...(methodMeta?.operation?.description !== undefined && { description: methodMeta.operation.description }),
       ...(() => {
+        const parameters = createParameters(descriptor.route.request, componentSchemas);
+        return parameters.length > 0 ? { parameters } : {};
+      })(),
+      ...(() => {
         const requestBody = createRequestBody(descriptor.route.request, componentSchemas);
         return requestBody !== undefined ? { requestBody } : {};
       })(),
@@ -428,7 +479,7 @@ export function buildOpenApiDocument(options: BuildOpenApiDocumentOptions): Open
     };
 
     pathItem[method] = operation;
-    paths[path] = pathItem;
+    paths[openApiPath] = pathItem;
   }
 
   const components: OpenApiComponentsObject = {
