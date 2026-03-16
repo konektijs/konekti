@@ -5,6 +5,7 @@ import {
   ContainerResolutionError,
   InvalidProviderError,
   RequestScopeResolutionError,
+  ScopeMismatchError,
 } from './errors.js';
 import type {
   ClassType,
@@ -141,6 +142,10 @@ export class Container {
       throw new ContainerResolutionError(`No provider registered for token ${String(token)}.`);
     }
 
+    if (provider.scope === 'transient') {
+      return (await this.instantiate(provider, [...chain, token])) as T;
+    }
+
     const cache = this.cacheFor(provider.scope, provider.provide);
 
     if (!cache.has(provider.provide)) {
@@ -189,6 +194,19 @@ export class Container {
    * 정규화된 provider 정의를 실제 인스턴스나 값으로 구체화한다.
    */
   private async instantiate<T>(provider: NormalizedProvider<T>, chain: Token[]): Promise<T> {
+    if (provider.scope === 'singleton') {
+      for (const depToken of provider.inject) {
+        const depProvider = this.lookupProvider(depToken);
+
+        if (depProvider?.scope === 'request') {
+          throw new ScopeMismatchError(
+            `Singleton provider ${String(provider.provide)} depends on request-scoped provider ${String(depToken)}. ` +
+              'Singleton providers cannot depend on request-scoped providers.',
+          );
+        }
+      }
+    }
+
     switch (provider.type) {
       case 'value':
         return provider.useValue as T;

@@ -60,7 +60,7 @@ function controllerDependencies(controller: ModuleType): Token[] {
   return getClassDiMetadata(controller)?.inject ?? [];
 }
 
-function providerScope(provider: Provider): 'singleton' | 'request' {
+function providerScope(provider: Provider): 'singleton' | 'request' | 'transient' {
   if (typeof provider === 'function') {
     return getClassDiMetadata(provider)?.scope ?? 'singleton';
   }
@@ -472,7 +472,7 @@ async function resolveLifecycleInstances(container: Container, providers: Provid
   const seen = new Set<Token>();
 
   for (const provider of providers) {
-    if (providerScope(provider) === 'request') {
+    if (providerScope(provider) === 'request' || providerScope(provider) === 'transient') {
       continue;
     }
 

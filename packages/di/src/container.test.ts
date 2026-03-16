@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Inject, Scope } from '@konekti/core';
 
 import { Container } from './container.js';
-import { CircularDependencyError } from './errors.js';
+import { CircularDependencyError, ScopeMismatchError } from './errors.js';
 
 describe('Container', () => {
   it('caches singleton providers', async () => {
@@ -83,6 +83,100 @@ describe('Container', () => {
 
     expect(first).toBe(second);
     expect(first.logger).toBeInstanceOf(Logger);
+  });
+
+  describe('transient scope', () => {
+    it('creates a new instance on every resolve', async () => {
+      let created = 0;
+
+      class TransientService {
+        readonly id = ++created;
+      }
+
+      const container = new Container().register({
+        provide: TransientService,
+        scope: 'transient',
+        useClass: TransientService,
+      });
+
+      const first = await container.resolve(TransientService);
+      const second = await container.resolve(TransientService);
+
+      expect(first).not.toBe(second);
+      expect(first.id).toBe(1);
+      expect(second.id).toBe(2);
+    });
+
+    it('supports @Scope decorator for transient services', async () => {
+      let created = 0;
+
+      @Scope('transient')
+      class TransientCounter {
+        readonly id = ++created;
+      }
+
+      const container = new Container().register(TransientCounter);
+
+      const first = await container.resolve(TransientCounter);
+      const second = await container.resolve(TransientCounter);
+
+      expect(first).not.toBe(second);
+    });
+
+    it('resolves transient providers from within request scope containers', async () => {
+      let created = 0;
+
+      class TransientService {
+        readonly id = ++created;
+      }
+
+      const root = new Container().register({
+        provide: TransientService,
+        scope: 'transient',
+        useClass: TransientService,
+      });
+
+      const requestScope = root.createRequestScope();
+
+      const a = await requestScope.resolve(TransientService);
+      const b = await requestScope.resolve(TransientService);
+
+      expect(a).not.toBe(b);
+    });
+
+    it('allows a singleton to depend on a transient provider', async () => {
+      class TransientDep {
+        readonly value = 'dep';
+      }
+
+      class SingletonService {
+        constructor(readonly dep: TransientDep) {}
+      }
+
+      const container = new Container().register(
+        { provide: TransientDep, scope: 'transient', useClass: TransientDep },
+        { provide: SingletonService, useClass: SingletonService, inject: [TransientDep] },
+      );
+
+      const instance = await container.resolve(SingletonService);
+
+      expect(instance.dep.value).toBe('dep');
+    });
+
+    it('throws ScopeMismatchError when a singleton depends on a request-scoped provider', async () => {
+      class RequestDep {}
+
+      class SingletonService {
+        constructor(readonly dep: RequestDep) {}
+      }
+
+      const container = new Container().register(
+        { provide: RequestDep, scope: 'request', useClass: RequestDep },
+        { provide: SingletonService, useClass: SingletonService, inject: [RequestDep] },
+      );
+
+      await expect(container.resolve(SingletonService)).rejects.toThrow(ScopeMismatchError);
+    });
   });
 
   describe('circular dependency detection', () => {
