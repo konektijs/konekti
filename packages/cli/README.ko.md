@@ -37,6 +37,26 @@ konekti generate dto create-user
 
 각 generator는 kebab-case 파일명과 PascalCase 클래스명을 가진 파일을 생성합니다.
 
+## 로컬 샌드박스 워크플로
+
+Konekti 모노레포 안에서 작업할 때는 prerelease를 publish하지 말고 패키지 전용 샌드박스를 사용하세요.
+
+```bash
+pnpm --dir packages/cli run sandbox:test
+```
+
+이 명령은 `@konekti/cli`를 다시 빌드하고, temp 샌드박스 루트(`KONEKTI_CLI_SANDBOX_ROOT=/path`로 변경 가능)에 `starter-app`을 스캐폴드한 뒤, 워크스페이스 로컬 tarball을 설치하고 생성된 앱에서 `typecheck`, `build`, `test`, `pnpm exec konekti g repo User`까지 검증합니다.
+
+반복 작업 시에는 아래 명령을 사용하면 됩니다.
+
+```bash
+pnpm --dir packages/cli run sandbox:create
+pnpm --dir packages/cli run sandbox:verify
+pnpm --dir packages/cli run sandbox:clean
+```
+
+패키지 전용 Vitest 스위트는 `pnpm --dir packages/cli run test`로 실행할 수 있습니다.
+
 ## 핵심 API
 
 | 익스포트 | 위치 | 설명 |

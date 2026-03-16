@@ -11,6 +11,7 @@ export default defineConfig({
         test: {
           name: 'packages',
           include: ['packages/**/*.test.ts'],
+          exclude: ['packages/cli/.sandbox/**'],
         },
       },
       {

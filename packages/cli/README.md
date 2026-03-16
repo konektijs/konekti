@@ -37,6 +37,26 @@ konekti generate dto create-user
 
 Each generator produces a file (or files) with correctly kebab-cased names and PascalCase class names.
 
+## Local sandbox workflow
+
+When you are working inside the Konekti monorepo, use the package-local sandbox instead of publishing prereleases.
+
+```bash
+pnpm --dir packages/cli run sandbox:test
+```
+
+That command rebuilds `@konekti/cli`, scaffolds `starter-app` under a temp sandbox root (override with `KONEKTI_CLI_SANDBOX_ROOT=/path`), installs local tarballs from the workspace, and then verifies the generated app can run `typecheck`, `build`, `test`, and `pnpm exec konekti g repo User`.
+
+For iterative work:
+
+```bash
+pnpm --dir packages/cli run sandbox:create
+pnpm --dir packages/cli run sandbox:verify
+pnpm --dir packages/cli run sandbox:clean
+```
+
+Use `pnpm --dir packages/cli run test` for the package-local Vitest suite.
+
 ## Key API
 
 | Export | Location | Description |

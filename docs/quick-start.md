@@ -15,12 +15,21 @@ This is the canonical public bootstrap path.
 ## repo-local smoke path
 
 ```sh
-pnpm exec konekti new starter-app
+pnpm --dir packages/cli run sandbox:test
 ```
 
 This remains the repo-local smoke path verified inside the implementation repository. It is testing support only, not the public entry point.
 
-Prompt flow:
+For manual iteration without recreating the app each time:
+
+```sh
+pnpm --dir packages/cli run sandbox:create
+pnpm --dir packages/cli run sandbox:verify
+```
+
+The sandbox harness pins the recommended local path (`Prisma + PostgreSQL + pnpm`) so reruns stay deterministic. By default it writes the generated app under your system temp directory; set `KONEKTI_CLI_SANDBOX_ROOT=/path` if you want a different sandbox root.
+
+Public `konekti new` still uses this prompt flow:
 
 1. `Project name`
 2. `ORM`
@@ -59,7 +68,7 @@ Generated apps keep the bootstrap seam thin: `src/main.ts` calls `runNodeApplica
 
 - minor releases keep the generated command set and starter file shapes stable unless a doc explicitly marks a surface as `internal-only`
 - major releases may require codemods or manual edits when public package contracts move
-- repo-local verification commands like `pnpm exec konekti new` are implementation/testing tools, not upgrade guidance for external users
+- repo-local verification commands like `pnpm --dir packages/cli run sandbox:test` are implementation/testing tools, not upgrade guidance for external users
 
 For DTO validation, split imports are mandatory:
 
