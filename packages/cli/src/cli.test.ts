@@ -220,6 +220,46 @@ describe('CLI command runner', () => {
     expect(existsSync(join(projectDirectory, 'src', 'users', 'user.repo.ts'))).toBe(true);
   }, 60000);
 
+  it('keeps the local sandbox outside the repo workspace', () => {
+    const repoRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
+    const scriptPath = join(repoRoot, 'packages', 'cli', 'scripts', 'local-test-env.mjs');
+    const fallbackRoot = join(tmpdir(), 'konekti-cli-sandbox');
+    const internalOverrideRoot = join(repoRoot, '.sandbox-internal-test');
+    const externalOverrideRoot = join(tmpdir(), `konekti-cli-external-${process.pid}`);
+    const fallbackProjectName = `workspace-fallback-${process.pid}`;
+    const externalProjectName = `workspace-external-${process.pid}`;
+
+    const fallbackResult = spawnSync('node', [scriptPath, 'clean', fallbackProjectName], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        KONEKTI_CLI_SANDBOX_ROOT: internalOverrideRoot,
+      },
+      stdio: 'pipe',
+    });
+
+    expect(fallbackResult.status).toBe(0);
+    expect(fallbackResult.stdout).toContain(`Ignoring KONEKTI_CLI_SANDBOX_ROOT=${internalOverrideRoot}`);
+    expect(fallbackResult.stdout).toContain(`Using sandbox root ${fallbackRoot}`);
+    expect(fallbackResult.stdout).toContain(`Removed ${fallbackRoot}`);
+
+    const preservedResult = spawnSync('node', [scriptPath, 'clean', externalProjectName], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        KONEKTI_CLI_SANDBOX_ROOT: externalOverrideRoot,
+      },
+      stdio: 'pipe',
+    });
+
+    expect(preservedResult.status).toBe(0);
+    expect(preservedResult.stdout).not.toContain('Ignoring KONEKTI_CLI_SANDBOX_ROOT=');
+    expect(preservedResult.stdout).toContain(`Using sandbox root ${externalOverrideRoot}`);
+    expect(preservedResult.stdout).toContain(`Removed ${externalOverrideRoot}`);
+  });
+
   it('returns a non-zero exit code for invalid commands', async () => {
     const stderrBuffer: string[] = [];
 

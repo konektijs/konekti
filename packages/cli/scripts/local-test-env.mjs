@@ -1,15 +1,38 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+const defaultSandboxRoot = resolve(join(tmpdir(), 'konekti-cli-sandbox'));
+const sandboxMetadataFileName = '.konekti-cli-sandbox.json';
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(scriptDirectory, '..');
 const repoRoot = resolve(packageRoot, '..', '..');
-const sandboxRoot = resolve(process.env.KONEKTI_CLI_SANDBOX_ROOT ?? join(tmpdir(), 'konekti-cli-sandbox'));
+function isPathInsideDirectory(parentDirectory, candidatePath) {
+  const resolvedParentDirectory = resolve(parentDirectory);
+  const resolvedCandidatePath = resolve(candidatePath);
+
+  return resolvedCandidatePath === resolvedParentDirectory || resolvedCandidatePath.startsWith(resolvedParentDirectory + sep);
+}
+
+function resolveSandboxRoot(env = process.env) {
+  const requestedSandboxRoot = env.KONEKTI_CLI_SANDBOX_ROOT ? resolve(env.KONEKTI_CLI_SANDBOX_ROOT) : undefined;
+
+  if (requestedSandboxRoot && isPathInsideDirectory(repoRoot, requestedSandboxRoot)) {
+    return {
+      sandboxRoot: defaultSandboxRoot,
+      warning: `Ignoring KONEKTI_CLI_SANDBOX_ROOT=${requestedSandboxRoot} because sandbox projects must live outside the repo workspace.`,
+    };
+  }
+
+  return {
+    sandboxRoot: requestedSandboxRoot ?? defaultSandboxRoot,
+  };
+}
+
+const { sandboxRoot, warning: sandboxRootWarning } = resolveSandboxRoot();
 const defaultProjectName = 'starter-app';
-const defaultProjectDirectory = join(sandboxRoot, defaultProjectName);
 
 function run(command, args, cwd) {
   const result = spawnSync(command, args, {
@@ -41,24 +64,77 @@ function resolveProjectName(argv) {
 }
 
 function resolveProjectDirectory(projectName) {
-  return projectName === defaultProjectName ? defaultProjectDirectory : join(sandboxRoot, projectName);
+  void projectName;
+  return sandboxRoot;
+}
+
+function sandboxMetadataPath(projectDirectory) {
+  return join(projectDirectory, sandboxMetadataFileName);
+}
+
+function isLegacySandboxDirectory(projectDirectory) {
+  return existsSync(join(projectDirectory, defaultProjectName, 'package.json'));
+}
+
+function isManagedSandboxDirectory(projectDirectory) {
+  return existsSync(sandboxMetadataPath(projectDirectory));
+}
+
+function assertSafeToResetSandbox(projectDirectory) {
+  const resolvedProjectDirectory = resolve(projectDirectory);
+
+  if (!existsSync(resolvedProjectDirectory)) {
+    return;
+  }
+
+  if (isManagedSandboxDirectory(resolvedProjectDirectory) || isLegacySandboxDirectory(resolvedProjectDirectory)) {
+    return;
+  }
+
+  if (readdirSync(resolvedProjectDirectory).length === 0) {
+    return;
+  }
+
+  throw new Error(
+    `Refusing to reset a non-sandbox directory at ${resolvedProjectDirectory}. Choose an empty path or a dedicated KONEKTI_CLI_SANDBOX_ROOT.`,
+  );
+}
+
+function writeSandboxMetadata(projectDirectory, projectName) {
+  writeFileSync(
+    sandboxMetadataPath(projectDirectory),
+    JSON.stringify(
+      {
+        createdBy: '@konekti/cli local sandbox',
+        projectName,
+      },
+      null,
+      2,
+    ) + '\n',
+    'utf8',
+  );
 }
 
 function assertInsideSandboxRoot(projectDirectory) {
   const resolvedSandboxRoot = resolve(sandboxRoot);
   const resolvedProjectDirectory = resolve(projectDirectory);
 
-  if (
-    resolvedProjectDirectory !== resolvedSandboxRoot &&
-    !resolvedProjectDirectory.startsWith(resolvedSandboxRoot + sep) &&
-    !(isAbsolute(resolvedProjectDirectory) && resolvedProjectDirectory.startsWith(resolvedSandboxRoot + '/'))
-  ) {
+  if (!isPathInsideDirectory(resolvedSandboxRoot, resolvedProjectDirectory)) {
     throw new Error(`Refusing to operate outside sandbox root: ${resolvedProjectDirectory}`);
   }
 }
 
+function logSandboxRoot() {
+  if (sandboxRootWarning) {
+    log(sandboxRootWarning);
+  }
+
+  log(`Using sandbox root ${sandboxRoot}`);
+}
+
 function cleanSandbox(projectDirectory) {
   assertInsideSandboxRoot(projectDirectory);
+  assertSafeToResetSandbox(projectDirectory);
   rmSync(projectDirectory, { force: true, recursive: true });
 }
 
@@ -111,6 +187,7 @@ async function createSandboxProject(projectName) {
     throw new Error(`runCli returned a non-zero exit code: ${exitCode}.`);
   }
 
+  writeSandboxMetadata(projectDirectory, projectName);
   log(`Sandbox project is ready at ${projectDirectory}`);
   return projectDirectory;
 }
@@ -141,8 +218,8 @@ function printUsage() {
   process.stdout.write(
     [
       'Usage: node ./scripts/local-test-env.mjs <create|verify|test|clean> [project-name]',
-      'Defaults project-name to starter-app and writes the sandbox under your system temp directory.',
-      'Set KONEKTI_CLI_SANDBOX_ROOT to override the sandbox root.',
+      'Defaults project-name to starter-app and uses the sandbox root itself as the generated app directory.',
+      'Set KONEKTI_CLI_SANDBOX_ROOT to override the sandbox root outside the repo workspace.',
     ].join('\n') + '\n',
   );
 }
@@ -154,16 +231,20 @@ async function main() {
 
   switch (command) {
     case 'create':
+      logSandboxRoot();
       await createSandboxProject(projectName);
       break;
     case 'verify':
+      logSandboxRoot();
       verifySandboxProject(projectName);
       break;
     case 'test':
+      logSandboxRoot();
       await createSandboxProject(projectName);
       verifySandboxProject(projectName);
       break;
     case 'clean':
+      logSandboxRoot();
       cleanSandbox(projectDirectory);
       log(`Removed ${projectDirectory}`);
       break;
