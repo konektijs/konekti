@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 import { konektiBabelDecoratorsPlugin } from './tooling/vite/src';
 
@@ -10,14 +10,15 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'packages',
+          exclude: [...configDefaults.exclude, 'packages/cli/.sandbox/**'],
           include: ['packages/**/*.test.ts'],
-          exclude: ['packages/cli/.sandbox/**'],
         },
       },
       {
         extends: true,
         test: {
           name: 'apps',
+          exclude: configDefaults.exclude,
           include: ['apps/**/*.test.ts'],
         },
       },
