@@ -66,10 +66,14 @@ export class DefaultJwtVerifier {
     }
 
     const [headerSegment, payloadSegment, signatureSegment] = segments;
-    const header = parseJwtPart<{ alg?: string; typ?: string }>(headerSegment);
+    const header = parseJwtPart<{ alg?: string; typ?: string; kid?: string }>(headerSegment);
     const payload = parseJwtPart<JwtClaims>(payloadSegment);
-    const secret = this.options.secret;
     const algorithms = this.options.algorithms;
+
+    const secret =
+      (header.kid !== undefined && header.kid !== ''
+        ? this.options.keys?.find((k) => k.kid === header.kid)?.secret
+        : undefined) ?? this.options.secret;
 
     if (!secret) {
       throw new JwtConfigurationError('JWT secret is not configured.');

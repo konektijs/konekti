@@ -89,15 +89,15 @@ export class AuthGuard implements AuthGuardContract {
       context.requestContext.principal = principal;
     } catch (error) {
       if (error instanceof AuthenticationRequiredError) {
-        throw new UnauthorizedException(error.message);
+        throw new UnauthorizedException('Authentication required.');
       }
 
       if (error instanceof AuthenticationExpiredError) {
-        throw new UnauthorizedException(error.message);
+        throw new UnauthorizedException('Authentication required.');
       }
 
       if (error instanceof AuthenticationFailedError) {
-        throw new UnauthorizedException(error.message);
+        throw new UnauthorizedException('Authentication required.');
       }
 
       throw error;

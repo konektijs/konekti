@@ -1,11 +1,17 @@
 export type JwtAlgorithm = 'HS256';
 
+export interface JwtKeyEntry {
+  kid: string;
+  secret: string;
+}
+
 export interface JwtVerifierOptions {
   algorithms: JwtAlgorithm[];
   accessTokenTtlSeconds?: number;
   audience?: string | string[];
   clockSkewSeconds?: number;
   issuer?: string;
+  keys?: JwtKeyEntry[];
   secret?: string;
 }
 

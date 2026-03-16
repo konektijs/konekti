@@ -19,14 +19,15 @@ export class DefaultJwtSigner {
   constructor(private readonly options: JwtVerifierOptions) {}
 
   async signAccessToken(claims: JwtClaims): Promise<string> {
-    const secret = this.options.secret;
+    if (!this.options.algorithms.includes('HS256')) {
+      throw new JwtConfigurationError('JWT signer requires HS256 in the allowed algorithms list.');
+    }
+
+    const activeKey = this.options.keys?.[0];
+    const secret = activeKey?.secret ?? this.options.secret;
 
     if (!secret) {
       throw new JwtConfigurationError('JWT secret is not configured.');
-    }
-
-    if (!this.options.algorithms.includes('HS256')) {
-      throw new JwtConfigurationError('JWT signer requires HS256 in the allowed algorithms list.');
     }
 
     const now = Math.floor(Date.now() / 1000);
@@ -38,9 +39,10 @@ export class DefaultJwtSigner {
       iat: claims.iat ?? now,
       iss: claims.iss ?? this.options.issuer,
     };
-    const header = {
+    const header: Record<string, string> = {
       alg: 'HS256',
       typ: 'JWT',
+      ...(activeKey ? { kid: activeKey.kid } : {}),
     };
     const headerSegment = encodeBase64Url(JSON.stringify(header));
     const payloadSegment = encodeBase64Url(JSON.stringify(payload));
