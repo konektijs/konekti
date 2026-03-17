@@ -8,7 +8,7 @@ Konekti 공식 Drizzle integration baseline — Drizzle database handle을 trans
 
 주요 역할:
 - `current()` / `transaction()` / `requestTransaction()`을 가진 `DrizzleDatabase` wrapper 제공
-- DI 컨테이너에 `DRIZZLE_DATABASE`와 `DRIZZLE_DISPOSE` 토큰 등록
+- DI 컨테이너에 `DRIZZLE_DATABASE`, `DRIZZLE_DISPOSE`, `DRIZZLE_OPTIONS` 토큰 등록
 - optional `dispose` hook을 `onApplicationShutdown`에 연결
 - opt-in 자동 request-scoped transaction을 위한 `DrizzleTransactionInterceptor` 노출
 
@@ -73,13 +73,11 @@ await this.db.transaction(async () => {
 ### 자동 request-scoped transaction (opt-in)
 
 ```typescript
+import { UseInterceptor } from '@konekti/http';
 import { DrizzleTransactionInterceptor } from '@konekti/drizzle';
 
-@Module({
-  providers: [DrizzleTransactionInterceptor],
-  // @UseInterceptors 또는 module-level wiring으로 route에 추가
-})
-export class UsersModule {}
+@UseInterceptor(DrizzleTransactionInterceptor)
+class UsersController {}
 ```
 
 ## 핵심 API
@@ -92,15 +90,17 @@ export class UsersModule {}
 | `DrizzleTransactionInterceptor` | `src/transaction.ts` | 자동 per-request transaction을 위한 opt-in interceptor |
 | `DRIZZLE_DATABASE` | `src/tokens.ts` | raw Drizzle database handle을 위한 DI 토큰 |
 | `DRIZZLE_DISPOSE` | `src/tokens.ts` | optional cleanup hook을 위한 DI 토큰 |
+| `DRIZZLE_OPTIONS` | `src/tokens.ts` | 정규화된 Drizzle module option을 위한 DI 토큰 |
 | `DrizzleDatabaseLike` | `src/types.ts` | seam 타입 — `transaction` callback이 있는 임의의 객체 |
-| `DrizzleModuleOptions` | `src/types.ts` | `{ database, dispose? }` |
+| `DrizzleModuleOptions` | `src/types.ts` | `{ database, dispose?, strictTransactions? }` |
+| `DrizzleHandleProvider` | `src/types.ts` | public transaction-aware handle 계약 |
 
 ## 구조
 
 ```
-createDrizzleModule({ database, dispose? })
-  → DRIZZLE_DATABASE와 DRIZZLE_DISPOSE 토큰 등록
-  → DrizzleDatabase를 export provider로 등록
+createDrizzleModule({ database, dispose?, strictTransactions? })
+  → DRIZZLE_DATABASE, DRIZZLE_DISPOSE, DRIZZLE_OPTIONS 토큰 등록
+  → DrizzleDatabase와 DrizzleTransactionInterceptor를 export provider로 등록
 
 service/repository 코드
   → DrizzleDatabase.current()

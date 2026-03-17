@@ -12,7 +12,7 @@ The package does **not** abstract Prisma away. It makes Prisma a first-class Kon
 
 ```bash
 npm install @konekti/prisma
-# peer dependency — bring your own generated client
+# install your generated Prisma client alongside this package
 npm install @prisma/client
 ```
 
@@ -33,9 +33,10 @@ const AppModule = createPrismaModule({ client: prisma });
 ### 2. Use `PrismaService` in a repository
 
 ```typescript
-import { inject } from '@konekti/di';
-import { PrismaService, PRISMA_CLIENT } from '@konekti/prisma';
+import { Inject } from '@konekti/core';
+import { PrismaService } from '@konekti/prisma';
 
+@Inject([PrismaService])
 export class UserRepository {
   constructor(
     private readonly prisma: PrismaService<PrismaClient>
@@ -71,10 +72,11 @@ export class UserService {
 ### 4. Apply the interceptor for automatic request-level transactions
 
 ```typescript
+import { UseInterceptor } from '@konekti/http';
 import { PrismaTransactionInterceptor } from '@konekti/prisma';
 
-// Register as a global interceptor in your HTTP module setup
-app.useGlobalInterceptors(new PrismaTransactionInterceptor(prismaService));
+@UseInterceptor(PrismaTransactionInterceptor)
+class UserController {}
 ```
 
 ## Key API
@@ -83,18 +85,22 @@ app.useGlobalInterceptors(new PrismaTransactionInterceptor(prismaService));
 
 | Method | Signature | Description |
 |---|---|---|
-| `current()` | `() => TClient` | Returns the active transaction client (from ALS), or the root client if no transaction is open |
+| `current()` | `() => TClient \| TTransactionClient` | Returns the active transaction client (from ALS), or the root client if no transaction is open |
 | `transaction()` | `(fn: () => Promise<T>) => Promise<T>` | Runs `fn` inside a Prisma interactive transaction; stores the tx client in ALS |
-| `requestTransaction()` | `(fn: () => Promise<T>) => Promise<T>` | Like `transaction()`, intended for use by interceptors at the request boundary |
+| `requestTransaction()` | `(fn: () => Promise<T>, signal?: AbortSignal) => Promise<T>` | Like `transaction()`, intended for use by interceptors at the request boundary |
 
 ### `PRISMA_CLIENT`
 
 DI token (`src/tokens.ts`) used to inject the raw `PrismaClient` instance when you need it directly.
 
 ```typescript
+import { Inject } from '@konekti/core';
 import { PRISMA_CLIENT } from '@konekti/prisma';
 
-constructor(@inject(PRISMA_CLIENT) private readonly client: PrismaClient) {}
+@Inject([PRISMA_CLIENT])
+class RawClientConsumer {
+  constructor(private readonly client: PrismaClient) {}
+}
 ```
 
 ### `createPrismaProviders(options)`
@@ -110,6 +116,8 @@ const providers = createPrismaProviders({ client: prisma });
 ### `createPrismaModule(options)`
 
 Convenience wrapper that calls `createPrismaProviders` and wraps the result in a Konekti module definition.
+
+`PrismaModuleOptions` also supports `strictTransactions?: boolean`, and the public package exports `PRISMA_OPTIONS`, `PrismaTransactionClient`, `PrismaModuleOptions`, and `PrismaHandleProvider`.
 
 ### `PrismaTransactionInterceptor`
 
@@ -167,7 +175,7 @@ Start here to understand the full package in ~15 minutes:
 
 | Package | Relationship |
 |---|---|
-| `@konekti/core` | Lifecycle hooks (`OnModuleInit`, `OnApplicationShutdown`) that `PrismaService` implements |
+| `@konekti/runtime` | Lifecycle hooks (`OnModuleInit`, `OnApplicationShutdown`) that `PrismaService` implements |
 | `@konekti/di` | DI container that resolves `PrismaService` and `PRISMA_CLIENT` |
 | `@konekti/http` | Interceptor system that `PrismaTransactionInterceptor` hooks into |
 | `@konekti/testing` | Use `overrideProvider(PRISMA_CLIENT, fakePrisma)` to inject a test double |

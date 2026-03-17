@@ -8,7 +8,7 @@ Official Drizzle integration baseline for Konekti — wraps a Drizzle database h
 
 Key responsibilities:
 - Provide the `DrizzleDatabase` wrapper with `current()` / `transaction()` / `requestTransaction()`
-- Register `DRIZZLE_DATABASE` and `DRIZZLE_DISPOSE` tokens in the DI container
+- Register `DRIZZLE_DATABASE`, `DRIZZLE_DISPOSE`, and `DRIZZLE_OPTIONS` tokens in the DI container
 - Wire the optional `dispose` hook into `onApplicationShutdown`
 - Expose `DrizzleTransactionInterceptor` for opt-in automatic request-scoped transactions
 
@@ -73,13 +73,11 @@ await this.db.transaction(async () => {
 ### Automatic request-scoped transaction (opt-in)
 
 ```typescript
+import { UseInterceptor } from '@konekti/http';
 import { DrizzleTransactionInterceptor } from '@konekti/drizzle';
 
-@Module({
-  providers: [DrizzleTransactionInterceptor],
-  // add interceptor to route via @UseInterceptors or module-level wiring
-})
-export class UsersModule {}
+@UseInterceptor(DrizzleTransactionInterceptor)
+class UsersController {}
 ```
 
 ## Key API
@@ -92,15 +90,17 @@ export class UsersModule {}
 | `DrizzleTransactionInterceptor` | `src/transaction.ts` | Opt-in interceptor for automatic per-request transactions |
 | `DRIZZLE_DATABASE` | `src/tokens.ts` | DI token for the raw Drizzle database handle |
 | `DRIZZLE_DISPOSE` | `src/tokens.ts` | DI token for the optional cleanup hook |
+| `DRIZZLE_OPTIONS` | `src/tokens.ts` | DI token for normalized Drizzle module options |
 | `DrizzleDatabaseLike` | `src/types.ts` | Seam type — any object with a `transaction` callback |
-| `DrizzleModuleOptions` | `src/types.ts` | `{ database, dispose? }` |
+| `DrizzleModuleOptions` | `src/types.ts` | `{ database, dispose?, strictTransactions? }` |
+| `DrizzleHandleProvider` | `src/types.ts` | Public transaction-aware handle contract |
 
 ## Architecture
 
 ```
-createDrizzleModule({ database, dispose? })
-  → registers DRIZZLE_DATABASE and DRIZZLE_DISPOSE tokens
-  → registers DrizzleDatabase as an exported provider
+createDrizzleModule({ database, dispose?, strictTransactions? })
+  → registers DRIZZLE_DATABASE, DRIZZLE_DISPOSE, and DRIZZLE_OPTIONS tokens
+  → registers DrizzleDatabase and DrizzleTransactionInterceptor as exported providers
 
 service/repository code
   → DrizzleDatabase.current()
