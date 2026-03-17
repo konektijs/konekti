@@ -42,11 +42,12 @@ export class ProfileController {
 ```typescript
 import { Module } from '@konekti/core';
 import { createPassportProviders } from '@konekti/passport';
+import { JwtStrategy } from '@konekti/jwt';
 
 @Module({
   providers: [
-    ...createPassportProviders({ defaultStrategy: 'jwt' }),
-    JwtStrategy, // AuthStrategy를 구현하는 app-local strategy
+    JwtStrategy,
+    ...createPassportProviders({ defaultStrategy: 'jwt' }, [{ name: 'jwt', token: JwtStrategy }]),
   ],
 })
 export class AuthModule {}
@@ -55,19 +56,19 @@ export class AuthModule {}
 ### AuthStrategy 구현
 
 ```typescript
-import type { AuthStrategy, GuardContext, AuthStrategyResult } from '@konekti/passport';
+import type { AuthStrategy, GuardContext } from '@konekti/passport';
+import { AuthenticationRequiredError } from '@konekti/passport';
 import { DefaultJwtVerifier } from '@konekti/jwt';
 
 export class JwtStrategy implements AuthStrategy {
   constructor(private verifier: DefaultJwtVerifier) {}
 
-  async authenticate(context: GuardContext): Promise<AuthStrategyResult> {
-    const authHeader = context.request.headers['authorization'];
+  async authenticate(context: GuardContext) {
+    const authHeader = context.requestContext.request.headers['authorization'];
     const token = authHeader?.replace(/^Bearer /, '');
-    if (!token) return { type: 'unauthenticated' };
+    if (!token) throw new AuthenticationRequiredError();
 
-    const principal = await this.verifier.verifyAccessToken(token);
-    return { type: 'authenticated', principal };
+    return this.verifier.verifyAccessToken(token);
   }
 }
 ```
@@ -75,20 +76,26 @@ export class JwtStrategy implements AuthStrategy {
 ### Passport.js strategy bridge
 
 ```typescript
-import { createPassportJsStrategyBridge } from '@konekti/passport';
-import { Strategy as LocalStrategy } from 'passport-local';
+import { Module } from '@konekti/core';
+import { createPassportJsStrategyBridge, createPassportProviders } from '@konekti/passport';
+import { LocalStrategyAdapter } from './local.strategy';
 
-const localBridge = createPassportJsStrategyBridge(
-  'local',
-  LocalStrategy,
-  { usernameField: 'email' },
-  async (email, password, done) => {
-    const user = await userService.validate(email, password);
-    if (!user) return done(null, false);
-    done(null, user);
-  },
-  (passportUser) => ({ sub: passportUser.id, roles: passportUser.roles, scopes: [] }),
-);
+const localBridge = createPassportJsStrategyBridge('local', LocalStrategyAdapter, {
+  authenticateOptions: { session: false },
+  mapPrincipal: ({ user }) => ({
+    subject: String((user as { id: string }).id),
+    claims: user as Record<string, unknown>,
+  }),
+});
+
+@Module({
+  providers: [
+    LocalStrategyAdapter,
+    ...localBridge.providers,
+    ...createPassportProviders({ defaultStrategy: 'local' }, [localBridge.strategy]),
+  ],
+})
+export class AuthModule {}
 ```
 
 ## 핵심 API
@@ -96,7 +103,7 @@ const localBridge = createPassportJsStrategyBridge(
 | Export | 위치 | 설명 |
 |---|---|---|
 | `AuthStrategy` | `src/types.ts` | 인터페이스: `authenticate(context) → AuthStrategyResult` |
-| `AuthStrategyResult` | `src/types.ts` | `{ type: 'authenticated', principal }` 또는 `{ type: 'unauthenticated' }` 또는 `{ type: 'handled' }` |
+| `AuthStrategyResult` | `src/types.ts` | `Principal` 또는 `{ handled: true, principal? }` |
 | `AuthGuard` | `src/guard.ts` | auth requirement를 읽고 strategy를 호출하는 generic guard |
 | `UseAuth(strategyName)` | `src/decorators.ts` | strategy 설정 + route에 `AuthGuard` 부착 |
 | `RequireScopes(...scopes)` | `src/decorators.ts` | 필요한 scope 선언 + `AuthGuard` 부착 |
@@ -115,8 +122,8 @@ const localBridge = createPassportJsStrategyBridge(
   → strategy 이름 결정 (명시적 또는 default)
   → request-scoped container에서 strategy resolve
   → strategy.authenticate(context)
-  → unauthenticated이면 → UnauthorizedException (401) throw
-  → authenticated이면 → scope 확인
+  → strategy가 auth error를 throw하면 → UnauthorizedException (401) 또는 ForbiddenException (403)로 매핑
+  → principal이 반환되면 → scope 확인
   → scope가 없으면 → ForbiddenException (403) throw
   → requestContext.principal = principal
 ```
@@ -137,7 +144,9 @@ const localBridge = createPassportJsStrategyBridge(
 
 ### Passport.js bridge
 
-`createPassportJsStrategyBridge()`는 Passport.js의 `success`/`fail`/`redirect`/`error` callback 프로토콜을 Konekti의 `AuthStrategyResult`로 변환한다. `mapPrincipal` 인수는 passport user 객체를 app-local principal shape으로 정규화한다. bridge는 계정 upsert나 JWT 발급을 소유하지 않는다 — 그것들은 app service 코드의 책임이다.
+`createPassportJsStrategyBridge()`는 Passport.js의 `success`/`fail`/`redirect`/`error` callback 프로토콜을 Konekti의 `AuthStrategyResult`로 변환한다. `mapPrincipal` 인수는 passport user 객체를 Konekti `Principal` shape으로 정규화한다. bridge는 계정 upsert나 JWT 발급을 소유하지 않는다 — 그것들은 app service 코드의 책임이다.
+
+public package는 auth error 클래스, bridge 타입, metadata helper, `AUTH_STRATEGY_REGISTRY`, `PASSPORT_OPTIONS`도 `src/index.ts`에서 함께 export한다.
 
 ## 파일 읽기 순서 (기여자용)
 

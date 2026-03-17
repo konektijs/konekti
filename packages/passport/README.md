@@ -78,20 +78,26 @@ export class ApiKeyStrategy implements AuthStrategy {
 ### Bridge a Passport.js strategy
 
 ```typescript
-import { createPassportJsStrategyBridge } from '@konekti/passport';
-import { Strategy as LocalStrategy } from 'passport-local';
+import { Module } from '@konekti/core';
+import { createPassportJsStrategyBridge, createPassportProviders } from '@konekti/passport';
+import { LocalStrategyAdapter } from './local.strategy';
 
-const localBridge = createPassportJsStrategyBridge(
-  'local',
-  LocalStrategy,
-  { usernameField: 'email' },
-  async (email, password, done) => {
-    const user = await userService.validate(email, password);
-    if (!user) return done(null, false);
-    done(null, user);
-  },
-  (passportUser) => ({ sub: passportUser.id, roles: passportUser.roles, scopes: [] }),
-);
+const localBridge = createPassportJsStrategyBridge('local', LocalStrategyAdapter, {
+  authenticateOptions: { session: false },
+  mapPrincipal: ({ user }) => ({
+    subject: String((user as { id: string }).id),
+    claims: user as Record<string, unknown>,
+  }),
+});
+
+@Module({
+  providers: [
+    LocalStrategyAdapter,
+    ...localBridge.providers,
+    ...createPassportProviders({ defaultStrategy: 'local' }, [localBridge.strategy]),
+  ],
+})
+export class AuthModule {}
 ```
 
 ## Key API
@@ -140,7 +146,9 @@ This means adding a new auth strategy requires only implementing `AuthStrategy` 
 
 ### Passport.js bridge
 
-`createPassportJsStrategyBridge()` adapts Passport.js's `success`/`fail`/`redirect`/`error` callback protocol to Konekti's `AuthStrategyResult`. The `mapPrincipal` argument normalizes the passport user object to the app-local principal shape. The bridge does not own account upsert or JWT issuance — those remain in app service code.
+`createPassportJsStrategyBridge()` adapts Passport.js's `success`/`fail`/`redirect`/`error` callback protocol to Konekti's `AuthStrategyResult`. The `mapPrincipal` argument normalizes the passport user object to a Konekti `Principal` shape. The bridge does not own account upsert or JWT issuance — those remain in app service code.
+
+The public package also exports auth error classes, bridge types, metadata helpers, `AUTH_STRATEGY_REGISTRY`, and `PASSPORT_OPTIONS` from `src/index.ts`.
 
 ## File reading order for contributors
 

@@ -6,7 +6,7 @@ HTTP-agnostic JWT token core — signs access tokens and verifies them to a norm
 
 `@konekti/jwt` knows nothing about routes or guards. It owns:
 
-- Signing access tokens with HS256 (`DefaultJwtSigner.signAccessToken`)
+- Signing access tokens with HMAC algorithms such as HS256, HS384, and HS512 (`DefaultJwtSigner.signAccessToken`)
 - Verifying tokens: shape → algorithm → signature → claims (`exp`, `nbf`, `iss`, `aud`)
 - Normalising verified claims to a `JwtPrincipal` (`subject`, `roles`, `scopes`, `claims`)
 - Exporting `JwtStrategy`, the reusable bearer-token strategy adapter for `@konekti/passport`
@@ -25,18 +25,19 @@ npm install @konekti/jwt
 
 ```typescript
 import { Module } from '@konekti/core';
-import { createJwtCoreProviders } from '@konekti/jwt';
+import { createJwtCoreProviders, DefaultJwtSigner, DefaultJwtVerifier } from '@konekti/jwt';
 
 @Module({
   providers: [
     ...createJwtCoreProviders({
+      algorithms: ['HS256'],
       secret: process.env.JWT_SECRET!,
       issuer: 'my-app',
       audience: 'my-app-clients',
       accessTokenTtlSeconds: 3600,
     }),
   ],
-  exports: ['JwtVerifier', 'JwtSigner'],
+  exports: [DefaultJwtVerifier, DefaultJwtSigner],
 })
 export class JwtModule {}
 ```
@@ -44,9 +45,10 @@ export class JwtModule {}
 ### Sign a token
 
 ```typescript
+import { Inject } from '@konekti/core';
 import { DefaultJwtSigner } from '@konekti/jwt';
 
-@Service()
+@Inject([DefaultJwtSigner])
 export class AuthService {
   constructor(private signer: DefaultJwtSigner) {}
 
@@ -66,7 +68,7 @@ export class AuthService {
 ```typescript
 import { DefaultJwtVerifier } from '@konekti/jwt';
 
-const verifier = container.resolve<DefaultJwtVerifier>('JwtVerifier');
+const verifier = await container.resolve(DefaultJwtVerifier);
 const principal = await verifier.verifyAccessToken(token);
 // principal: { subject: 'user-123', roles: ['admin'], scopes: ['read:profile'], claims: {...} }
 ```
@@ -76,7 +78,7 @@ const principal = await verifier.verifyAccessToken(token);
 ```typescript
 import { DefaultJwtSigner, DefaultJwtVerifier } from '@konekti/jwt';
 
-const opts = { secret: 'super-secret', issuer: 'test', audience: 'test', accessTokenTtlSeconds: 60 };
+const opts = { algorithms: ['HS256'], secret: 'super-secret', issuer: 'test', audience: 'test', accessTokenTtlSeconds: 60 };
 const signer = new DefaultJwtSigner(opts);
 const verifier = new DefaultJwtVerifier(opts);
 
@@ -91,7 +93,7 @@ const principal = await verifier.verifyAccessToken(token);
 | `DefaultJwtVerifier` | `src/verifier.ts` | `verifyAccessToken(token) → JwtPrincipal` |
 | `DefaultJwtSigner` | `src/signer.ts` | `signAccessToken(claims) → string` |
 | `createJwtCoreProviders(options)` | `src/module.ts` | Registers options, verifier, and signer in one call |
-| `JwtPrincipal` | `src/types.ts` | `{ subject, roles, scopes, claims }` |
+| `JwtPrincipal` | `src/types.ts` | `{ subject, issuer?, audience?, roles?, scopes?, claims }` |
 | `JwtClaims` | `src/types.ts` | Raw claims shape |
 | `JwtVerifierOptions` | `src/types.ts` | `{ secret, issuer?, audience?, algorithms?, accessTokenTtlSeconds? }` |
 | `JwtVerifier` | `src/types.ts` | Interface for custom verifier implementations |
@@ -105,8 +107,8 @@ const principal = await verifier.verifyAccessToken(token);
 ```text
 verifyAccessToken(token)
   1. Split and base64url-decode header + payload + signature
-  2. Check algorithm is in the allowed list (currently HS256)
-  3. Verify HMAC-SHA256 signature
+  2. Check algorithm is in the allowed list
+  3. Verify the matching HMAC signature implementation
   4. Validate claims: exp, nbf, iss, aud
   5. normalizePrincipal(payload) → JwtPrincipal
 ```
@@ -127,7 +129,7 @@ If `iss`, `aud`, `iat`, or `exp` are absent from the claims passed to `signAcces
 
 ### Algorithm design
 
-Two separate checks exist: "is this algorithm in the allowlist?" and "does this implementation support it?". Currently both gate on HS256, but the separation makes it safe to extend one without accidentally opening the other.
+Two separate checks exist: "is this algorithm in the allowlist?" and "does this implementation support it?". The current implementation supports HS256, HS384, and HS512, and the separation makes it safe to extend one without accidentally opening the other.
 
 ## File reading order for contributors
 
