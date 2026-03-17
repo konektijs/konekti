@@ -51,6 +51,8 @@ export interface RunNodeApplicationOptions extends BootstrapNodeApplicationOptio
   shutdownSignals?: false | readonly NodeApplicationSignal[];
 }
 
+type MutableFrameworkResponse = FrameworkResponse & { statusSet?: boolean };
+
 export class NodeHttpApplicationAdapter implements HttpApplicationAdapter {
   private server?: import('node:http').Server;
 
@@ -186,7 +188,7 @@ export async function runNodeApplication(
   return app;
 }
 
-function createFrameworkResponse(response: import('node:http').ServerResponse, acceptEncoding?: string): FrameworkResponse {
+function createFrameworkResponse(response: import('node:http').ServerResponse, acceptEncoding?: string): MutableFrameworkResponse {
   return {
     committed: response.headersSent || response.writableEnded,
     headers: {},
@@ -231,8 +233,11 @@ function createFrameworkResponse(response: import('node:http').ServerResponse, a
     },
     setStatus(code) {
       response.statusCode = code;
+      this.statusCode = code;
+      this.statusSet = true;
     },
-    statusCode: 200,
+    statusCode: undefined,
+    statusSet: false,
   };
 }
 

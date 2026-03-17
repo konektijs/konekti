@@ -182,7 +182,7 @@ describe('bootstrapApplication', () => {
       method: 'POST',
     });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({ name: 'Ada' });
 
     await app.close();

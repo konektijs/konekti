@@ -39,8 +39,10 @@ function createResponse(): TestResponse {
     },
     setStatus(code) {
       this.statusCode = code;
+      this.statusSet = true;
     },
-    statusCode: 200,
+    statusCode: undefined,
+    statusSet: false,
   };
 }
 

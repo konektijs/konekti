@@ -116,7 +116,11 @@ async function writeSuccessResponse(handler: HandlerDescriptor, response: Framew
     return;
   }
 
-  response.setStatus(handler.route.successStatus ?? resolveDefaultSuccessStatus(handler, value));
+  if (handler.route.successStatus !== undefined) {
+    response.setStatus(handler.route.successStatus);
+  } else if (response.statusSet !== true) {
+    response.setStatus(resolveDefaultSuccessStatus(handler, value));
+  }
 
   await response.send(value);
 }

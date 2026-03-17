@@ -38,8 +38,10 @@ function createResponse(events?: string[]): FrameworkResponse & { body?: unknown
     },
     setStatus(code: number) {
       this.statusCode = code;
+      this.statusSet = true;
     },
-    statusCode: 200,
+    statusCode: undefined,
+    statusSet: false,
   };
 }
 
@@ -259,8 +261,8 @@ describe('@konekti/prisma vertical slice', () => {
       'connect',
       'transaction:start',
       'tx:create:ada@example.com',
-      'response:send',
       'transaction:end',
+      'response:send',
     ]);
 
     const createResponseError = createResponse(events);
@@ -294,8 +296,8 @@ describe('@konekti/prisma vertical slice', () => {
       'connect',
       'transaction:start',
       'tx:create:ada@example.com',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'transaction:rollback',
       'transaction:end',
@@ -315,16 +317,16 @@ describe('@konekti/prisma vertical slice', () => {
       'connect',
       'transaction:start',
       'tx:create:ada@example.com',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'transaction:rollback',
       'transaction:end',
       'response:send',
       'transaction:start',
       'tx:find:user-1',
-      'response:send',
       'transaction:end',
+      'response:send',
     ]);
 
     const getResponseMissing = createResponse(events);
@@ -346,16 +348,16 @@ describe('@konekti/prisma vertical slice', () => {
       'connect',
       'transaction:start',
       'tx:create:ada@example.com',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'transaction:rollback',
       'transaction:end',
       'response:send',
       'transaction:start',
       'tx:find:user-1',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'tx:find:missing',
       'transaction:rollback',
@@ -396,16 +398,16 @@ describe('@konekti/prisma vertical slice', () => {
       'connect',
       'transaction:start',
       'tx:create:ada@example.com',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'transaction:rollback',
       'transaction:end',
       'response:send',
       'transaction:start',
       'tx:find:user-1',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'tx:find:missing',
       'transaction:rollback',

@@ -37,8 +37,10 @@ function createResponse(events?: string[]): FrameworkResponse & { body?: unknown
     },
     setStatus(code: number) {
       this.statusCode = code;
+      this.statusSet = true;
     },
-    statusCode: 200,
+    statusCode: undefined,
+    statusSet: false,
   };
 }
 
@@ -215,7 +217,7 @@ describe('@konekti/drizzle vertical slice', () => {
     await app.dispatch(createRequest('/users', 'POST', { email: 'ada@example.com', name: 'Ada' }), createResponseOk);
 
     expect(createResponseOk.body).toEqual({ email: 'ada@example.com', id: 'user-1', name: 'Ada' });
-    expect(events).toEqual(['transaction:start', 'tx:insert:ada@example.com', 'response:send', 'transaction:end']);
+    expect(events).toEqual(['transaction:start', 'tx:insert:ada@example.com', 'transaction:end', 'response:send']);
 
     const getResponseOk = createResponse(events);
     await app.dispatch(createRequest('/users/user-1', 'GET'), getResponseOk);
@@ -224,12 +226,12 @@ describe('@konekti/drizzle vertical slice', () => {
     expect(events).toEqual([
       'transaction:start',
       'tx:insert:ada@example.com',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'tx:find:user-1',
-      'response:send',
       'transaction:end',
+      'response:send',
     ]);
 
     const getResponseMissing = createResponse(events);
@@ -239,12 +241,12 @@ describe('@konekti/drizzle vertical slice', () => {
     expect(events).toEqual([
       'transaction:start',
       'tx:insert:ada@example.com',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'tx:find:user-1',
-      'response:send',
       'transaction:end',
+      'response:send',
       'transaction:start',
       'tx:find:missing',
       'transaction:rollback',

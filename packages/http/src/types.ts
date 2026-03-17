@@ -19,6 +19,7 @@ export interface FrameworkRequest {
 
 export interface FrameworkResponse {
   statusCode?: number;
+  statusSet?: boolean;
   headers: Record<string, string>;
   committed: boolean;
   setStatus(code: number): void;

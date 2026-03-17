@@ -23,8 +23,10 @@ function createResponse(): FrameworkResponse & { body?: unknown } {
     },
     setStatus(code) {
       this.statusCode = code;
+      this.statusSet = true;
     },
-    statusCode: 200,
+    statusCode: undefined,
+    statusSet: false,
   };
 }
 
