@@ -2,6 +2,11 @@
 
 Konekti 애플리케이션 테스트를 위한 공식 모듈 구성 및 프로바이더 오버라이드 baseline입니다.
 
+## 관련 문서
+
+- `../../docs/operations/testing-guide.md`
+- `../../docs/concepts/architecture-overview.md`
+
 ## 이 패키지가 하는 일
 
 `@konekti/testing`은 Konekti 모듈 그래프 안에서 격리된 테스트 환경을 구성하는 최소한의 API를 제공합니다. 루트 모듈을 넘기고, 가짜 구현이나 스파이로 교체할 프로바이더를 오버라이드하고, 그래프를 컴파일한 다음, 토큰을 resolve해서 검증하고 싶은 인스턴스를 얻으면 됩니다.

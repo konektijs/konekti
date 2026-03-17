@@ -2,6 +2,12 @@
 
 The canonical CLI for Konekti — bootstrap a new app and generate individual files within an existing one.
 
+## See also
+
+- `../../docs/getting-started/quick-start.md`
+- `../../docs/getting-started/bootstrap-paths.md`
+- `../../docs/getting-started/generator-workflow.md`
+
 ## What this package does
 
 `@konekti/cli` provides three top-level commands plus aliases:

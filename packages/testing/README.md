@@ -2,6 +2,11 @@
 
 The official module construction and provider override baseline for testing Konekti applications.
 
+## See also
+
+- `../../docs/operations/testing-guide.md`
+- `../../docs/concepts/architecture-overview.md`
+
 ## What this package does
 
 `@konekti/testing` provides a minimal, focused API for building isolated test environments within the Konekti module graph. You hand it a root module, override whichever providers you want to replace with fakes or spies, compile the graph, and then resolve tokens to get the instances you want to assert against.

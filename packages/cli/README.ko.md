@@ -2,6 +2,12 @@
 
 Konekti 공식 CLI — 새 앱을 부트스트랩하거나 기존 프로젝트에 파일을 생성합니다.
 
+## 관련 문서
+
+- `../../docs/getting-started/quick-start.md`
+- `../../docs/getting-started/bootstrap-paths.md`
+- `../../docs/getting-started/generator-workflow.md`
+
 ## 이 패키지가 하는 일
 
 `@konekti/cli`는 세 가지 최상위 커맨드와 alias를 제공합니다.

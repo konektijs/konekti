@@ -2,6 +2,12 @@
 
 The assembly layer that compiles a module graph and wires config, DI, and HTTP into a runnable application shell.
 
+## See also
+
+- `../../docs/concepts/architecture-overview.md`
+- `../../docs/concepts/lifecycle-and-shutdown.md`
+- `../../docs/concepts/observability.md`
+
 ## What this package does
 
 `@konekti/runtime` is the orchestration layer. It is not a feature package — it is what turns your modules into a running app:

@@ -2,6 +2,12 @@
 
 module graph을 컴파일하고 config, DI, HTTP를 실행 가능한 application shell로 연결하는 조립 레이어.
 
+## 관련 문서
+
+- `../../docs/concepts/architecture-overview.md`
+- `../../docs/concepts/lifecycle-and-shutdown.md`
+- `../../docs/concepts/observability.md`
+
 ## 이 패키지가 하는 일
 
 `@konekti/runtime`은 orchestration 레이어다. 기능 패키지가 아니라 모듈을 실행 중인 앱으로 바꾸는 것이 역할이다:
