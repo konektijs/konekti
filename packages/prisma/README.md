@@ -2,6 +2,11 @@
 
 Connect Prisma to the Konekti lifecycle and transaction model — without hiding Prisma itself.
 
+## See also
+
+- `../../docs/concepts/transactions.md`
+- `../../docs/concepts/lifecycle-and-shutdown.md`
+
 ## What this package does
 
 `@konekti/prisma` is a thin integration layer that wires a Prisma client into Konekti's module system. It handles connection lifecycle (`$connect` / `$disconnect`) automatically, provides a request-scoped ALS-based transaction context, and exposes a `PrismaService` whose `current()` method always returns either the active transaction client or the root client — so your repositories never need to care which they're talking to.

@@ -2,6 +2,11 @@
 
 Official Drizzle integration baseline for Konekti — wraps a Drizzle database handle with a transaction-aware `current()` seam and an optional dispose hook.
 
+## See also
+
+- `../../docs/concepts/transactions.md`
+- `../../docs/concepts/lifecycle-and-shutdown.md`
+
 ## What this package does
 
 `@konekti/drizzle` connects a Drizzle database handle to Konekti's module, DI, and lifecycle model. Unlike Prisma, Drizzle doesn't expose `$connect`/`$disconnect` lifecycle methods — so this integration is shaped around **handle wrapping + optional cleanup** rather than connection lifecycle management.

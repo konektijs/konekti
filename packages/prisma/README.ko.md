@@ -2,6 +2,11 @@
 
 Prisma를 Konekti의 라이프사이클과 트랜잭션 모델에 연결합니다 — Prisma 자체는 숨기지 않고요.
 
+## 관련 문서
+
+- `../../docs/concepts/transactions.md`
+- `../../docs/concepts/lifecycle-and-shutdown.md`
+
 ## 이 패키지가 하는 일
 
 `@konekti/prisma`는 Prisma 클라이언트를 Konekti 모듈 시스템에 연결하는 얇은 통합 레이어입니다. 커넥션 라이프사이클(`$connect` / `$disconnect`)을 자동으로 처리하고, ALS(AsyncLocalStorage) 기반의 요청 범위 트랜잭션 컨텍스트를 제공하며, `current()` 메서드를 통해 항상 현재 활성화된 트랜잭션 클라이언트 또는 루트 클라이언트를 반환하는 `PrismaService`를 노출합니다. 덕분에 리포지토리는 어떤 클라이언트와 통신하는지 신경 쓸 필요가 없습니다.
