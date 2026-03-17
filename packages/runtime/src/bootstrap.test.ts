@@ -170,3 +170,70 @@ describe('bootstrapModule', () => {
     expect(() => bootstrapModule(AppModule)).not.toThrow();
   });
 });
+
+describe('bootstrapModule middleware DI registration', () => {
+  it('registers middleware class tokens in the DI container', async () => {
+    class LoggingMiddleware {
+      async handle(_: unknown, next: () => Promise<void>) {
+        await next();
+      }
+    }
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      middleware: [LoggingMiddleware],
+    });
+
+    const result = bootstrapModule(AppModule);
+    const instance = await result.container.resolve(LoggingMiddleware);
+
+    expect(instance).toBeInstanceOf(LoggingMiddleware);
+  });
+
+  it('registers MiddlewareRouteConfig middleware constructor in the DI container', async () => {
+    class AuthMiddleware {
+      async handle(_: unknown, next: () => Promise<void>) {
+        await next();
+      }
+    }
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      middleware: [{ middleware: AuthMiddleware, routes: ['/users'] }],
+    });
+
+    const result = bootstrapModule(AppModule);
+    const instance = await result.container.resolve(AuthMiddleware);
+
+    expect(instance).toBeInstanceOf(AuthMiddleware);
+  });
+
+  it('silently skips plain object middleware (factory pattern)', () => {
+    const factoryMiddleware = {
+      handle: async (_: unknown, next: () => Promise<void>) => next(),
+    };
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      middleware: [factoryMiddleware],
+    });
+
+    expect(() => bootstrapModule(AppModule)).not.toThrow();
+  });
+
+  it('does not throw when same class appears in both middleware and providers', () => {
+    class LoggingMiddleware {
+      async handle(_: unknown, next: () => Promise<void>) {
+        await next();
+      }
+    }
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      middleware: [LoggingMiddleware],
+      providers: [LoggingMiddleware],
+    });
+
+    expect(() => bootstrapModule(AppModule)).not.toThrow();
+  });
+});

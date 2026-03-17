@@ -374,6 +374,24 @@ export function bootstrapModule(rootModule: ModuleType, options: BootstrapModule
     for (const controller of compiledModule.definition.controllers ?? []) {
       container.register(controller);
     }
+
+    for (const mw of compiledModule.definition.middleware ?? []) {
+      if (typeof mw === 'object' && mw !== null && 'middleware' in mw && 'routes' in mw) {
+        const token = (mw as { middleware: unknown; routes: unknown }).middleware;
+
+        if (typeof token === 'function') {
+          container.register(token as Parameters<typeof container.register>[0]);
+        }
+
+        continue;
+      }
+
+      if (typeof mw === 'function') {
+        container.register(mw as Parameters<typeof container.register>[0]);
+        continue;
+      }
+
+    }
   }
 
   return {
