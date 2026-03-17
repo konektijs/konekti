@@ -15,6 +15,8 @@ pnpm dlx @konekti/cli new my-app
 
 This is the canonical public bootstrap path.
 
+There is no separate public `create-konekti` wrapper in the current supported contract. If a compatibility wrapper ever ships later, it must be documented as an additive surface rather than an implied alias.
+
 ## current input flow
 
 `konekti new` currently resolves inputs in this order:

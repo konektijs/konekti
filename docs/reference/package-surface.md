@@ -43,3 +43,4 @@ This file lists the current public package family at a glance.
 - this file owns the public package family only
 - toolchain and scaffold contract details live in `./toolchain-contract-matrix.md`
 - package-local APIs still belong in each package README
+- there is no public `create-konekti` package in the current workspace or documented bootstrap contract
