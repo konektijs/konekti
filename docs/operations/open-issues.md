@@ -36,16 +36,6 @@ GitHub Issues remain the source of truth for planning. This document exists only
   - confirm every durable contract is either in `docs/` or a package README
   - close the issue only after no active contributor flow depends on the retired repo
 
-#### `#2` Decide the public `create-konekti` compatibility wrapper story
-
-- what it covers
-  - decide whether `create-konekti` should exist as a real wrapper or disappear from the public story
-- why it matters
-  - bootstrap messaging and docs must describe only one real contract
-- how to proceed
-  - choose between: implement wrapper, or remove it from all active public materials
-  - if retained, define guarantees relative to `@konekti/cli`
-
 #### `#10` Decide public release evolution for toolchain packages and metadata extension
 
 - what it covers
@@ -152,15 +142,14 @@ GitHub Issues remain the source of truth for planning. This document exists only
 If work starts now, the most efficient order is:
 
 1. `#1`
-2. `#2`
-3. `#10`
-4. `#6`
-5. `#4`
-6. `#3`
-7. `#9`
-8. `#7`
-9. `#5`
-10. `#8`
+2. `#10`
+3. `#6`
+4. `#4`
+5. `#3`
+6. `#9`
+7. `#7`
+8. `#5`
+9. `#8`
 
 ## maintenance rule
 
