@@ -3,7 +3,7 @@
 <p><a href="./documentation-model.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
 
-이 문서는 단계별 계획 문서들을 활성 소스에서 은퇴시킨 후, `konekti`가 지향하는 문서화 모델을 정의합니다.
+이 문서는 단계별 계획 문서들을 활성 소스에서 은퇴시킨 이후 `konekti`가 사용하는 현재 문서화 모델을 정의합니다.
 
 ## 목표
 
@@ -112,7 +112,7 @@ konekti/
 
 ### `docs/`로 이동
 
-`konekti-plan`의 내용이 다음을 설명할 때 `docs/`로 이동합니다:
+legacy planning docs의 내용이 다음을 설명할 때 `docs/`로 이동합니다:
 
 - 안정적인 아키텍처 경계
 - 사용자가 기여자가 지금 이해해야 할 런타임 동작
@@ -163,9 +163,9 @@ konekti/
 
 ### 추가 또는 재구성할 문서
 
-- `docs/concepts/architecture-overview.md`를 최상위 개념 진입점으로 변환
-- `konekti-plan/architecture/*`의 무거운 주제를 `docs/concepts/*`로 분리
-- `konekti-plan/reference/*`의 프롬프트/부트스트랩/툴체인 참조를 `docs/getting-started/*` 또는 `docs/reference/*`로 이동
+- `docs/concepts/architecture-overview.md`를 최상위 개념 진입점으로 유지
+- 패키지 간 주제는 `docs/concepts/*`에 유지
+- 프롬프트/부트스트랩/툴체인 참조는 `docs/getting-started/*` 또는 `docs/reference/*`에 유지
 - 릴리스/테스트 가이드는 `docs/operations/*`에 유지
 
 ### 패키지 README
@@ -199,6 +199,6 @@ konekti/
 
 1. 루트 `README.md`를 프로젝트 허브로 재작성
 2. `docs/getting-started/`, `docs/concepts/`, `docs/operations/`, `docs/reference/` 생성
-3. `konekti-plan/architecture/*` 및 `konekti-plan/reference/*`에서 영구적인 자료 마이그레이션
+3. 남아 있는 legacy planning note에서 durable material을 `docs/` 또는 package README로 마이그레이션
 4. 남은 라이브 후속 조치들을 GitHub Issues로 변환
 5. 기본 문서 읽기 경로에서 `execution/` 제거

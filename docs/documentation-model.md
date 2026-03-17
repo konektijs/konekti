@@ -3,7 +3,7 @@
 <p><strong><kbd>English</kbd></strong> <a href="./documentation-model.ko.md"><kbd>한국어</kbd></a></p>
 
 
-This file defines the target documentation model for `konekti` after retiring phase-oriented planning docs as an active source of truth.
+This file defines the current documentation model for `konekti` after retiring phase-oriented planning docs as an active source of truth.
 
 ## goals
 
@@ -112,7 +112,7 @@ The exact filenames can change, but the ownership split should remain stable:
 
 ### move into `docs/`
 
-Content from `konekti-plan` should move into `docs/` when it describes:
+Content from legacy planning docs should move into `docs/` when it describes:
 
 - stable architecture boundaries
 - runtime behavior that users or contributors need to understand today
@@ -163,9 +163,9 @@ Rewrite `README.md` around these sections:
 
 ### docs to add or reshape
 
-- convert `docs/concepts/architecture-overview.md` into the top-level concepts entry
-- split topic-heavy material from `konekti-plan/architecture/*` into `docs/concepts/*`
-- move prompt/bootstrap/toolchain references from `konekti-plan/reference/*` into `docs/getting-started/*` or `docs/reference/*`
+- keep `docs/concepts/architecture-overview.md` as the top-level concepts entry
+- keep topic-heavy cross-package material in `docs/concepts/*`
+- keep prompt/bootstrap/toolchain references in `docs/getting-started/*` or `docs/reference/*`
 - keep release/testing guidance in `docs/operations/*`
 
 ### package READMEs
@@ -199,6 +199,6 @@ Rewrite `README.md` around these sections:
 
 1. rewrite the root `README.md` as the project hub
 2. create `docs/getting-started/`, `docs/concepts/`, `docs/operations/`, and `docs/reference/`
-3. migrate durable material from `konekti-plan/architecture/*` and `konekti-plan/reference/*`
+3. migrate durable material from any remaining legacy planning notes into `docs/` or package READMEs
 4. convert remaining live follow-ups into GitHub Issues
 5. remove `execution/` from the default documentation read path
