@@ -1,8 +1,12 @@
-export type JwtAlgorithm = 'HS256' | 'HS384' | 'HS512';
+import type { KeyObject } from 'node:crypto';
+
+export type JwtAlgorithm = 'HS256' | 'HS384' | 'HS512' | 'RS256' | 'RS384' | 'RS512' | 'ES256' | 'ES384' | 'ES512';
 
 export interface JwtKeyEntry {
   kid: string;
-  secret: string;
+  secret?: string;
+  privateKey?: string | KeyObject;
+  publicKey?: string | KeyObject;
 }
 
 export interface JwtVerifierOptions {
@@ -13,6 +17,8 @@ export interface JwtVerifierOptions {
   issuer?: string;
   keys?: JwtKeyEntry[];
   secret?: string;
+  privateKey?: string | KeyObject;
+  publicKey?: string | KeyObject;
 }
 
 export interface JwtClaims extends Record<string, unknown> {

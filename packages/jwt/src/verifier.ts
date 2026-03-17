@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, createVerify, timingSafeEqual } from 'node:crypto';
+import type { KeyObject } from 'node:crypto';
 
 import { Inject } from '@konekti/core';
 
@@ -7,14 +8,23 @@ import type { JwtAlgorithm, JwtClaims, JwtPrincipal, JwtVerifierOptions } from '
 
 export const JWT_OPTIONS = Symbol.for('konekti.jwt.options');
 
-export const HMAC_HASH: Record<JwtAlgorithm, string> = {
+export const HMAC_HASH: Partial<Record<JwtAlgorithm, string>> = {
   HS256: 'sha256',
   HS384: 'sha384',
   HS512: 'sha512',
 };
 
+export const ASYMMETRIC_HASH: Partial<Record<JwtAlgorithm, string>> = {
+  RS256: 'sha256',
+  RS384: 'sha384',
+  RS512: 'sha512',
+  ES256: 'sha256',
+  ES384: 'sha384',
+  ES512: 'sha512',
+};
+
 function isAllowedAlgorithm(alg: string | undefined, allowed: JwtAlgorithm[]): alg is JwtAlgorithm {
-  return typeof alg === 'string' && (allowed as string[]).includes(alg) && alg in HMAC_HASH;
+  return typeof alg === 'string' && (allowed as string[]).includes(alg) && (alg in HMAC_HASH || alg in ASYMMETRIC_HASH);
 }
 
 function verifyHmacSignature(
@@ -23,12 +33,27 @@ function verifyHmacSignature(
   signingInput: string,
   signatureSegment: string,
 ): void {
-  const hash = HMAC_HASH[algorithm];
+  const hash = HMAC_HASH[algorithm]!;
   const expected = encodeBase64Url(createHmac(hash, secret).update(signingInput).digest());
   const expectedBuf = Buffer.from(expected, 'base64url');
   const actualBuf = Buffer.from(signatureSegment, 'base64url');
 
   if (expectedBuf.length !== actualBuf.length || !timingSafeEqual(expectedBuf, actualBuf)) {
+    throw new JwtInvalidTokenError();
+  }
+}
+
+function verifyAsymmetricSignature(
+  algorithm: JwtAlgorithm,
+  publicKey: string | KeyObject,
+  signingInput: string,
+  signatureSegment: string,
+): void {
+  const hash = ASYMMETRIC_HASH[algorithm]!;
+  const verifier = createVerify(hash);
+  verifier.update(signingInput);
+  const valid = verifier.verify(publicKey, signatureSegment, 'base64url');
+  if (!valid) {
     throw new JwtInvalidTokenError();
   }
 }
@@ -96,20 +121,35 @@ export class DefaultJwtVerifier {
     const payload = parseJwtPart<JwtClaims>(payloadSegment);
     const algorithms = this.options.algorithms;
 
-    const secret =
-      (header.kid !== undefined && header.kid !== ''
-        ? this.options.keys?.find((k) => k.kid === header.kid)?.secret
-        : undefined) ?? this.options.secret;
-
-    if (!secret) {
-      throw new JwtConfigurationError('JWT secret is not configured.');
-    }
-
     if (!isAllowedAlgorithm(header.alg, algorithms)) {
       throw new JwtInvalidTokenError('JWT algorithm is not allowed.');
     }
 
-    verifyHmacSignature(header.alg, secret, `${headerSegment}.${payloadSegment}`, signatureSegment);
+    const signingInput = `${headerSegment}.${payloadSegment}`;
+
+    if (header.alg in HMAC_HASH) {
+      const secret =
+        (header.kid !== undefined && header.kid !== ''
+          ? this.options.keys?.find((k) => k.kid === header.kid)?.secret
+          : undefined) ?? this.options.secret;
+
+      if (!secret) {
+        throw new JwtConfigurationError('JWT secret is not configured.');
+      }
+
+      verifyHmacSignature(header.alg, secret, signingInput, signatureSegment);
+    } else {
+      const publicKey =
+        (header.kid !== undefined && header.kid !== ''
+          ? this.options.keys?.find((k) => k.kid === header.kid)?.publicKey
+          : undefined) ?? this.options.publicKey;
+
+      if (!publicKey) {
+        throw new JwtConfigurationError('JWT public key is not configured.');
+      }
+
+      verifyAsymmetricSignature(header.alg, publicKey, signingInput, signatureSegment);
+    }
 
     const now = Math.floor(Date.now() / 1000);
     const clockSkew = this.options.clockSkewSeconds ?? 0;

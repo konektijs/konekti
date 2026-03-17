@@ -41,9 +41,9 @@ HTTP request
 
 ## current shipped JWT scope
 
-- the built-in JWT core currently supports HMAC algorithms only: `HS256`, `HS384`, and `HS512`
-- asymmetric JWT verification/signing such as `RS256` or `ES256` is not part of the current shipped package surface
-- if a project needs asymmetric verification today, that should be treated as future product work rather than assumed built-in behavior
+- the built-in JWT core supports HMAC algorithms: `HS256`, `HS384`, and `HS512`
+- the built-in JWT core supports asymmetric algorithms: `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, and `ES512`
+- for asymmetric algorithms, pass `privateKey` and `publicKey` (PEM string or `KeyObject`) to `JwtVerifierOptions`; key-per-kid rotation is supported via the `keys` array
 
 ## official default auth story
 
