@@ -17,6 +17,7 @@ The current official docs/examples path uses this package through bearer-token a
 `@konekti/jwt` knows nothing about routes or guards. It owns:
 
 - Signing access tokens with HMAC algorithms such as HS256, HS384, and HS512 (`DefaultJwtSigner.signAccessToken`)
+- Signing access tokens with asymmetric algorithms such as RS256, RS384, RS512, ES256, ES384, and ES512
 - Verifying tokens: shape → algorithm → signature → claims (`exp`, `nbf`, `iss`, `aud`)
 - Normalising verified claims to a `JwtPrincipal` (`subject`, `roles`, `scopes`, `claims`)
 - Exporting `JwtStrategy`, the reusable bearer-token strategy adapter for `@konekti/passport`
@@ -25,8 +26,7 @@ The current official docs/examples path uses this package through bearer-token a
 
 Current scope note:
 
-- shipped algorithms: `HS256`, `HS384`, `HS512`
-- not currently shipped: asymmetric JWT algorithms such as `RS256` / `ES256`
+- shipped algorithms: `HS256`, `HS384`, `HS512`, `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512`
 - refresh-token issuance, rotation, and revoke/logout flows are outside this package and remain application-owned
 
 ## Installation
@@ -102,6 +102,47 @@ const token = await signer.signAccessToken({ sub: 'u1', roles: [] });
 const principal = await verifier.verifyAccessToken(token);
 ```
 
+### Asymmetric algorithms (RS256 / ES256)
+
+Pass `privateKey` and `publicKey` (PEM string or Node.js `KeyObject`) when using RS* or ES* algorithms:
+
+```typescript
+import { generateKeyPairSync } from 'node:crypto';
+import { DefaultJwtSigner, DefaultJwtVerifier } from '@konekti/jwt';
+
+const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+
+const signer = new DefaultJwtSigner({
+  algorithms: ['RS256'],
+  issuer: 'my-app',
+  audience: 'my-app-clients',
+  accessTokenTtlSeconds: 3600,
+  privateKey,
+});
+const verifier = new DefaultJwtVerifier({
+  algorithms: ['RS256'],
+  issuer: 'my-app',
+  audience: 'my-app-clients',
+  publicKey,
+});
+
+const token = await signer.signAccessToken({ sub: 'u1' });
+const principal = await verifier.verifyAccessToken(token);
+```
+
+For key rotation, use the `keys` array with `kid`:
+
+```typescript
+const signer = new DefaultJwtSigner({
+  algorithms: ['RS256'],
+  keys: [{ kid: 'v2', privateKey, publicKey }],
+});
+const verifier = new DefaultJwtVerifier({
+  algorithms: ['RS256'],
+  keys: [{ kid: 'v2', publicKey }],
+});
+```
+
 ## Key API
 
 | Export | Location | Description |
@@ -111,7 +152,7 @@ const principal = await verifier.verifyAccessToken(token);
 | `createJwtCoreProviders(options)` | `src/module.ts` | Registers options, verifier, and signer in one call |
 | `JwtPrincipal` | `src/types.ts` | `{ subject, issuer?, audience?, roles?, scopes?, claims }` |
 | `JwtClaims` | `src/types.ts` | Raw claims shape |
-| `JwtVerifierOptions` | `src/types.ts` | `{ secret, issuer?, audience?, algorithms?, accessTokenTtlSeconds? }` |
+| `JwtVerifierOptions` | `src/types.ts` | `{ secret?, privateKey?, publicKey?, issuer?, audience?, algorithms?, accessTokenTtlSeconds?, keys? }` |
 | `JwtVerifier` | `src/types.ts` | Interface for custom verifier implementations |
 | `JwtSigner` | `src/types.ts` | Interface for custom signer implementations |
 | `JwtStrategy` | `src/strategy.ts` | Passport-compatible bearer-token strategy backed by `DefaultJwtVerifier` |
@@ -124,7 +165,7 @@ const principal = await verifier.verifyAccessToken(token);
 verifyAccessToken(token)
   1. Split and base64url-decode header + payload + signature
   2. Check algorithm is in the allowed list
-  3. Verify the matching HMAC signature implementation
+  3. Verify the signature — HMAC (createHmac) for HS* or asymmetric (createVerify) for RS*/ES*
   4. Validate claims: exp, nbf, iss, aud
   5. normalizePrincipal(payload) → JwtPrincipal
 ```
@@ -145,9 +186,7 @@ If `iss`, `aud`, `iat`, or `exp` are absent from the claims passed to `signAcces
 
 ### Algorithm design
 
-Two separate checks exist: "is this algorithm in the allowlist?" and "does this implementation support it?". The current implementation supports HS256, HS384, and HS512, and the separation makes it safe to extend one without accidentally opening the other.
-
-This package should therefore be read as an HMAC-first JWT core today, not as a general-purpose JWT surface that already covers asymmetric verification.
+Two separate checks exist: "is this algorithm in the allowlist?" and "does this implementation support it?". HMAC algorithms (HS*) use `createHmac` with a shared secret; asymmetric algorithms (RS*, ES*) use `createVerify`/`createSign` with a key pair. The separation makes it safe to extend the allowlist without accidentally opening unsupported paths.
 
 ## File reading order for contributors
 

@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, createSign, generateKeyPairSync } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
@@ -155,5 +155,94 @@ describe('DefaultJwtVerifier', () => {
     );
 
     await expect(verifier.verifyAccessToken(token)).rejects.toBeInstanceOf(JwtInvalidTokenError);
+  });
+
+  it('verifies a valid RS256 token', async () => {
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const exp = Math.floor(Date.now() / 1000) + 60;
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const payload = { exp, iss: 'tests', sub: 'user-rs256' };
+    const headerSegment = encodeBase64Url(JSON.stringify(header));
+    const payloadSegment = encodeBase64Url(JSON.stringify(payload));
+    const signer = createSign('sha256');
+    signer.update(`${headerSegment}.${payloadSegment}`);
+    const signatureSegment = signer.sign(privateKey, 'base64url');
+    const token = `${headerSegment}.${payloadSegment}.${signatureSegment}`;
+
+    const verifier = new DefaultJwtVerifier({
+      algorithms: ['RS256'],
+      issuer: 'tests',
+      publicKey,
+    });
+
+    await expect(verifier.verifyAccessToken(token)).resolves.toMatchObject({
+      subject: 'user-rs256',
+    });
+  });
+
+  it('verifies a valid ES256 token', async () => {
+    const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const exp = Math.floor(Date.now() / 1000) + 60;
+    const header = { alg: 'ES256', typ: 'JWT' };
+    const payload = { exp, iss: 'tests', sub: 'user-es256' };
+    const headerSegment = encodeBase64Url(JSON.stringify(header));
+    const payloadSegment = encodeBase64Url(JSON.stringify(payload));
+    const signer = createSign('sha256');
+    signer.update(`${headerSegment}.${payloadSegment}`);
+    const signatureSegment = signer.sign(privateKey, 'base64url');
+    const token = `${headerSegment}.${payloadSegment}.${signatureSegment}`;
+
+    const verifier = new DefaultJwtVerifier({
+      algorithms: ['ES256'],
+      issuer: 'tests',
+      publicKey,
+    });
+
+    await expect(verifier.verifyAccessToken(token)).resolves.toMatchObject({
+      subject: 'user-es256',
+    });
+  });
+
+  it('rejects an RS256 token verified with the wrong public key', async () => {
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const { publicKey: wrongPublicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const exp = Math.floor(Date.now() / 1000) + 60;
+    const header = { alg: 'RS256', typ: 'JWT' };
+    const payload = { exp, sub: 'user-rs256' };
+    const headerSegment = encodeBase64Url(JSON.stringify(header));
+    const payloadSegment = encodeBase64Url(JSON.stringify(payload));
+    const signer = createSign('sha256');
+    signer.update(`${headerSegment}.${payloadSegment}`);
+    const signatureSegment = signer.sign(privateKey, 'base64url');
+    const token = `${headerSegment}.${payloadSegment}.${signatureSegment}`;
+
+    const verifier = new DefaultJwtVerifier({
+      algorithms: ['RS256'],
+      publicKey: wrongPublicKey,
+    });
+
+    await expect(verifier.verifyAccessToken(token)).rejects.toBeInstanceOf(JwtInvalidTokenError);
+  });
+
+  it('verifies a valid RS256 token using a kid-keyed key entry', async () => {
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const exp = Math.floor(Date.now() / 1000) + 60;
+    const header = { alg: 'RS256', kid: 'key-1', typ: 'JWT' };
+    const payload = { exp, sub: 'user-kid-rs256' };
+    const headerSegment = encodeBase64Url(JSON.stringify(header));
+    const payloadSegment = encodeBase64Url(JSON.stringify(payload));
+    const signer = createSign('sha256');
+    signer.update(`${headerSegment}.${payloadSegment}`);
+    const signatureSegment = signer.sign(privateKey, 'base64url');
+    const token = `${headerSegment}.${payloadSegment}.${signatureSegment}`;
+
+    const verifier = new DefaultJwtVerifier({
+      algorithms: ['RS256'],
+      keys: [{ kid: 'key-1', publicKey }],
+    });
+
+    await expect(verifier.verifyAccessToken(token)).resolves.toMatchObject({
+      subject: 'user-kid-rs256',
+    });
   });
 });
