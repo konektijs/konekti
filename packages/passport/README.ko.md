@@ -2,6 +2,11 @@
 
 Konekti의 strategy-agnostic auth 실행 레이어 — 어떤 `AuthStrategy`든 generic `AuthGuard`를 통해 request context에 연결한다.
 
+## 관련 문서
+
+- `../../docs/concepts/auth-and-jwt.md`
+- `../../docs/concepts/http-runtime.md`
+
 ## 이 패키지가 하는 일
 
 `@konekti/passport`는 어떤 구체적인 auth provider(JWT 파싱, Google OAuth, local 인증 정보)도 구현하지 않는다. 역할은 **어떤 strategy를 꽂더라도** Konekti request lifecycle에서 일관되게 auth가 실행되도록 하는 것이다:

@@ -2,6 +2,11 @@
 
 HTTP-agnostic JWT token core — signs access tokens and verifies them to a normalized `JwtPrincipal`.
 
+## See also
+
+- `../../docs/concepts/auth-and-jwt.md`
+- `../../docs/concepts/architecture-overview.md`
+
 ## What this package does
 
 `@konekti/jwt` knows nothing about routes or guards. It owns:

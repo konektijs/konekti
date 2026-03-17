@@ -2,6 +2,12 @@
 
 The HTTP execution layer that turns route metadata into a request processing chain.
 
+## See also
+
+- `../../docs/concepts/http-runtime.md`
+- `../../docs/concepts/error-responses.md`
+- `../../docs/concepts/security-middleware.md`
+
 ## What this package does
 
 `@konekti/http` is not a router — it is the full request execution runtime. It owns:

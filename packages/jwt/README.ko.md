@@ -2,6 +2,11 @@
 
 HTTP를 모르는 JWT token core — access token을 서명하고 검증하여 정규화된 `JwtPrincipal`을 반환한다.
 
+## 관련 문서
+
+- `../../docs/concepts/auth-and-jwt.md`
+- `../../docs/concepts/architecture-overview.md`
+
 ## 이 패키지가 하는 일
 
 `@konekti/jwt`는 HTTP request, route, auth guard를 전혀 알지 못한다. 다음을 소유한다:

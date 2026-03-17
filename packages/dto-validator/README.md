@@ -2,6 +2,11 @@
 
 Decorator-based DTO validation for TypeScript. Declare validation rules directly on class fields and get structured, typed errors — no schema files, no manual checks.
 
+## See also
+
+- `../../docs/concepts/decorators-and-metadata.md`
+- `../../docs/concepts/http-runtime.md`
+
 ## Installation
 
 ```bash

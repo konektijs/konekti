@@ -2,6 +2,11 @@
 
 Strategy-agnostic auth execution layer for Konekti — routes any `AuthStrategy` through a generic `AuthGuard` into the request context.
 
+## See also
+
+- `../../docs/concepts/auth-and-jwt.md`
+- `../../docs/concepts/http-runtime.md`
+
 ## What this package does
 
 `@konekti/passport` does not implement any concrete auth provider (JWT parsing, Google OAuth, local credentials). Its job is to ensure that *whatever strategy you plug in*, auth runs consistently in the Konekti request lifecycle:

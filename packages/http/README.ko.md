@@ -2,6 +2,12 @@
 
 route metadata를 request 처리 체인으로 바꾸는 HTTP 실행 레이어.
 
+## 관련 문서
+
+- `../../docs/concepts/http-runtime.md`
+- `../../docs/concepts/error-responses.md`
+- `../../docs/concepts/security-middleware.md`
+
 ## 이 패키지가 하는 일
 
 `@konekti/http`는 단순 라우터가 아니라 전체 request 실행 런타임이다. 다음을 소유한다:
