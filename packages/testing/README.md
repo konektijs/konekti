@@ -6,7 +6,7 @@ The official module construction and provider override baseline for testing Kone
 
 `@konekti/testing` provides a minimal, focused API for building isolated test environments within the Konekti module graph. You hand it a root module, override whichever providers you want to replace with fakes or spies, compile the graph, and then resolve tokens to get the instances you want to assert against.
 
-It does **not** participate in the production runtime — the testing module exists only in test environments. It is intentionally a baseline: a stable foundation to build on, not a complete fixture library. Advanced helpers (fake request/response builder, auth fixtures, ORM integration fixtures) are out of scope for now and are expected to be added separately.
+It does **not** participate in the production runtime — the testing module exists only in test environments. It is intentionally a baseline: a stable foundation to build on, not a complete fixture library. It already includes small helper exports such as `makeRequest`, `createMock`, and `asMock`, but it does not try to be a full fixture framework.
 
 ## Installation
 
@@ -35,7 +35,7 @@ describe('UserService', () => {
       .overrideProvider(USER_REPOSITORY, fakeRepo)
       .compile();
 
-    const service = module.resolve(UserService);
+    const service = await module.resolve(UserService);
 
     const result = await service.createUser({ name: 'Alice' });
 
@@ -59,10 +59,10 @@ const module = await createTestingModule({ rootModule: AppModule })
 
 ```typescript
 // Resolve by class reference
-const service = module.resolve(UserService);
+const service = await module.resolve(UserService);
 
 // Resolve by DI token (symbol or string)
-const config = module.resolve(CONFIG_TOKEN);
+const config = await module.resolve(CONFIG_TOKEN);
 ```
 
 ## Key API
@@ -73,7 +73,7 @@ Entry point. Returns a builder object.
 
 ```typescript
 interface TestingModuleOptions {
-  rootModule: ModuleDefinition;
+  rootModule: ModuleType;
 }
 
 createTestingModule(options: TestingModuleOptions): TestingModuleBuilder
@@ -86,15 +86,16 @@ Fluent builder returned by `createTestingModule`.
 | Method | Description |
 |---|---|
 | `.overrideProvider(token, implementation)` | Replace a DI token's provider with `implementation` before the graph is compiled. Chainable. |
-| `.compile()` | Compile the module graph with all overrides applied. Returns a `Promise<TestingModule>`. |
+| `.compile()` | Compile the module graph with all overrides applied. Returns a `Promise<TestingModuleRef>`. |
 
-### `TestingModule`
+### `TestingModuleRef`
 
 The compiled test container.
 
 | Method | Description |
 |---|---|
-| `.resolve(token)` | Resolve a provider from the compiled module graph. Accepts class constructors or DI tokens. |
+| `.resolve(token)` | Resolve a provider from the compiled module graph. Accepts class constructors or DI tokens and returns `Promise<T>`. |
+| `.has(token)` | Check whether a provider token is available in the compiled graph. |
 
 ## Architecture
 
@@ -111,7 +112,7 @@ TestingModuleBuilder
     │  builds module graph from rootModule
     │  applies all provider overrides
     ▼
-TestingModule
+TestingModuleRef
     │
     ▼
 .resolve(token)  → instance from graph
@@ -123,7 +124,7 @@ Overrides are applied **after** the module graph is constructed, replacing the r
 
 The package is intentionally small. You can read the entire implementation in one sitting:
 
-1. `src/types.ts` — `TestingModuleOptions`, `TestingModuleBuilder`, and `TestingModule` interfaces; the public contract
+1. `src/types.ts` — `TestingModuleOptions`, `TestingModuleBuilder`, and `TestingModuleRef` interfaces; the public contract
 2. `src/module.ts` — `createTestingModule()` implementation; how the builder pattern and `.compile()` work
 3. `src/index.ts` — public surface; what is exported and what is not
 4. `src/module.test.ts` — the test suite; shows the intended usage patterns and edge cases
@@ -132,9 +133,9 @@ The package is intentionally small. You can read the entire implementation in on
 
 | Package | Relationship |
 |---|---|
-| `@konekti/di` | The DI container that `TestingModule` wraps and `.resolve()` delegates into |
+| `@konekti/di` | The DI container that `TestingModuleRef` wraps and `.resolve()` delegates into |
 | `@konekti/runtime` | Module graph construction logic that `compile()` builds on |
-| `@konekti/core` | Lifecycle interfaces; `TestingModule` does not trigger lifecycle hooks in test mode |
+| `@konekti/runtime` | Lifecycle interfaces; `TestingModuleRef` does not trigger lifecycle hooks in test mode |
 | `@konekti/prisma` | Typical override target — replace `PRISMA_CLIENT` with a fake to avoid real DB connections |
 | `@konekti/jwt` | Typical override target — replace the JWT verifier to test auth flows without real tokens |
 

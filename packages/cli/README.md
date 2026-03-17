@@ -4,10 +4,11 @@ The canonical CLI for Konekti — bootstrap a new app and generate individual fi
 
 ## What this package does
 
-`@konekti/cli` provides two top-level commands:
+`@konekti/cli` provides three top-level commands plus aliases:
 
 - **`konekti new`** — scaffold a starter project with defaults → install dependencies
-- **`konekti generate <kind> <name>`** — create a single file (module, controller, service, repository, request-dto, or response-dto) inside an existing project
+- **`konekti generate <kind> <name>`** — create one or more files and update the module when the generator kind participates in module registration
+- **`konekti help [command]`** — show top-level or command-specific help output
 
 ## Installation
 
@@ -37,7 +38,9 @@ konekti generate request-dto create-user
 konekti generate response-dto user-profile
 ```
 
-Each generator produces a file (or files) with correctly kebab-cased names and PascalCase class names.
+Implemented generator kinds include `controller`, `guard`, `interceptor`, `middleware`, `module`, `repository`/`repo`, `request-dto`, `response-dto`, and `service`.
+
+Each generator produces one or more files with correctly kebab-cased names and PascalCase class names.
 
 ## Local sandbox workflow
 
@@ -65,8 +68,10 @@ Use `pnpm --dir packages/cli run test` for the package-local Vitest suite.
 
 | Export | Location | Description |
 |---|---|---|
-| `runCli(options?)` | `src/cli.ts` | Entry point for the CLI binary |
+| `runCli(argv?, runtime?)` | `src/cli.ts` | Entry point for the CLI binary |
 | `runNewCommand(argv, runtime?)` | `src/commands/new.ts` | Prompt → scaffold → install → next steps |
+
+The package root also re-exports `newUsage`, `CliRuntimeOptions`, `GenerateOptions`, `GeneratedFile`, `GeneratorKind`, and `ModuleRegistration`.
 
 ## Architecture
 

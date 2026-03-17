@@ -42,7 +42,7 @@ class HealthController {
 @Module({ controllers: [HealthController] })
 class AppModule {}
 
-runNodeApplication({ module: AppModule, port: 3000 });
+await runNodeApplication(AppModule, { mode: 'dev' });
 ```
 
 ### Full bootstrap with manual listen
@@ -51,12 +51,12 @@ runNodeApplication({ module: AppModule, port: 3000 });
 import { bootstrapApplication } from '@konekti/runtime';
 
 const app = await bootstrapApplication({
-  module: AppModule,
-  config: { port: 3000 },
+  rootModule: AppModule,
+  mode: 'dev',
 });
 
-await app.listen(3000);
-console.log('Listening on port 3000');
+await app.listen();
+console.log('Listening');
 
 // Dispatch a request manually (e.g. in tests)
 await app.dispatch(req, res);
@@ -90,8 +90,8 @@ export class AppModule {}
 
 | Export | Location | Description |
 |---|---|---|
-| `runNodeApplication(options)` | `src/node.ts` | Bootstrap + listen + shutdown wiring for Node |
-| `bootstrapNodeApplication(options)` | `src/node.ts` | Bootstrap only (no listen) with Node defaults |
+| `runNodeApplication(rootModule, options)` | `src/node.ts` | Bootstrap + listen + shutdown wiring for Node |
+| `bootstrapNodeApplication(rootModule, options)` | `src/node.ts` | Bootstrap only (no listen) with Node defaults |
 | `bootstrapApplication(options)` | `src/bootstrap.ts` | Generic bootstrap — returns `Application` |
 | `bootstrapModule(module)` | `src/bootstrap.ts` | Lower-level: compile module graph + build container |
 | `defineModule(cls, metadata)` | `src/bootstrap.ts` | Low-level helper to attach module metadata without decorator |
@@ -138,11 +138,13 @@ Startup:  onModuleInit → onApplicationBootstrap
 Shutdown: onModuleDestroy (reverse order) → onApplicationShutdown (reverse order)
 ```
 
-Request-scoped providers are excluded from lifecycle hooks — only singleton-scoped providers participate.
+Request-scoped and transient providers are excluded from lifecycle hooks — only singleton-scoped providers participate.
 
 ### KonektiApplication is a thin shell
 
-`KonektiApplication` does not re-implement any runtime piece. It holds references to the assembled config, container, and dispatcher, and manages state transitions: `bootstrapping` → `ready` → `closing` → `closed`.
+`KonektiApplication` does not re-implement any runtime piece. It holds references to the assembled config, container, and dispatcher, and manages state transitions: `bootstrapped` → `ready` → `closed`.
+
+Additional public exports also include helpers such as `KonektiFactory`, `createHealthModule`, `createNodeHttpAdapter`, `parseMultipart`, `compressResponse`, `createConsoleApplicationLogger`, `createJsonApplicationLogger`, `APPLICATION_LOGGER`, `raceWithAbort`, and `createAbortError`.
 
 ### Node startup concerns owned by runtime
 

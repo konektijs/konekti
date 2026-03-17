@@ -42,7 +42,7 @@ class HealthController {
 @Module({ controllers: [HealthController] })
 class AppModule {}
 
-runNodeApplication({ module: AppModule, port: 3000 });
+await runNodeApplication(AppModule, { mode: 'dev' });
 ```
 
 ### 수동 listen으로 full bootstrap
@@ -51,12 +51,12 @@ runNodeApplication({ module: AppModule, port: 3000 });
 import { bootstrapApplication } from '@konekti/runtime';
 
 const app = await bootstrapApplication({
-  module: AppModule,
-  config: { port: 3000 },
+  rootModule: AppModule,
+  mode: 'dev',
 });
 
-await app.listen(3000);
-console.log('포트 3000에서 대기 중');
+await app.listen();
+console.log('Listening');
 
 // 수동으로 request dispatch (예: 테스트에서)
 await app.dispatch(req, res);
@@ -90,8 +90,8 @@ export class AppModule {}
 
 | Export | 위치 | 설명 |
 |---|---|---|
-| `runNodeApplication(options)` | `src/node.ts` | Node용 bootstrap + listen + shutdown wiring |
-| `bootstrapNodeApplication(options)` | `src/node.ts` | Node 기본값으로 bootstrap만 (listen 없음) |
+| `runNodeApplication(rootModule, options)` | `src/node.ts` | Node용 bootstrap + listen + shutdown wiring |
+| `bootstrapNodeApplication(rootModule, options)` | `src/node.ts` | Node 기본값으로 bootstrap만 (listen 없음) |
 | `bootstrapApplication(options)` | `src/bootstrap.ts` | 범용 bootstrap — `Application` 반환 |
 | `bootstrapModule(module)` | `src/bootstrap.ts` | 하위 레벨: module graph 컴파일 + container 구성 |
 | `defineModule(cls, metadata)` | `src/bootstrap.ts` | 데코레이터 없이 module 메타데이터를 붙이는 하위 레벨 helper |
@@ -138,11 +138,13 @@ runNodeApplication(options)  [또는 bootstrapApplication]
 종료:   onModuleDestroy (역순) → onApplicationShutdown (역순)
 ```
 
-Request-scoped provider는 lifecycle hook 대상에서 제외된다 — singleton-scoped provider만 참여한다.
+Request-scoped provider와 transient provider는 lifecycle hook 대상에서 제외된다 — singleton-scoped provider만 참여한다.
 
 ### KonektiApplication은 thin shell이다
 
-`KonektiApplication`은 어떤 런타임 부분도 재구현하지 않는다. 조립된 config, container, dispatcher에 대한 참조를 보관하고 상태 전환을 관리한다: `bootstrapping` → `ready` → `closing` → `closed`.
+`KonektiApplication`은 어떤 런타임 부분도 재구현하지 않는다. 조립된 config, container, dispatcher에 대한 참조를 보관하고 상태 전환을 관리한다: `bootstrapped` → `ready` → `closed`.
+
+추가 public export로는 `KonektiFactory`, `createHealthModule`, `createNodeHttpAdapter`, `parseMultipart`, `compressResponse`, `createConsoleApplicationLogger`, `createJsonApplicationLogger`, `APPLICATION_LOGGER`, `raceWithAbort`, `createAbortError` 등이 있다.
 
 ### 런타임이 소유하는 Node startup concerns
 
