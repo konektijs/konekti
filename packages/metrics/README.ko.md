@@ -63,7 +63,7 @@ MetricsModule.forRoot({ path: '/internal/metrics' })
 
 ### 기본 메트릭 비활성화
 
-기본적으로 `prom-client`의 `collectDefaultMetrics()`가 호출되어 표준 Node.js 프로세스 및 GC 메트릭을 등록합니다. 직접 커스텀 메트릭만 등록하려면 비활성화하세요:
+기본적으로 `prom-client`의 `collectDefaultMetrics()`가 호출되어 표준 Node.js 프로세스 및 GC 메트릭을 등록합니다. 내장 엔드포인트가 모듈이 등록한 메트릭만 노출하게 하려면 비활성화하세요:
 
 ```typescript
 MetricsModule.forRoot({ defaultMetrics: false })
@@ -83,7 +83,7 @@ MetricsModule.forRoot({
 
 ## 커스텀 메트릭
 
-`MetricsModule`은 `forRoot()` 호출마다 전용 `prom-client` `Registry` 인스턴스를 생성합니다. 같은 레지스트리에 커스텀 메트릭을 노출하려면 `forRoot()`를 호출하기 전에 메트릭을 생성하고 등록하거나, 이 모듈과 함께 `prom-client`의 기본 전역 레지스트리를 직접 사용하세요.
+`MetricsModule`은 `forRoot()` 호출마다 전용 `prom-client` `Registry` 인스턴스를 생성합니다. 현재 public API는 그 내부 레지스트리를 노출하지 않으므로, 커스텀 메트릭과 내장 엔드포인트가 같은 레지스트리를 공유하는 방식은 아직 공식 지원되지 않습니다.
 
 ```typescript
 import { Counter } from 'prom-client';
@@ -98,7 +98,7 @@ const httpRequests = new Counter({
 httpRequests.inc({ method: 'GET', status: '200' });
 ```
 
-> **참고:** `MetricsModule`은 자체 격리된 `Registry`를 사용합니다. 커스텀 메트릭과 엔드포인트 사이에 레지스트리를 공유하려면 이 모듈을 확장하거나 래핑해서 공유 `Registry` 인스턴스를 주입하세요.
+> **참고:** `MetricsModule`은 자체 격리된 `Registry`를 사용합니다. 하나의 엔드포인트에서 공유 레지스트리를 쓰고 싶다면, 직접 레지스트리 배선을 추가하도록 이 모듈을 확장하거나 래핑해야 합니다.
 
 ---
 

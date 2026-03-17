@@ -63,7 +63,7 @@ MetricsModule.forRoot({ path: '/internal/metrics' })
 
 ### Disable default metrics
 
-By default, `prom-client`'s `collectDefaultMetrics()` is called, which registers standard Node.js process and GC metrics. Disable it to register only your own custom metrics:
+By default, `prom-client`'s `collectDefaultMetrics()` is called, which registers standard Node.js process and GC metrics. Disable it if you want the built-in endpoint to expose only metrics registered by the module itself:
 
 ```typescript
 MetricsModule.forRoot({ defaultMetrics: false })
@@ -83,10 +83,10 @@ MetricsModule.forRoot({
 
 ## Custom Metrics
 
-`MetricsModule` creates a dedicated `prom-client` `Registry` instance per `forRoot()` call. To expose custom metrics on the same registry, create and register them before calling `forRoot()` — or use `prom-client` directly with its default global registry alongside this module.
+`MetricsModule` creates a dedicated `prom-client` `Registry` instance per `forRoot()` call. The current public API does not expose that internal registry, so sharing one registry between custom metrics and the built-in endpoint is not currently supported.
 
 ```typescript
-import { Counter, Registry } from 'prom-client';
+import { Counter } from 'prom-client';
 
 // Using the global registry (separate from MetricsModule's internal registry)
 const httpRequests = new Counter({
@@ -98,7 +98,7 @@ const httpRequests = new Counter({
 httpRequests.inc({ method: 'GET', status: '200' });
 ```
 
-> **Note:** `MetricsModule` uses its own isolated `Registry`. To share a registry between custom metrics and the endpoint, inject a shared `Registry` instance by extending or wrapping this module.
+> **Note:** `MetricsModule` uses its own isolated `Registry`. If you need one endpoint backed by a shared registry, extend or wrap the module with your own registry plumbing.
 
 ---
 
