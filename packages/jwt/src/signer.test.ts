@@ -1,3 +1,5 @@
+import { generateKeyPairSync } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
 import { DefaultJwtSigner } from './signer.js';
@@ -83,6 +85,75 @@ describe('DefaultJwtSigner', () => {
     // Token must be signed with HS384 (first in list) — HS384-only verifier must accept it
     await expect(verifier.verifyAccessToken(token)).resolves.toMatchObject({
       subject: 'user-first-alg',
+    });
+  });
+
+  it('sign + verify roundtrip with RS256', async () => {
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const signer = new DefaultJwtSigner({
+      accessTokenTtlSeconds: 120,
+      algorithms: ['RS256'],
+      audience: 'konekti',
+      issuer: 'tests',
+      privateKey,
+    });
+    const verifier = new DefaultJwtVerifier({
+      algorithms: ['RS256'],
+      audience: 'konekti',
+      issuer: 'tests',
+      publicKey,
+    });
+    const token = await signer.signAccessToken({ sub: 'user-rs256', scopes: ['read'] });
+
+    await expect(verifier.verifyAccessToken(token)).resolves.toEqual(
+      expect.objectContaining({
+        scopes: ['read'],
+        subject: 'user-rs256',
+      }),
+    );
+  });
+
+  it('sign + verify roundtrip with ES256', async () => {
+    const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const signer = new DefaultJwtSigner({
+      accessTokenTtlSeconds: 120,
+      algorithms: ['ES256'],
+      audience: 'konekti',
+      issuer: 'tests',
+      privateKey,
+    });
+    const verifier = new DefaultJwtVerifier({
+      algorithms: ['ES256'],
+      audience: 'konekti',
+      issuer: 'tests',
+      publicKey,
+    });
+    const token = await signer.signAccessToken({ sub: 'user-es256', scopes: ['write'] });
+
+    await expect(verifier.verifyAccessToken(token)).resolves.toEqual(
+      expect.objectContaining({
+        scopes: ['write'],
+        subject: 'user-es256',
+      }),
+    );
+  });
+
+  it('sign + verify roundtrip with RS256 using kid-keyed key entry', async () => {
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const signer = new DefaultJwtSigner({
+      algorithms: ['RS256'],
+      issuer: 'tests',
+      keys: [{ kid: 'key-1', privateKey, publicKey }],
+    });
+    const verifier = new DefaultJwtVerifier({
+      algorithms: ['RS256'],
+      issuer: 'tests',
+      keys: [{ kid: 'key-1', publicKey }],
+    });
+    const token = await signer.signAccessToken({ sub: 'user-kid-rs256' });
+
+    await expect(verifier.verifyAccessToken(token)).resolves.toMatchObject({
+      subject: 'user-kid-rs256',
     });
   });
 });
