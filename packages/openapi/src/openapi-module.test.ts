@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { IsBoolean, IsOptional, IsString, MinLength, ValidateNested } from '@konekti/dto-validator';
-import { Controller, Get, Post, Version, createHandlerMapping, type FrameworkRequest, type FrameworkResponse } from '@konekti/http';
+import { Controller, Get, IntersectionType, OmitType, PickType, Post, Version, createHandlerMapping, type FrameworkRequest, type FrameworkResponse } from '@konekti/http';
 import { FromBody, FromCookie, RequestDto } from '@konekti/http';
 import { bootstrapApplication, defineModule } from '@konekti/runtime';
 
@@ -412,6 +412,164 @@ describe('OpenApiModule', () => {
             }),
           },
         },
+      }),
+    );
+  });
+
+  it('emits preserved request schemas for mapped DTO helpers', async () => {
+    class CreateUserRequest {
+      @FromBody('name')
+      @IsString()
+      @MinLength(1)
+      name = '';
+
+      @FromBody('email')
+      @IsString()
+      email = '';
+    }
+
+    class AddressRequest {
+      @FromBody('city')
+      @IsString()
+      city = '';
+    }
+
+    const PickedUserRequest = PickType(CreateUserRequest, ['name']);
+    const OmittedUserRequest = OmitType(CreateUserRequest, ['email']);
+    const CreateUserWithAddressRequest = IntersectionType(CreateUserRequest, AddressRequest);
+
+    @Controller('/mapped')
+    class MappedController {
+      @RequestDto(PickedUserRequest)
+      @Post('/pick')
+      pick() {
+        return { ok: true };
+      }
+
+      @RequestDto(OmittedUserRequest)
+      @Post('/omit')
+      omit() {
+        return { ok: true };
+      }
+
+      @RequestDto(CreateUserWithAddressRequest)
+      @Post('/intersection')
+      intersection() {
+        return { ok: true };
+      }
+    }
+
+    const openApiModule = OpenApiModule.forRoot({
+      sources: [{ controllerToken: MappedController }],
+      title: 'Mapped Type API',
+      version: '1.0.0',
+    });
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      controllers: [MappedController],
+      imports: [openApiModule],
+    });
+
+    const app = await bootstrapApplication({
+      mode: 'test',
+      rootModule: AppModule,
+    });
+    const response = createResponse();
+
+    await app.dispatch(createRequest('GET', '/openapi.json'), response);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        components: expect.objectContaining({
+          schemas: expect.objectContaining({
+            CreateUserRequestPickType: {
+              additionalProperties: false,
+              properties: {
+                name: {
+                  minLength: 1,
+                  type: 'string',
+                },
+              },
+              required: ['name'],
+              type: 'object',
+            },
+            CreateUserRequestOmitType: {
+              additionalProperties: false,
+              properties: {
+                name: {
+                  minLength: 1,
+                  type: 'string',
+                },
+              },
+              required: ['name'],
+              type: 'object',
+            },
+            CreateUserRequestAddressRequestIntersectionType: {
+              additionalProperties: false,
+              properties: {
+                city: {
+                  type: 'string',
+                },
+                email: {
+                  type: 'string',
+                },
+                name: {
+                  minLength: 1,
+                  type: 'string',
+                },
+              },
+              required: ['name', 'email', 'city'],
+              type: 'object',
+            },
+          }),
+        }),
+        paths: expect.objectContaining({
+          '/mapped/pick': expect.objectContaining({
+            post: expect.objectContaining({
+              requestBody: {
+                content: {
+                  'application/json': {
+                    schema: {
+                      $ref: '#/components/schemas/CreateUserRequestPickType',
+                    },
+                  },
+                },
+                required: true,
+              },
+            }),
+          }),
+          '/mapped/omit': expect.objectContaining({
+            post: expect.objectContaining({
+              requestBody: {
+                content: {
+                  'application/json': {
+                    schema: {
+                      $ref: '#/components/schemas/CreateUserRequestOmitType',
+                    },
+                  },
+                },
+                required: true,
+              },
+            }),
+          }),
+          '/mapped/intersection': expect.objectContaining({
+            post: expect.objectContaining({
+              requestBody: {
+                content: {
+                  'application/json': {
+                    schema: {
+                      $ref: '#/components/schemas/CreateUserRequestAddressRequestIntersectionType',
+                    },
+                  },
+                },
+                required: true,
+              },
+            }),
+          }),
+        }),
       }),
     );
   });
