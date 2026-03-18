@@ -27,6 +27,7 @@ import {
 } from '@konekti/http';
 import { IsString, MinLength, ValidateNested } from '@konekti/dto-validator';
 
+import { IntersectionType, OmitType, PickType } from './mapped-types.js';
 import { forRoutes, runMiddlewareChain } from './middleware.js';
 
 function createResponse(): FrameworkResponse & { body?: unknown } {
@@ -595,6 +596,145 @@ describe('dispatcher runtime', () => {
         message: 'Validation failed.',
         meta: undefined,
         requestId: 'req-users-400',
+        status: 400,
+      },
+    });
+  });
+
+  it('binds mapped DTO helpers through RequestDto without exposing omitted fields', async () => {
+    class CreateUserRequest {
+      @FromBody('name')
+      @IsString()
+      @MinLength(1, { code: 'REQUIRED', message: 'name is required' })
+      name = '';
+
+      @FromBody('role')
+      @IsString()
+      role = 'user';
+    }
+
+    class AddressRequest {
+      @FromBody('city')
+      @IsString()
+      city = '';
+    }
+
+    const PickedUserRequest = PickType(CreateUserRequest, ['name']);
+    const OmittedUserRequest = OmitType(CreateUserRequest, ['role']);
+    const CreateUserWithAddressRequest = IntersectionType(CreateUserRequest, AddressRequest);
+
+    @Controller('/mapped')
+    class MappedController {
+      @RequestDto(PickedUserRequest)
+      @Post('/pick')
+      pick(input: InstanceType<typeof PickedUserRequest>) {
+        return input;
+      }
+
+      @RequestDto(OmittedUserRequest)
+      @Post('/omit')
+      omit(input: InstanceType<typeof OmittedUserRequest>) {
+        return input;
+      }
+
+      @RequestDto(CreateUserWithAddressRequest)
+      @Post('/intersection')
+      intersection(input: InstanceType<typeof CreateUserWithAddressRequest>) {
+        return input;
+      }
+    }
+
+    const root = new Container().register(MappedController);
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: MappedController }]),
+      rootContainer: root,
+    });
+
+    const pickResponse = createResponse();
+    await dispatcher.dispatch(
+      {
+        body: { name: 'Ada' },
+        cookies: {},
+        headers: {},
+        method: 'POST',
+        params: {},
+        path: '/mapped/pick',
+        query: {},
+        raw: {},
+        url: '/mapped/pick',
+      },
+      pickResponse,
+    );
+    expect(pickResponse.statusCode).toBe(201);
+    expect(pickResponse.body).toEqual({ name: 'Ada' });
+
+    const omitResponse = createResponse();
+    await dispatcher.dispatch(
+      {
+        body: { name: 'Ada' },
+        cookies: {},
+        headers: {},
+        method: 'POST',
+        params: {},
+        path: '/mapped/omit',
+        query: {},
+        raw: {},
+        url: '/mapped/omit',
+      },
+      omitResponse,
+    );
+    expect(omitResponse.statusCode).toBe(201);
+    expect(omitResponse.body).toEqual({ name: 'Ada' });
+
+    const intersectionResponse = createResponse();
+    await dispatcher.dispatch(
+      {
+        body: { city: 'Seoul', name: 'Ada', role: 'admin' },
+        cookies: {},
+        headers: {},
+        method: 'POST',
+        params: {},
+        path: '/mapped/intersection',
+        query: {},
+        raw: {},
+        url: '/mapped/intersection',
+      },
+      intersectionResponse,
+    );
+    expect(intersectionResponse.statusCode).toBe(201);
+    expect(intersectionResponse.body).toEqual({ city: 'Seoul', name: 'Ada', role: 'admin' });
+
+    const pickErrorResponse = createResponse();
+    await dispatcher.dispatch(
+      {
+        body: { name: 'Ada', role: 'admin' },
+        cookies: {},
+        headers: { 'x-request-id': 'req-mapped-pick-400' },
+        method: 'POST',
+        params: {},
+        path: '/mapped/pick',
+        query: {},
+        raw: {},
+        url: '/mapped/pick',
+      },
+      pickErrorResponse,
+    );
+
+    expect(pickErrorResponse.statusCode).toBe(400);
+    expect(pickErrorResponse.body).toEqual({
+      error: {
+        code: 'BAD_REQUEST',
+        details: [
+          {
+            code: 'UNKNOWN_FIELD',
+            field: 'role',
+            message: 'Unknown body field role.',
+            source: 'body',
+          },
+        ],
+        message: 'Request body contains unsupported fields.',
+        meta: undefined,
+        requestId: 'req-mapped-pick-400',
         status: 400,
       },
     });
