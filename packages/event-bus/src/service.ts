@@ -74,6 +74,13 @@ export class EventBusLifecycleService implements EventBus, OnApplicationBootstra
       return;
     }
 
+    if (this.compiledModules.length === 0) {
+      this.logger.warn(
+        'EventBus.publish() was called before onApplicationBootstrap completed. Handlers may not yet be registered.',
+        'EventBusLifecycleService',
+      );
+    }
+
     this.discoverHandlers();
   }
 
@@ -83,7 +90,7 @@ export class EventBusLifecycleService implements EventBus, OnApplicationBootstra
   }
 
   private discoverHandlerDescriptors(): EventHandlerDescriptor[] {
-    const seen = new Map<Token, Map<EventType, Set<string>>>();
+    const seen = new Set<string>();
     const descriptors: EventHandlerDescriptor[] = [];
 
     for (const candidate of this.discoveryCandidates()) {
@@ -103,16 +110,13 @@ export class EventBusLifecycleService implements EventBus, OnApplicationBootstra
       for (const entry of entries) {
         const methodName = methodKeyToName(entry.propertyKey);
         const eventType = entry.metadata.eventType;
-        const seenByEvent = seen.get(candidate.token) ?? new Map<EventType, Set<string>>();
-        const seenMethods = seenByEvent.get(eventType) ?? new Set<string>();
+        const dedupKey = `${candidate.targetType.name}::${methodName}::${String(eventType)}`;
 
-        if (seenMethods.has(methodName)) {
+        if (seen.has(dedupKey)) {
           continue;
         }
 
-        seenMethods.add(methodName);
-        seenByEvent.set(eventType, seenMethods);
-        seen.set(candidate.token, seenByEvent);
+        seen.add(dedupKey);
 
         descriptors.push({
           eventType,
