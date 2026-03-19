@@ -15,7 +15,7 @@ import {
   type OnModuleDestroy,
 } from '@konekti/runtime';
 import type { HttpApplicationAdapter } from '@konekti/http';
-import { WebSocketServer, type RawData, type WebSocket } from 'ws';
+import { WebSocket, WebSocketServer, type RawData } from 'ws';
 
 import { getWebSocketGatewayMetadata, getWebSocketHandlerMetadataEntries } from './metadata.js';
 import type { WebSocketGatewayDescriptor, WebSocketGatewayHandlerDescriptor } from './types.js';
@@ -245,6 +245,10 @@ export class WebSocketGatewayLifecycleService implements OnApplicationBootstrap,
         await this.runHandlers(instance, descriptor, 'connect', socket, request);
       }),
     );
+
+    if (socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
 
     socket.on('message', (data: RawData) => {
       void this.handleMessage(resolved, socket, request, data);
