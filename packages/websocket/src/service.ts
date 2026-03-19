@@ -81,9 +81,11 @@ function parseIncomingMessage(data: RawData): ParsedWebSocketMessage {
       ? data
       : data instanceof ArrayBuffer
         ? Buffer.from(data).toString('utf8')
-        : ArrayBuffer.isView(data)
-          ? Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString('utf8')
-          : String(data);
+        : Array.isArray(data)
+          ? Buffer.concat(data as Buffer[]).toString('utf8')
+          : ArrayBuffer.isView(data)
+            ? Buffer.from(data.buffer, data.byteOffset, data.byteLength).toString('utf8')
+            : String(data);
   let parsed: unknown = text;
 
   try {
@@ -238,6 +240,12 @@ export class WebSocketGatewayLifecycleService implements OnApplicationBootstrap,
       }
     }
 
+    await Promise.all(
+      resolved.map(async ({ descriptor, instance }) => {
+        await this.runHandlers(instance, descriptor, 'connect', socket, request);
+      }),
+    );
+
     socket.on('message', (data: RawData) => {
       void this.handleMessage(resolved, socket, request, data);
     });
@@ -245,12 +253,6 @@ export class WebSocketGatewayLifecycleService implements OnApplicationBootstrap,
     socket.on('close', (code: number, reason: Buffer) => {
       void this.handleDisconnect(resolved, socket, code, reason);
     });
-
-    await Promise.all(
-      resolved.map(async ({ descriptor, instance }) => {
-        await this.runHandlers(instance, descriptor, 'connect', socket, request);
-      }),
-    );
   }
 
   private async handleMessage(
@@ -443,7 +445,9 @@ export class WebSocketGatewayLifecycleService implements OnApplicationBootstrap,
             client.terminate();
           }
 
-          attachment.server.close();
+          await new Promise<void>((resolve) => {
+            attachment.server.close(() => resolve());
+          });
         }),
       );
     })();
