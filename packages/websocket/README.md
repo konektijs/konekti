@@ -56,3 +56,8 @@ export class AppModule {}
 - Gateway path matching is exact and normalized (`/chat` != `/notifications`)
 - Non-singleton gateways are skipped with warnings
 - Shutdown removes the shared upgrade listener and terminates all active clients
+- `message` and `close` listeners are registered only after all `@OnConnect()` handlers have resolved, so messages or disconnects that arrive before `onConnect` completes are not delivered to gateway handlers
+
+## Provider registration constraints
+
+Gateway classes must be registered as **class providers** — either directly (`providers: [MyGateway]`) or via `useClass` (`{ provide: TOKEN, useClass: MyGateway }`). Providers registered with `useValue` or `useFactory` cannot be associated with a decorated class at runtime and are silently skipped during gateway discovery. If your gateway is not wiring up, verify that its provider entry uses a class constructor.

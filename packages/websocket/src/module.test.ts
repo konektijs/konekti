@@ -329,7 +329,7 @@ describe('@konekti/websocket', () => {
     await app.close();
   });
 
-  it('handles messages and disconnects that happen during async onConnect', async () => {
+  it('does not deliver messages or disconnects that arrive before async onConnect completes', async () => {
     const connected = createDeferred<void>();
 
     class GatewayState {
@@ -374,11 +374,79 @@ describe('@konekti/websocket', () => {
 
     await app.listen();
 
+    // Connect, send a message, then close — all before onConnect resolves.
+    // message and close listeners are registered only after onConnect completes,
+    // so these events are not delivered to the gateway handlers.
     const socket = new WebSocket(`ws://127.0.0.1:${String(port)}/async-connect`);
     await onceOpen(socket);
-    socket.send(JSON.stringify({ event: 'ping', data: 'hello' }));
+    socket.send(JSON.stringify({ event: 'ping', data: 'early' }));
     socket.close();
+    await onceClosed(socket);
+
     connected.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    expect(state.messages).toEqual([]);
+    expect(state.disconnects).toBe(0);
+
+    await app.close();
+  });
+
+  it('delivers messages and disconnects that arrive after async onConnect completes', async () => {
+    const connected = createDeferred<void>();
+
+    class GatewayState {
+      disconnects = 0;
+      messages: unknown[] = [];
+    }
+
+    @Inject([GatewayState])
+    @WebSocketGateway({ path: '/async-connect-then-message' })
+    class AsyncGateway2 {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      async onConnect() {
+        await connected.promise;
+      }
+
+      @OnMessage('ping')
+      onPing(payload: unknown) {
+        this.state.messages.push(payload);
+      }
+
+      @OnDisconnect()
+      onDisconnect() {
+        this.state.disconnects += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [createWebSocketModule()],
+      providers: [GatewayState, AsyncGateway2],
+    });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapNodeApplication(AppModule, {
+      cors: false,
+      mode: 'test',
+      port,
+    });
+    const state = await app.container.resolve(GatewayState);
+
+    await app.listen();
+
+    const socket = new WebSocket(`ws://127.0.0.1:${String(port)}/async-connect-then-message`);
+    await onceOpen(socket);
+
+    // Resolve onConnect first, then send message and disconnect.
+    connected.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    socket.send(JSON.stringify({ event: 'ping', data: 'hello' }));
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    socket.close();
     await onceClosed(socket);
     await new Promise((resolve) => setTimeout(resolve, 25));
 
