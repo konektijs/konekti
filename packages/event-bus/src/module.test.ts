@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { Inject, Scope, defineControllerMetadata } from '@konekti/core';
+import { Container } from '@konekti/di';
 import { bootstrapApplication, defineModule, type ApplicationLogger } from '@konekti/runtime';
 
 import { OnEvent } from './decorators.js';
 import { getEventHandlerMetadataEntries } from './metadata.js';
 import { createEventBusModule } from './module.js';
+import { EventBusLifecycleService } from './service.js';
 import { EVENT_BUS } from './tokens.js';
 import type { EventBus } from './types.js';
 
@@ -387,6 +389,60 @@ describe('@konekti/event-bus', () => {
 
     expect(requestWarnings).toHaveLength(1);
     expect(controllerWarnings).toHaveLength(1);
+
+    await app.close();
+  });
+
+  it('warns when publish() is called before onApplicationBootstrap has run', async () => {
+    const loggerEvents: string[] = [];
+    const logger = createLogger(loggerEvents);
+    const container = new Container();
+    const service = new EventBusLifecycleService(container, [], logger);
+
+    await service.publish(new UserCreatedEvent('user-9'));
+
+    expect(
+      loggerEvents.some((e) =>
+        e.includes('warn:EventBusLifecycleService') &&
+        e.includes('called before onApplicationBootstrap'),
+      ),
+    ).toBe(true);
+  });
+
+  it('deduplicates handlers when the same class is registered under two different tokens', async () => {
+    class EventStore {
+      calls = 0;
+    }
+
+    const ALIAS_TOKEN = Symbol('AliasToken');
+
+    @Inject([EventStore])
+    class MultiTokenHandler {
+      constructor(private readonly store: EventStore) {}
+
+      @OnEvent(UserCreatedEvent)
+      onUserCreated(_event: UserCreatedEvent) {
+        this.store.calls += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [createEventBusModule()],
+      providers: [
+        EventStore,
+        MultiTokenHandler,
+        { provide: ALIAS_TOKEN, useClass: MultiTokenHandler },
+      ],
+    });
+
+    const app = await bootstrapApplication({ mode: 'test', rootModule: AppModule });
+    const eventBus = await app.container.resolve<EventBus>(EVENT_BUS);
+    const store = await app.container.resolve(EventStore);
+
+    await eventBus.publish(new UserCreatedEvent('user-10'));
+
+    expect(store.calls).toBe(1);
 
     await app.close();
   });
