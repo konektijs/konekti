@@ -641,14 +641,6 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
     resetReadinessState(bootstrapped.modules);
     const lifecycleProviders = [
       ...runtimeProviders,
-      {
-        provide: RUNTIME_CONTAINER,
-        useValue: bootstrapped.container,
-      },
-      {
-        provide: COMPILED_MODULES,
-        useValue: bootstrapped.modules,
-      },
       ...bootstrapped.modules.flatMap((compiledModule) => compiledModule.definition.providers ?? []),
     ];
     lifecycleInstances = await resolveLifecycleInstances(bootstrapped.container, lifecycleProviders);
