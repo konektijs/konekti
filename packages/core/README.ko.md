@@ -101,6 +101,7 @@ class InvariantError extends KonektiError {}
 |---|---|
 | `defineModuleMetadata()` / `getModuleMetadata()` | 모듈 imports/exports/providers |
 | `defineClassDiMetadata()` / `getClassDiMetadata()` | 상속 fallback을 포함한 최종 DI 주입 토큰 및 스코프 |
+| `getOwnClassDiMetadata()` / `getInheritedClassDiMetadata()` | DI own-only 조회와 상속 포함 최종 조회를 명시적으로 구분 |
 | `defineControllerMetadata()` / `getControllerMetadata()` | HTTP 컨트롤러 기본 경로 |
 | `defineRouteMetadata()` / `getRouteMetadata()` | 라우트 method/path/guards |
 | `defineDtoFieldBindingMetadata()` / `getDtoBindingSchema()` | 요청 DTO 필드 바인딩 |
