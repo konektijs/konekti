@@ -5,11 +5,19 @@ import type { OnApplicationShutdown } from '@konekti/runtime';
 import { Inject } from '@konekti/core';
 
 import { DRIZZLE_DATABASE, DRIZZLE_DISPOSE, DRIZZLE_OPTIONS } from './tokens.js';
-import type { DrizzleDatabaseLike, DrizzleHandleProvider } from './types.js';
+import type {
+  DrizzleDatabaseLike,
+  DrizzleHandleProvider,
+  DrizzleRuntimeOptions,
+  DrizzleTransactionRunner,
+} from './types.js';
 
-interface DrizzleDatabaseOptions {
-  strictTransactions: boolean;
-}
+const TRANSACTION_NOT_SUPPORTED_ERROR = 'Transaction not supported: Drizzle database does not implement transaction.';
+
+type ActiveRequestTransaction = {
+  abort(reason?: unknown): void;
+  settled: Promise<void>;
+};
 
 @Inject([DRIZZLE_DATABASE, DRIZZLE_DISPOSE, DRIZZLE_OPTIONS])
 export class DrizzleDatabase<
@@ -19,15 +27,12 @@ export class DrizzleDatabase<
 > implements DrizzleHandleProvider<TDatabase, TTransactionDatabase, TTransactionOptions>, OnApplicationShutdown
 {
   private readonly transactions = new AsyncLocalStorage<TTransactionDatabase>();
-  private readonly activeRequestTransactions = new Set<{
-    abort(reason?: unknown): void;
-    settled: Promise<void>;
-  }>();
+  private readonly activeRequestTransactions = new Set<ActiveRequestTransaction>();
 
   constructor(
     private readonly database: TDatabase,
     private readonly dispose?: (database: TDatabase) => Promise<void> | void,
-    private readonly databaseOptions: DrizzleDatabaseOptions = { strictTransactions: false },
+    private readonly databaseOptions: DrizzleRuntimeOptions = { strictTransactions: false },
   ) {}
 
   current(): TDatabase | TTransactionDatabase {
@@ -47,40 +52,50 @@ export class DrizzleDatabase<
   }
 
   async transaction<T>(fn: () => Promise<T>, options?: TTransactionOptions): Promise<T> {
-    const current = this.transactions.getStore();
-
-    if (current) {
-      return fn();
-    }
-
-    if (typeof this.database.transaction !== 'function') {
-      if (this.databaseOptions.strictTransactions) {
-        throw new Error('Transaction not supported: Drizzle database does not implement transaction.');
-      }
-      return fn();
-    }
-
-    return this.database.transaction((transactionDatabase) => this.transactions.run(transactionDatabase, fn), options);
+    return this.executeTransaction(fn, options, false);
   }
 
   async requestTransaction<T>(fn: () => Promise<T>, signal?: AbortSignal, options?: TTransactionOptions): Promise<T> {
+    return this.executeTransaction(fn, options, true, signal);
+  }
+
+  private async executeTransaction<T>(
+    fn: () => Promise<T>,
+    options: TTransactionOptions | undefined,
+    requestScoped: boolean,
+    signal?: AbortSignal,
+  ): Promise<T> {
     const current = this.transactions.getStore();
 
     if (current) {
       return fn();
     }
 
-    if (typeof this.database.transaction !== 'function') {
-      if (this.databaseOptions.strictTransactions) {
-        throw new Error('Transaction not supported: Drizzle database does not implement transaction.');
-      }
+    const transactionRunner = this.resolveTransactionRunner();
+    if (!transactionRunner) {
       return fn();
     }
 
+    if (!requestScoped) {
+      return transactionRunner((transactionDatabase) => this.transactions.run(transactionDatabase, fn), options);
+    }
+
+    return this.executeRequestTransaction(transactionRunner, fn, options, signal);
+  }
+
+  private async executeRequestTransaction<T>(
+    transactionRunner: DrizzleTransactionRunner<TTransactionDatabase, TTransactionOptions>,
+    fn: () => Promise<T>,
+    options: TTransactionOptions | undefined,
+    signal?: AbortSignal,
+  ): Promise<T> {
     const controller = new AbortController();
     const forwardAbort = () => controller.abort(signal?.reason);
-
-    signal?.addEventListener('abort', forwardAbort, { once: true });
+    if (signal?.aborted) {
+      forwardAbort();
+    } else {
+      signal?.addEventListener('abort', forwardAbort, { once: true });
+    }
 
     let settle!: () => void;
     const settled = new Promise<void>((resolve) => {
@@ -96,7 +111,7 @@ export class DrizzleDatabase<
     this.activeRequestTransactions.add(active);
 
     try {
-      return await this.database.transaction(
+      return await transactionRunner(
         (transactionDatabase) => this.transactions.run(transactionDatabase, () => raceWithAbort(fn, controller.signal)),
         options,
       );
@@ -105,5 +120,17 @@ export class DrizzleDatabase<
       this.activeRequestTransactions.delete(active);
       settle();
     }
+  }
+
+  private resolveTransactionRunner(): DrizzleTransactionRunner<TTransactionDatabase, TTransactionOptions> | undefined {
+    if (typeof this.database.transaction !== 'function') {
+      if (this.databaseOptions.strictTransactions) {
+        throw new Error(TRANSACTION_NOT_SUPPORTED_ERROR);
+      }
+
+      return undefined;
+    }
+
+    return this.database.transaction.bind(this.database) as DrizzleTransactionRunner<TTransactionDatabase, TTransactionOptions>;
   }
 }
