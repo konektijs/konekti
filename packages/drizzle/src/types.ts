@@ -1,7 +1,18 @@
 import type { MaybePromise } from '@konekti/core';
 
+export type DrizzleTransactionCallback<TTransactionDatabase, TResult> = (database: TTransactionDatabase) => Promise<TResult>;
+
+export type DrizzleTransactionRunner<TTransactionDatabase, TTransactionOptions> = <T>(
+  callback: DrizzleTransactionCallback<TTransactionDatabase, T>,
+  options?: TTransactionOptions,
+) => Promise<T>;
+
 export interface DrizzleDatabaseLike<TTransactionDatabase = unknown, TTransactionOptions = unknown> {
-  transaction?<T>(callback: (database: TTransactionDatabase) => Promise<T>, options?: TTransactionOptions): Promise<T>;
+  transaction?: DrizzleTransactionRunner<TTransactionDatabase, TTransactionOptions>;
+}
+
+export interface DrizzleRuntimeOptions {
+  strictTransactions: boolean;
 }
 
 export interface DrizzleModuleOptions<TDatabase extends DrizzleDatabaseLike<TTransactionDatabase, TTransactionOptions>, TTransactionDatabase = TDatabase, TTransactionOptions = unknown> {
