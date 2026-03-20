@@ -1,6 +1,6 @@
 import type { Constructor, MaybePromise, MetadataPropertyKey, MetadataSource, Token } from '../types.js';
 
-export type MetadataCollection<T = unknown> = readonly T[];
+export type MetadataCollection<T = unknown> = T[];
 
 export interface ModuleMetadata {
   imports?: MetadataCollection;
@@ -164,7 +164,7 @@ export interface InjectionMetadata {
 }
 
 export interface ClassDiMetadata {
-  inject?: readonly Token[];
+  inject?: Token[];
   scope?: 'singleton' | 'request' | 'transient';
 }
 
