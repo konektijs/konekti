@@ -101,6 +101,7 @@ These helpers are used internally by `@konekti/di`, `@konekti/http`, `@konekti/r
 |---|---|
 | `defineModuleMetadata()` / `getModuleMetadata()` | Module imports/exports/providers |
 | `defineClassDiMetadata()` / `getClassDiMetadata()` | Effective DI injection tokens and scope, including inherited fallback |
+| `getOwnClassDiMetadata()` / `getInheritedClassDiMetadata()` | Explicit DI own-only vs inherited/effective reads |
 | `defineControllerMetadata()` / `getControllerMetadata()` | HTTP controller base path |
 | `defineRouteMetadata()` / `getRouteMetadata()` | Route method/path/guards |
 | `defineDtoFieldBindingMetadata()` / `getDtoBindingSchema()` | Request DTO field binding |
