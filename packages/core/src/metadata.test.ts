@@ -61,8 +61,9 @@ describe('metadata helpers', () => {
       providers: ['LoggerProvider'],
     });
 
-    const mutatedImports = [...(metadata?.imports ?? [])];
-    mutatedImports.push('MutatedModule');
+    if (metadata?.imports) {
+      (metadata.imports as unknown as unknown[]).push('MutatedModule');
+    }
 
     expect(getModuleMetadata(ExampleModule)).toEqual({
       controllers: undefined,
@@ -210,8 +211,9 @@ describe('metadata helpers', () => {
       scope: 'request',
     });
 
-    const mutatedInject = [...(metadata?.inject ?? [])];
-    mutatedInject.push('MUTATED');
+    if (metadata?.inject) {
+      (metadata.inject as unknown as unknown[]).push('MUTATED');
+    }
 
     expect(getInheritedClassDiMetadata(ChildService)).toEqual({
       inject: ['CACHE'],
