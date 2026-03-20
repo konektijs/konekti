@@ -150,6 +150,87 @@ describe('@konekti/drizzle', () => {
       'dispose',
     ]);
   });
+
+  it('enforces strictTransactions for sync and async module builders', async () => {
+    const database = {};
+
+    const StrictSyncModule = createDrizzleModule({
+      database,
+      strictTransactions: true,
+    });
+
+    class StrictSyncAppModule {}
+
+    defineModule(StrictSyncAppModule, {
+      imports: [StrictSyncModule],
+    });
+
+    const syncApp = await bootstrapApplication({
+      mode: 'test',
+      rootModule: StrictSyncAppModule,
+    });
+    const syncDrizzle = await syncApp.container.resolve(DrizzleDatabase<typeof database>);
+
+    await expect(syncDrizzle.transaction(async () => 'ok')).rejects.toThrow(
+      'Transaction not supported: Drizzle database does not implement transaction.',
+    );
+
+    await syncApp.close();
+
+    const StrictAsyncModule = createDrizzleModuleAsync({
+      useFactory: () => ({
+        database,
+        strictTransactions: true,
+      }),
+    });
+
+    class StrictAsyncAppModule {}
+
+    defineModule(StrictAsyncAppModule, {
+      imports: [StrictAsyncModule],
+    });
+
+    const asyncApp = await bootstrapApplication({
+      mode: 'test',
+      rootModule: StrictAsyncAppModule,
+    });
+    const asyncDrizzle = await asyncApp.container.resolve(DrizzleDatabase<typeof database>);
+
+    await expect(asyncDrizzle.requestTransaction(async () => 'ok')).rejects.toThrow(
+      'Transaction not supported: Drizzle database does not implement transaction.',
+    );
+
+    await asyncApp.close();
+  });
+
+  it('forwards transaction options for explicit and request-scoped transactions', async () => {
+    const optionsCalls: Array<{ isolationLevel: string } | undefined> = [];
+    const transactionDatabase = { kind: 'transaction' };
+    const database = {
+      async transaction<T>(
+        callback: (value: typeof transactionDatabase) => Promise<T>,
+        options?: { isolationLevel: string },
+      ): Promise<T> {
+        optionsCalls.push(options);
+        return callback(transactionDatabase);
+      },
+    };
+
+    const drizzle = new DrizzleDatabase<typeof database, typeof transactionDatabase, { isolationLevel: string }>(database);
+
+    await expect(drizzle.transaction(async () => drizzle.current(), { isolationLevel: 'serializable' })).resolves.toBe(
+      transactionDatabase,
+    );
+
+    await expect(
+      drizzle.requestTransaction(async () => drizzle.current(), undefined, { isolationLevel: 'read committed' }),
+    ).resolves.toBe(transactionDatabase);
+
+    expect(optionsCalls).toEqual([
+      { isolationLevel: 'serializable' },
+      { isolationLevel: 'read committed' },
+    ]);
+  });
 });
 
 describe('createDrizzleModuleAsync', () => {
@@ -164,11 +245,11 @@ describe('createDrizzleModuleAsync', () => {
         return result;
       },
     };
-    return { database, events };
+    return { database, events, transactionDatabase };
   }
 
   it('factory receives injected token and resolves DrizzleDatabase', async () => {
-    const { database, events } = makeFakeDatabase();
+    const { database, events, transactionDatabase } = makeFakeDatabase();
 
     class ConfigService {
       readonly url = 'postgres://localhost/test';
@@ -180,7 +261,7 @@ describe('createDrizzleModuleAsync', () => {
 
     const factory = vi.fn().mockResolvedValue({ database });
 
-    const DrizzleModule = createDrizzleModuleAsync({
+    const DrizzleModule = createDrizzleModuleAsync<typeof database, typeof transactionDatabase>({
       inject: [ConfigService],
       useFactory: factory,
     });
@@ -204,9 +285,9 @@ describe('createDrizzleModuleAsync', () => {
   });
 
   it('factory returning a promise resolves the database correctly', async () => {
-    const { database } = makeFakeDatabase();
+    const { database, transactionDatabase } = makeFakeDatabase();
 
-    const DrizzleModule = createDrizzleModuleAsync({
+    const DrizzleModule = createDrizzleModuleAsync<typeof database, typeof transactionDatabase>({
       useFactory: () => Promise.resolve({ database }),
     });
 
