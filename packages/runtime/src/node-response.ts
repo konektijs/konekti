@@ -12,6 +12,26 @@ import { compressResponse } from './compression.js';
 export type MutableFrameworkResponse = FrameworkResponse & { statusSet?: boolean };
 
 export function createFrameworkResponse(response: ServerResponse, acceptEncoding?: string): MutableFrameworkResponse {
+  const mergeSetCookieHeader = (
+    current: string | string[] | number | undefined,
+    incoming: string | string[],
+  ): string | string[] => {
+    const nextValues = Array.isArray(incoming) ? incoming : [incoming];
+
+    if (current === undefined) {
+      return nextValues.length === 1 ? nextValues[0] : [...nextValues];
+    }
+
+    if (typeof current === 'number') {
+      return nextValues.length === 1 ? nextValues[0] : [...nextValues];
+    }
+
+    const currentValues = Array.isArray(current) ? current : [current];
+    const merged = [...currentValues, ...nextValues];
+
+    return merged.length === 1 ? merged[0] : merged;
+  };
+
   const frameworkResponse: MutableFrameworkResponse & { raw: ServerResponse } = {
     committed: response.headersSent || response.writableEnded,
     headers: {},
@@ -57,9 +77,19 @@ export function createFrameworkResponse(response: ServerResponse, acceptEncoding
       response.end(payload);
       this.committed = true;
     },
-    setHeader(name: string, value: string) {
+    setHeader(name: string, value: string | string[]) {
+      const headers = this.headers as Record<string, string | string[]>;
+      const lowerName = name.toLowerCase();
+
+      if (lowerName === 'set-cookie') {
+        const merged = mergeSetCookieHeader(response.getHeader(name), value);
+        response.setHeader(name, merged);
+        headers[name] = merged;
+        return;
+      }
+
       response.setHeader(name, value);
-      this.headers[name] = value;
+      headers[name] = value;
     },
     setStatus(code: number) {
       response.statusCode = code;

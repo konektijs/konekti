@@ -21,11 +21,11 @@ export interface FrameworkRequest {
 export interface FrameworkResponse {
   statusCode?: number;
   statusSet?: boolean;
-  headers: Record<string, string>;
+  headers: Record<string, string | string[]>;
   committed: boolean;
   raw?: unknown;
   setStatus(code: number): void;
-  setHeader(name: string, value: string): void;
+  setHeader(name: string, value: string | string[]): void;
   redirect(status: number, location: string): void;
   send(body: unknown): MaybePromise<void>;
 }

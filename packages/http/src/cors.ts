@@ -25,7 +25,11 @@ function resolveOrigin(options: CorsOptions, requestOrigin: string | undefined):
   return options.allowOrigin ?? '*';
 }
 
-function setHeaderIfValue(response: { setHeader(name: string, value: string): void }, name: string, value?: string): void {
+function setHeaderIfValue(
+  response: { setHeader(name: string, value: string | string[]): void },
+  name: string,
+  value?: string,
+): void {
   if (value) {
     response.setHeader(name, value);
   }

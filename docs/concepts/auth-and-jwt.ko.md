@@ -36,7 +36,7 @@ HTTP 요청
 
 - JWT는 하나의 strategy일 뿐, 전체 인증 모델이 아닙니다.
 - `@konekti/passport`는 현재 strategy에 구애받지 않습니다(generic).
-- `@konekti/jwt`는 내보낸 strategy adapter를 제외하고는 전송 계층에 독립적(transport-agnostic)입니다.
+- `@konekti/jwt`는 전송 계층에 독립적(transport-agnostic)입니다.
 - 애플리케이션 코드는 가급적 원시 JWT 페이로드보다 정규화된 principal을 사용해야 합니다.
 
 ## 공식 기본 auth story

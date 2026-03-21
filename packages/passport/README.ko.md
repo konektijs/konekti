@@ -52,12 +52,17 @@ export class ProfileController {
 ```typescript
 import { Module } from '@konekti/core';
 import { createPassportProviders } from '@konekti/passport';
-import { JwtStrategy } from '@konekti/jwt';
+
+class BearerAuthStrategy {
+  async authenticate() {
+    return { claims: {}, subject: 'user-1' };
+  }
+}
 
 @Module({
   providers: [
-    JwtStrategy,
-    ...createPassportProviders({ defaultStrategy: 'jwt' }, [{ name: 'jwt', token: JwtStrategy }]),
+    BearerAuthStrategy,
+    ...createPassportProviders({ defaultStrategy: 'jwt' }, [{ name: 'jwt', token: BearerAuthStrategy }]),
   ],
 })
 export class AuthModule {}
@@ -70,7 +75,7 @@ import type { AuthStrategy, GuardContext } from '@konekti/passport';
 import { AuthenticationRequiredError } from '@konekti/passport';
 import { DefaultJwtVerifier } from '@konekti/jwt';
 
-export class JwtStrategy implements AuthStrategy {
+export class BearerAuthStrategy implements AuthStrategy {
   constructor(private verifier: DefaultJwtVerifier) {}
 
   async authenticate(context: GuardContext) {

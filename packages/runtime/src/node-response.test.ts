@@ -1,0 +1,60 @@
+import type { ServerResponse } from 'node:http';
+
+import { describe, expect, it } from 'vitest';
+
+import { createFrameworkResponse } from './node-response.js';
+
+type HeaderValue = string | string[] | number;
+
+function createMockServerResponse(): ServerResponse {
+  const headers: Record<string, HeaderValue> = {};
+
+  return {
+    end() {},
+    getHeader(name: string) {
+      return headers[name.toLowerCase()];
+    },
+    hasHeader(name: string) {
+      return headers[name.toLowerCase()] !== undefined;
+    },
+    headersSent: false,
+    removeHeader(name: string) {
+      delete headers[name.toLowerCase()];
+    },
+    setHeader(name: string, value: HeaderValue) {
+      headers[name.toLowerCase()] = value;
+    },
+    statusCode: 200,
+    writableEnded: false,
+  } as unknown as ServerResponse;
+}
+
+describe('createFrameworkResponse', () => {
+  it('appends repeated set-cookie header writes', () => {
+    const rawResponse = createMockServerResponse();
+    const frameworkResponse = createFrameworkResponse(rawResponse);
+
+    frameworkResponse.setHeader('set-cookie', 'access=token; HttpOnly; Path=/');
+    frameworkResponse.setHeader('set-cookie', 'refresh=token; HttpOnly; Path=/');
+
+    expect(rawResponse.getHeader('set-cookie')).toEqual([
+      'access=token; HttpOnly; Path=/',
+      'refresh=token; HttpOnly; Path=/',
+    ]);
+    expect(frameworkResponse.headers['set-cookie']).toEqual([
+      'access=token; HttpOnly; Path=/',
+      'refresh=token; HttpOnly; Path=/',
+    ]);
+  });
+
+  it('keeps non set-cookie headers as replace semantics', () => {
+    const rawResponse = createMockServerResponse();
+    const frameworkResponse = createFrameworkResponse(rawResponse);
+
+    frameworkResponse.setHeader('content-type', 'application/json');
+    frameworkResponse.setHeader('content-type', 'text/plain');
+
+    expect(rawResponse.getHeader('content-type')).toBe('text/plain');
+    expect(frameworkResponse.headers['content-type']).toBe('text/plain');
+  });
+});

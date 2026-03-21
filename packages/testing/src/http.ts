@@ -26,7 +26,7 @@ export interface TestRequestWithOptions extends TestRequest {
 export interface TestResponse {
   status: number;
   body: unknown;
-  headers: Record<string, string>;
+  headers: Record<string, string | string[]>;
 }
 
 export interface RequestBuilder {
@@ -209,6 +209,22 @@ function buildFrameworkRequest(req: TestRequestWithOptions): FrameworkTestReques
 function buildFrameworkResponse(): { response: MutableFrameworkResponse; result: TestResponse } {
   const result: TestResponse = { status: 200, body: undefined, headers: {} };
 
+  const mergeHeaderValue = (
+    current: string | string[] | undefined,
+    incoming: string | string[],
+  ): string | string[] => {
+    const nextValues = Array.isArray(incoming) ? incoming : [incoming];
+
+    if (current === undefined) {
+      return nextValues.length === 1 ? nextValues[0] : [...nextValues];
+    }
+
+    const currentValues = Array.isArray(current) ? current : [current];
+    const merged = [...currentValues, ...nextValues];
+
+    return merged.length === 1 ? merged[0] : merged;
+  };
+
   const response: MutableFrameworkResponse = {
     statusCode: undefined,
     headers: {},
@@ -220,9 +236,18 @@ function buildFrameworkResponse(): { response: MutableFrameworkResponse; result:
       this.statusSet = true;
     },
 
-    setHeader(name: string, value: string) {
+    setHeader(name: string, value: string | string[]) {
+      const lowerName = name.toLowerCase();
+      const responseHeaders = this.headers as Record<string, string | string[]>;
+
+      if (lowerName === 'set-cookie') {
+        result.headers[name] = mergeHeaderValue(result.headers[name], value);
+        responseHeaders[name] = mergeHeaderValue(responseHeaders[name], value);
+        return;
+      }
+
       result.headers[name] = value;
-      this.headers[name] = value;
+      responseHeaders[name] = value;
     },
 
     redirect(status: number, location: string) {

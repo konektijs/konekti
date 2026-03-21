@@ -106,10 +106,40 @@ function isNodeWritableResponse(raw: unknown): raw is NodeWritableResponse {
   return typeof candidate.write === 'function' && typeof candidate.end === 'function' && typeof candidate.once === 'function';
 }
 
+function readSetCookieValues(headers: Headers): string[] {
+  const setCookieHeaders = headers as Headers & {
+    getSetCookie?: () => string[];
+  };
+
+  if (typeof setCookieHeaders.getSetCookie === 'function') {
+    return setCookieHeaders.getSetCookie();
+  }
+
+  const values: string[] = [];
+
+  for (const [name, value] of headers.entries()) {
+    if (name.toLowerCase() === 'set-cookie') {
+      values.push(value);
+    }
+  }
+
+  return values;
+}
+
 export async function writeFetchResponse(fetchResponse: Response, frameworkResponse: FrameworkResponse): Promise<void> {
   frameworkResponse.setStatus(fetchResponse.status);
 
+  const setCookieValues = readSetCookieValues(fetchResponse.headers);
+
+  for (const value of setCookieValues) {
+    frameworkResponse.setHeader('set-cookie', value);
+  }
+
   for (const [name, value] of fetchResponse.headers.entries()) {
+    if (name.toLowerCase() === 'set-cookie') {
+      continue;
+    }
+
     frameworkResponse.setHeader(name, value);
   }
 
