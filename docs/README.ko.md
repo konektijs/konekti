@@ -32,7 +32,9 @@
 21. `reference/workspace-topology.md`
 22. `operations/testing-guide.md`
 23. `operations/release-governance.md`
-24. `operations/open-issues.md`
+24. `operations/deployment.md`
+25. `operations/third-party-extension-contract.md`
+26. `operations/open-issues.md`
 
 ## 섹션 (Sections)
 
