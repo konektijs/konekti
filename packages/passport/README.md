@@ -60,12 +60,17 @@ export class ProfileController {
 ```typescript
 import { Module } from '@konekti/core';
 import { createPassportProviders } from '@konekti/passport';
-import { JwtStrategy } from '@konekti/jwt';
+
+class BearerAuthStrategy {
+  async authenticate() {
+    return { claims: {}, subject: 'user-1' };
+  }
+}
 
 @Module({
   providers: [
-    JwtStrategy,
-    ...createPassportProviders({ defaultStrategy: 'jwt' }, [{ name: 'jwt', token: JwtStrategy }]),
+    BearerAuthStrategy,
+    ...createPassportProviders({ defaultStrategy: 'jwt' }, [{ name: 'jwt', token: BearerAuthStrategy }]),
   ],
 })
 export class AuthModule {}
@@ -181,7 +186,7 @@ The public package also exports auth error classes, bridge types, metadata helpe
 
 ## Related packages
 
-- `@konekti/jwt` — exports `JwtStrategy` plus the token-core signer/verifier implementation
+- `@konekti/jwt` — token-core signer/verifier implementation
 - `@konekti/http` — `AuthGuard` is a guard in the `@konekti/http` dispatcher's guard chain
 
 ## One-liner mental model

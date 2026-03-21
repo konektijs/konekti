@@ -6,12 +6,12 @@ import type { MiddlewareContext } from './types.js';
 function createContext(remoteAddress = '127.0.0.1') {
   const response = {
     committed: false,
-    headers: {} as Record<string, string>,
+    headers: {} as Record<string, string | string[]>,
     redirect() {},
     send: vi.fn(async function send(this: { committed: boolean }, _body: unknown) {
       this.committed = true;
     }),
-    setHeader(name: string, value: string) {
+    setHeader(name: string, value: string | string[]) {
       this.headers[name] = value;
     },
     setStatus(code: number) {

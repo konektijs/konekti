@@ -37,8 +37,9 @@ function createResponse(): TestResponse {
       this.body = body;
       this.committed = true;
     },
-    setHeader(name: string, value: string) {
-      this.headers[name] = value;
+    setHeader(name: string, value: string | string[]) {
+      const headers = this.headers as Record<string, string | string[]>;
+      headers[name] = value;
     },
     setStatus(code: number) {
       this.statusCode = code;

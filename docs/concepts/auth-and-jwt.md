@@ -36,7 +36,7 @@ HTTP request
 
 - JWT is one strategy, not the whole auth model
 - `@konekti/passport` is strategy-generic today
-- `@konekti/jwt` stays transport-agnostic except for its exported strategy adapter
+- `@konekti/jwt` stays transport-agnostic
 - app code should prefer normalized principals over raw JWT payloads
 
 ## current shipped JWT scope

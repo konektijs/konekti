@@ -20,9 +20,6 @@ The current official docs/examples path uses this package through bearer-token a
 - Signing access tokens with asymmetric algorithms such as RS256, RS384, RS512, ES256, ES384, and ES512
 - Verifying tokens: shape → algorithm → signature → claims (`exp`, `nbf`, `iss`, `aud`)
 - Normalising verified claims to a `JwtPrincipal` (`subject`, `roles`, `scopes`, `claims`)
-- Exporting `JwtStrategy`, the reusable bearer-token strategy adapter for `@konekti/passport`
-
-`JwtStrategy` handles bearer-token extraction for the generic passport contract, while the token core stays reusable without HTTP framework coupling.
 
 Current scope note:
 
@@ -155,7 +152,6 @@ const verifier = new DefaultJwtVerifier({
 | `JwtVerifierOptions` | `src/types.ts` | `{ secret?, privateKey?, publicKey?, issuer?, audience?, algorithms?, accessTokenTtlSeconds?, keys? }` |
 | `JwtVerifier` | `src/types.ts` | Interface for custom verifier implementations |
 | `JwtSigner` | `src/types.ts` | Interface for custom signer implementations |
-| `JwtStrategy` | `src/strategy.ts` | Passport-compatible bearer-token strategy backed by `DefaultJwtVerifier` |
 
 ## Architecture
 
@@ -194,10 +190,9 @@ Two separate checks exist: "is this algorithm in the allowlist?" and "does this 
 2. `src/errors.ts` — typed JWT errors (expired, invalid signature, missing claim, etc.)
 3. `src/verifier.ts` — `DefaultJwtVerifier`, `normalizePrincipal`
 4. `src/signer.ts` — `DefaultJwtSigner`, defaults filling
-5. `src/strategy.ts` — `JwtStrategy`
-6. `src/module.ts` — `createJwtCoreProviders`
-7. `src/verifier.test.ts` — happy path, expired token, invalid signature
-8. `src/signer.test.ts` — sign/verify roundtrip
+5. `src/module.ts` — `createJwtCoreProviders`
+6. `src/verifier.test.ts` — happy path, expired token, invalid signature
+7. `src/signer.test.ts` — sign/verify roundtrip
 
 ## Related packages
 
