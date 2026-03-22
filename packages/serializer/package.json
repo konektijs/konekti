@@ -1,12 +1,12 @@
 {
-  "name": "@konekti/runtime",
+  "name": "@konekti/serializer",
   "version": "0.0.0",
   "private": false,
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/konektijs/konekti.git",
-    "directory": "packages/runtime"
+    "directory": "packages/serializer"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -32,14 +32,7 @@
     "typecheck": "pnpm exec tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@konekti/config": "workspace:*",
     "@konekti/core": "workspace:*",
-    "@konekti/di": "workspace:*",
-    "@konekti/http": "workspace:*",
-    "busboy": "^1.6.0"
-  },
-  "devDependencies": {
-    "@konekti/serializer": "workspace:*",
-    "@types/busboy": "^1.5.4"
+    "@konekti/http": "workspace:*"
   }
 }
