@@ -6,6 +6,7 @@ import type {
   FrameworkRequest,
   FrameworkResponse,
   HttpApplicationAdapter,
+  InterceptorLike,
   MiddlewareLike,
   RequestObserverLike,
   VersioningOptions,
@@ -99,6 +100,7 @@ export interface BootstrapApplicationOptions extends ConfigLoadOptions {
    * one that returns `true` (handled) stops the chain.
    */
   filters?: ExceptionFilterHandler[];
+  interceptors?: InterceptorLike[];
   logger?: ApplicationLogger;
   middleware?: MiddlewareLike[];
   observers?: RequestObserverLike[];

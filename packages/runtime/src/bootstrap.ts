@@ -736,6 +736,7 @@ function createRuntimeDispatcherOptions(
   const dispatcherOptions: ErrorAwareDispatcherOptions = {
     appMiddleware: options.middleware ?? [],
     handlerMapping,
+    interceptors: options.interceptors ?? [],
     observers: options.observers ?? [],
     rootContainer: bootstrapped.container,
   };

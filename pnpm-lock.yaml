@@ -341,9 +341,21 @@ importers:
         specifier: ^1.6.0
         version: 1.6.0
     devDependencies:
+      '@konekti/serializer':
+        specifier: workspace:*
+        version: link:../serializer
       '@types/busboy':
         specifier: ^1.5.4
         version: 1.5.4
+
+  packages/serializer:
+    dependencies:
+      '@konekti/core':
+        specifier: workspace:*
+        version: link:../core
+      '@konekti/http':
+        specifier: workspace:*
+        version: link:../http
 
   packages/testing:
     dependencies:
