@@ -29,13 +29,12 @@ Use it for framework-level truth that spans multiple packages. Package-local API
 18. `reference/support-matrix.md`
 19. `reference/glossary-and-mental-model.md`
 20. `reference/toolchain-contract-matrix.md`
-21. `reference/workspace-topology.md`
+21. `reference/naming-and-file-conventions.md`
 22. `operations/testing-guide.md`
 23. `operations/release-governance.md`
 24. `operations/deployment.md`
 25. `operations/third-party-extension-contract.md`
-26. `operations/open-issues.md`
-27. `operations/nestjs-parity-gaps.md`
+26. `operations/nestjs-parity-gaps.md`
 
 ## Sections
 
@@ -65,7 +64,6 @@ Use it for framework-level truth that spans multiple packages. Package-local API
 - testing policy
 - release governance
 - benchmark/decision notes that still affect current behavior
-- repo-local convenience index for current GitHub issues (GitHub remains the source of truth)
 
 ### reference/
 
@@ -74,8 +72,6 @@ Use it for framework-level truth that spans multiple packages. Package-local API
 - glossary and mental model
 - naming conventions
 - toolchain contract
-- workspace topology
-- reusable example slices
 
 ## Authority Rules
 
