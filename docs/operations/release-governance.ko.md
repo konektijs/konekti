@@ -21,6 +21,7 @@
 - `@konekti/passport`
 - `@konekti/openapi`
 - `@konekti/graphql`
+- `@konekti/serializer`
 - `@konekti/metrics`
 - `@konekti/cron`
 - `@konekti/event-bus`

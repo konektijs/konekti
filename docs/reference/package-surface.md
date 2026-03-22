@@ -22,6 +22,7 @@ This file lists the current public package family at a glance.
 - `@konekti/drizzle`
 - `@konekti/openapi`
 - `@konekti/graphql`
+- `@konekti/serializer`
 - `@konekti/metrics`
 - `@konekti/cron`
 - `@konekti/event-bus`
@@ -44,6 +45,7 @@ This file lists the current public package family at a glance.
 - `@konekti/passport` -> auth strategy registry and generic auth guard wiring
 - `@konekti/openapi` -> document generation and metadata-only OpenAPI decorators
 - `@konekti/graphql` -> GraphQL module wiring, schema exposure, and endpoint execution pipeline
+- `@konekti/serializer` -> class-based response serialization decorators and interceptor
 - `@konekti/metrics` -> Prometheus metrics exposure
 - `@konekti/cron` -> decorator-based task scheduling with lifecycle-managed startup/shutdown and optional distributed locks
 - `@konekti/event-bus` -> in-process event publishing with decorator-driven handler discovery

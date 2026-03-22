@@ -22,6 +22,7 @@ import {
   type FrameworkResponse,
   type HttpApplicationAdapter,
 } from '@konekti/http';
+import { Exclude, Expose, SerializerInterceptor } from '@konekti/serializer';
 import { bootstrapApplication, defineModule, KonektiFactory } from './bootstrap.js';
 import { ModuleInjectionMetadataError } from './errors.js';
 import { createHealthModule } from './health.js';
@@ -1520,6 +1521,117 @@ describe('bootstrapApplication', () => {
 
     expect(response.body).toEqual({ ok: true });
     expect(adapterEvents).toEqual(['function']);
+  });
+
+  it('applies a global serializer interceptor to all handler responses', async () => {
+    @Expose({ excludeExtraneous: true })
+    class UserView {
+      @Expose()
+      id: string;
+
+      @Exclude()
+      password: string;
+
+      constructor(id: string, password: string) {
+        this.id = id;
+        this.password = password;
+      }
+    }
+
+    @Controller('/users')
+    class UsersController {
+      @Get('/one')
+      getOne() {
+        return new UserView('u-1', 'secret-1');
+      }
+
+      @Get('/two')
+      getTwo() {
+        return [new UserView('u-2', 'secret-2')];
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      controllers: [UsersController],
+      providers: [SerializerInterceptor],
+    });
+
+    const app = await bootstrapApplication({
+      interceptors: [SerializerInterceptor],
+      mode: 'test',
+      rootModule: AppModule,
+    });
+
+    const requestOne: FrameworkRequest = {
+      body: undefined,
+      cookies: {},
+      headers: {},
+      method: 'GET',
+      params: {},
+      path: '/users/one',
+      query: {},
+      raw: {},
+      url: '/users/one',
+    };
+    const requestTwo: FrameworkRequest = {
+      body: undefined,
+      cookies: {},
+      headers: {},
+      method: 'GET',
+      params: {},
+      path: '/users/two',
+      query: {},
+      raw: {},
+      url: '/users/two',
+    };
+
+    const responseOne: FrameworkResponse & { body?: unknown } = {
+      committed: false,
+      headers: {},
+      redirect(status, location) {
+        this.setStatus(status);
+        this.setHeader('Location', location);
+        this.committed = true;
+      },
+      send(body) {
+        this.body = body;
+        this.committed = true;
+      },
+      setHeader(name, value) {
+        this.headers[name] = value;
+      },
+      setStatus(code) {
+        this.statusCode = code;
+      },
+      statusCode: 200,
+    };
+    const responseTwo: FrameworkResponse & { body?: unknown } = {
+      committed: false,
+      headers: {},
+      redirect(status, location) {
+        this.setStatus(status);
+        this.setHeader('Location', location);
+        this.committed = true;
+      },
+      send(body) {
+        this.body = body;
+        this.committed = true;
+      },
+      setHeader(name, value) {
+        this.headers[name] = value;
+      },
+      setStatus(code) {
+        this.statusCode = code;
+      },
+      statusCode: 200,
+    };
+
+    await app.dispatch(requestOne, responseOne);
+    await app.dispatch(requestTwo, responseTwo);
+
+    expect(responseOne.body).toEqual({ id: 'u-1' });
+    expect(responseTwo.body).toEqual([{ id: 'u-2' }]);
   });
 
   it('unwinds initialized providers when bootstrap hooks fail', async () => {

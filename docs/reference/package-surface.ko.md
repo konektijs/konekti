@@ -22,6 +22,7 @@
 - `@konekti/drizzle`
 - `@konekti/openapi`
 - `@konekti/graphql`
+- `@konekti/serializer`
 - `@konekti/metrics`
 - `@konekti/cron`
 - `@konekti/event-bus`
@@ -44,6 +45,7 @@
 - `@konekti/passport` -> 인증 전략 레지스트리 및 범용 인증 가드 연결
 - `@konekti/openapi` -> 문서 생성 및 메타데이터 전용 OpenAPI 데코레이터
 - `@konekti/graphql` -> GraphQL 모듈 연결, 스키마 노출, 엔드포인트 실행 파이프라인
+- `@konekti/serializer` -> 클래스 기반 응답 직렬화 데코레이터 및 인터셉터
 - `@konekti/metrics` -> Prometheus 메트릭 노출
 - `@konekti/cron` -> 데코레이터 기반 작업 스케줄링, 라이프사이클 시작/종료, 선택적 분산 락
 - `@konekti/event-bus` -> 데코레이터 기반 핸들러 탐색을 사용하는 인프로세스 이벤트 발행

@@ -573,6 +573,58 @@ describe('dispatcher runtime', () => {
     ]);
   });
 
+  it('runs global interceptors before route interceptors', async () => {
+    const events: string[] = [];
+
+    class GlobalInterceptor {
+      async intercept(_context: InterceptorContext, next: { handle(): Promise<unknown> }) {
+        events.push('global:before');
+        const value = await next.handle();
+        events.push('global:after');
+        return value;
+      }
+    }
+
+    class RouteInterceptor {
+      async intercept(_context: InterceptorContext, next: { handle(): Promise<unknown> }) {
+        events.push('route:before');
+        const value = await next.handle();
+        events.push('route:after');
+        return value;
+      }
+    }
+
+    @Controller('/interceptor-order')
+    class OrderedController {
+      @Get('/')
+      @UseInterceptor(RouteInterceptor)
+      getValue() {
+        events.push('handler');
+        return { ok: true };
+      }
+    }
+
+    const root = new Container().register(GlobalInterceptor, RouteInterceptor, OrderedController);
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: OrderedController }]),
+      interceptors: [GlobalInterceptor],
+      rootContainer: root,
+    });
+
+    const response = createResponse();
+    await dispatcher.dispatch(createRequest('/interceptor-order', 'GET'), response);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toEqual({ ok: true });
+    expect(events).toEqual([
+      'global:before',
+      'route:before',
+      'handler',
+      'route:after',
+      'global:after',
+    ]);
+  });
+
   it('notifies request observers across start, match, success, error, and finish seams', async () => {
     const events: string[] = [];
 
