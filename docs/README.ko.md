@@ -29,12 +29,12 @@
 18. `reference/support-matrix.md`
 19. `reference/glossary-and-mental-model.md`
 20. `reference/toolchain-contract-matrix.md`
-21. `reference/workspace-topology.md`
+21. `reference/naming-and-file-conventions.md`
 22. `operations/testing-guide.md`
 23. `operations/release-governance.md`
 24. `operations/deployment.md`
 25. `operations/third-party-extension-contract.md`
-26. `operations/open-issues.md`
+26. `operations/nestjs-parity-gaps.md`
 
 ## 섹션 (Sections)
 
@@ -64,7 +64,6 @@
 - 테스트 정책
 - 릴리스 거버넌스
 - 현재 동작에 영향을 주는 벤치마크/결정 사항 노트
-- 현재 GitHub issue를 묶어 보여주는 repo-local convenience index (source of truth는 여전히 GitHub)
 
 ### reference/
 
@@ -73,8 +72,6 @@
 - 용어집과 멘탈 모델
 - 명명 규칙
 - 툴체인 계약
-- 워크스페이스 토폴로지
-- 재사용 가능한 예시 슬라이스
 
 ## 권한 규칙
 

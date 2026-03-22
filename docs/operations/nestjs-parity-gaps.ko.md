@@ -2,8 +2,8 @@
 
 <p><a href="./nestjs-parity-gaps.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
-이 문서는 Konekti와 NestJS 사이의 현재 기능 격차를 정리한 참조 문서입니다.
-이것은 출하된 현재 상태의 스냅샷이며 계획서가 아닙니다. 구체적인 작업 항목은 GitHub Issues로 열어야 합니다.
+이 문서는 Konekti와 NestJS 사이의 현재 기능 격차와 각 격차를 해소하기 위한 구체적인 작업 내용을 정리한 참조 문서입니다.
+출하된 현재 상태의 스냅샷과 실행 가능한 구현 세부 사항을 함께 제공합니다. 구체적인 작업 항목은 GitHub Issues로 열어야 합니다.
 
 ## 문서 읽는 방법
 
@@ -11,7 +11,22 @@
 - **B 티어** — 생태계 격차. Konekti 자체는 동작하지만 도구 또는 통합 표면이 부족해 채택이 느려짐.
 - **C 티어** — 포지셔닝 격차. 코드 문제가 아니라 인식 및 마이그레이션 장벽.
 
-각 항목에는 현재 Konekti 상태와 격차를 해소하기 위해 필요한 것이 명시되어 있습니다.
+각 항목에는 현재 Konekti 상태, 격차 해소에 필요한 것, 인수 기준, 수정할 파일, 작성할 테스트가 명시되어 있습니다.
+
+## 빠른 참조
+
+| 격차 | 티어 | 신규 패키지? | 작업량 |
+|---|---|---|---|
+| [A1. 독립형 컨텍스트](#a1-독립형-애플리케이션-컨텍스트-standalone-application-context) | A | 없음 | 소 |
+| [A2. 마이크로서비스 트랜스포트](#a2-마이크로서비스--트랜스포트-계층) | A | 있음 | 대 |
+| [A3. platform-fastify](#a3-플랫폼-어댑터-폭) | A | 있음 | 중 |
+| [A5. ArkType 검증 어댑터](#a5-스키마-기반-유효성-검사-zod--valibot--arktype) | A | 없음 | 소 |
+| [A6. GraphQL request 스코프](#a6-graphql-리졸버의-request--transient-프로바이더-스코프) | A | 없음 | 소–중 |
+| [A7. 응답 직렬화](#a7-응답-직렬화-계층) | A | 있음 | 중 |
+| [B4. 버전 안정성 신호](#b4-버전-안정성-신호) | B | 없음 | 소 |
+| [C1. 표준 데코레이터 메시지](#c1-nestjs-데코레이터-lock-in을-명시적-차별점으로) | C | 없음 | 극소 |
+| [C2. TypeScript-first 메시지](#c2-typescript-first-포지셔닝은-기본값) | C | 없음 | 극소 |
+| [C3. 공개 채택 신호](#c3-공개-채택-신호-없음) | C | 없음 | 운영 |
 
 ---
 
@@ -25,7 +40,26 @@
 
 **격차**: `KonektiFactory`에 `createApplicationContext(rootModule, options?)` 정적 메서드 추가 필요. 이 메서드는 `bootstrapModule`을 호출하고, HTTP 어댑터를 등록하지 않으며, 디스패처 생성을 건너뛰고, 타입이 지정된 `get<T>(token)` 메서드를 가진 컨테이너 셸을 반환해야 함.
 
-**범위**: `packages/runtime/src/bootstrap.ts`만 수정. 새 패키지 불필요.
+**신규 패키지 필요**: 없음
+
+**인수 기준**:
+- HTTP 어댑터 없이 `bootstrapModule`로 모듈 그래프를 컴파일함.
+- `get<T>(token: Token<T>): T` 메서드를 가진 타입 지정 셸을 반환함.
+- 시작 시 모든 라이프사이클 훅(`onModuleInit`, `onApplicationBootstrap`)을 실행함.
+- `context.close()` 시 `onModuleDestroy`와 `onApplicationShutdown`을 실행함.
+- HTTP 서버 없이 테스트 환경에서 동작함.
+
+**수정할 파일**:
+- `packages/runtime/src/bootstrap.ts` — `KonektiFactory`에 `createApplicationContext` 추가
+- `packages/runtime/src/index.ts` — `createApplicationContext`와 반환 컨텍스트 타입 export
+- `packages/runtime/README.md` — 독립형 경로 문서화
+- `docs/getting-started/bootstrap-paths.md` — 독립형 컨텍스트 섹션 추가
+- `docs/getting-started/migrate-from-nestjs.md` — `NestFactory.createApplicationContext` → `KonektiFactory.createApplicationContext` 매핑 행 추가
+
+**작성할 테스트**:
+- 단위: `createApplicationContext`가 HTTP 어댑터 없이 단순 모듈에서 프로바이더를 resolve함
+- 단위: 라이프사이클 훅이 시작 및 `context.close()` 시 올바른 순서로 실행됨
+- 단위: `get()`이 등록되지 않은 토큰에 대해 예외를 던짐
 
 ---
 
@@ -33,11 +67,40 @@
 
 **NestJS**: `NestFactory.createMicroservice(module, { transport: Transport.TCP | REDIS | KAFKA | ... })`으로 HTTP가 아닌 메시지 컨슈머를 실행. `@MessagePattern`과 `@EventPattern` 데코레이터가 핸들러를 HTTP 라우트 대신 트랜스포트 메시지에 바인딩함.
 
-**현재 Konekti**: `@konekti/event-bus`는 인프라-프로세스 이벤트만 처리. `@konekti/queue`는 Redis 기반 백그라운드 잡만 처리. TCP/Kafka/NATS 컨슈머 표면, 공유 트랜스포트 추상화, `createMicroservice` 상당의 API가 없음.
+**현재 Konekti**: `@konekti/event-bus`는 인프로세스 이벤트 및 Redis Pub/Sub 트랜스포트를 처리함. `@konekti/queue`는 Redis 기반 백그라운드 잡을 처리함. TCP/Kafka/NATS 컨슈머 표면, 공유 트랜스포트 추상화, `createMicroservice` 상당의 API가 없음.
 
-**격차**: 트랜스포트 추상화 계층(`@konekti/microservices` 또는 동등물) 신규 개발 필요. 최소한 Redis Pub/Sub과 TCP 트랜스포트, `@MessagePattern` / `@EventPattern` 데코레이터, HTTP와 마이크로서비스 트랜스포트를 같은 프로세스에서 동시에 실행하는 하이브리드 애플리케이션 모드가 포함되어야 함.
+**격차**: 트랜스포트 추상화 계층(`@konekti/microservices`) 신규 개발 필요. 최소한 Redis Pub/Sub과 TCP 트랜스포트, `@MessagePattern` / `@EventPattern` 데코레이터, HTTP와 마이크로서비스 트랜스포트를 같은 프로세스에서 동시에 실행하는 하이브리드 애플리케이션 모드가 포함되어야 함.
 
-**범위**: 신규 패키지. 상당한 설계 표면 필요.
+**신규 패키지 필요**: 있음 — `@konekti/microservices`
+
+**인수 기준**:
+- `KonektiFactory.createMicroservice(rootModule, { transport: 'redis' | 'tcp', ... })`로 HTTP가 아닌 메시지 컨슈머를 시작함.
+- `@MessagePattern('cmd')`가 핸들러 메서드를 수신 메시지 커맨드에 바인딩함.
+- `@EventPattern('evt')`가 핸들러 메서드를 수신 이벤트 패턴(fire-and-forget)에 바인딩함.
+- 하이브리드 애플리케이션 모드가 동일한 프로세스에서 HTTP 서버와 마이크로서비스 트랜스포트를 함께 실행함.
+- Redis Pub/Sub 트랜스포트가 `@konekti/redis`를 클라이언트 의존성으로 사용함.
+- TCP 트랜스포트가 Node의 `net` 모듈 외 추가 의존성 없이 동작함.
+
+**생성할 파일**:
+- `packages/microservices/src/decorators/message-pattern.ts`
+- `packages/microservices/src/decorators/event-pattern.ts`
+- `packages/microservices/src/transports/redis-transport.ts`
+- `packages/microservices/src/transports/tcp-transport.ts`
+- `packages/microservices/src/transport.interface.ts`
+- `packages/microservices/src/factory.ts` — `createMicroservice`
+- `packages/microservices/README.md`, `README.ko.md`
+
+**수정할 파일**:
+- `docs/reference/package-surface.md` — `@konekti/microservices` 추가
+- `docs/reference/package-surface.ko.md`
+- `docs/operations/release-governance.md` — 배포 예정 패키지에 추가
+- `docs/operations/release-governance.ko.md`
+
+**작성할 테스트**:
+- 통합: Redis 트랜스포트가 `@MessagePattern` 핸들러 응답을 송수신함
+- 통합: TCP 트랜스포트가 `@MessagePattern` 핸들러 응답을 송수신함
+- 통합: 하이브리드 앱이 하나의 프로세스에서 HTTP 라우트와 마이크로서비스 핸들러를 함께 처리함
+- 단위: `@EventPattern` 핸들러가 응답 대기 없이 실행됨
 
 ---
 
@@ -49,7 +112,30 @@
 
 **격차**: `HttpApplicationAdapter` 인터페이스를 구현하고 Node 어댑터와 동일한 통합 테스트 스위트를 통과하는 `@konekti/platform-fastify` 어댑터 패키지 필요.
 
-**범위**: 신규 패키지. 어댑터 인터페이스는 이미 정의되어 있어 구현과 동등성 테스트 스위트가 핵심.
+**신규 패키지 필요**: 있음 — `@konekti/platform-fastify`
+
+**인수 기준**:
+- Fastify의 요청 라이프사이클을 사용해 `HttpApplicationAdapter.listen(dispatcher)`을 구현함.
+- Fastify의 `FastifyRequest` / `FastifyReply`를 `FrameworkRequest` / `FrameworkResponse`로 브리지함.
+- `createNodeHttpAdapter` 검증에 사용되는 것과 동일한 통합 테스트 스위트를 통과함.
+- 기저 `FastifyInstance`를 반환하는 `getServer()`를 노출함.
+- 드롭인 교체로 동작함: `runNodeApplication(AppModule, { adapter: createFastifyAdapter() })`.
+
+**생성할 파일**:
+- `packages/platform-fastify/src/fastify-adapter.ts`
+- `packages/platform-fastify/src/bridge.ts` — 요청/응답 브리징
+- `packages/platform-fastify/README.md`, `README.ko.md`
+
+**수정할 파일**:
+- `docs/reference/package-surface.md` — `@konekti/platform-fastify` 추가
+- `docs/reference/package-surface.ko.md`
+- `docs/operations/release-governance.md`
+- `docs/operations/release-governance.ko.md`
+- `docs/operations/deployment.md` — Fastify 어댑터 사용 예시 추가
+- `docs/operations/deployment.ko.md`
+
+**작성할 테스트**:
+- 동등성 테스트 스위트: `createNodeHttpAdapter`와 `createFastifyAdapter` 양쪽에 대해 전체 HTTP 통합 테스트 스위트를 실행 — 모든 테스트가 양쪽 모두 통과해야 함
 
 ---
 
@@ -57,11 +143,11 @@
 
 **NestJS**: URI 버저닝(`/v1/users`), 헤더 버저닝(`X-API-Version: 1`), 미디어 타입 버저닝(`Accept: application/vnd.v1+json`), 함수 기반 커스텀 버저닝 지원.
 
-**현재 Konekti**: URI 버저닝만 지원(`@Version('1')` → `/v1/users`).
+**현재 Konekti**: 4가지 버저닝 전략(URI, 헤더, 미디어 타입, 커스텀) 모두 `@Version` 데코레이터와 `runNodeApplication`의 `versioning` 옵션을 통해 지원됨.
 
-**격차**: 헤더 버저닝과 미디어 타입 버저닝이 URI 외 실세계 API 버저닝 수요의 대부분을 커버함. 두 방식 모두 디스패처의 라우트 해석 단계를 확장해야 함.
+**격차**: ~~해소됨~~. NestJS의 4가지 버저닝 전략이 모두 출하됨.
 
-**범위**: `packages/http/` (라우트 메타데이터 + 디스패처 해석). 신규 패키지 불필요.
+> **참고**: 이 항목은 이전에 열린 격차로 등록되어 있었으나 해소되었습니다. 아래 유지 관리 규칙을 참조하세요.
 
 ---
 
@@ -69,11 +155,27 @@
 
 **NestJS**: `ValidationPipe`에 class-validator + class-transformer가 기본. Zod, Valibot, ArkType 커뮤니티 어댑터 존재.
 
-**현재 Konekti**: `@konekti/dto-validator`는 데코레이터 기반 클래스 검증 사용. 스키마 라이브러리 통합 없음.
+**현재 Konekti**: `@konekti/dto-validator`는 데코레이터 기반 클래스 검증과 Zod, Valibot 스키마 어댑터를 내장 지원함. ArkType은 아직 지원되지 않음.
 
-**격차**: `@konekti/dto-validator` 확장 포인트(또는 별도의 `@konekti/zod-validator`)가 필요. 스키마 라이브러리의 파싱 결과를 받아 유효성 검사 오류를 표준 `ValidationError` 형태로 매핑해야 함.
+**격차**: `@konekti/dto-validator`의 ArkType 어댑터가 필요. 파싱 결과를 표준 `ValidationError` 형태로 매핑해야 함.
 
-**범위**: `packages/dto-validator/` 확장 인터페이스 또는 경량 어댑터 신규 패키지.
+**신규 패키지 필요**: 없음
+
+**인수 기준**:
+- 기존 Zod, Valibot 어댑터 API를 따르는 `createArkTypeAdapter(schema: Type)` 함수가 `@RequestDto`와 호환되는 검증기를 반환함.
+- ArkType의 검증 에러가 표준 `{ field, message, constraint }` 형태로 매핑됨.
+- `@konekti/dto-validator` 자체에 ArkType 피어 의존성이 불필요함 — 선택적 피어로 처리해야 함.
+
+**수정할 파일**:
+- `packages/dto-validator/src/adapters/arktype.ts` — 신규 파일
+- `packages/dto-validator/src/index.ts` — 새 어댑터 export
+- `packages/dto-validator/README.md` — ArkType 어댑터 예시 추가
+- `packages/dto-validator/README.ko.md`
+
+**작성할 테스트**:
+- 단위: `createArkTypeAdapter`가 ArkType 에러를 `ValidationError[]`로 매핑함
+- 단위: 유효한 입력이 에러 없이 통과함
+- 단위: 잘못된 입력이 올바른 `field`와 `message` 값을 반환함
 
 ---
 
@@ -85,65 +187,68 @@
 
 **격차**: GraphQL 리졸버에 대한 검증된 request 스코프 주입 (문서화 및 테스트 포함).
 
-**범위**: `packages/graphql/` + `packages/di/` 통합 테스트.
+**신규 패키지 필요**: 없음
+
+**인수 기준**:
+- `@Scope('request')`로 데코레이트된 리졸버 클래스가 각 GraphQL 오퍼레이션마다 새 인스턴스를 받음.
+- `@Scope('transient')`로 데코레이트된 리졸버가 모든 주입 시마다 새 인스턴스를 받음.
+- request 스코프 리졸버가 다른 request 스코프 프로바이더를 inject할 수 있음.
+- 동작이 사용 예시와 함께 `packages/graphql/README.md`에 문서화됨.
+
+**수정할 파일**:
+- `packages/graphql/src/resolver-factory.ts` (또는 동등한 파일) — 오퍼레이션 컨텍스트별로 `createRequestScope()` 호출
+- `packages/graphql/README.md` — 스코프 리졸버 섹션 추가
+- `packages/graphql/README.ko.md`
+
+**작성할 테스트**:
+- 통합: `@Scope('request')` 리졸버가 두 동시 오퍼레이션에서 서로 다른 인스턴스를 받음
+- 통합: `@Scope('singleton')` 리졸버가 오퍼레이션 전반에서 동일한 인스턴스를 받음
+- 통합: request 스코프 서비스를 inject하는 request 스코프 리졸버가 올바르게 resolve됨
 
 ---
 
-### A7. 분산 속도 제한 (Distributed Rate Limiting)
+### A7. 응답 직렬화 계층
 
-**NestJS**: `@nestjs/throttler`에 클러스터 전체 속도 제한을 위한 Redis 스토어 어댑터 포함.
+**NestJS**: `ClassSerializerInterceptor` + `class-transformer`의 `@Exclude` / `@Expose` / `@Transform`이 선언적 응답 직렬화 계층을 제공함. 데코레이터 메타데이터를 기반으로 응답에서 필드를 조건부로 제외할 수 있음.
 
-**현재 Konekti**: 속도 제한 패키지 없음. 애플리케이션 수준 속도 제한은 수동 또는 서드파티 미들웨어로 처리해야 함.
+**현재 Konekti**: 동등한 응답 직렬화 패키지가 없음. 응답 객체에서 필드를 선택적으로 제외하려면 각 핸들러에서 직접 처리하거나 커스텀 인터셉터를 작성해야 함.
 
-**격차**: 인메모리 스토어(기본)와 Redis 스토어 어댑터(`@konekti/redis` 경유)를 포함한 `@konekti/throttler` 패키지 필요. 가드 데코레이터로 바인딩.
+**격차**: 응답 객체에서 직렬화 메타데이터를 읽고 응답 작성 전에 필드 포함/제외 규칙을 적용하는 응답 직렬화 인터셉터(`@konekti/serializer`) 필요.
 
-**범위**: 신규 패키지. `@konekti/redis` 통합이 이미 존재해 Redis 스토어 어댑터는 단순함.
+**신규 패키지 필요**: 있음 — `@konekti/serializer`
 
----
+**인수 기준**:
+- `@Exclude()`가 클래스 프로퍼티를 직렬화된 응답에서 제외함.
+- `excludeExtraneous` 모드의 클래스에서 `@Expose()`가 표시된 필드만 포함하게 함.
+- `@Transform(fn)`이 직렬화 전에 변환 함수를 값에 적용함.
+- `SerializerInterceptor`를 전역 또는 컨트롤러/핸들러 단위로 등록할 수 있음.
+- 직렬화는 응답 값이 직렬화 메타데이터를 가진 클래스의 인스턴스인 경우에만 적용됨.
+- 중첩 객체와 배열에서 동작함.
 
-### A8. 외부 이벤트 버스 트랜스포트
+**생성할 파일**:
+- `packages/serializer/src/decorators/exclude.ts`
+- `packages/serializer/src/decorators/expose.ts`
+- `packages/serializer/src/decorators/transform.ts`
+- `packages/serializer/src/serializer-interceptor.ts`
+- `packages/serializer/src/serialize.ts` — 핵심 직렬화 로직
+- `packages/serializer/README.md`, `README.ko.md`
 
-**NestJS**: `@nestjs/event-emitter`(인프라-프로세스) + Redis Pub/Sub, NATS, Kafka 커뮤니티 어댑터.
+**수정할 파일**:
+- `docs/reference/package-surface.md` — `@konekti/serializer` 추가
+- `docs/reference/package-surface.ko.md`
+- `docs/operations/release-governance.md`
+- `docs/operations/release-governance.ko.md`
 
-**현재 Konekti**: `@konekti/event-bus`는 명시적으로 인프라-프로세스 전용 ("인프라-프로세스 이벤트 퍼블리싱").
-
-**격차**: `@konekti/event-bus`에 외부 트랜스포트 어댑터 인터페이스 추가 필요 (최소한 `@konekti/redis` 경유 Redis Pub/Sub). `@OnEvent` 핸들러가 다른 프로세스 인스턴스에서 발행된 이벤트를 수신할 수 있어야 함.
-
-**범위**: `packages/event-bus/` 트랜스포트 인터페이스 + Redis 어댑터.
+**작성할 테스트**:
+- 단위: `@Exclude()`가 직렬화 출력에서 필드를 제거함
+- 단위: `excludeExtraneous` 모드의 `@Expose()`가 표시된 필드만 포함함
+- 단위: `@Transform(fn)`이 값에 함수를 적용함
+- 단위: 중첩 객체가 재귀적으로 직렬화됨
+- 통합: 전역으로 적용된 `SerializerInterceptor`가 모든 핸들러 응답을 직렬화함
 
 ---
 
 ## B 티어 — 생태계 격차
-
-### B1. NestJS에서의 마이그레이션 경로
-
-**NestJS**: 경쟁 프레임워크로의 이전을 위한 공식 마이그레이션 가이드 없음.
-
-**현재 Konekti**: 마이그레이션 가이드, 호환성 심, 공존 시나리오 없음.
-
-**격차**: 모듈 매핑, 데코레이터 매핑(`@Injectable` → Konekti 프로바이더 패턴), 프로바이더 스코프 차이, HTTP 예외 매핑을 다루는 `docs/getting-started/migrate-from-nestjs.md` 필요.
-
----
-
-### B2. 커뮤니티 플러그인 표면
-
-**NestJS**: `nestjs` 키워드로 npm 패키지 약 5,800개. 플러그인 작성자를 위한 문서화된 확장 계약 존재.
-
-**현재 Konekti**: 서드파티 확장 계약이 문서화되어 있지 않음. `release-governance.md`에 "프레임워크 소유 카테고리 이외의 서드파티 데코레이터/메타데이터 확장은 현재 지원되는 공개 보장이 아님"이라고 명시됨.
-
-**격차**: 커스텀 메타데이터 카테고리 등록 방법, 플랫폼 어댑터 작성 방법, 트랜스포트 어댑터 작성 방법, 커뮤니티 통합 패키지 배포 방법을 담은 문서화된 서드파티 확장 계약 필요.
-
----
-
-### B3. 프로덕션 배포 레퍼런스
-
-**NestJS**: 공식 문서 및 커뮤니티 리소스에 Docker, Kubernetes, Heroku, Railway, Fly.io 가이드 존재.
-
-**현재 Konekti**: 배포 가이드 없음. 스타터 출력에 Docker 예시 없음. Kubernetes 프로브 설정과 연결된 헬스/레디니스 엔드포인트 문서 없음.
-
-**격차**: Docker 멀티 스테이지 빌드, Kubernetes 라이브니스/레디니스 프로브 연결(`/health`와 `/ready`), 그레이스풀 셧다운 타임아웃 지침, 클라우드 플랫폼 예시 하나 이상을 포함한 `docs/operations/deployment.md` 필요.
-
----
 
 ### B4. 버전 안정성 신호
 
@@ -152,6 +257,19 @@
 **현재 Konekti**: `release-governance.md`에 semver 정책이 문서화되어 있지만 공개 체인지로그, LTS 신호, 명시된 업그레이드 주기 없음.
 
 **격차**: 릴리스 후보 프로세스와 연결된 공개 `CHANGELOG.md` 또는 GitHub Releases 페이지, 명시적인 안정성 신호 필요 (예: `0.x = 실험적 공개 API`, `1.0 = 안정 계약`).
+
+**인수 기준**:
+- `CHANGELOG.md`가 Keep a Changelog 형식을 따르고 `## [Unreleased]` 섹션이 작성되어 있음.
+- 각 GitHub Release에 해당 `CHANGELOG.md` 섹션에서 추출된 본문이 있음 (`.github/workflows/github-release.yml`로 이미 자동화됨).
+- `docs/operations/release-governance.md`가 첫 섹션에서 `0.x` vs `1.0` 안정성 계약을 명시함 (하위 헤딩에 묻혀 있지 않아야 함).
+- `README.md`가 `CHANGELOG.md`와 GitHub Releases 페이지에 링크함.
+
+**수정할 파일**:
+- `CHANGELOG.md` — 실제 릴리스 이력 항목으로 채우기
+- `docs/operations/release-governance.md` — 안정성 계약을 파일 상단으로 이동
+- `docs/operations/release-governance.ko.md`
+- `README.md` — `CHANGELOG.md`와 GitHub Releases 링크를 포함한 "릴리스 이력" 섹션 추가
+- `README.ko.md`
 
 ---
 
@@ -163,7 +281,18 @@
 
 **Konekti 강점**: 전체적으로 표준(TC39 Stage 3) 데코레이터 사용. 생태계가 표준으로 이동함에 따라 가치가 커지는 가장 명확한 기술적 차별점.
 
-**필요한 행동**: `README.md`와 `docs/getting-started/quick-start.md`의 핵심 메시지로 이 점을 전면에 내세워야 함. 현재 README는 "standard-decorator-based"를 첫 문장에서 언급하지만 왜 중요한지 설명 없음.
+**필요한 행동**: `README.md`와 `docs/getting-started/quick-start.md`의 핵심 메시지로 이 점을 전면에 내세워야 함.
+
+**인수 기준**:
+- `README.md`가 처음 20 단어 안에 "TC39 표준 데코레이터"를 포함하는 한 줄 요약으로 시작함.
+- "왜 표준 데코레이터인가?" 섹션이 `experimentalDecorators`와 `emitDecoratorMetadata`가 무엇인지, NestJS가 왜 이를 필요로 하는지, Konekti는 왜 불필요한지, 프로젝트의 TypeScript 설정에 어떤 의미인지를 구체적으로 설명함.
+- `docs/getting-started/quick-start.md`가 상단에 표준 데코레이터 요구사항에 대한 콜아웃 박스 또는 강조 노트를 포함함.
+
+**수정할 파일**:
+- `README.md`
+- `README.ko.md`
+- `docs/getting-started/quick-start.md`
+- `docs/getting-started/quick-start.ko.md`
 
 ---
 
@@ -172,6 +301,15 @@
 **NestJS**: TypeScript-first도 동일하게 주장. 이 표현만으로는 차별점이 되지 않음.
 
 **Konekti 기회**: 구체적이고 검증 가능한 차이점으로 리드해야 함 — 명시적 DI 투명성(리플렉션 마법 없음, `emitDecoratorMetadata` 불필요), 표준 데코레이터(`experimentalDecorators` 불필요), 패키지-로컬 통합 모델.
+
+**인수 기준**:
+- `README.md`가 "TypeScript-first"라는 표현 바로 뒤에 검증 가능한 주장을 제시함.
+- README에 Konekti 앱이 `"experimentalDecorators"`나 `"emitDecoratorMetadata"`가 불필요함을 보여주는 `tsconfig.json` 나란히 비교가 포함됨.
+- README에 NestJS의 암묵적 메타데이터 주입 대 Konekti의 명시적 토큰 주입을 보여주는 DI 예시 나란히 비교가 포함됨.
+
+**수정할 파일**:
+- `README.md`
+- `README.ko.md`
 
 ---
 
@@ -183,17 +321,43 @@
 
 **격차**: 코드 문제가 아님. 공개 npm 배포, GitHub 스타 성장, Discord 또는 GitHub Discussions 커뮤니티 창구 필요.
 
+**행동 항목**:
+1. `@konekti` 조직 스코프 하에 모든 `@konekti/*` 패키지를 npm에 배포.
+2. `konektijs/konekti` GitHub 저장소를 공개로 전환.
+3. 최소한 `Q&A`와 `Show and tell` 카테고리를 포함한 GitHub Discussions 공간 개설.
+4. `README.md`에 GitHub Discussions 링크를 포함한 "커뮤니티" 섹션 추가.
+5. 각 `package.json`의 `homepage` 필드에 `docs/` 링크 추가.
+
 ---
 
-## 현재 경계 (이 스냅샷 기준)
+## 권장 실행 순서
 
-다음 항목들은 명시적으로 연기되어 현재 Konekti 런타임 경계 외에 있음:
+가장 일반적인 단일 프로세스 사용 사례부터 시작해 새로운 트랜스포트 표면으로 확장합니다.
 
-- HTTP 외 트랜스포트 (위 A2 참조)
-- Fastify 어댑터 (위 A3 참조)
-- 클러스터 인식 속도 제한 (위 A7 참조)
+1. **A1** — 독립형 컨텍스트 (소, 높은 임팩트, 단일 파일)
+2. **A5** — ArkType 어댑터 (소, 스키마 검증 동등성 완성)
+3. **A6** — GraphQL request 스코프 (중, GraphQL 동등성 완성)
+4. **A7** — 응답 직렬화 (중, 마지막 주요 런타임 격차 해소)
+5. **B4** — 버전 안정성 (소, 운영/문서만)
+6. **C1 + C2** — 메시지 샤프닝 (극소, 즉각적인 신뢰도 향상)
+7. **A3** — platform-fastify (중, 성능 티어)
+8. **A2** — 마이크로서비스 트랜스포트 (대, 새 표면 — 마지막에 처리)
+9. **C3** — 공개 채택 운영 (운영, 위 항목 중 어느 것과도 병렬 진행 가능)
 
-이 경계들은 `docs/concepts/architecture-overview.md`에 문서화되어 있음.
+---
+
+## 해소된 격차
+
+다음 항목들은 이전에 열린 격차로 등록되어 있었으며 현재 출하 완료된 상태입니다:
+
+| 항목 | 해소 내용 |
+|---|---|
+| A4. URI 이외의 HTTP 버저닝 전략 | URI, 헤더, 미디어 타입, 커스텀 4가지 전략 모두 `@konekti/http`와 `@konekti/runtime`에 출하됨. |
+| A7 (구). 분산 속도 제한 | `@konekti/throttler`가 인메모리 및 Redis 스토어 어댑터와 함께 출하됨. |
+| A8 (구). 외부 이벤트 버스 트랜스포트 | `@konekti/event-bus`가 Redis Pub/Sub 트랜스포트 어댑터와 함께 출하됨. |
+| B1. NestJS에서의 마이그레이션 경로 | `docs/getting-started/migrate-from-nestjs.md`가 모듈, 데코레이터, 스코프, 부트스트랩, 테스트 매핑을 포함함. |
+| B2. 커뮤니티 플러그인 표면 | `docs/operations/third-party-extension-contract.md`가 메타데이터 확장, 플랫폼 어댑터, 모듈 작성 계약을 문서화함. |
+| B3. 프로덕션 배포 레퍼런스 | `docs/operations/deployment.md`가 Docker 멀티 스테이지 빌드, Kubernetes 프로브, 그레이스풀 셧다운, Docker Compose를 포함함. |
 
 ---
 
@@ -201,7 +365,7 @@
 
 이 파일은 현재 격차 상태를 문서화합니다. 격차가 해소되면:
 
-1. 이 파일에서 해당 섹션을 제거하거나 업데이트.
+1. 해당 항목을 위의 **해소된 격차** 표로 이동하고 한 줄 해소 내용을 작성.
 2. 영향받는 패키지 README와 `docs/` 개념 가이드 업데이트.
 3. 대응하는 GitHub Issue 닫거나 업데이트.
 4. 해소된 격차를 열린 상태로 두지 말 것 — 이 파일은 항상 출하된 상태를 반영해야 함.
