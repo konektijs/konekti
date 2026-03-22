@@ -18,6 +18,7 @@ import type {
   GuardContext,
   HandlerDescriptor,
   HandlerMapping,
+  InterceptorLike,
   InterceptorContext,
   MiddlewareLike,
   RequestContext,
@@ -32,6 +33,7 @@ export interface CreateDispatcherOptions {
   appMiddleware?: MiddlewareLike[];
   contentNegotiation?: ContentNegotiationOptions;
   handlerMapping: HandlerMapping;
+  interceptors?: InterceptorLike[];
   observers?: RequestObserverLike[];
   onError?: ErrorHandler;
   rootContainer: Container;
@@ -121,6 +123,7 @@ async function dispatchMatchedHandler(
   requestContext: RequestContext,
   observers: RequestObserverLike[],
   contentNegotiation: ResolvedContentNegotiation | undefined,
+  globalInterceptors: InterceptorLike[] | undefined,
 ): Promise<void> {
   const guardContext: GuardContext = {
     handler,
@@ -137,7 +140,9 @@ async function dispatchMatchedHandler(
     return;
   }
 
-  const result = await runInterceptorChain(handler.route.interceptors ?? [], interceptorContext, async () => {
+  const interceptors = [...(globalInterceptors ?? []), ...(handler.route.interceptors ?? [])];
+
+  const result = await runInterceptorChain(interceptors, interceptorContext, async () => {
     return invokeControllerHandler(handler, requestContext);
   });
 
@@ -222,14 +227,20 @@ async function runDispatchPipeline(context: DispatchPhaseContext): Promise<void>
     updateRequestParams(context.requestContext, match.params);
     await notifyHandlerMatched(context, match.descriptor);
 
-    await runMiddlewareChain(match.descriptor.metadata.moduleMiddleware ?? [], {
-      request: context.requestContext.request,
-      requestContext: context.requestContext,
-      response: context.response,
-    }, async () => {
-      await dispatchMatchedHandler(match.descriptor, context.requestContext, context.observers, context.contentNegotiation);
+      await runMiddlewareChain(match.descriptor.metadata.moduleMiddleware ?? [], {
+        request: context.requestContext.request,
+        requestContext: context.requestContext,
+        response: context.response,
+      }, async () => {
+        await dispatchMatchedHandler(
+          match.descriptor,
+          context.requestContext,
+          context.observers,
+          context.contentNegotiation,
+          context.options.interceptors,
+        );
+      });
     });
-  });
 }
 
 async function handleDispatchError(context: DispatchPhaseContext, error: unknown): Promise<void> {
