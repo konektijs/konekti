@@ -2,14 +2,13 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./generator-workflow.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide outlines the CLI generator system and available schematics for Konekti.
 
-This file describes the current CLI generator surface.
-
-## command shape
+## command syntax
 
 ```sh
-konekti generate <kind> <name>
-konekti g <kind> <name>
+konekti generate <schematic> <name>
+konekti g <schematic> <name>
 ```
 
 ## available schematics
@@ -26,14 +25,14 @@ konekti g <kind> <name>
 | `response-dto` | `res` |
 | `service` | `s` |
 
-## output conventions
+## generation conventions
 
-- files are generated in TypeScript
-- names use kebab-case filenames and PascalCase classes
-- generators write into `src/` by default in starter apps
-- generators update the target module when the schematic participates in module registration
+- **Language**: All files are generated in TypeScript.
+- **Naming**: Uses kebab-case for filenames and PascalCase for classes.
+- **Location**: Files are written to the `src/` directory by default in starter applications.
+- **Module Updates**: Generators automatically register new components in the appropriate module.
 
-Examples:
+### example output
 
 - `user.controller.ts`
 - `user.service.ts`
@@ -41,14 +40,14 @@ Examples:
 - `user.request.dto.ts`
 - `user.response.dto.ts`
 
-## current generator philosophy
+## implementation philosophy
 
-- individual generators are the default path
-- `g resource` is not part of the current default CLI model
-- request and response DTOs are intentionally split into separate schematics
-- scaffold and generator output stay package-manager-neutral apart from package-manager-aware commands and lockfiles
+- **Granular Generation**: Use individual generators to build application components.
+- **DTO Separation**: Request and response DTOs are kept distinct to ensure clear API contracts.
+- **No Monolithic Resources**: The CLI currently avoids complex "resource" generators (e.g., `g resource`) to maintain simplicity.
+- **Neutrality**: Scaffolding remains package-manager-neutral, except for manager-specific lockfiles and commands.
 
-## related docs
+## further reading
 
 - `./quick-start.md`
 - `../reference/naming-and-file-conventions.md`

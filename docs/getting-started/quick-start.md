@@ -2,17 +2,18 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./quick-start.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide outlines the standard bootstrap process for Konekti.
 
-This guide describes the current public bootstrap path for Konekti.
-
-> [!NOTE]
-> Konekti uses TC39 standard decorators (TypeScript 5.0+). Starter apps should not enable legacy decorator flags in `tsconfig.json`:
-> - do not set `"experimentalDecorators": true`
-> - do not set `"emitDecoratorMetadata": true`
-> NestJS currently relies on the legacy decorator + metadata path; Konekti does not.
-> Standard configuration is enough (`"experimentalDecorators": false` or omitting it).
+> [!IMPORTANT]
+> Konekti uses TC39 standard decorators (TypeScript 5.0+). Do not enable legacy decorator flags in your `tsconfig.json`:
+> - Avoid setting `"experimentalDecorators": true`.
+> - Avoid setting `"emitDecoratorMetadata": true`.
+>
+> Unlike NestJS, Konekti does not rely on legacy decorators or metadata emission. Standard TypeScript configuration is sufficient.
 
 ## canonical bootstrap path
+
+The recommended way to start a new project is via the Konekti CLI:
 
 ```sh
 pnpm add -g @konekti/cli
@@ -21,66 +22,62 @@ cd starter-app
 pnpm dev
 ```
 
-This is the supported public entrypoint today.
-
-For a one-off zero-install bootstrap, this alternative remains supported:
+Alternatively, you can use `dlx` for a one-time execution without a global installation:
 
 ```sh
 pnpm dlx @konekti/cli new starter-app
 ```
 
-The global-install `pnpm add -g @konekti/cli` + `konekti new ...` path is now the canonical public bootstrap flow.
-
-See also:
+### related documentation
 
 - `./bootstrap-paths.md`
 - `./generator-workflow.md`
 - `../reference/package-surface.md`
 
-## generated starter shape
+## generated starter structure
 
-A new app currently includes:
+A newly generated application includes:
 
-- `src/main.ts` with runtime-owned Node bootstrap
-- `src/app.ts` with starter module wiring
-- runtime-owned `/health` and `/ready`
-- a starter-owned `health/` module exposing `/health-info/`
-- a starter test proving the app boots and dispatches correctly
+- `src/main.ts`: Application entry point with Node bootstrap.
+- `src/app.ts`: Main module configuration.
+- Built-in `/health` and `/ready` endpoints.
+- A sample `health/` module at `/health-info/`.
+- A baseline test suite to verify application startup and dispatching.
 
-## generated project commands
+## project commands
 
-Run these from the generated project root:
+Run these commands from your project root:
 
 ```sh
-pnpm dev
-pnpm typecheck
-pnpm build
-pnpm test
+pnpm dev        # Start development server
+pnpm typecheck  # Run TypeScript type checks
+pnpm build      # Build for production
+pnpm test       # Run tests
 ```
 
-The scaffold emits the same single-project layout for `pnpm`, `npm`, and `yarn`, while keeping install and run commands package-manager aware.
+The scaffold generates a consistent layout compatible with `pnpm`, `npm`, and `yarn`.
 
-## first generator command
+## generating components
 
-Generate a repository from the project root:
+To generate a new repository:
 
 ```sh
 konekti g repo User
 ```
 
-The CLI writes files into `src/` by default on generated apps.
+The CLI writes generated files to the `src/` directory by default.
 
-## DTO rule to remember
+## dto validation
 
-DTO binding and DTO validation come from different packages:
+Note that DTO binding and validation are handled by separate packages:
 
 ```ts
 import { FromBody } from '@konekti/http';
 import { IsString, MinLength } from '@konekti/dto-validator';
 ```
 
-## upgrade expectations
+## upgrade policy
 
-- minor releases keep the documented starter command set and file shapes stable unless a doc explicitly marks a surface as internal-only
-- major releases may require codemods or manual edits when public contracts move
-- repo-local smoke commands are implementation support, not the public bootstrap contract
+- Minor releases maintain stable command sets and file structures.
+- Major releases may involve breaking changes to public contracts, potentially requiring manual updates or codemods.
+- In-repo utility commands are for internal development and are not part of the public API.

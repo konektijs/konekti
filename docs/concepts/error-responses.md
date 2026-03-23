@@ -2,18 +2,17 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./error-responses.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide outlines the standard error response format and exposure policies used in the Konekti HTTP runtime.
 
-This guide describes the canonical error envelope and exposure policy across the HTTP runtime.
-
-See also:
+### related documentation
 
 - `./http-runtime.md`
 - `./auth-and-jwt.md`
 - `../../packages/http/README.md`
 
-## canonical error envelope
+## standard error format
 
-Successful responses stay plain-object-first. Errors use the canonical envelope:
+Success responses return plain objects. Error responses follow a standard envelope:
 
 ```ts
 type ErrorResponse = {
@@ -35,36 +34,38 @@ type ErrorResponse = {
 
 ## default status mapping
 
-- binding and validation -> `400`
-- authentication -> `401`
-- authorization -> `403`
-- not found -> `404`
-- conflict -> `409`
-- uncaught internal -> `500`
+The framework uses several standard HTTP status codes for common error scenarios:
 
-## package boundary
+- **400 (Bad Request)**: Binding and validation failures.
+- **401 (Unauthorized)**: Authentication failures.
+- **403 (Forbidden)**: Authorization failures.
+- **404 (Not Found)**: Resource not found.
+- **409 (Conflict)**: Resource conflict.
+- **500 (Internal Server Error)**: Uncaught internal exceptions.
 
-- transport-agnostic error contracts belong with the core layer
-- HTTP status-aware exceptions belong with `@konekti/http`
-- guards, resolvers, and runtime seams translate package-local or transport-agnostic failures into the HTTP exception family
+## architectural split
+
+- **Core Layer**: Defines transport-agnostic error contracts.
+- **`@konekti/http`**: Provides HTTP-aware exception classes.
+- **Adapters**: Guards and resolvers translate internal failures into the HTTP exception model.
 
 ## exposure policy
 
-Safe by default:
+### safe to expose
 
-- validation field paths
-- client-safe validation messages
-- request ID
-- coarse auth failure category
+- Validation field paths.
+- Client-friendly validation messages.
+- Request IDs.
+- General authentication failure categories.
 
-Not safe by default:
+### sensitive (do not expose)
 
-- stack traces
-- internal cause chains
-- raw DB/ORM error payloads
-- JWT verification internals
-- secret/config values
+- Stack traces.
+- Internal cause chains.
+- Raw database or ORM error payloads.
+- JWT verification internal details.
+- Configuration or secret values.
 
 ## request correlation
 
-Canonical error responses surface `requestId` when the runtime context has one. That same ID should be the public correlation key across logs, traces, and metrics.
+The `requestId` is included in error responses when available. This ID serves as the primary correlation key across logs, traces, and metrics.

@@ -1,87 +1,82 @@
-# HTTP 런타임
+# http runtime
 
 <p><a href="./http-runtime.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
+이 가이드는 `@konekti/http`, `@konekti/runtime`, 인증 패키지, 그리고 생성된 스타터 애플리케이션에서 사용되는 HTTP 실행 모델을 설명합니다.
 
-이 가이드는 `@konekti/http`, `@konekti/runtime`, 인증 패키지 및 생성된 시작 애플리케이션 전반에 걸친 현재 HTTP 실행 모델을 설명합니다.
-
-함께 보기:
+### 관련 문서
 
 - `./architecture-overview.ko.md`
 - `./auth-and-jwt.ko.md`
-- `../../packages/http/README.ko.md`
+- `../../packages/http/README.md`
 
-## 요청 라이프사이클
+## 요청 생명주기 (request lifecycle)
 
-```text
-HTTP adapter
--> RequestContext 생성
--> app middleware
--> route match
--> module middleware
--> guard chain
--> interceptor chain
--> request DTO 바인딩
--> DTO 유효성 검사
--> controller 호출
--> 성공 상태(success status) 해소
--> response 쓰기
--> 필요한 경우 예외 매핑
-```
+요청 실행 경로는 다음 순서를 따릅니다:
 
-## 성공 상태 기본값
+1.  **HTTP 어댑터**가 요청을 수신합니다.
+2.  **RequestContext** 생성.
+3.  **애플리케이션 미들웨어** 실행.
+4.  **라우트 매칭**.
+5.  **모듈 미들웨어** 실행.
+6.  **가드 체인** 검증.
+7.  **인터셉터 체인** 실행.
+8.  **요청 DTO 바인딩**.
+9.  **DTO 검증**.
+10. **컨트롤러 호출**.
+11. **성공 상태 해결**.
+12. **응답 쓰기**.
+13. **예외 매핑** (에러 발생 시).
 
-명시적인 재정의가 없으면 dispatcher는 메서드 기반의 성공 상태 기본값을 사용합니다:
+## 성공 상태 기본값 (success status defaults)
 
-- `GET`, `PUT`, `PATCH`, `HEAD` -> `200`
-- `POST` -> `201`
-- `DELETE`, `OPTIONS` -> 최종 해소된 값이 `undefined`이면 `204`, 그렇지 않으면 `200`
+재정의되지 않는 한, 디스패처는 메서드 기반의 기본값을 사용합니다:
 
-`@SuccessStatus(code)`는 항상 이러한 기본값보다 우선합니다.
+- `GET`, `PUT`, `PATCH`, `HEAD`: `200`
+- `POST`: `201`
+- `DELETE`, `OPTIONS`: 결과가 `undefined`이면 `204`, 그렇지 않으면 `200`.
 
-이 결정은 interceptor 체인이 해소된 후에 발생하므로, interceptor의 결과 가공(shaping)은 여전히 최종 기본 상태에 영향을 미칩니다.
+이러한 기본값을 재정의하려면 `@SuccessStatus(code)`를 사용하세요. 상태 해결은 인터셉터 체인 이후에 발생하므로, 인터셉터는 여전히 최종 상태 코드에 영향을 줄 수 있습니다.
 
 ## DTO 경계
 
-- 요청 DTO 바인딩은 `@konekti/http`의 소관입니다.
-- `@FromBody()`, `@FromPath()`와 같은 필드 소스 데코레이터도 `@konekti/http`에 속합니다.
-- `@IsString()`, `@MinLength()`와 같은 유효성 검사 데코레이터는 `@konekti/dto-validator`에 속합니다.
+- **바인딩**: `@konekti/http`가 요청 DTO 바인딩을 처리합니다.
+- **소스 데코레이터**: `@FromBody()`와 `@FromPath()`는 `@konekti/http`에서 제공합니다.
+- **유효성 검사**: `@IsString()`과 `@MinLength()`는 `@konekti/dto-validator`에서 제공합니다.
 
-runtime은 요청 DTO를 단순한 편의성 복제 단계가 아닌 명확한 경계로 취급합니다.
+Konekti는 요청 DTO를 트랜스포트 계층과 애플리케이션 로직 사이의 명시적인 경계로 취급합니다.
 
-## 스타터 앱 HTTP 정책
+## 스타터 앱 정책
 
-생성된 시작 애플리케이션은 몇 가지 HTTP 기본값을 일관되게 유지합니다:
+생성된 스타터 애플리케이션은 다음과 같은 몇 가지 HTTP 기본값을 유지합니다:
 
-- runtime 소유의 `/health` 및 `/ready`
-- 생성된 `health/` 모듈이 소유하는 `/health-info/`
-- runtime 부트스트랩 설정에 따른 기본 CORS 정책
+- 내장된 `/health` 및 `/ready` 엔드포인트.
+- `health/` 모듈을 통한 예제 `/health-info/` 엔드포인트.
+- 런타임 부트스트랩 설정에 의해 관리되는 기본 CORS 정책.
 
-이러한 기본값들은 시작 애플리케이션에서 패키지들이 어떻게 구성되는지 설명하므로, 개별 패키지 README보다 상위 수준에서 다뤄집니다.
+## 개발 경계 (development boundaries)
 
-## 현재 공개 경계
+HTTP 및 런타임 규약은 안정성과 명확성을 보장하기 위해 의도적으로 좁게 유지됩니다.
 
-지금 ship된 HTTP/runtime 계약은 의도적으로 좁게 유지됩니다.
+### 현재 우선순위
 
-현재 public 방향:
+- 핸들러 시그니처를 `handler(input, ctx)`로 유지합니다.
+- 일반 반환 값과 `@SuccessStatus(...)`를 주요 응답 모델로 사용합니다.
+- 미들웨어를 애플리케이션 및 모듈 레벨로 제한합니다.
+- 현재의 불리언(허용/거부) 가드 모델을 유지합니다.
 
-- 핸들러 형태는 `handler(input, ctx)`로 유지
-- 성공 응답의 기본 모델은 plain return value + `@SuccessStatus(...)` 유지
-- middleware 노출은 app 수준과 module 수준까지만 유지
-- guard는 현재 allow/deny 모델을 유지하고, 더 풍부한 일반 HTTP deny-result 계약은 추가하지 않음
+### 유보된 기능 (deferred features)
 
-향후 트랙으로 명시적으로 defer하는 항목:
+아키텍처의 명확성을 유지하기 위해 다음 항목들은 향후 업데이트로 유보되었습니다:
 
-- 새로운 최상위 transport-neutral `handler(requestObject)` public API
-- 주요 성공 경로로서의 first-class response wrapper object
-- public contract로서의 route-level middleware
-- 현재 allow/deny 모델을 넘는 broader custom guard result shape
+- 트랜스포트 중립적인 `handler(requestObject)` API.
+- 성공 경로를 위한 퍼스트 클래스 응답 래퍼(wrapper) 객체.
+- 라우트 레벨 미들웨어 지원.
+- 불리언 허용/거부 이상의 복잡한 가드 결과.
 
-이 항목들은 dispatcher 명확성을 보호하고, transport 확장을 현재의 HTTP-first 모델 이후로 순서화하기 위해 defer합니다.
+## 추가 정보
 
-## 다음에 볼 문서
-
-- 패키지 API 상세 -> `../../packages/http/README.ko.md`
-- 런타임 부트스트랩 -> `../../packages/runtime/README.ko.md`
-- 인증 strategy 흐름 -> `./auth-and-jwt.ko.md`
-- 시작 애플리케이션 HTTP 기본값 -> `../getting-started/quick-start.ko.md`
+- **HTTP API 상세**: `../../packages/http/README.md`
+- **런타임 부트스트랩**: `../../packages/runtime/README.md`
+- **인증 흐름**: `./auth-and-jwt.md`
+- **스타터 기본값**: `../getting-started/quick-start.md`

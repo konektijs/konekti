@@ -2,8 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./package-surface.ko.md"><kbd>한국어</kbd></a></p>
 
-
-This file lists the current public package family at a glance.
+This page provides an overview of the current public package family within the Konekti ecosystem.
 
 ## public package family
 
@@ -31,34 +30,33 @@ This file lists the current public package family at a glance.
 - `@konekti/testing`
 - `@konekti/cli`
 
-## ownership hints
+## package responsibilities
 
-- `@konekti/core` -> shared contracts, decorators, metadata helpers
-- `@konekti/config` -> config loading and typed config access
-- `@konekti/di` -> provider resolution and scopes
-- `@konekti/http` -> HTTP execution, binding, exceptions, route metadata
-- `@konekti/runtime` -> app bootstrap and runtime orchestration
-- `@konekti/platform-fastify` -> Fastify-based HTTP adapter for runtime bootstrap/listen flow
-- `@konekti/microservices` -> transport abstraction, pattern decorators, and microservice runtime module
-- `@konekti/dto-validator` -> validation decorators and validation engine
-- `@konekti/jwt` -> token-core logic
-- `@konekti/passport` -> auth strategy registry and generic auth guard wiring
-- `@konekti/openapi` -> document generation and metadata-only OpenAPI decorators
-- `@konekti/graphql` -> GraphQL module wiring, schema exposure, and endpoint execution pipeline
-- `@konekti/serializer` -> class-based response serialization decorators and interceptor
-- `@konekti/metrics` -> Prometheus metrics exposure
-- `@konekti/cron` -> decorator-based task scheduling with lifecycle-managed startup/shutdown and optional distributed locks
-- `@konekti/event-bus` -> in-process event publishing with decorator-driven handler discovery
-- `@konekti/websocket` -> decorator-based WebSocket gateway discovery and Node upgrade wiring
-- `@konekti/queue` -> Redis-backed background jobs with decorator-driven worker discovery and dead-letter list fallback
-- `@konekti/redis` / `@konekti/prisma` / `@konekti/drizzle` -> data integration families
-- `@konekti/testing` -> testing module and helper surface
-- `@konekti/cli` -> app bootstrap and file generation commands
+- **`@konekti/core`**: Shared contracts, decorators, and metadata helpers.
+- **`@konekti/config`**: Configuration loading and typed access.
+- **`@konekti/di`**: Provider resolution and lifecycle scopes.
+- **`@konekti/http`**: HTTP execution, binding, exceptions, and route metadata.
+- **`@konekti/runtime`**: Application bootstrap and runtime orchestration.
+- **`@konekti/platform-fastify`**: Fastify-based HTTP adapter.
+- **`@konekti/microservices`**: Transport abstraction, pattern decorators, and microservice runtime.
+- **`@konekti/dto-validator`**: Validation decorators and validation engine.
+- **`@konekti/jwt`**: Core JWT logic.
+- **`@konekti/passport`**: Authentication strategy registry and generic guard wiring.
+- **`@konekti/openapi`**: Document generation and OpenAPI decorators.
+- **`@konekti/graphql`**: GraphQL module, schema exposure, and execution pipeline.
+- **`@konekti/serializer`**: Class-based response serialization and interceptors.
+- **`@konekti/metrics`**: Prometheus metrics exposure.
+- **`@konekti/cron`**: Decorator-based task scheduling with distributed lock support.
+- **`@konekti/event-bus`**: In-process event publishing and discovery.
+- **`@konekti/websocket`**: Decorator-based WebSocket gateway discovery and Node upgrade wiring.
+- **`@konekti/queue`**: Redis-backed background jobs with worker discovery and DLQ support.
+- **Data Integrations**: `@konekti/redis`, `@konekti/prisma`, `@konekti/drizzle`.
+- **`@konekti/testing`**: Testing module and helper utilities.
+- **`@konekti/cli`**: Application bootstrap and generation commands.
 
-## boundary note
+## boundary and documentation rules
 
-- this file owns the public package family only
-- this package list must stay identical to `../operations/release-governance.md`
-- toolchain and scaffold contract details live in `./toolchain-contract-matrix.md`
-- package-local APIs still belong in each package README
-- there is no public `create-konekti` package in the current workspace or documented bootstrap contract
+- This list includes only public packages.
+- Toolchain and scaffold details are located in `./toolchain-contract-matrix.md`.
+- Package-specific APIs are documented in their respective `README.md` files.
+- There is no public `create-konekti` package; use `@konekti/cli` for bootstrapping.

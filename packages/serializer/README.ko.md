@@ -3,14 +3,14 @@
 <p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
 
-Konekti용 응답 직렬화 데코레이터 및 인터셉터 패키지입니다.
+Konekti용 응답 직렬화(serialization) 데코레이터 및 인터셉터입니다.
 
-이 패키지는 NestJS 스타일의 클래스 기반 응답 직렬화를 제공합니다.
+이 패키지는 NestJS 클래스 직렬화와 유사한 클래스 기반 응답 셰이핑(shaping)을 제공합니다.
 
-- `@Exclude()` 직렬화 결과에서 필드를 제거합니다.
-- `@Expose()` 포함할 필드를 표시하며, 클래스 단위 `excludeExtraneous` 모드를 지원합니다.
-- `@Transform(fn)` 재귀 직렬화 전에 필드 값을 변환합니다.
-- `SerializerInterceptor`가 핸들러 응답에 `serialize()`를 자동 적용합니다.
+- `@Exclude()`는 직렬화된 출력에서 필드를 제거합니다.
+- `@Expose()`는 포함할 필드를 표시하며, 클래스 레벨의 `excludeExtraneous` 모드를 지원합니다.
+- `@Transform(fn)`은 재귀 직렬화 전에 필드 값을 변환합니다.
+- `SerializerInterceptor`는 핸들러 응답에 `serialize()`를 자동으로 적용합니다.
 
 ## 설치
 
@@ -50,7 +50,7 @@ class UsersController {
 
 ## 전역 등록
 
-부트스트랩 시 전역 인터셉터로 직렬화를 등록할 수 있습니다.
+부트스트랩 시 시리얼라이저를 전역으로 등록합니다.
 
 ```typescript
 import { bootstrapApplication } from '@konekti/runtime';
@@ -65,8 +65,14 @@ await bootstrapApplication({
 
 ## API
 
-- `Exclude(): FieldDecorator`
-- `Expose(options?: { excludeExtraneous?: boolean }): ClassDecorator | FieldDecorator`
-- `Transform(fn: (value: unknown) => unknown): FieldDecorator`
-- `serialize(value: unknown): unknown`
-- `class SerializerInterceptor implements Interceptor`
+- `Exclude(): FieldDecorator` — 직렬화된 출력에서 필드를 제거합니다.
+- `Expose(options?): ClassDecorator | FieldDecorator` — 포함할 필드를 표시하며 클래스 레벨의 `excludeExtraneous` 모드를 지원합니다.
+- `Transform(fn): FieldDecorator` — 재귀 직렬화 전에 필드 값을 변환합니다.
+- `serialize(value: unknown): unknown` — 수동 직렬화 헬퍼입니다.
+- `class SerializerInterceptor implements Interceptor` — 응답 자동 직렬화를 위한 인터셉터입니다.
+
+## 직렬화 규약 (Contract)
+
+- 출력 결과가 JSON 안전성을 유지하도록 순환 참조는 순환 경계에서 `undefined`로 절단됩니다.
+- 공유 참조는 보존됩니다. 이미 직렬화된 객체를 다시 방문하면 동일한 직렬화 노드를 반환합니다.
+- 일반 객체의 열거 가능한 심볼 키(symbol-keyed) 속성은 문자열 키와 함께 직렬화됩니다.

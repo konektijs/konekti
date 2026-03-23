@@ -12,14 +12,14 @@ The shared foundation layer of Konekti — base types, common error classes, and
 
 ## What this package does
 
-`@konekti/core` doesn't run any features itself. It defines the common language that all other packages speak:
+`@konekti/core` does not run any features itself. It defines the common language used by all other packages:
 
-- **Base types** — `Constructor`, `Token`, `MaybePromise`, and the metadata primitives
-- **Common errors** — `KonektiError`, `InvariantError` for framework-level contract violations
-- **Decorators** — `@Module()`, `@Global()`, `@Inject()`, `@Scope()`
-- **Metadata helpers** — typed write/read helpers backed by a WeakMap store
+- **Base types** — `Constructor`, `Token`, `MaybePromise`, and metadata primitives.
+- **Common errors** — `KonektiError` and `InvariantError` for framework-level contract violations.
+- **Decorators** — `@Module()`, `@Global()`, `@Inject()`, and `@Scope()`.
+- **Metadata helpers** — typed write/read helpers backed by a `WeakMap` store.
 
-If you're writing a package that participates in the Konekti module/DI/HTTP system, this is the only package you need to depend on for shared contracts.
+If you are writing a package that participates in the Konekti module, DI, or HTTP system, this is the only package you need as a dependency for shared contracts.
 
 ## Installation
 

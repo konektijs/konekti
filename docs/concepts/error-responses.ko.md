@@ -1,19 +1,18 @@
-# 에러 응답 (error responses)
+# error responses
 
 <p><a href="./error-responses.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
+이 가이드는 Konekti HTTP 런타임에서 사용되는 표준 에러 응답 형식과 노출 정책을 설명합니다.
 
-이 가이드는 HTTP 런타임 전반에 걸친 표준 에러 엔벨로프(envelope) 및 노출 정책을 설명합니다.
-
-함께 보기:
+### 관련 문서
 
 - `./http-runtime.ko.md`
 - `./auth-and-jwt.ko.md`
 - `../../packages/http/README.ko.md`
 
-## 표준 에러 엔벨로프
+## 표준 에러 형식
 
-성공적인 응답은 일반 객체 우선 방식을 유지합니다. 에러는 표준 엔벨로프를 사용합니다:
+성공 응답은 일반 객체를 반환합니다. 에러 응답은 표준 엔벨로프(envelope)를 따릅니다:
 
 ```ts
 type ErrorResponse = {
@@ -33,38 +32,40 @@ type ErrorResponse = {
 };
 ```
 
-## 기본 상태 코드 매핑 (default status mapping)
+## 기본 상태 매핑 (default status mapping)
 
-- 바인딩 및 검증 -> `400`
-- 인증 (Authentication) -> `401`
-- 인가 (Authorization) -> `403`
-- 찾을 수 없음 (Not Found) -> `404`
-- 충돌 (Conflict) -> `409`
-- 처리되지 않은 내부 에러 -> `500`
+프레임워크는 일반적인 에러 시나리오에 대해 다음과 같은 표준 HTTP 상태 코드를 사용합니다:
 
-## 패키지 경계
+- **400 (Bad Request)**: 바인딩 및 유효성 검사 실패.
+- **401 (Unauthorized)**: 인증 실패.
+- **403 (Forbidden)**: 인가 실패.
+- **404 (Not Found)**: 리소스를 찾을 수 없음.
+- **409 (Conflict)**: 리소스 충돌.
+- **500 (Internal Server Error)**: 처리되지 않은 내부 예외.
 
-- 트랜스포트 중립적인 에러 규약은 코어 레이어에 속합니다.
-- HTTP 상태 코드를 인식하는 예외는 `@konekti/http`에 속합니다.
-- 가드, 리졸버, 런타임 연결 지점들은 패키지 로컬 또는 트랜스포트 중립적인 실패를 HTTP 예외 제품군으로 변환합니다.
+## 아키텍처 구조
+
+- **코어 레이어 (Core Layer)**: 트랜스포트 중립적인 에러 규약을 정의합니다.
+- **`@konekti/http`**: HTTP를 인식하는 예외 클래스들을 제공합니다.
+- **어댑터 (Adapters)**: 가드 및 리졸버가 내부 실패를 HTTP 예외 모델로 변환합니다.
 
 ## 노출 정책
 
-기본적으로 안전하게 노출되는 항목:
+### 노출해도 안전한 항목
 
-- 검증 필드 경로
-- 클라이언트가 안전하게 볼 수 있는 검증 메시지
-- 요청 ID
-- 대략적인 인증 실패 카테고리
+- 유효성 검사 필드 경로.
+- 클라이언트 친화적인 유효성 검사 메시지.
+- 요청 ID.
+- 일반적인 인증 실패 카테고리.
 
-기본적으로 노출되지 않는 항목 (안전하지 않음):
+### 민감한 항목 (노출 금지)
 
-- 스택 트레이스 (stack traces)
-- 내부 원인 체인 (internal cause chains)
-- 가공되지 않은 DB/ORM 에러 페이로드
-- JWT 검증 내부 세부 정보
-- 시크릿/설정 값
+- 스택 트레이스 (Stack traces).
+- 내부 원인 체인 (Internal cause chains).
+- 가공되지 않은 데이터베이스 또는 ORM 에러 페이로드.
+- JWT 검증 내부 세부 정보.
+- 설정 또는 시크릿 값.
 
 ## 요청 상관관계 (request correlation)
 
-표준 에러 응답은 런타임 컨텍스트에 ID가 있는 경우 `requestId`를 표시합니다. 이 ID는 로그, 트레이스, 메트릭 전반에서 공용 상관관계 키로 사용되어야 합니다.
+가능한 경우 에러 응답에 `requestId`가 포함됩니다. 이 ID는 로그, 트레이스, 메트릭 전반에서 주요 상관관계 키 역할을 합니다.

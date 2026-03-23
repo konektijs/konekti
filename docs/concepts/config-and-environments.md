@@ -2,61 +2,58 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./config-and-environments.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide outlines the configuration management implemented across `@konekti/config`, the runtime bootstrap process, and package integrations.
 
-This guide describes the current configuration contract across `@konekti/config`, runtime bootstrap, and package integrations.
-
-See also:
+### related documentation
 
 - `../../packages/config/README.md`
 - `./lifecycle-and-shutdown.md`
 - `../getting-started/bootstrap-paths.md`
 
-## ownership
+## responsibilities
 
-- `@konekti/config` owns config loading, precedence, validation, and typed access
-- bootstrap consumes already-loaded config rather than reinterpreting env sources ad hoc
-- integrations should consume typed config, not read environment variables directly when avoidable
+- **`@konekti/config`**: Handles configuration loading, precedence, validation, and typed access.
+- **Bootstrap**: Consumes pre-loaded configurations instead of re-reading environment variables.
+- **Integrations**: Should use typed configuration providers rather than direct environment access.
 
-## current config shape
+## core configuration principles
 
-The public direction is:
+- **Explicit Mode Selection**: Choose between `dev`, `prod`, and `test`.
+- **Deterministic Precedence**: One clear order for configuration resolution.
+- **Early Validation**: Configuration is validated at application startup.
+- **Typed Access**: Configurations are accessed via `ConfigService`.
 
-- explicit mode selection (`dev`, `prod`, `test`)
-- one deterministic precedence order
-- validation at startup
-- typed access through `ConfigService`
+## environments and files
 
-## mode and env-file policy
+The following environments and corresponding file patterns are supported:
 
-- official modes: `dev`, `prod`, `test`
-- default env files:
+- **Official Modes**: `dev`, `prod`, `test`
+- **Default Files**:
   - `.env.dev`
   - `.env.prod`
   - `.env.test`
 
-## source precedence
+## precedence and merging
 
-Current precedence is total and deterministic:
+The configuration resolution order is deterministic:
 
-1. runtime overrides
-2. process environment
-3. mode-specific env file
-4. explicit defaults
+1.  **Runtime Overrides**: Passed directly during bootstrap.
+2.  **Process Environment**: Standard system environment variables.
+3.  **Mode-specific Files**: Based on the active application mode.
+4.  **Default Values**: Hardcoded fallback values.
 
-Application code reads the normalized merged result, not the winning source.
+### merge behavior
 
-Merge semantics are explicit:
+- **Objects**: Plain objects are deep-merged across all sources.
+- **Primitives and Arrays**: These follow the precedence order and replace existing values.
+- **Safety**: Nested overrides must not inadvertently remove neighboring keys.
 
-- plain object values are deep merged across sources
-- non-object values (including arrays) follow precedence and replace prior values
-- partial nested overrides must not silently drop sibling keys
+## validation and security
 
-## validation boundary
+- **Fail-fast**: Invalid configurations prevent the application from starting.
+- **Coercion**: Types are coerced once during the bootstrap phase.
+- **Secrets**: Follow the standard precedence model but are never included in logs or error messages.
 
-- invalid config fails startup before listen
-- validation and coercion happen once at bootstrap time
-- secrets follow the same precedence model but should not be echoed in logs or error details
+## usage recommendations
 
-## practical rule
-
-Use `ConfigService` for current application reads, and prefer typed integration-specific config providers where the package surface justifies them.
+Use `ConfigService` for general application configuration. For complex integrations, prefer the typed configuration providers provided by those specific packages.

@@ -2,33 +2,33 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./glossary-and-mental-model.ko.md"><kbd>한국어</kbd></a></p>
 
-This file keeps shared terminology short and stable.
+This glossary defines the core terminology and concepts used throughout the Konekti framework.
 
-## core mental model
+## core concepts
 
-- `Dispatcher` ~= Spring `DispatcherServlet`
-- `Middleware` ~= broad pre-handler filter layer
-- `Guard` = authorization gate
-- `Interceptor` = invocation wrapper
-- `RequestDto` = explicit route-level DTO binding contract
-- `ExceptionResolver` = the canonical exception-to-response shaping path
+- **Dispatcher**: The central component responsible for routing and request execution.
+- **Middleware**: A broad filter layer that executes before handlers.
+- **Guard**: An authorization gate that determines if a request can proceed.
+- **Interceptor**: A wrapper around handler invocation for cross-cutting concerns.
+- **Request DTO**: An explicit contract for route-level data binding and validation.
+- **Exception Resolver**: The standard mechanism for mapping exceptions to HTTP responses.
 
-## policy vocabulary
+## framework policy terms
 
-- `official` = supported and actively validated
-- `preview` = intentionally offered, but not held to full parity/coverage
-- `experimental` = available for exploration, not stable support
-- `recommended preset` = the single default path the docs/examples optimize for
-- `official matrix` = all officially supported combinations, which may be broader than the single recommended preset
+- **Official**: Fully supported and actively validated features.
+- **Preview**: Offered for use but not yet at full feature parity or documentation coverage.
+- **Experimental**: Available for early exploration; not yet stable or officially supported.
+- **Recommended Preset**: The primary path optimized for in documentation and examples.
+- **Official Matrix**: The complete set of supported configurations, which may be broader than the recommended preset.
 
-## generator vocabulary
+## generator terminology
 
-- `konekti new` = canonical public bootstrap entry
-- `konekti g ...` = individual artifact generation
-- `repo` = recommended default pattern, not mandatory architecture law
-- `request-dto` / `response-dto` = separate generator schematics by design
+- **`konekti new`**: The standard command for bootstrapping a new application.
+- **`konekti g ...`**: Commands for generating individual application artifacts.
+- **Repository (`repo`)**: A recommended architectural pattern for data access.
+- **Request/Response DTOs**: Purposely separated schematics for API contracts.
 
-## related docs
+## further reading
 
 - `../concepts/http-runtime.md`
 - `../concepts/decorators-and-metadata.md`

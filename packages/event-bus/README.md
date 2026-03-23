@@ -120,20 +120,20 @@ Two separate Redis clients are required because a client in subscribe mode canno
 
 ## Runtime behavior
 
-- Handler discovery runs during application bootstrap using `COMPILED_MODULES`
-- Handler instances are pre-resolved from `RUNTIME_CONTAINER` during bootstrap and reused on publish
-- Events are matched by class using `instanceof`, so base-class handlers receive derived events
-- Publishing dispatches to every matching local handler and, when a transport is configured, fans out to transport channels for all matched handler event types in parallel
-- When a transport is configured, the event bus subscribes to one channel per discovered event type on bootstrap; incoming messages are deserialized with `JSON.parse` and dispatched to matching local handlers
-- Incoming transport messages are dispatched only to handlers registered for that subscribed channel, keeping local/remote inheritance matching outcomes consistent
-- The channel name for a given event type uses `eventType.eventKey` when present, otherwise falls back to the class constructor name (e.g. `UserRegisteredEvent`)
-- Transport `close()` is called during `onApplicationShutdown`
-- Timeout bounds apply only when waiting mode is enabled (`waitForHandlers: true`); non-blocking mode (`false`) dispatches without waiting
-- Handler failures are isolated and logged through `ApplicationLogger`
-- Request/transient scoped classes with `@OnEvent()` are ignored with a warning
+- Handler discovery runs during application bootstrap via `COMPILED_MODULES`.
+- Handler instances are pre-resolved from `RUNTIME_CONTAINER` during bootstrap and reused on publish.
+- Events are matched by class using `instanceof`, so base-class handlers receive derived events.
+- Publishing dispatches to every matching local handler. When a transport is configured, it fans out to transport channels for all matched handler event types in parallel.
+- When a transport is configured, the event bus subscribes to one channel per discovered event type on bootstrap. Incoming messages are deserialized with `JSON.parse` and dispatched to matching local handlers.
+- Incoming transport messages are dispatched only to handlers registered for that subscribed channel, keeping local/remote inheritance matching outcomes consistent.
+- The channel name for a given event type uses `eventType.eventKey` when present, otherwise falls back to the class constructor name.
+- Transport `close()` is called during `onApplicationShutdown`.
+- Timeout bounds apply only when waiting mode is enabled (`waitForHandlers: true`). Non-blocking mode (`false`) dispatches without waiting.
+- Handler failures are isolated and logged through `ApplicationLogger`.
+- Request/transient scoped classes with `@OnEvent()` are ignored with a warning.
 
 ## Non-goals
 
-- no queueing, replay, wildcards, or ordering guarantees
-- no imperative `subscribe()` or `unsubscribe()` API
-- no durability or persistence (events lost on crash)
+- No queueing, replay, wildcards, or ordering guarantees.
+- No imperative `subscribe()` or `unsubscribe()` API.
+- No durability or persistence (events are lost on crash).

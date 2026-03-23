@@ -1,11 +1,10 @@
-# 패키지 외형(Surface)
+# package surface
 
-<p><a href="./package-surface.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
+<p><strong><kbd>한국어</kbd></strong> <a href="./package-surface.md"><kbd>English</kbd></a></p>
 
+이 페이지는 Konekti 에코시스템 내의 현재 공개 패키지 제품군에 대한 개요를 제공합니다.
 
-이 문서는 현재 공개 패키지 제품군을 한눈에 보여줍니다.
-
-## 공개 패키지 제품군
+## public package family
 
 - `@konekti/core`
 - `@konekti/config`
@@ -31,34 +30,33 @@
 - `@konekti/testing`
 - `@konekti/cli`
 
-## 역할 힌트
+## package responsibilities
 
-- `@konekti/core` -> 공유 계약, 데코레이터, 메타데이터 헬퍼
-- `@konekti/config` -> 설정 로딩 및 타입 안정성이 보장된 설정 접근
-- `@konekti/di` -> 프로바이더 해결(resolution) 및 스코프
-- `@konekti/http` -> HTTP 실행, 바인딩, 예외, 라우트 메타데이터
-- `@konekti/runtime` -> 앱 부트스트랩 및 런타임 오케스트레이션
-- `@konekti/platform-fastify` -> Fastify 기반 HTTP adapter와 runtime bootstrap/listen 흐름 연동
-- `@konekti/microservices` -> transport 추상화, 패턴 데코레이터, microservice runtime 모듈
-- `@konekti/dto-validator` -> 유효성 검사 데코레이터 및 검사 엔진
-- `@konekti/jwt` -> 토큰 핵심 로직
-- `@konekti/passport` -> 인증 전략 레지스트리 및 범용 인증 가드 연결
-- `@konekti/openapi` -> 문서 생성 및 메타데이터 전용 OpenAPI 데코레이터
-- `@konekti/graphql` -> GraphQL 모듈 연결, 스키마 노출, 엔드포인트 실행 파이프라인
-- `@konekti/serializer` -> 클래스 기반 응답 직렬화 데코레이터 및 인터셉터
-- `@konekti/metrics` -> Prometheus 메트릭 노출
-- `@konekti/cron` -> 데코레이터 기반 작업 스케줄링, 라이프사이클 시작/종료, 선택적 분산 락
-- `@konekti/event-bus` -> 데코레이터 기반 핸들러 탐색을 사용하는 인프로세스 이벤트 발행
-- `@konekti/websocket` -> 데코레이터 기반 WebSocket 게이트웨이 탐색 및 Node 업그레이드 연결
-- `@konekti/queue` -> 데코레이터 기반 워커 탐색과 dead-letter 리스트 폴백을 제공하는 Redis 백그라운드 작업 처리
-- `@konekti/redis` / `@konekti/prisma` / `@konekti/drizzle` -> 데이터 연동 제품군
-- `@konekti/testing` -> 테스트 모듈 및 헬퍼 인터페이스
-- `@konekti/cli` -> 앱 부트스트랩 및 파일 생성 명령
+- **`@konekti/core`**: 공유 계약, 데코레이터, 메타데이터 헬퍼.
+- **`@konekti/config`**: 설정 로딩 및 타입 안전성이 보장된 설정 접근.
+- **`@konekti/di`**: 프로바이더 해결(resolution) 및 라이프사이클 스코프.
+- **`@konekti/http`**: HTTP 실행, 바인딩, 예외, 라우트 메타데이터.
+- **`@konekti/runtime`**: 애플리케이션 부트스트랩 및 런타임 오케스트레이션.
+- **`@konekti/platform-fastify`**: Fastify 기반 HTTP 어댑터.
+- **`@konekti/microservices`**: 트랜스포트 추상화, 패턴 데코레이터, 마이크로서비스 런타임.
+- **`@konekti/dto-validator`**: 유효성 검사 데코레이터 및 검증 엔진.
+- **`@konekti/jwt`**: 핵심 JWT 로직.
+- **`@konekti/passport`**: 인증 전략 레지스트리 및 범용 가드 연결.
+- **`@konekti/openapi`**: 문서 생성 및 OpenAPI 데코레이터.
+- **`@konekti/graphql`**: GraphQL 모듈, 스키마 노출, 실행 파이프라인.
+- **`@konekti/serializer`**: 클래스 기반 응답 직렬화 및 인터셉터.
+- **`@konekti/metrics`**: Prometheus 메트릭 노출.
+- **`@konekti/cron`**: 분산 락을 지원하는 데코레이터 기반 작업 스케줄링.
+- **`@konekti/event-bus`**: 프로세스 내 이벤트 발행 및 탐색.
+- **`@konekti/websocket`**: 데코레이터 기반 WebSocket 게이트웨이 탐색 및 Node 업그레이드 연결.
+- **`@konekti/queue`**: 워커 탐색과 DLQ(Dead Letter Queue)를 지원하는 Redis 기반 백그라운드 작업.
+- **데이터 통합**: `@konekti/redis`, `@konekti/prisma`, `@konekti/drizzle`.
+- **`@konekti/testing`**: 테스트 모듈 및 헬퍼 유틸리티.
+- **`@konekti/cli`**: 애플리케이션 부트스트랩 및 생성 명령어.
 
-## 경계 주의 사항
+## boundary and documentation rules
 
-- 이 파일은 오직 공개 패키지 제품군만을 관리함
-- 이 패키지 목록은 `../operations/release-governance.md`와 항상 동일해야 함
-- 툴체인 및 스캐폴드 계약 세부 사항은 `./toolchain-contract-matrix.ko.md`에서 확인 가능함
-- 패키지 내부 API는 각 패키지의 README를 참조해야 함
-- 현재 워크스페이스나 문서화된 bootstrap 계약에는 공개 `create-konekti` 패키지가 존재하지 않음
+- 이 목록에는 공개 패키지만 포함됩니다.
+- 툴체인 및 스캐폴드 세부 사항은 `./toolchain-contract-matrix.ko.md`에 위치합니다.
+- 패키지별 API는 각각의 `README.md` 파일에 문서화되어 있습니다.
+- 공개된 `create-konekti` 패키지는 없으며, 부트스트랩에는 `@konekti/cli`를 사용하세요.

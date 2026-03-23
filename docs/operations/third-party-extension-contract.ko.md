@@ -1,23 +1,23 @@
-# 제3자 확장 계약 (Third-Party Extension Contract)
+# Third-Party Extension Contract
 
 <p><strong><kbd>한국어</kbd></strong> <a href="./third-party-extension-contract.md"><kbd>English</kbd></a></p>
 
 이 문서는 Konekti 프레임워크를 위한 제3자 확장 기능, 플랫폼 어댑터, 커뮤니티 통합 패키지를 작성할 때 지켜야 할 계약과 관습을 정의합니다.
 
-## 메타데이터 카테고리 확장
+## Metadata Category Extension
 
 Konekti는 TC39 표준 데코레이터와 `Symbol` 기반 메타데이터 시스템을 사용합니다. 프레임워크가 소유한 카테고리와 충돌하지 않으면서 커스텀 메타데이터 카테고리를 정의하려면 `Symbol.for()` 명명 규칙을 따르세요.
 
-### 토큰 명명 규칙
+### Token Naming Convention
 
-커스텀 메타데이터 키는 네임스페이스가 포함된 `Symbol.for()` 패턴을 사용해야 합니다.
+커스텀 메타데이터 키는 네임스페이스가 포함된 `Symbol.for()` 패턴을 사용해야 합니다:
 
-- 형식: `Symbol.for('konekti.extension.[package-name].[category]')`
-- 예시: `Symbol.for('konekti.extension.my-audit.log-policy')`
+- **Format**: `Symbol.for('konekti.extension.[package-name].[category]')`
+- **Example**: `Symbol.for('konekti.extension.my-audit.log-policy')`
 
-### 커스텀 데코레이터 작성
+### Authoring Custom Decorators
 
-메타데이터를 저장하려면 데코레이터 컨텍스트의 `metadata` 속성을 사용하세요. 이 속성은 `Symbol.metadata` 프리미티브를 통해 접근할 수 있습니다. (`@konekti/core`가 환경에 이 프리미티브가 없는 경우 폴리필을 제공합니다.)
+메타데이터를 저장하려면 데코레이터 컨텍스트의 `metadata` 속성을 사용하세요. `@konekti/core` 호환성 경계(`ensureMetadataSymbol()` / `metadataSymbol`)를 통해 이 속성에 접근할 수 있습니다.
 
 ```typescript
 import { metadataSymbol } from '@konekti/core';
@@ -34,13 +34,13 @@ export function AuditLog(policy: string) {
 
 이 방식을 사용하면 데코레이터 평가 단계에서 메타데이터가 클래스에 연결되어, 나중에 확장 기능의 런타임 로직에서 이를 조회할 수 있습니다.
 
-## 플랫폼 어댑터 작성
+## Platform Adapter Authoring
 
 플랫폼 어댑터는 Konekti HTTP 런타임을 특정 전송 계층이나 서버 구현(예: Node.js `http`, Fastify, 서버리스 런타임 등)에 연결하는 역할을 합니다.
 
-### HttpApplicationAdapter 인터페이스
+### HttpApplicationAdapter Interface
 
-어댑터는 `@konekti/http`의 `HttpApplicationAdapter` 인터페이스를 구현해야 합니다.
+어댑터는 `@konekti/http`의 `HttpApplicationAdapter` 인터페이스를 구현해야 합니다:
 
 ```typescript
 export interface HttpApplicationAdapter {
@@ -54,20 +54,20 @@ export interface HttpApplicationAdapter {
 - **`listen(dispatcher)`**: 서버를 시작하고 들어오는 요청을 `Dispatcher`에 전달하기 시작합니다. 어댑터는 네이티브 요청/응답 객체를 `FrameworkRequest`와 `FrameworkResponse` 형태로 변환할 책임이 있습니다.
 - **`close(signal)`**: 서버를 정상적으로 종료합니다.
 
-### 요청/응답 브릿징
+### Request/Response Bridging
 
-어댑터는 네이티브 객체를 다음 계약에 맞게 매핑해야 합니다.
+어댑터는 네이티브 객체를 다음 계약에 맞게 매핑해야 합니다:
 
 - **`FrameworkRequest`**: method, path, url, headers, query, cookies, params, body, rawBody를 포함해야 합니다.
 - **`FrameworkResponse`**: `setStatus`, `setHeader`, `redirect`, `send` 메서드를 제공해야 합니다. 또한 중복 쓰기를 방지하기 위해 `committed` 상태를 추적해야 합니다.
 
-## DI 토큰 명명 규칙
+## DI Token Naming Conventions
 
 제3자 패키지 간의 충돌을 방지하기 위해, 모든 내보내기용 주입 토큰은 일관된 명명 규칙을 따라야 합니다.
 
-- **형식**: `ALL_CAPS_SNAKE_CASE`
-- **네임스페이싱**: 패키지 이름을 접두사로 사용합니다.
-- **예시**: `MY_PACKAGE_CACHE_CLIENT`, `STRIPE_INTEGRATION_OPTIONS`.
+- **Format**: `ALL_CAPS_SNAKE_CASE`
+- **Namespacing**: 패키지 이름을 접두사로 사용합니다.
+- **Example**: `MY_PACKAGE_CACHE_CLIENT`, `STRIPE_INTEGRATION_OPTIONS`.
 
 ```typescript
 // @my-org/konekti-cache
@@ -76,11 +76,11 @@ export const MY_CACHE_CLIENT = Symbol.for('MY_CACHE_CLIENT');
 
 `CLIENT`나 `CONFIG`와 같이 너무 짧거나 일반적인 이름은 피하세요.
 
-## 모듈 작성 관습
+## Module Authoring Conventions
 
 Konekti 통합 패키지는 모듈 생성을 위해 팩토리 패턴을 따라야 합니다. 이를 통해 사용자가 옵션을 전달하면서도 표준 `@Module()` 구조를 유지할 수 있습니다.
 
-### 팩토리 패턴
+### Factory Pattern
 
 데코레이터가 적용된 클래스를 반환하는 함수를 작성하세요. `@konekti/redis`나 `@konekti/prisma`의 패턴을 기본 모델로 삼으세요.
 
@@ -102,17 +102,17 @@ export function createMyExtensionModule(options: MyExtensionOptions) {
 }
 ```
 
-## 안정성 보장
+## Stability Guarantees
 
-확장 기능 작성자는 프레임워크의 마이너 업데이트 시에도 호환성을 유지할 수 있도록 안정적인(Stable) API에만 의존해야 합니다. 전체 등급 목록은 `release-governance.md`를 참조하세요.
+확장 기능 작성자는 프레임워크의 마이너 업데이트 시에도 호환성을 유지할 수 있도록 안정적인(Stable) API에만 의존해야 합니다. 전체 등급 목록은 `release-governance.ko.md`를 참조하세요.
 
-| 카테고리 | 안정성 | 비고 |
+| Category | Stability | Note |
 |---|---|---|
-| `@konekti/core` 타입 | Stable | `Constructor`, `Token`, `MaybePromise` 등 기본 프리미티브. |
-| `@konekti/core` 데코레이터 | Stable | `@Module`, `@Inject`, `@Scope`, `@Global`. |
+| `@konekti/core` types | Stable | `Constructor`, `Token`, `MaybePromise` 등 기본 프리미티브. |
+| `@konekti/core` decorators | Stable | `@Module`, `@Inject`, `@Scope`, `@Global`. |
 | `HttpApplicationAdapter` | Stable | 서버 어댑터를 위한 핵심 계약. |
 | `FrameworkRequest` / `FrameworkResponse` | Stable | 내부 요청/응답 추상화 계층. |
-| 메타데이터 WeakMaps | Internal | 프레임워크 내부 WeakMap을 직접 읽지 마세요. 제공된 `get*Metadata` 헬퍼를 사용하세요. |
-| `@konekti/runtime` 내부 구조 | At-Risk | 컴파일러 및 모듈 그래프 조립 로직은 변경될 수 있습니다. |
+| Metadata WeakMaps | Internal | 프레임워크 내부 WeakMap을 직접 읽지 마세요. 제공된 `get*Metadata` 헬퍼를 사용하세요. |
+| `@konekti/runtime` Internals | At-Risk | 컴파일러 및 모듈 그래프 조립 로직은 변경될 수 있습니다. |
 
 안정적인 API의 변경은 `1.0` 정식 버전 이후 메이저 버전 업데이트를 통해서만 이루어집니다. `0.x` 단계에서는 마이너 릴리스마다 제공되는 마이그레이션 노트를 확인하세요.

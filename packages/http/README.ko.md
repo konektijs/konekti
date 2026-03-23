@@ -3,7 +3,7 @@
 <p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
 
-route metadata를 request 처리 체인으로 바꾸는 HTTP 실행 레이어.
+라우트 메타데이터를 요청 처리 체인으로 변환하는 HTTP 실행 레이어입니다.
 
 ## 관련 문서
 
@@ -13,15 +13,15 @@ route metadata를 request 처리 체인으로 바꾸는 HTTP 실행 레이어.
 
 ## 이 패키지가 하는 일
 
-`@konekti/http`는 단순 라우터가 아니라 전체 request 실행 런타임이다. 다음을 소유한다:
+`@konekti/http`는 단순한 라우터가 아니라 전체 요청 실행 런타임입니다. 다음을 관리합니다.
 
-- `FrameworkRequest` / `FrameworkResponse` / `RequestContext` — adapter, middleware, guard, interceptor, controller 사이의 공통 언어
-- Route와 DTO 데코레이터 (`@Controller`, `@Get`, `@Post`, `@Version`, `@FromBody`, `@FromPath` 등)
-- Mapped DTO helper (`PickType`, `OmitType`, `IntersectionType`, `PartialType`)
-- Routing table 구성 (`createHandlerMapping`)
-- Request DTO binding과 validation
-- middleware → guard → interceptor → bind → validate → handler 호출을 순서대로 실행하는 dispatcher
-- HTTP exception 클래스와 canonical error envelope
+- `FrameworkRequest` / `FrameworkResponse` / `RequestContext` — 어댑터, 미들웨어, 가드, 인터셉터, 컨트롤러 간의 공통 언어
+- 라우트 및 DTO 데코레이터 (`@Controller`, `@Get`, `@Post`, `@Version`, `@FromBody`, `@FromPath` 등)
+- 매핑된 DTO 헬퍼 (`PickType`, `OmitType`, `IntersectionType`, `PartialType`)
+- 라우팅 테이블 구성 (`createHandlerMapping`)
+- 요청 DTO 바인딩 및 검증
+- 미들웨어 → 가드 → 인터셉터 → 바인드 → 검증 → 핸들러 호출을 순서대로 실행하는 디스패처
+- HTTP 예외 클래스 및 표준 오류 엔벨로프(envelope)
 
 ## 설치
 
@@ -31,7 +31,7 @@ npm install @konekti/http
 
 ## 빠른 시작
 
-### Controller 정의
+### 컨트롤러 정의
 
 ```typescript
 import { Controller, Get, Post, Version, FromBody, FromPath, RequestDto } from '@konekti/http';
@@ -68,7 +68,7 @@ export class UserController {
 }
 ```
 
-### HTTP exception 던지기
+### HTTP 예외 던지기
 
 ```typescript
 import { NotFoundException, BadRequestException } from '@konekti/http';
@@ -77,7 +77,7 @@ throw new NotFoundException('User not found');
 throw new BadRequestException('Invalid input', { field: 'email', message: 'must be valid' });
 ```
 
-### Dispatcher 생성 (`@konekti/runtime`이 bootstrap 시 처리)
+### 디스패처 생성 (부트스트랩 중 `@konekti/runtime`에 의해 수행됨)
 
 ```typescript
 import { createHandlerMapping, createDispatcher } from '@konekti/http';
@@ -86,32 +86,32 @@ const handlerMapping = createHandlerMapping([{ controllerToken: UserController }
 const dispatcher = createDispatcher({ handlerMapping, rootContainer: container, appMiddleware: middleware });
 ```
 
-## 핵심 API
+## 주요 API
 
 ### 타입
 
-| Export | 위치 | 설명 |
+| 익스포트(Export) | 위치 | 설명 |
 |---|---|---|
-| `FrameworkRequest` | `src/types.ts` | Adapter에 독립적인 request shape |
-| `FrameworkResponse` | `src/types.ts` | Adapter에 독립적인 response shape |
-| `RequestContext` | `src/request-context.ts` | 런타임 context: request, response, principal, requestId, container |
+| `FrameworkRequest` | `src/types.ts` | 어댑터에 독립적인 요청 형태 |
+| `FrameworkResponse` | `src/types.ts` | 어댑터에 독립적인 응답 형태 |
+| `RequestContext` | `src/request-context.ts` | 런타임 컨텍스트: 요청, 응답, 주체(principal), requestId, 컨테이너 |
 
-### Route 데코레이터
+### 라우트 데코레이터
 
 | 데코레이터 | 설명 |
 |---|---|
-| `@Controller(path)` | 클래스를 base path를 가진 controller로 지정 |
-| `@Get(path)` / `@Post(path)` / `@Put(path)` / `@Patch(path)` / `@Delete(path)` | HTTP method route |
-| `@Version(value)` | `/v1/...` 같은 URI 버저닝을 적용; handler 레벨 버전이 controller 레벨 버전을 override |
+| `@Controller(path)` | 클래스를 기본 경로를 가진 컨트롤러로 표시 |
+| `@Get(path)` / `@Post(path)` / `@Put(path)` / `@Patch(path)` / `@Delete(path)` | HTTP 메서드 라우트 |
+| `@Version(value)` | `/v1/...`과 같은 URI 버전 관리를 적용; 핸들러 레벨 버전은 컨트롤러 레벨 버전을 오버라이드함 |
 
-### URI 버저닝
+### 버전 관리 전략
 
-현재 Konekti는 URI 버저닝만 지원합니다.
+컨트롤러와 핸들러에서의 `@Version()` 사용법은 동일합니다. 활성 전략은 `@konekti/runtime` 부트스트랩 옵션에 의해 선택됩니다.
 
 ```typescript
 @Version('1')
 @Controller('/users')
-class UsersV1Controller {
+class UsersController {
   @Get('/')
   listUsers() {
     return [];
@@ -125,13 +125,16 @@ class UsersV1Controller {
 }
 ```
 
-- controller 레벨 `@Version('1')`은 `/v1/users` 같은 경로를 만듭니다
-- handler 레벨 `@Version('2')`는 해당 route에 한해 controller 버전을 override합니다
-- 버전을 지정하지 않은 controller는 기존 경로를 그대로 유지합니다
+- `VersioningType.URI` (기본값): `/v1/users`
+- `VersioningType.HEADER`: `X-API-Version: 1`과 같이 구성된 요청 헤더에서 버전을 읽음
+- `VersioningType.MEDIA_TYPE`: `Accept: application/json;v=1`과 같이 `v=`와 같은 키를 사용하여 `Accept`에서 버전을 추출함
+- `VersioningType.CUSTOM`: 사용자 정의 추출 함수 사용
 
-### Mapped DTO helper
+런타임 `versioning` 옵션이 제공되지 않으면 URI 방식이 기본값으로 유지됩니다.
 
-Konekti는 일반적인 request shape 파생을 위해 metadata-preserving mapped DTO helper를 지원합니다.
+### 매핑된 DTO 헬퍼
+
+Konekti는 일반적인 요청 형태 파생을 위해 메타데이터를 보존하는 매핑된 DTO 헬퍼를 지원합니다.
 
 ```typescript
 import { IntersectionType, OmitType, PartialType, PickType } from '@konekti/http';
@@ -155,42 +158,44 @@ const CreateUserWithAddressRequest = IntersectionType(CreateUserRequest, Address
 const UpdateUserRequest = PartialType(CreateUserRequest);
 ```
 
-- `PickType()`은 선택한 DTO field와 해당 metadata만 유지합니다
-- `OmitType()`은 선택한 DTO field를 제거하고 나머지 metadata를 유지합니다
-- `IntersectionType()`은 여러 DTO base의 metadata를 하나의 파생 DTO로 합성합니다
-- `PartialType()`은 DTO shape를 유지하면서 상속된 field를 request binding, validation, 그리고 path가 아닌 OpenAPI required semantics 기준으로 optional하게 만듭니다
-- 파생 DTO는 `RequestDto(...)`, runtime binding, validation, OpenAPI generation과 계속 함께 동작합니다
+- `PickType()`은 선택된 DTO 필드와 그 메타데이터만 유지합니다.
+- `OmitType()`은 선택된 DTO 필드를 제거하고 나머지 메타데이터를 유지합니다.
+- `IntersectionType()`은 여러 DTO 베이스의 메타데이터를 하나의 파생 DTO로 합성합니다.
+- `PartialType()`은 DTO 형태를 유지하면서 상속된 필드들을 요청 바인딩, 검증 및 경로가 아닌 OpenAPI 필수 시맨틱 기준으로 선택 사항(optional)으로 만듭니다.
+- 파생된 DTO는 `RequestDto(...)`, 런타임 바인딩, 검증 및 OpenAPI 생성과 계속 호환됩니다.
 
-`PartialType()`은 단순 metadata composition이 아니라 field optionality semantics를 바꾸기 때문에 다른 mapped helper와 별도의 의미를 가집니다. Path parameter는 OpenAPI 스펙상 required여야 하므로 생성된 OpenAPI parameter에서는 계속 required로 남습니다.
+`PartialType()`은 단순히 메타데이터를 합성하는 것이 아니라 필드의 선택 가능성 시맨틱을 변경하기 때문에 다른 매핑 헬퍼와는 의도적으로 분리되어 있습니다. 경로 파라미터는 스펙상 필수여야 하므로 생성된 OpenAPI 파라미터에서는 필수 상태로 남습니다.
 
-### DTO binding 데코레이터
+### DTO 바인딩 데코레이터
 
 | 데코레이터 | 설명 |
 |---|---|
-| `@FromBody()` | request body에서 필드 바인딩 (strict allowlist, 알 수 없는 필드 차단) |
-| `@FromPath()` | URL path parameter에서 필드 바인딩 |
-| `@FromQuery()` | query string에서 필드 바인딩 |
-| `@FromHeader()` | request header에서 필드 바인딩 |
-| `@FromCookie()` | cookie에서 필드 바인딩 |
-| `@Optional()` | binding을 optional로 표시 (binder 레벨) |
+| `@FromBody()` | 요청 바디에서 필드 바인딩 (엄격한 허용 목록 적용, 알 수 없는 필드 차단) |
+| `@FromPath()` | URL 경로 파라미터에서 필드 바인딩 |
+| `@FromQuery()` | 쿼리 스트링에서 필드 바인딩 |
+| `@FromHeader()` | 요청 헤더에서 필드 바인딩 |
+| `@FromCookie()` | 쿠키에서 필드 바인딩 |
+| `@Optional()` | 바인딩을 선택 사항으로 표시 (바인더 레벨) |
 
-> Validation 데코레이터 (`@IsString`, `@IsEmail` 등)는 이 패키지가 아니라 `@konekti/dto-validator`에서 가져온다.
+> 검증 데코레이터 (`@IsString`, `@IsEmail` 등)는 이 패키지가 아닌 `@konekti/dto-validator`에서 제공됩니다.
 
-### 런타임 helper
+바인딩은 소스 값의 형태를 명시적으로 유지합니다. 예를 들어, 반복되는 쿼리/헤더 값은 이를 정규화하는 명시적인 변환기를 제공하지 않는 한 배열(단일 요소 배열 포함)로 유지됩니다.
 
-| Export | 위치 | 설명 |
+### 런타임 헬퍼
+
+| 익스포트(Export) | 위치 | 설명 |
 |---|---|---|
-| `createHandlerMapping(sources)` | `src/mapping.ts` | `{ controllerToken }` 같은 handler source에서 normalized routing table 생성 |
-| `createDispatcher(options)` | `src/dispatcher.ts` | request dispatch 함수 생성 |
-| `SseResponse` | `src/sse.ts` | `RequestContext`에서 Server-Sent Events 스트림 생성 helper |
-| `createCorsMiddleware(options)` | `src/cors.ts` | CORS middleware 함수 반환 |
-| `createRequestContext()` | `src/request-context.ts` | ALS 기반 context factory |
+| `createHandlerMapping(sources)` | `src/mapping.ts` | `{ controllerToken }`과 같은 핸들러 소스로부터 정규화된 라우팅 테이블 빌드 |
+| `createDispatcher(options)` | `src/dispatcher.ts` | 요청 디스패치 함수 생성 |
+| `SseResponse` | `src/sse.ts` | `RequestContext`에서 서버 전송 이벤트(SSE) 스트리밍을 위한 헬퍼 |
+| `createCorsMiddleware(options)` | `src/cors.ts` | CORS 미들웨어 함수 반환 |
+| `createRequestContext()` | `src/request-context.ts` | ALS 기반 컨텍스트 팩토리 |
 
-추가 public export로는 `Options`, `Head`, `IntersectionType`, `OmitType`, `PartialType`, `PickType`, `RequestDto`, `SuccessStatus`, `UseGuard`, `UseInterceptor`, `Version`, `createCorrelationMiddleware`, `createRateLimitMiddleware`, `createSecurityHeadersMiddleware`, `encodeSseComment`, `encodeSseMessage`, `forRoutes`, `runWithRequestContext`, `getCurrentRequestContext`, `assertRequestContext`, `HttpApplicationAdapter`, `createNoopHttpApplicationAdapter`, `PayloadTooLargeException` 등이 있습니다.
+추가적인 공개 익스포트에는 `Options`, `Head`, `IntersectionType`, `OmitType`, `PartialType`, `PickType`, `RequestDto`, `SuccessStatus`, `UseGuard`, `UseInterceptor`, `Version`, `createCorrelationMiddleware`, `createRateLimitMiddleware`, `createSecurityHeadersMiddleware`, `encodeSseComment`, `encodeSseMessage`, `forRoutes`, `runWithRequestContext`, `getCurrentRequestContext`, `assertRequestContext`, `HttpApplicationAdapter`, `createNoopHttpApplicationAdapter`, `PayloadTooLargeException` 등이 포함됩니다.
 
-### Server-Sent Events (SSE)
+### 서버 전송 이벤트 (SSE)
 
-핸들러가 HTTP 연결을 유지하면서 시간이 지나도 계속 프레임을 써야 할 때 `SseResponse`를 사용합니다.
+핸들러가 HTTP 연결을 열어두고 시간이 지남에 따라 프레임을 스트리밍해야 할 때 `SseResponse`를 사용합니다.
 
 ```typescript
 import { Controller, Get, SseResponse, type RequestContext } from '@konekti/http';
@@ -209,94 +214,108 @@ class EventsController {
 }
 ```
 
-- `new SseResponse(ctx)`는 SSE 헤더를 즉시 commit합니다
-- `send(data, { event, id, retry })`는 canonical SSE message frame을 작성합니다
-- `comment(text)`는 comment frame을 작성합니다
-- `close()`는 idempotent하며 `ctx.request.signal`이 abort될 때도 자동으로 실행됩니다
-- `encodeSseMessage()`와 `encodeSseComment()`는 테스트나 custom framing에 사용할 수 있도록 export됩니다
-- 현재 SSE는 Node adapter 또는 `write()`, `end()`, `writableEnded`, optional `flushHeaders()`를 제공하는 custom `FrameworkResponse.raw` 객체가 필요합니다
-- request observer는 SSE 소켓이 닫힐 때까지 유지되지 않고, 핸들러가 반환되는 시점에 완료됩니다
+- `new SseResponse(ctx)`는 SSE 헤더를 즉시 커밋합니다.
+- `send(data, { event, id, retry })`는 표준 SSE 메시지 프레임을 작성합니다.
+- `comment(text)`는 주석 프레임을 작성합니다.
+- `close()`는 멱등(idempotent)하며 `ctx.request.signal`이 중단될 때도 실행됩니다.
+- `encodeSseMessage()`와 `encodeSseComment()`는 테스트 및 커스텀 프레이밍 요구사항을 위해 익스포트됩니다.
+- 현재 SSE는 Node 어댑터 또는 `write()`, `end()`, `writableEnded` 및 선택적으로 `flushHeaders()`를 노출하는 커스텀 `FrameworkResponse.raw` 객체가 필요합니다.
+- 요청 옵저버는 핸들러가 반환될 때 완료됩니다. SSE 소켓의 전체 수명 동안 열려 있지 않습니다.
 
-### 성공 상태 코드 기본값
+### 속도 제한(Rate limiting) 주의사항
 
-- `GET`, `PUT`, `PATCH`, `HEAD`는 기본적으로 `200`
-- `POST`는 기본적으로 `201`
-- `DELETE`, `OPTIONS`는 핸들러가 `undefined`를 반환하면 `204`, 아니면 `200`
-- `@SuccessStatus(code)`는 항상 메서드 기본값보다 우선합니다
-- dispatcher는 interceptor 체인이 끝난 뒤 최종 성공 코드를 결정하므로, interceptor가 결과를 바꾸면 기본 상태 코드 결정에도 반영됩니다
+`createRateLimitMiddleware()`는 인프로세스 메모리 저장소를 사용합니다. 이는 로컬 개발, 테스트 및 단일 프로세스 배포에는 적합하지만, 클러스터링된 Node 워커나 여러 앱 인스턴스 간에 공유되는 글로벌 제한기는 아닙니다. 인스턴스 간 정책 강제가 필요한 경우 게이트웨이/프록시 레이어에서 제한을 두거나 Konekti 앞에 애플리케이션 레벨의 공유 저장소를 추가하세요.
 
-### Exception
+### 성공 상태 기본값
 
-| Export | 상태 코드 |
+- `GET`, `PUT`, `PATCH`, `HEAD`의 기본값은 `200`입니다.
+- `POST`의 기본값은 `201`입니다.
+- `DELETE`와 `OPTIONS`는 핸들러가 `undefined`를 반환하면 `204`, 그렇지 않으면 `200`이 기본값입니다.
+- `@SuccessStatus(code)`는 항상 메서드 기본값보다 우선합니다.
+- 디스패처는 인터셉터 체인이 해결된 후 최종 성공 코드를 결정하므로, 인터셉터의 결과 형태 변경은 여전히 기본 상태 결정에 영향을 미칩니다.
+
+### 예외(Exceptions)
+
+| 익스포트(Export) | 상태 코드 |
 |---|---|
 | `BadRequestException` | 400 |
 | `UnauthorizedException` | 401 |
 | `ForbiddenException` | 403 |
 | `NotFoundException` | 404 |
 | `ConflictException` | 409 |
+| `PayloadTooLargeException` | 413 |
 | `InternalServerException` | 500 |
 
-## 구조
+## 아키텍처
 
-### Dispatcher 실행 순서
+### 디스패처 실행 순서
 
 ```text
 들어오는 요청
   → RequestContext 생성
-  → app middleware
-  → route match
-  → module middleware
-  → guard chain  (허용 / 거부)
-  → interceptor chain  (전후 wrapper)
-  → request DTO binding  (fromBody / fromPath / fromQuery / ...)
-  → DTO validation  (@konekti/dto-validator 사용)
-  → controller method(input, ctx)
-  → 성공 상태 코드 결정 (`@SuccessStatus` override 또는 메서드 기본값)
-  → 성공 response 작성
-  → catch → canonical error response 작성
+  → 앱 미들웨어
+  → 라우트 매칭
+  → 모듈 미들웨어
+  → 가드 체인 (허용 / 거부)
+  → 인터셉터 체인 (전/후 래퍼)
+  → 요청 DTO 바인딩 (FromBody / FromPath / FromQuery / ...)
+  → DTO 검증 (@konekti/dto-validator 경유)
+  → 컨트롤러 메서드 호출(input, ctx)
+  → 성공 상태 해결 (@SuccessStatus 오버라이드 또는 메서드 기본값)
+  → 성공 응답 작성
+  → catch → 표준 오류 응답 작성
 ```
 
-### DTO binding 보안
+### 가드 계약
 
-binder는 단순 필드 복사가 아니다. 두 가지 정책이 적용된다:
+가드는 의도적으로 작은 계약을 가집니다.
 
-1. **`@FromBody`의 strict allowlist** — DTO에 선언되지 않은 request body 필드는 `BadRequestException`으로 거부되어 mass-assignment 공격을 방지한다.
-2. **위험한 key 차단** — `__proto__`, `constructor`, `prototype` 같은 key는 무조건 거부된다.
+- 요청을 거부하고 기본 `ForbiddenException` / 403 경로를 사용하려면 `false`를 반환합니다.
+- 요청 파이프라인을 계속 진행하려면 `true` 또는 `undefined`를 반환합니다.
+- 거부 시 더 구체적인 상태나 메시지를 사용해야 하는 경우 HTTP 예외를 던집니다.
+- 가드가 직접 결과를 완전히 처리하는 경우(예: 리다이렉트 흐름) 응답을 직접 커밋합니다.
 
-### Routing table 구성
+### DTO 바인딩 보안
 
-`createHandlerMapping()`은 요청이 들어오기 전에 실행된다:
-- controller base path와 각 route path를 결합
-- 중복 슬래시 정규화
-- named path param 추출 (`:id` → param 이름)
-- 중복 route 충돌 시 빠른 실패
+바인더는 단순한 필드 복사가 아닙니다. 두 가지 정책이 강제됩니다.
 
-### Request context와 ALS
+1. **`@FromBody`의 엄격한 허용 목록** — DTO에 선언되지 않은 요청 바디의 필드는 `BadRequestException`으로 거부되어 대량 할당(mass-assignment) 공격을 방지합니다.
+2. **위험한 키 차단** — `__proto__`, `constructor`, `prototype`과 같은 키는 무조건 거부됩니다.
 
-`RequestContext`는 `AsyncLocalStorage`에 저장된다. request, response, `requestId`, 인증된 `principal` (auth guard가 설정), request-scoped DI `container`를 담는다. request 안에서 실행되는 모든 코드는 prop drilling 없이 context에 접근할 수 있다.
+### 라우팅 테이블 구성
 
-## 파일 읽기 순서 (기여자용)
+`createHandlerMapping()`은 요청 전에 실행되며 다음과 같은 작업을 수행합니다.
+- 컨트롤러 기본 경로와 각 라우트 경로를 결합합니다.
+- 중복된 슬래시를 정규화합니다.
+- 명명된 경로 파라미터(`:id` → 파라미터 이름)를 추출합니다.
+- 중복된 라우트 충돌 시 즉시 실패 처리합니다.
+
+### 요청 컨텍스트 및 ALS
+
+`RequestContext`는 `AsyncLocalStorage`에 저장됩니다. 요청, 응답, `requestId`, (인증 가드에 의해 설정된) 인증된 주체(`principal`), 그리고 요청 스코프의 DI 컨테이너를 포함합니다. 요청 내에서 실행되는 모든 코드는 프롭 드릴링(prop drilling) 없이 컨텍스트에 접근할 수 있습니다.
+
+## 기여자를 위한 파일 읽기 순서
 
 1. `src/types.ts` — `FrameworkRequest`, `FrameworkResponse`, `RequestContext`
-2. `src/decorators.ts` — route와 DTO binding 메타데이터 writer
-3. `src/mapping.ts` — routing table 구성 + 충돌 감지
-4. `src/binding.ts` — request 각 부분에서 DTO 인스턴스화
-5. `src/dto-validation-adapter.ts` — DTO validation adapter
-6. `src/request-context.ts` — ALS 기반 context
-7. `src/dispatcher.ts` — 실행 체인 순서 결정
-8. `src/exceptions.ts` — HTTP exception family + error envelope
-9. `src/binding.test.ts` — binding 정책 (allowlist, 위험한 key, 400 detail shape)
-10. `src/dispatcher.test.ts` — middleware/guard/interceptor 순서, canonical error 코드
+2. `src/decorators.ts` — 라우트 및 DTO 바인딩 메타데이터 작성자
+3. `src/mapping.ts` — 라우팅 테이블 구축 + 충돌 감지
+4. `src/binding.ts` — 요청 부분으로부터 DTO 인스턴스화
+5. `src/dto-validation-adapter.ts` — DTO 검증 어댑터
+6. `src/request-context.ts` — ALS 기반 컨텍스트
+7. `src/dispatcher.ts` — 실행 체인 시퀀싱
+8. `src/exceptions.ts` — HTTP 예외 패밀리 + 오류 엔벨로프
+9. `src/binding.test.ts` — 바인딩 정책 (허용 목록, 위험한 키, 400 상세 형태)
+10. `src/dispatcher.test.ts` — 미들웨어/가드/인터셉터 순서, 표준 오류 코드
 
 ## 관련 패키지
 
-- `@konekti/core` — route와 DTO 메타데이터가 저장되는 곳
-- `@konekti/dto-validator` — DTO validation 단계에서 사용하는 validation 엔진
-- `@konekti/runtime` — bootstrap 시 routing table과 dispatcher 조립
-- `@konekti/passport` — guard chain에 연결되는 auth guard
+- `@konekti/core` — 라우트 및 DTO 메타데이터가 저장되는 곳
+- `@konekti/dto-validator` — DTO 검증 단계에서 사용되는 검증 엔진
+- `@konekti/runtime` — 부트스트랩 중 라우팅 테이블과 디스패처를 조립함
+- `@konekti/passport` — 가드 체인에 연결되는 인증 가드
 
-## 한 줄 mental model
+## 한 줄 멘탈 모델
 
 ```text
-@konekti/http = route metadata → DTO binding → middleware/guard/interceptor 체인 → handler 호출
+@konekti/http = 라우트 메타데이터 → DTO 바인딩 → 미들웨어/가드/인터셉터 체인 → 핸들러 호출
 ```

@@ -1,19 +1,18 @@
-# observability (관측 가능성)
+# 관측 가능성 (observability)
 
-<p><a href="./observability.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
+<p><strong><kbd>English</kbd></strong> <a href="./observability.md"><kbd>한국어</kbd></a></p>
 
+이 가이드는 로깅, 상관관계 ID, 헬스 체크, 메트릭에 사용되는 관측 가능성 모델을 설명합니다.
 
-이 가이드는 로깅, 상관관계 ID(correlation IDs), 헬스/준비 상태(health/readiness), 그리고 메트릭 노출 전반에 걸친 현재 observability 모델을 설명합니다.
-
-함께 보기:
+### 관련 문서
 
 - `./http-runtime.ko.md`
-- `../../packages/runtime/README.ko.md`
-- `../../packages/metrics/README.ko.md`
+- `../../packages/runtime/README.md`
+- `../../packages/metrics/README.md`
 
-## 로깅 규약 (logging contract)
+## 로깅
 
-현재 애플리케이션 로거 인터페이스는 다음과 같습니다:
+애플리케이션 로거는 애플리케이션 이벤트를 관리하기 위해 일관된 인터페이스를 사용합니다:
 
 ```ts
 interface ApplicationLogger {
@@ -24,40 +23,43 @@ interface ApplicationLogger {
 }
 ```
 
-- 콘솔 로거가 기본 개발용 구현체로 유지됩니다.
-- JSON 로거는 운영 환경 지향적 구현체입니다.
-- `APPLICATION_LOGGER`가 DI 토큰입니다.
+- **콘솔 로거**: 로컬 개발을 위한 기본 구현체입니다.
+- **JSON 로거**: 프로덕션 환경을 위해 권장되는 구현체입니다.
+- **DI 토큰**: `APPLICATION_LOGGER`를 사용하여 로거를 주입하거나 재정의할 수 있습니다.
 
-## 상관관계 ID 전파 (correlation ID propagation)
+## 상관관계 ID (Correlation IDs)
 
-- 상관관계 데이터는 요청 컨텍스트와 함께 `AsyncLocalStorage`에 위치합니다.
-- 상관관계 미들웨어는 요청에서 `X-Request-Id` (또는 `X-Correlation-Id`)를 읽거나 새로 생성합니다.
-- 선택된 ID는 `X-Request-Id` 헤더로 다시 전달됩니다.
-- 로거 구현체는 명시적인 전달 과정 없이도 활성화된 요청 컨텍스트에서 로그 출력을 풍부하게 만들 수 있습니다.
+- **저장소**: 상관관계 데이터는 요청 컨텍스트와 함께 `AsyncLocalStorage`에 저장됩니다.
+- **추출**: 미들웨어는 들어오는 헤더에서 `X-Request-Id`(또는 `X-Correlation-Id`)를 읽거나 새 ID를 생성합니다.
+- **전파**: ID는 `X-Request-Id` 응답 헤더로 반환됩니다.
+- **보강**: 로거 구현체는 수동 전달 없이도 활성화된 요청 ID를 자동으로 포함할 수 있습니다.
 
-## 헬스 및 준비 상태 (health and readiness)
+## 헬스 및 준비 상태 (Health and Readiness)
 
-- `GET /health` -> `200 { status: 'ok' }`
-- 부팅 완료 전까지 `GET /ready` -> `503 { status: 'starting' }`
-- 부팅 완료 후 `GET /ready` -> `200 { status: 'ready' }`
-- 추가된 준비 상태 체크가 실패할 경우 `503 { status: 'unavailable' }`를 반환할 수 있습니다.
+- **활성 상태 (Liveness, `GET /health`)**: 프로세스가 실행 중임을 나타내는 `200 { status: 'ok' }`를 반환합니다.
+- **준비 상태 (Readiness, `GET /ready`)**: 
+  - 부트스트랩 단계 중에는 `503 { status: 'starting' }`을 반환합니다.
+  - 초기화가 완료되면 `200 { status: 'ready' }`를 반환합니다.
+  - 등록된 준비 상태 체크가 실패하면 `503 { status: 'unavailable' }`를 반환합니다.
 
-## 메트릭 (metrics)
+활성 상태와 준비 상태는 별개의 관심사입니다. 실패한 준비 상태 체크는 `/ready`에 영향을 주지만, `/health`의 활성 상태 신호에는 영향을 주지 않습니다.
 
-- `@konekti/metrics` 패키지가 `GET /metrics` 엔드포인트를 노출합니다.
-- `prom-client` 기본 메트릭은 모듈 인스턴스별로 분리된 레지스트리에 수집됩니다.
-- 메트릭 노출은 헬스/준비 상태와 분리되어 있으며, 전용 미들웨어로 보호할 수 있습니다.
+## 메트릭 (Metrics)
 
-## 소유권 경계
+- **엔드포인트**: `@konekti/metrics`는 `GET /metrics` 엔드포인트를 제공합니다.
+- **수집**: `prom-client`를 사용하여 기본 메트릭을 격리된 레지스트리에 수집합니다.
+- **격리**: 메트릭 노출은 헬스 체크와 독립적이며 미들웨어로 보호할 수 있습니다.
 
-- 상관관계 미들웨어가 상관관계 ID 작성 경로를 소유합니다.
-- 로거 구현체가 로그 엔트리 보강을 담당합니다.
-- 준비 상태와 헬스 체크는 런타임 소유의 헬스 와이어링(wiring)과 함께 위치합니다.
-- 메트릭 노출은 `@konekti/metrics`에서 담당합니다.
-- 요청 옵저버(request observers)는 시작, 매칭, 성공, 에러, 종료와 같은 라이프사이클 분산을 처리하기 위한 기본 지점으로 유지됩니다.
+## 책임 범위
+
+- **상관관계 미들웨어**: 상관관계 ID 라이프사이클을 관리합니다.
+- **로거**: 로그 엔트리에 요청 관련 데이터를 보강합니다.
+- **런타임**: 핵심 헬스 및 준비 상태 인프라를 관리합니다.
+- **메트릭 패키지**: 메트릭 수집 및 노출을 담당합니다.
+- **요청 옵저버 (Request Observers)**: 요청 라이프사이클(시작, 매칭, 성공, 에러, 종료)을 모니터링하기 위한 권장 메커니즘입니다.
 
 ## 확장 지점
 
-- 헬스 모듈 API를 통해 준비 상태 체크를 추가할 수 있습니다.
-- 애플리케이션 로거 구현체를 감싸거나 교체할 수 있습니다.
-- 관심사에 따라 미들웨어, 인터셉터 또는 옵저버를 통해 요청 수준의 추가적인 관측 행동을 연결할 수 있습니다.
+- **준비 상태 체크**: 헬스 모듈 API를 통해 커스텀 체크를 추가할 수 있습니다.
+- **로거 교체**: 애플리케이션 로거 구현체를 래핑하거나 교체할 수 있습니다.
+- **관측 가능성 훅**: 미들웨어, 인터셉터 또는 옵저버를 사용하여 추가 동작을 연결할 수 있습니다.

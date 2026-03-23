@@ -214,25 +214,25 @@ class EventsController {
 }
 ```
 
-- `new SseResponse(ctx)` commits SSE headers immediately
-- `send(data, { event, id, retry })` writes a canonical SSE message frame
-- `comment(text)` writes a comment frame
-- `close()` is idempotent and also runs when `ctx.request.signal` aborts
-- `encodeSseMessage()` and `encodeSseComment()` are exported for tests and custom framing needs
-- SSE currently requires the Node adapter or a custom `FrameworkResponse.raw` object exposing `write()`, `end()`, `writableEnded`, and optional `flushHeaders()`
-- request observers still complete when the handler returns; they do not stay open for the full lifetime of the SSE socket
+- `new SseResponse(ctx)` commits SSE headers immediately.
+- `send(data, { event, id, retry })` writes a canonical SSE message frame.
+- `comment(text)` writes a comment frame.
+- `close()` is idempotent and also runs when `ctx.request.signal` aborts.
+- `encodeSseMessage()` and `encodeSseComment()` are exported for tests and custom framing needs.
+- SSE currently requires the Node adapter or a custom `FrameworkResponse.raw` object exposing `write()`, `end()`, `writableEnded`, and optional `flushHeaders()`.
+- Request observers still complete when the handler returns. They do not stay open for the full lifetime of the SSE socket.
 
 ### Rate limiting caveat
 
-`createRateLimitMiddleware()` uses an in-process memory store. That makes it suitable for local development, tests, and single-process deployments, but it is not a shared/global limiter across clustered Node workers or multiple app instances. If you need cross-instance enforcement today, place the shared limit at a gateway/proxy layer or add an application-level shared store in front of Konekti.
+`createRateLimitMiddleware()` uses an in-process memory store. This is suitable for local development, tests, and single-process deployments, but it is not a shared or global limiter across clustered Node workers or multiple app instances. For cross-instance enforcement, place the shared limit at a gateway/proxy layer or add an application-level shared store in front of Konekti.
 
 ### Success status defaults
 
-- `GET`, `PUT`, `PATCH`, `HEAD` default to `200`
-- `POST` defaults to `201`
-- `DELETE` and `OPTIONS` default to `204` when the handler returns `undefined`, otherwise `200`
-- `@SuccessStatus(code)` always overrides the method default
-- the dispatcher decides the final success code after the interceptor chain resolves, so interceptor result shaping still affects the default-status decision
+- `GET`, `PUT`, `PATCH`, `HEAD` default to `200`.
+- `POST` defaults to `201`.
+- `DELETE` and `OPTIONS` default to `204` when the handler returns `undefined`, otherwise `200`.
+- `@SuccessStatus(code)` always overrides the method default.
+- The dispatcher decides the final success code after the interceptor chain resolves, so interceptor result shaping still affects the default status decision.
 
 ### Exceptions
 

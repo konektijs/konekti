@@ -3,15 +3,13 @@
 <p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
 
-Konekti 애플리케이션을 위한 이벤트 발행 패키지입니다. 기본은 인프로세스 디스패치이며, 선택적으로 transport 어댑터를 연결해 프로세스 간 fan-out을 구성할 수 있습니다.
+싱글톤 프로바이더와 컨트롤러 전반에서 데코레이터 기반 핸들러 검색 기능을 갖춘 Konekti 애플리케이션용 인프로세스(In-process) 이벤트 발행 패키지입니다. 프로세스 간 팬아웃(fan-out)을 위해 선택적으로 외부 트랜스포트 어댑터(예: Redis Pub/Sub)를 지원합니다.
 
 ## 설치
 
 ```bash
 npm install @konekti/event-bus
 ```
-
-> **⚠️ 내구성 보장은 없음.** transport를 연결하더라도 큐잉/재생/영속성은 제공하지 않습니다. 디스패치 중 애플리케이션이 크래시되면 처리 중인 이벤트는 유실될 수 있습니다. 내구성 있는 분산 처리에는 Redis 기반의 `@konekti/queue`를 사용하세요.
 
 ## 빠른 시작
 
@@ -26,7 +24,7 @@ class UserRegisteredEvent {
 class WelcomeEmailService {
   @OnEvent(UserRegisteredEvent)
   async sendWelcomeEmail(event: UserRegisteredEvent) {
-    // 메일 전송
+    // 이메일 전송
   }
 }
 
@@ -48,28 +46,41 @@ export class AppModule {}
 
 ## API
 
-- `createEventBusModule()`
-- `createEventBusProviders()`
-- `EVENT_BUS`
-- `EventBus`
-- `@OnEvent(EventClass)`
+- `createEventBusModule()` - 글로벌 `EVENT_BUS` 및 생명주기 검색 서비스를 등록합니다.
+- `createEventBusProviders()` - 수동 구성을 위한 로우(raw) 프로바이더를 반환합니다.
+- `EVENT_BUS` - 애플리케이션 이벤트 버스 인스턴스를 위한 DI 토큰입니다.
+- `EventBus` - `publish(event, options?)` 메서드를 포함하는 인터페이스입니다.
+- `EventBusTransport` - 외부 트랜스포트 어댑터를 위한 인터페이스입니다.
+- `@OnEvent(EventClass)` - 프로바이더/컨트롤러 메서드를 이벤트 핸들러로 표시합니다.
 
 ### 모듈 옵션
 
-`createEventBusModule(options)`와 `createEventBusProviders(options)`는 아래 옵션을 받습니다.
+`createEventBusModule(options)`와 `createEventBusProviders(options)`는 다음 옵션을 허용합니다.
 
-- `publish.timeoutMs` - `waitForHandlers: true`일 때 `publish()`가 핸들러별로 대기하는 최대 시간(ms)
-- `publish.waitForHandlers` - 기본 대기 모드 (`true`는 대기 + timeout 적용, `false`는 비차단 fire-and-forget 디스패치)
-- `transport` - 선택적 외부 pub/sub 어댑터 (`EventBusTransport` 구현체)
+- `publish.timeoutMs` - `publish()`가 핸들러를 기다릴 때(`waitForHandlers: true`) 사용하는 핸들러별 대기 시간 제한입니다.
+- `publish.waitForHandlers` - 기본 대기 모드입니다 (`true`는 대기하며 타임아웃 제한을 적용하고, `false`는 fire-and-forget 방식으로 디스패치합니다).
+- `transport` - 프로세스 간 팬아웃을 위한 선택적 `EventBusTransport` 어댑터입니다.
 
-### event key 규약
+### 트랜스포트 인터페이스
 
-transport 채널 키는 이벤트 클래스에서 아래 순서로 결정됩니다.
+```typescript
+interface EventBusTransport {
+  publish(channel: string, payload: unknown): Promise<void>;
+  subscribe(channel: string, handler: (payload: unknown) => Promise<void>): Promise<void>;
+  close(): Promise<void>;
+}
+```
 
-1. 이벤트 클래스에 `static eventKey = 'domain.event.v1'`가 있으면 해당 값을 사용
-2. 없으면 하위 호환을 위해 클래스 이름(`constructor.name`) 사용
+모든 외부 pub/sub 시스템을 연결하려면 이 인터페이스를 구현하세요.
 
-멀티 프로세스 환경에서는 클래스 이름 의존 대신 버전이 포함된 명시적 키를 권장합니다.
+### 이벤트 키 규약
+
+트랜스포트 채널은 다음 규칙에 따라 이벤트 클래스에서 결정됩니다.
+
+1. 이벤트 클래스에 `static eventKey = 'domain.event.v1'`가 정의되어 있으면 해당 문자열을 사용합니다.
+2. 그렇지 않으면 하위 호환성을 위해 클래스 생성자 이름(class constructor name)을 기본값으로 사용합니다.
+
+멀티 프로세스 배포의 경우, 버전이 명시된 키를 사용하는 것이 좋습니다.
 
 ```typescript
 class UserRegisteredEvent {
@@ -79,13 +90,50 @@ class UserRegisteredEvent {
 }
 ```
 
+ 이는 트랜스포트 계약이 클래스 이름 변경이나 코드 미니피케이션(minification)에 결합되는 것을 방지하고, 스키마 진화를 명시적으로 만들어 줍니다.
+
+### Redis Pub/Sub 어댑터
+
+```bash
+npm install ioredis
+```
+
+```typescript
+import Redis from 'ioredis';
+import { createEventBusModule } from '@konekti/event-bus';
+import { RedisEventBusTransport } from '@konekti/event-bus/redis';
+
+const publishClient = new Redis();
+const subscribeClient = new Redis();
+
+@Module({
+  imports: [
+    createEventBusModule({
+      transport: new RedisEventBusTransport({ publishClient, subscribeClient }),
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+구독(subscribe) 모드의 클라이언트는 다른 명령을 실행할 수 없으므로 두 개의 별도 Redis 클라이언트가 필요합니다.
+
 ## 런타임 동작
 
-- 애플리케이션 부트스트랩에서 `COMPILED_MODULES` 기반 핸들러 탐색
-- 이벤트 발행 시 `RUNTIME_CONTAINER`에서 핸들러 인스턴스 해석
-- `instanceof` 기반 클래스 매칭으로 상속 이벤트까지 처리
-- 모든 매칭 핸들러에 디스패치하며, transport 사용 시 매칭된 핸들러 이벤트 타입 채널로 fan-out
-- transport 수신 이벤트는 해당 채널에 등록된 핸들러에만 디스패치되어 로컬/원격 상속 매칭 결과를 일치
-- timeout 경계는 `waitForHandlers: true`일 때만 적용되며, `false`일 때는 대기 없이 디스패치
-- 핸들러 오류는 `ApplicationLogger`로 격리 로깅
-- `request`/`transient` 스코프의 `@OnEvent()` 핸들러는 경고 후 제외
+- 핸들러 검색은 애플리케이션 부트스트랩 중에 `COMPILED_MODULES`를 통해 실행됩니다.
+- 핸들러 인스턴스는 부트스트랩 중에 `RUNTIME_CONTAINER`에서 미리 해결(resolve)되며 발행 시 재사용됩니다.
+- 이벤트는 `instanceof`를 사용하여 클래스별로 매칭되므로, 기본 클래스 핸들러는 파생된 이벤트를 수신합니다.
+- 발행(Publishing)은 모든 매칭되는 로컬 핸들러로 디스패치됩니다. 트랜스포트가 구성된 경우, 매칭된 모든 핸들러 이벤트 타입의 트랜스포트 채널로 병렬 팬아웃됩니다.
+- 트랜스포트가 구성된 경우, 이벤트 버스는 부트스트랩 시 발견된 각 이벤트 타입당 하나의 채널을 구독합니다. 들어오는 메시지는 `JSON.parse`로 역직렬화되어 매칭되는 로컬 핸들러로 디스패치됩니다.
+- 들어오는 트랜스포트 메시지는 해당 구독 채널에 등록된 핸들러로만 디스패치되므로, 로컬/원격 상속 매칭 결과가 일관되게 유지됩니다.
+- 특정 이벤트 타입의 채널 이름은 `eventType.eventKey`가 있으면 이를 사용하고, 없으면 클래스 생성자 이름을 사용합니다.
+- 트랜스포트의 `close()`는 `onApplicationShutdown` 중에 호출됩니다.
+- 타임아웃 제한은 대기 모드가 활성화된 경우(`waitForHandlers: true`)에만 적용됩니다. 비차단 모드(`false`)는 대기 없이 디스패치합니다.
+- 핸들러 실패는 격리되어 `ApplicationLogger`를 통해 로깅됩니다.
+- 요청/트랜지언트(Request/transient) 스코프 클래스의 `@OnEvent()`는 경고와 함께 무시됩니다.
+
+## 비목표 (Non-goals)
+
+- 큐잉, 재생(replay), 와일드카드 또는 순서 보장을 제공하지 않습니다.
+- 명령형 `subscribe()` 또는 `unsubscribe()` API를 제공하지 않습니다.
+- 내구성이나 영속성을 제공하지 않습니다 (이벤트는 크래시 발생 시 유실됩니다).

@@ -1,6 +1,6 @@
 # @konekti/microservices
 
-<p><strong><kbd>English</kbd></strong></p>
+<p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
 Transport-driven microservice message consumers for Konekti with decorator-based handler discovery.
 
@@ -49,13 +49,13 @@ await microservice.listen();
 
 ## Runtime behavior
 
-- handlers are discovered from providers/controllers in compiled modules
-- only singleton-scoped handlers are registered
-- `@MessagePattern` matches one handler and returns its value to the caller
-- if multiple `@MessagePattern` handlers match the same incoming pattern, dispatch fails explicitly instead of silently picking the first match
-- `@EventPattern` dispatches to all matching handlers
-- pattern supports exact string or `RegExp` matching
-- transport lifecycle is managed through app startup/shutdown
+- Handlers are discovered from providers and controllers in compiled modules.
+- Only singleton-scoped handlers are registered.
+- `@MessagePattern` matches a single handler and returns its value to the caller.
+- If multiple `@MessagePattern` handlers match the same pattern, dispatch fails explicitly instead of picking a match silently.
+- `@EventPattern` dispatches to all matching handlers.
+- Patterns support exact string or `RegExp` matching.
+- Transport lifecycle is managed through application startup and shutdown.
 
 ## Transport notes
 

@@ -50,7 +50,7 @@ class UsersController {
 
 ## Global registration
 
-Register serializer globally at bootstrap:
+Register the serializer globally at bootstrap:
 
 ```typescript
 import { bootstrapApplication } from '@konekti/runtime';
@@ -65,14 +65,14 @@ await bootstrapApplication({
 
 ## API
 
-- `Exclude(): FieldDecorator`
-- `Expose(options?: { excludeExtraneous?: boolean }): ClassDecorator | FieldDecorator`
-- `Transform(fn: (value: unknown) => unknown): FieldDecorator`
-- `serialize(value: unknown): unknown`
-- `class SerializerInterceptor implements Interceptor`
+- `Exclude(): FieldDecorator` — removes fields from serialized output.
+- `Expose(options?): ClassDecorator | FieldDecorator` — marks fields to include and supports class-level `excludeExtraneous` mode.
+- `Transform(fn): FieldDecorator` — transforms a field value before recursive serialization.
+- `serialize(value: unknown): unknown` — manual serialization helper.
+- `class SerializerInterceptor implements Interceptor` — interceptor for automatic response serialization.
 
 ## Serialization contract
 
-- Cycles are cut to `undefined` at the cycle edge so output remains JSON-safe.
-- Shared references are preserved: revisiting an already-serialized object returns the same serialized node instead of dropping it.
+- Cycles are cut to `undefined` at the cycle edge to ensure output remains JSON-safe.
+- Shared references are preserved. Revisiting an already-serialized object returns the same serialized node.
 - Enumerable symbol-keyed properties on plain objects are serialized alongside string keys.

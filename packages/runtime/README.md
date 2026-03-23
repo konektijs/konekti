@@ -13,16 +13,16 @@ The assembly layer that compiles a module graph and wires config, DI, and HTTP i
 
 ## What this package does
 
-`@konekti/runtime` is the orchestration layer. It is not a feature package — it is what turns your modules into a running app:
+`@konekti/runtime` is the orchestration layer. It is not a feature package. It turns your modules into a running app by performing the following:
 
-1. Compiles the module graph: validates `imports`/`exports` visibility, detects circular imports, checks that every resolved token is accessible
-2. Creates the root DI container and registers all providers and controllers
-3. Loads config via `@konekti/config` and registers `ConfigService`
-4. Resolves singleton providers and runs lifecycle hooks (`onModuleInit` → `onApplicationBootstrap`)
-5. Calls `createHandlerMapping()` and `createDispatcher()` from `@konekti/http`
-6. Returns a `KonektiApplication` shell with `dispatch()`, `listen()`, `ready()`, and `close()`
+1. Compiles the module graph: validates `imports`/`exports` visibility, detects circular imports, and ensures every resolved token is accessible.
+2. Creates the root DI container and registers all providers and controllers.
+3. Loads config via `@konekti/config` and registers `ConfigService`.
+4. Resolves singleton providers and runs lifecycle hooks (`onModuleInit` → `onApplicationBootstrap`).
+5. Calls `createHandlerMapping()` and `createDispatcher()` from `@konekti/http`.
+6. Returns a `KonektiApplication` shell with `dispatch()`, `listen()`, `ready()`, and `close()`.
 
-For Node.js apps, `runNodeApplication()` is the canonical startup path — it handles the HTTP adapter, default CORS, startup logging, and graceful shutdown signal wiring.
+For Node.js apps, `runNodeApplication()` is the canonical startup path. It handles the HTTP adapter, default CORS, startup logging, and graceful shutdown signal wiring.
 
 ## Installation
 

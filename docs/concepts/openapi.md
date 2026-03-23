@@ -2,64 +2,63 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./openapi.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide outlines the OpenAPI generation model used in `@konekti/openapi`, `@konekti/http`, and the request DTO metadata system.
 
-This guide describes the current OpenAPI generation model across `@konekti/openapi`, `@konekti/http`, and request DTO metadata.
-
-See also:
+### related documentation
 
 - `./http-runtime.md`
 - `../../packages/openapi/README.md`
 - `../../packages/http/README.md`
 
-## module registration
+## registration and serving
 
-`OpenApiModule.forRoot(...)` serves:
+Use `OpenApiModule.forRoot(...)` to enable OpenAPI support. By default, it provides:
 
-- `GET /openapi.json`
-- optional Swagger UI at `/docs`
+- **JSON Document**: `GET /openapi.json`
+- **Swagger UI** (optional): `GET /docs`
 
-The document is built from handler descriptors gathered at application startup.
-`OpenApiModule.forRoot(...)` can receive either prebuilt descriptors or the same `HandlerSource[]` model that `createHandlerMapping()` consumes.
+The OpenAPI document is constructed during application startup from handler descriptors. `OpenApiModule.forRoot(...)` accepts either prebuilt descriptors or the `HandlerSource[]` model used by `createHandlerMapping()`.
 
-## operation-level decorators
+## documentation decorators
 
-Konekti currently supports:
+Konekti provides several decorators specifically for OpenAPI metadata:
 
-- `@ApiTag(tag)`
-- `@ApiOperation({ summary, description })`
-- `@ApiResponse(status, { description, schema, type })`
-- `@ApiBearerAuth()`
+- `@ApiTag(tag)`: Groups operations.
+- `@ApiOperation({ summary, description })`: Describes an endpoint's purpose.
+- `@ApiResponse(status, { description, schema, type })`: Documents possible response codes and structures.
+- `@ApiBearerAuth()`: Declares Bearer authentication for an operation.
 
-These decorators are metadata-only. They do not affect runtime request handling.
+These decorators only affect documentation and do not change runtime behavior.
 
-## DTO schema extraction
+## dto schema extraction
 
-- request DTO metadata is read through normalized helpers
-- validator metadata drives `components.schemas`
-- request DTOs are linked through `requestBody`
-- cookie-bound DTO fields are emitted as cookie parameters
-- response DTOs can be referenced through `@ApiResponse(..., { type: ... })`
-- nested DTOs and arrays are expressed as component schema references where possible
+The OpenAPI generator extracts schema information from DTOs:
 
-## generation model
+- **Metadata Reading**: Request DTO metadata is accessed via normalized helper APIs.
+- **Component Schemas**: Validator metadata (e.g., `@IsString()`) is used to populate `components.schemas`.
+- **Request Bodies**: Linked via `requestBody`.
+- **Parameters**: Cookie-bound DTO fields are mapped to cookie parameters.
+- **Responses**: Response DTOs can be specified using `@ApiResponse(..., { type: ... })`.
+- **Nesting**: Nested DTOs and arrays are represented as schema references.
 
-- route metadata is read from handler descriptors
-- URI versioning written by `@Version(...)` is reflected directly in the resolved OpenAPI paths (for example `/v1/users`)
-- those descriptors can be derived from the same handler sources the runtime uses
-- tags, operation metadata, response metadata, and request DTO schema are assembled into one OpenAPI 3.1 document
-- the generated document is built at startup and served statically
+## generation process
 
-## ownership boundaries
+- **Route Metadata**: Extracted from handler descriptors.
+- **Versioning**: Versioning defined via `@Version(...)` is reflected in URI paths (e.g., `/v1/users`).
+- **Composition**: Tags, operations, responses, and DTO schemas are combined into a single OpenAPI 3.1 document.
+- **Lifecycle**: The document is generated once at startup and served statically.
 
-- `@konekti/openapi` owns schema generation and serving logic
-- `@konekti/http` owns route and request metadata writing
-- `@konekti/openapi` reads normalized metadata; it should not reach into package-private storage details
-- auth scheme declaration remains app-driven through OpenAPI decorators
+## architectural boundaries
 
-## practical mental model
+- **`@konekti/openapi`**: Handles schema generation and the serving layer.
+- **`@konekti/http`**: Manages the writing of route and request metadata.
+- **Decoupling**: `@konekti/openapi` interacts only with normalized metadata and does not access internal package storage.
+- **Auth Schemes**: Authentication schemes are declared at the application level using OpenAPI decorators.
+
+## conceptual flow
 
 ```text
-@konekti/http writes runtime metadata
+@konekti/http writes route metadata
 @konekti/dto-validator writes validation metadata
-@konekti/openapi reads both to generate the document
+@konekti/openapi reads both to assemble the documentation
 ```

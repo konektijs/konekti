@@ -2,10 +2,9 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./http-runtime.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide explains the HTTP execution model used in `@konekti/http`, `@konekti/runtime`, authentication packages, and the generated starter application.
 
-This guide describes the current HTTP execution model across `@konekti/http`, `@konekti/runtime`, auth packages, and the generated starter app.
-
-See also:
+### related documentation
 
 - `./architecture-overview.md`
 - `./auth-and-jwt.md`
@@ -13,75 +12,71 @@ See also:
 
 ## request lifecycle
 
-```text
-HTTP adapter
--> RequestContext creation
--> app middleware
--> route match
--> module middleware
--> guard chain
--> interceptor chain
--> request DTO binding
--> DTO validation
--> controller invocation
--> success status resolution
--> response write
--> exception mapping when needed
-```
+The request execution path follows this sequence:
+
+1.  **HTTP adapter** receives the request.
+2.  **RequestContext** creation.
+3.  **Application middleware** execution.
+4.  **Route matching**.
+5.  **Module middleware** execution.
+6.  **Guard chain** validation.
+7.  **Interceptor chain** execution.
+8.  **Request DTO binding**.
+9.  **DTO validation**.
+10. **Controller invocation**.
+11. **Success status resolution**.
+12. **Response write**.
+13. **Exception mapping** (if an error occurs).
 
 ## success status defaults
 
-Without an explicit override, the dispatcher uses method-based success defaults:
+Unless overridden, the dispatcher uses method-based defaults:
 
-- `GET`, `PUT`, `PATCH`, `HEAD` -> `200`
-- `POST` -> `201`
-- `DELETE`, `OPTIONS` -> `204` when the final resolved value is `undefined`, otherwise `200`
+- `GET`, `PUT`, `PATCH`, `HEAD`: `200`
+- `POST`: `201`
+- `DELETE`, `OPTIONS`: `204` if the result is `undefined`, otherwise `200`.
 
-`@SuccessStatus(code)` always overrides those defaults.
+Use `@SuccessStatus(code)` to override these defaults. Note that status resolution happens after the interceptor chain, so interceptors can still influence the final status code.
 
-The decision happens after the interceptor chain resolves, so interceptor result shaping still affects the final default status.
+## dto boundaries
 
-## DTO boundary
+- **Binding**: `@konekti/http` handles request DTO binding.
+- **Source Decorators**: `@FromBody()` and `@FromPath()` are provided by `@konekti/http`.
+- **Validation**: `@IsString()` and `@MinLength()` are provided by `@konekti/dto-validator`.
 
-- request DTO binding belongs to `@konekti/http`
-- field source decorators such as `@FromBody()` and `@FromPath()` also belong to `@konekti/http`
-- validation decorators such as `@IsString()` and `@MinLength()` belong to `@konekti/dto-validator`
+Konekti treats request DTOs as an explicit boundary between the transport layer and application logic.
 
-The runtime treats request DTOs as an explicit boundary, not a convenience copy step.
+## starter app policies
 
-## starter-app HTTP policies
+The generated starter application maintains several HTTP defaults:
 
-The generated starter keeps a few HTTP defaults consistent:
+- Built-in `/health` and `/ready` endpoints.
+- Sample `/health-info/` endpoint via the `health/` module.
+- Default CORS policies managed by the runtime bootstrap configuration.
 
-- runtime-owned `/health` and `/ready`
-- starter-owned `/health-info/` through the generated `health/` module
-- default CORS policy driven by runtime bootstrap config
+## development boundaries
 
-These defaults live above any single package README because they describe how packages are composed in the starter app.
+The HTTP and runtime contracts are intentionally kept narrow to ensure stability and clarity.
 
-## current public boundary
+### current priorities
 
-The shipped HTTP/runtime contract stays intentionally narrow for now.
+- Keep the handler signature as `handler(input, ctx)`.
+- Use plain return values and `@SuccessStatus(...)` as the primary response model.
+- Restrict middleware to the application and module levels.
+- Maintain the current boolean (allow/deny) guard model.
 
-Current public direction:
+### deferred features
 
-- keep the handler shape as `handler(input, ctx)`
-- keep plain return values plus `@SuccessStatus(...)` as the main success-response model
-- keep middleware exposure at the app and module levels only
-- keep the current guard allow/deny model without adding a richer general HTTP deny-result contract
+The following items are deferred to future updates to maintain architectural clarity:
 
-Explicitly deferred for a future track:
+- A transport-neutral `handler(requestObject)` API.
+- First-class response wrapper objects for success paths.
+- Route-level middleware support.
+- Complex guard results beyond boolean allow/deny.
 
-- a new top-level transport-neutral `handler(requestObject)` public API
-- first-class response wrapper objects as the main success path
-- route-level middleware as a public contract
-- broader custom guard result shapes beyond the current allow/deny model
+## further reading
 
-These items are deferred to protect dispatcher clarity and keep transport expansion sequenced after the current HTTP-first model.
-
-## where to look next
-
-- package API details -> `../../packages/http/README.md`
-- runtime bootstrap -> `../../packages/runtime/README.md`
-- auth strategy flow -> `./auth-and-jwt.md`
-- starter HTTP defaults -> `../getting-started/quick-start.md`
+- **HTTP API details**: `../../packages/http/README.md`
+- **Runtime bootstrap**: `../../packages/runtime/README.md`
+- **Authentication flow**: `./auth-and-jwt.md`
+- **Starter defaults**: `../getting-started/quick-start.md`
