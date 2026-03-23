@@ -1,6 +1,6 @@
 # @konekti/platform-fastify
 
-<p><strong><kbd>English</kbd></strong></p>
+<p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
 Fastify-backed HTTP adapter for Konekti runtime applications.
 

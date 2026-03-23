@@ -2,33 +2,34 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./naming-and-file-conventions.ko.md"><kbd>한국어</kbd></a></p>
 
+This page summarizes the naming and file conventions used by the Konekti CLI and scaffolding.
 
-## generator naming
+## naming conventions
 
-Default generator naming follows the current CLI suffix rules.
+The CLI uses consistent suffix rules for generated files:
 
-- `user.controller.ts`
-- `user.service.ts`
-- `user.repo.ts`
-- `user.request.dto.ts`
-- `user.response.dto.ts`
+- **Controllers**: `user.controller.ts`
+- **Services**: `user.service.ts`
+- **Repositories**: `user.repo.ts`
+- **Request DTOs**: `user.request.dto.ts`
+- **Response DTOs**: `user.response.dto.ts`
 
 ## generator philosophy
 
-- individual generators are the default path
-- `g resource` is not part of the default generator surface
-- request DTO and response DTO are separate schematics
+- **Granular Generation**: Use individual generators to build components.
+- **Explicit DTOs**: Request and response DTOs are managed via separate schematics to ensure clear boundaries.
+- **Simplicity**: Complex monolithic generators (e.g., `g resource`) are currently avoided.
 
-## scaffold conventions
+## environment and configuration
 
-- default modes: `dev`, `prod`, `test`
-- default env files:
+- **Standard Modes**: `dev`, `prod`, `test`.
+- **Environment Files**:
   - `.env.dev`
   - `.env.prod`
   - `.env.test`
 
-## package manager conventions
+## package managers
 
-- the scaffold auto-detects package manager by default
-- `--package-manager` is the explicit override
-- canonical behavior is documented in `../getting-started/bootstrap-paths.md`
+- **Detection**: The scaffold auto-detects the active package manager by default.
+- **Overrides**: Use the `--package-manager` flag for explicit selection.
+- **Reference**: See `../getting-started/bootstrap-paths.md` for more details on the bootstrap process.

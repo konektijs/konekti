@@ -2,18 +2,17 @@
 
 <p><a href="./architecture-overview.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
+Konekti는 공개되는 인터페이스를 좁게 유지하며, 대부분의 동작을 안정적인 데코레이터, 명시적인 패키지 경계, 그리고 CLI 우선의 부트스트랩 흐름 뒤로 이동시킵니다.
 
-Konekti는 공개되는 인터페이스를 의도적으로 좁게 유지하며, 대부분의 동작을 안정적인 데코레이터, 명확한 패키지 경계, 그리고 CLI 우선의 부트스트랩 흐름 뒤로 숨깁니다.
-
-함께 보기:
+### 관련 문서
 
 - `./http-runtime.ko.md`
 - `./auth-and-jwt.ko.md`
 - `../reference/package-surface.ko.md`
 
-## public package families
+## 공개 패키지 제품군
 
-### framework core
+### 프레임워크 코어
 
 - `@konekti/core`
 - `@konekti/config`
@@ -22,7 +21,7 @@ Konekti는 공개되는 인터페이스를 의도적으로 좁게 유지하며, 
 - `@konekti/runtime`
 - `@konekti/testing`
 
-### validation, auth, and docs
+### 검증, 인증 및 문서화
 
 - `@konekti/dto-validator`
 - `@konekti/jwt`
@@ -31,59 +30,57 @@ Konekti는 공개되는 인터페이스를 의도적으로 좁게 유지하며, 
 - `@konekti/metrics`
 - `@konekti/cron`
 
-### data integrations
+### 데이터 통합
 
 - `@konekti/redis`
 - `@konekti/prisma`
 - `@konekti/drizzle`
 
-### tooling
+### 툴링
 
 - `@konekti/cli`
 
-## package connection map
+## 패키지 연결 맵
 
-- `@konekti/core`: 공용 데코레이터, metadata 헬퍼, 안정적인 프레임워크 프리미티브를 소유합니다.
-- `@konekti/di`: 명시적인 토큰 기반 provider 해소(resolution) 및 scope를 소유합니다.
-- `@konekti/http`: 요청 실행, 바인딩, 유효성 검사 진입점, 예외 처리, route metadata를 소유합니다.
-- `@konekti/runtime`: config, DI, handler 매핑, health/readiness, adapter 부트스트랩을 통합합니다.
-- `@konekti/dto-validator`: 유효성 검사 데코레이터와 유효성 검사 엔진을 소유합니다.
-- `@konekti/jwt`: 토큰 핵심 로직을 소유합니다.
-- `@konekti/passport`: 범용 인증 strategy 등록 및 guard 연결을 소유합니다.
-- `@konekti/openapi`: route 및 DTO metadata를 읽어 문서를 생성합니다.
-- `@konekti/metrics`: runtime이 소유한 HTTP route를 통해 Prometheus 메트릭을 노출합니다.
-- `@konekti/cron`: 데코레이터 기반 백그라운드 작업 스케줄링과 선택적 분산 cron 락을 소유합니다.
-- `@konekti/redis`: 공유 Redis client lifecycle과 DI 토큰 표면을 소유합니다.
+- `@konekti/core`: 공용 데코레이터, 메타데이터 헬퍼, 안정적인 프레임워크 프리미티브.
+- `@konekti/di`: 명시적인 토큰 기반 프로바이더 해결 및 스코프.
+- `@konekti/http`: 요청 실행, 바인딩, 유효성 검사 진입점, 예외, 라우트 메타데이터.
+- `@konekti/runtime`: 설정 조립, DI, 핸들러 매핑, 상태 확인(health/readiness), 어댑터 부트스트랩.
+- `@konekti/dto-validator`: 유효성 검사 데코레이터 및 엔진.
+- `@konekti/jwt`: 토큰 핵심 로직.
+- `@konekti/passport`: 범용 인증 전략 등록 및 가드 연결.
+- `@konekti/openapi`: 라우트 및 DTO 메타데이터로부터 문서 생성.
+- `@konekti/metrics`: 런타임 소유의 HTTP 라우트를 통한 Prometheus 메트릭.
+- `@konekti/cron`: 데코레이터 기반 백그라운드 작업 스케줄링 및 선택적 분산 크론 락.
+- `@konekti/redis`: Redis 클라이언트 라이프사이클 및 DI 토큰 표면.
 
-## request execution path
+## 요청 실행 경로
 
-현재 runtime 경로는 다음과 같습니다:
+런타임 실행 경로는 다음 순서를 따릅니다:
 
 ```text
 bootstrap -> handler mapping -> app middleware -> route match -> module middleware -> guard -> interceptor -> DTO bind/validate -> controller -> response write
 ```
 
-구체적인 동작은 다음 파일들에 구현되어 있습니다:
+상세 구현 위치:
 
 - `packages/http/src/dispatcher.ts`
 - `packages/http/src/mapping.ts`
 - `packages/runtime/src/application.test.ts`
 
-## design stance
+## 설계 원칙
 
-- 명시적인 DI와 안정적인 metadata가 암묵적인 매직보다 우선합니다.
-- 단계별 이력보다 패키지 경계가 더 중요합니다.
-- 시작 애플리케이션(starter apps)은 애플리케이션 로컬 인프라를 복제하는 대신 runtime 소유의 부트스트랩 헬퍼를 사용해야 합니다.
-- 패키지 README는 패키지의 진실을 담고, `docs/`는 패키지 간 교차되는 진실을 담습니다.
+- 암묵적인 마법보다 명시적인 DI와 안정적인 메타데이터를 선호합니다.
+- 단계별 이력보다 패키지 경계가 우선합니다.
+- 스타터 앱은 인프라를 복제하는 대신 런타임 소유의 부트스트랩 헬퍼를 사용해야 합니다.
+- 패키지 README는 패키지별 상세 내용을 담고, `docs/`는 패키지 간 교차 정보를 담습니다.
 
-## transport boundary
+## 트랜스포트 경계
 
-Konekti는 현재 공개 runtime 스토리에서 HTTP-first를 유지합니다.
+Konekti는 현재 HTTP 우선(HTTP-first)입니다.
 
-현재 public 방향:
+- 공식 런타임 및 스타터 경로는 HTTP 요청/응답 실행을 전제로 합니다.
+- 어댑터에 구애받지 않는 프레임워크 타입이 존재하지만, 지원되는 비 HTTP 인터페이스를 의미하지는 않습니다.
+- 비 HTTP 트랜스포트(예: 웹소켓, 게이트웨이) 지원은 향후 업데이트로 유보되었습니다.
 
-- 공식 runtime과 starter 경로는 HTTP request/response 실행을 전제로 합니다.
-- adapter-agnostic framework type이 존재하더라도, 그것이 지원되는 non-HTTP product surface를 의미하지는 않습니다.
-- gateway/websocket 또는 기타 non-HTTP runtime productization은 future track으로 defer합니다.
-
-이렇게 해야 transport 확장이 helper나 adapter 내부 구현에서 우연히 드러나는 것이 아니라, 명시적인 제품 결정 뒤에 오도록 유지할 수 있습니다.
+이는 트랜스포트 확장이 내부 헬퍼의 우연한 부작용이 아니라 명시적인 결정으로 유지되도록 보장합니다.

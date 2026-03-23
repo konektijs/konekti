@@ -14,17 +14,17 @@ The current official docs/examples path uses this package through bearer-token a
 
 ## What this package does
 
-`@konekti/jwt` knows nothing about routes or guards. It owns:
+`@konekti/jwt` knows nothing about routes or guards. It performs the following:
 
-- Signing access tokens with HMAC algorithms such as HS256, HS384, and HS512 (`DefaultJwtSigner.signAccessToken`)
-- Signing access tokens with asymmetric algorithms such as RS256, RS384, RS512, ES256, ES384, and ES512
-- Verifying tokens: shape → algorithm → signature → claims (`exp`, `nbf`, `iss`, `aud`)
-- Normalising verified claims to a `JwtPrincipal` (`subject`, `roles`, `scopes`, `claims`)
+- Signs access tokens with HMAC algorithms such as HS256, HS384, and HS512 (`DefaultJwtSigner.signAccessToken`).
+- Signs access tokens with asymmetric algorithms such as RS256, RS384, RS512, ES256, ES384, and ES512.
+- Verifies tokens: shape → algorithm → signature → claims (`exp`, `nbf`, `iss`, `aud`).
+- Normalizes verified claims to a `JwtPrincipal` (`subject`, `roles`, `scopes`, `claims`).
 
-Current scope note:
+Current scope notes:
 
-- shipped algorithms: `HS256`, `HS384`, `HS512`, `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512`
-- refresh-token issuance, rotation, and revoke/logout flows are outside this package and remain application-owned
+- Shipped algorithms: `HS256`, `HS384`, `HS512`, `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512`.
+- Refresh-token issuance, rotation, and revoke/logout flows are outside this package and remain application-owned.
 
 ## Installation
 

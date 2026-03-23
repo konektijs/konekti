@@ -1,34 +1,35 @@
-# 명명 및 파일 규칙
+# naming and file conventions
 
-<p><a href="./naming-and-file-conventions.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
+<p><strong><kbd>한국어</kbd></strong> <a href="./naming-and-file-conventions.md"><kbd>English</kbd></a></p>
 
+이 페이지는 Konekti CLI 및 스캐폴딩에서 사용하는 명명 및 파일 규칙을 요약합니다.
 
-## 생성기 명명 규칙
+## naming conventions
 
-기본 생성기 명명은 현재 CLI 접미사 규칙을 따릅니다.
+CLI는 생성된 파일에 대해 일관된 접미사 규칙을 사용합니다.
 
-- `user.controller.ts`
-- `user.service.ts`
-- `user.repo.ts`
-- `user.request.dto.ts`
-- `user.response.dto.ts`
+- **Controllers**: `user.controller.ts`
+- **Services**: `user.service.ts`
+- **Repositories**: `user.repo.ts`
+- **Request DTOs**: `user.request.dto.ts`
+- **Response DTOs**: `user.response.dto.ts`
 
-## 생성기 철학
+## generator philosophy
 
-- 개별 생성기가 기본 경로임
-- `g resource`는 기본 생성기 인터페이스에 포함되지 않음
-- 요청 DTO와 응답 DTO는 별개의 스키마틱임
+- **Granular Generation**: 개별 생성기를 사용하여 컴포넌트를 빌드합니다.
+- **Explicit DTOs**: 요청 및 응답 DTO는 명확한 경계를 보장하기 위해 별도의 스키마틱을 통해 관리됩니다.
+- **Simplicity**: `g resource`와 같은 복잡한 모놀리식 생성기는 현재 지양합니다.
 
-## 스캐폴드 규칙
+## environment and configuration
 
-- 기본 모드: `dev`, `prod`, `test`
-- 기본 환경 파일:
+- **Standard Modes**: `dev`, `prod`, `test`.
+- **Environment Files**:
   - `.env.dev`
   - `.env.prod`
   - `.env.test`
 
-## 패키지 매니저 규칙
+## package managers
 
-- 스캐폴드는 기본적으로 패키지 매니저를 자동 감지함
-- `--package-manager`로 명시적 오버라이드 가능함
-- 정식 동작은 `../getting-started/bootstrap-paths.md`에 문서화되어 있음
+- **Detection**: 스캐폴드는 기본적으로 활성 패키지 매니저를 자동 감지합니다.
+- **Overrides**: 명시적인 선택을 위해 `--package-manager` 플래그를 사용합니다.
+- **Reference**: 부트스트랩 프로세스에 대한 자세한 내용은 `../getting-started/bootstrap-paths.ko.md`를 참조하세요.

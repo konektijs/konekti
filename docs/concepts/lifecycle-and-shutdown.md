@@ -2,10 +2,9 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./lifecycle-and-shutdown.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide describes the application lifecycle, covering bootstrap, readiness, and shutdown processes.
 
-This guide describes the current application lifecycle model across bootstrap, readiness, and shutdown.
-
-See also:
+### related documentation
 
 - `./config-and-environments.md`
 - `./transactions.md`
@@ -13,25 +12,27 @@ See also:
 
 ## lifecycle phases
 
-1. config load
-2. module graph compile
-3. provider/container creation
-4. provider and module init hooks
-5. infrastructure connect
-6. transport bind/listen
-7. ready
+The application lifecycle consists of several distinct phases:
+
+1.  **Configuration Loading**: Reading environment and configuration data.
+2.  **Module Graph Compilation**: Building the internal application structure.
+3.  **Provider and Container Creation**: Instantiating dependency injection containers.
+4.  **Initialization Hooks**: Executing provider and module initialization logic.
+5.  **Infrastructure Connection**: Establishing connections to external services (e.g., databases).
+6.  **Transport Binding**: Binding the HTTP adapter and starting listeners.
+7.  **Ready State**: The application is fully initialized and accepting requests.
 
 ## bootstrap guarantees
 
-- invalid config fails before listen
-- module/provider graph errors fail at startup
-- infrastructure connection failures do not leave half-started state
-- app ready means the transport is actually ready to receive requests
-- health and readiness remain separate runtime concerns: `/health` is liveness-only, while `/ready` reflects startup and registered readiness checks
+- **Validation**: Invalid configurations cause the application to fail before binding to a port.
+- **Graph Integrity**: Errors in the module or provider graph are caught at startup.
+- **Atomicity**: Infrastructure failures prevent the application from entering a partially started state.
+- **Readiness**: An "app ready" signal ensures the transport is fully prepared for incoming requests.
+- **Health Checks**: `/health` (liveness) and `/ready` (readiness) are managed as separate concerns.
 
-## hook model
+## lifecycle hooks
 
-The runtime owns the standard lifecycle hook sequence:
+The runtime manages the following standard hook sequence:
 
 - `onModuleInit`
 - `onApplicationBootstrap`
@@ -40,25 +41,27 @@ The runtime owns the standard lifecycle hook sequence:
 
 ## shutdown sequence
 
-1. stop accepting new requests
-2. record shutdown signal
-3. drain in-flight requests
-4. run destroy/shutdown hooks
-5. disconnect infrastructure clients
-6. flush logging/tracing if needed
-7. exit
+Konekti follows a structured shutdown process:
 
-## in-flight request policy
+1.  **Stop Ingestion**: Cease accepting new requests.
+2.  **Signal Capture**: Record the shutdown signal.
+3.  **Draining**: Wait for in-flight requests to complete.
+4.  **Hooks**: Execute destroy and shutdown hooks.
+5.  **Cleanup**: Disconnect infrastructure clients.
+6.  **Observability**: Flush logs and traces if necessary.
+7.  **Exit**: Terminate the process.
 
-- no new requests during shutdown
-- bounded drain for started requests
-- forced termination remains available after drain timeout
-- request-scoped cleanup must remain finally-safe
+## request draining policy
 
-In the runtime-owned Node adapter, the default drain window is 10 seconds. `bootstrapNodeApplication()` and `runNodeApplication()` expose `shutdownTimeoutMs` to override that window for test or deployment needs.
+- New requests are rejected during the shutdown phase.
+- In-flight requests are allowed a bounded period to finish.
+- Forced termination occurs if requests do not drain within the timeout window.
+- Request-scoped cleanup must be handled safely within a `finally` block.
 
-## integration implications
+The default drain window in the Node adapter is 10 seconds. You can customize this using the `shutdownTimeoutMs` option in `bootstrapNodeApplication()` or `runNodeApplication()`.
 
-- ORM clients should follow provider lifecycle
-- open transactions must be cleaned up before disconnect
-- runtime-owned adapters are responsible for propagating request abort/close state into the framework request model
+## integration notes
+
+- ORM clients should be integrated into the provider lifecycle.
+- Active transactions must be resolved or cleaned up before the database disconnects.
+- Runtime-owned adapters are responsible for mapping request abort or close signals to the internal framework model.

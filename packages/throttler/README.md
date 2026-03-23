@@ -1,6 +1,6 @@
 # @konekti/throttler
 
-<p><strong><kbd>English</kbd></strong></p>
+<p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
 Decorator-based rate limiting for Konekti applications with in-memory and Redis store adapters.
 

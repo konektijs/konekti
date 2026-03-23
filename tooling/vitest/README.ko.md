@@ -1,6 +1,5 @@
 # tooling-vitest
 
-<p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
+<p><strong><kbd>한국어</kbd></strong> <a href="./README.md"><kbd>English</kbd></a></p>
 
-
-Vitest 통합을 위한 내부 워크스페이스.
+이 내부 패키지는 Konekti 워크스페이스를 위한 Vitest 설정 및 통합을 관리합니다.

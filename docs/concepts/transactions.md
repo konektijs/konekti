@@ -2,60 +2,57 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./transactions.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide outlines the transaction semantics used across the runtime and official ORM integrations.
 
-This guide describes the current transaction semantics across the runtime and official ORM integrations.
-
-See also:
+### related documentation
 
 - `../../packages/prisma/README.md`
 - `../../packages/drizzle/README.md`
 - `./http-runtime.md`
 
-## default rule
+## standard principles
 
-- the recommended transaction boundary belongs to the service layer
-- automatic request transaction is opt-in interceptor integration only
-- global implicit transactions are not the default
+- **Service Layer Ownership**: The service layer is the recommended location for defining transaction boundaries.
+- **Opt-in Transactions**: Automatic request-level transactions are available only via interceptor integration.
+- **Explicit over Implicit**: Global, implicit transactions are not enabled by default.
 
-## repository and service boundary
+## repository and service boundaries
 
-- services may open `transaction(...)`
-- repositories do not start transactions
-- repositories resolve the current transaction-aware handle exposed by the integration package
-- generated repositories follow the same rule
+- **Services**: Responsible for opening and managing transactions.
+- **Repositories**: Should not initiate transactions. They resolve transaction-aware handles provided by the integration package.
+- **Generated Code**: Follows these same boundary rules.
 
-## propagation stance
+## transaction propagation
 
-The current default is closest to `required` propagation:
+The default behavior follows a "REQUIRED" propagation model:
 
-- start a transaction if none exists
-- join the active one if one already exists
+- Start a new transaction if one does not already exist.
+- Join the active transaction if one is already present.
 
-Not part of the current default contract:
+The following propagation types are currently not supported as standard defaults:
+- `REQUIRES_NEW`
+- Savepoints
+- Distributed transactions
 
-- `requires_new`
-- savepoints
-- distributed transactions
+## request-scoped transactions
 
-## request-scoped transaction path
+- Managed via interceptors.
+- Begins at the interceptor boundary, after successful guard execution.
+- Transaction handles are resolved in a package-specific manner.
+- Authentication failures prevent the transaction from starting, avoiding unnecessary rollback logic.
 
-- request-scoped transaction behavior is interceptor-owned
-- it starts after guard success at the interceptor boundary
-- transaction handle resolution remains package/integration specific
-- auth deny is a non-start path rather than a rollback path
+## commit and rollback
 
-## commit and rollback timing
+- **Commit**: Occurs after the wrapped request path finishes successfully.
+- **Rollback**: Triggered by controller or interceptor failures, validation errors, or request abortions before completion.
+- **Clean-up**: Aborted requests must not leave orphaned transactions.
 
-- commit happens after the wrapped request path succeeds
-- rollback covers controller/interceptor failure, binding/validation failure, and request abort before commit
-- aborted requests must not leave transactions open
+## streaming and long-lived requests
 
-## streaming and long-lived responses
+- Automatic request-level transactions are not recommended for streaming or long-lived responses.
+- Use explicit, non-transactional handling for these scenarios to avoid resource exhaustion.
 
-- automatic request transactions are not the default for streaming, file, or long-lived responses
-- explicit non-transactional handling is preferred there
+## testing
 
-## testing implications
-
-- unit tests should not require transaction interceptors
-- integration tests should explicitly cover propagation, join, rollback, and adapter interaction paths
+- **Unit Tests**: Should be designed to run without transaction interceptors.
+- **Integration Tests**: Must explicitly verify propagation, joining, and rollback behavior.

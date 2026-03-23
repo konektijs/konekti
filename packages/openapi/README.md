@@ -89,12 +89,12 @@ class OpenApiModule {
 }
 ```
 
-**Endpoints served:**
+**Endpoints:**
 
 | Route | Description |
 |-------|-------------|
-| `GET /openapi.json` | Always served. Returns the generated OpenAPI 3.1.0 JSON. |
-| `GET /docs` | Served only when `ui: true`. Returns Swagger UI HTML. |
+| `GET /openapi.json` | Returns the generated OpenAPI 3.1.0 JSON. |
+| `GET /docs` | Returns Swagger UI HTML (only when `ui: true`). |
 
 ---
 

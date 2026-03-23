@@ -3,7 +3,7 @@
 <p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
 
-module graph을 컴파일하고 config, DI, HTTP를 실행 가능한 application shell로 연결하는 조립 레이어.
+모듈 그래프를 컴파일하고 설정(config), DI, HTTP를 실행 가능한 애플리케이션 셸(shell)로 연결하는 조립 레이어입니다.
 
 ## 관련 문서
 
@@ -13,16 +13,16 @@ module graph을 컴파일하고 config, DI, HTTP를 실행 가능한 application
 
 ## 이 패키지가 하는 일
 
-`@konekti/runtime`은 orchestration 레이어다. 기능 패키지가 아니라 모듈을 실행 중인 앱으로 바꾸는 것이 역할이다:
+`@konekti/runtime`은 오케스트레이션(orchestration) 레이어입니다. 기능 패키지가 아니며, 다음과 같은 작업을 수행하여 모듈을 실행 중인 앱으로 변환합니다.
 
-1. module graph 컴파일: `imports`/`exports` visibility 검증, circular import 감지, resolve될 토큰이 모두 접근 가능한지 확인
-2. root DI container 생성, 모든 provider와 controller 등록
-3. `@konekti/config`를 통해 config 로드, `ConfigService` 등록
-4. singleton provider resolve 및 lifecycle hook 실행 (`onModuleInit` → `onApplicationBootstrap`)
-5. `@konekti/http`의 `createHandlerMapping()`과 `createDispatcher()` 호출
-6. `dispatch()`, `listen()`, `ready()`, `close()`를 가진 `KonektiApplication` shell 반환
+1. 모듈 그래프 컴파일: `imports`/`exports` 가시성(visibility)을 검증하고, 순환 참조(circular imports)를 감지하며, 해결된 모든 토큰이 접근 가능한지 확인합니다.
+2. 루트 DI 컨테이너를 생성하고 모든 프로바이더와 컨트롤러를 등록합니다.
+3. `@konekti/config`를 통해 설정을 로드하고 `ConfigService`를 등록합니다.
+4. 싱글톤 프로바이더를 해결(resolve)하고 생명주기 훅(lifecycle hooks)을 실행합니다 (`onModuleInit` → `onApplicationBootstrap`).
+5. `@konekti/http`에서 `createHandlerMapping()`과 `createDispatcher()`를 호출합니다.
+6. `dispatch()`, `listen()`, `ready()`, `close()`를 포함하는 `KonektiApplication` 셸을 반환합니다.
 
-Node.js 앱의 경우 `runNodeApplication()`이 canonical startup 경로다 — HTTP adapter, 기본 CORS, startup 로깅, graceful shutdown signal wiring을 처리한다.
+Node.js 앱의 경우 `runNodeApplication()`이 표준 시작 경로입니다. HTTP 어댑터, 기본 CORS, 시작 로깅, 그리고 정상 종료 시그널 연결(graceful shutdown signal wiring)을 처리합니다.
 
 ## 설치
 
@@ -54,7 +54,7 @@ class AppModule {}
 await runNodeApplication(AppModule, { mode: 'dev' });
 ```
 
-### 수동 listen으로 full bootstrap
+### 수동 수신(listen)을 포함한 전체 부트스트랩
 
 ```typescript
 import { bootstrapApplication } from '@konekti/runtime';
@@ -67,14 +67,70 @@ const app = await bootstrapApplication({
 await app.listen();
 console.log('Listening');
 
-// 수동으로 request dispatch (예: 테스트에서)
+// 수동으로 요청 디스패치 (예: 테스트에서)
 await app.dispatch(req, res);
 
-// Graceful shutdown
+// 정상 종료
 await app.close();
 ```
 
-### Raw webhook body (opt-in)
+### 독립형 애플리케이션 컨텍스트 (HTTP 어댑터 없음)
+
+```typescript
+import { KonektiFactory } from '@konekti/runtime';
+
+const context = await KonektiFactory.createApplicationContext(AppModule, {
+  mode: 'prod',
+});
+
+const service = await context.get(UserService);
+
+// ...CLI 작업, 마이그레이션, 시드(seed) 또는 워커(worker) 로직 실행
+
+await context.close();
+```
+
+`createApplicationContext()`는 HTTP 디스패처/어댑터를 생성하지 않고 모듈 그래프와 생명주기 훅만 부트스트랩합니다. CLI 스크립트, 백그라운드 워커, 마이그레이션, 그리고 DI만 필요한 테스트에 사용하세요.
+
+### 마이크로서비스 팩토리 (비 HTTP 트랜스포트)
+
+```typescript
+import { Module } from '@konekti/core';
+import { KonektiFactory } from '@konekti/runtime';
+import { createMicroservicesModule, MessagePattern, TcpMicroserviceTransport } from '@konekti/microservices';
+
+class MathHandler {
+  @MessagePattern('math.sum')
+  sum(input: { a: number; b: number }) {
+    return input.a + input.b;
+  }
+}
+
+@Module({
+  imports: [createMicroservicesModule({ transport: new TcpMicroserviceTransport({ port: 4001 }) })],
+  providers: [MathHandler],
+})
+class AppModule {}
+
+const microservice = await KonektiFactory.createMicroservice(AppModule, { mode: 'prod' });
+await microservice.listen();
+```
+
+`createMicroservice()`는 HTTP 어댑터 없이 모듈 그래프를 부트스트랩하고, 구성된 마이크로서비스 런타임 토큰을 해결하며, 트랜스포트 생명주기 제어를 위한 `listen()` + `close()`를 노출합니다.
+
+### 하이브리드 구성 (한 프로세스 내 HTTP + 마이크로서비스)
+
+```typescript
+import { KonektiFactory } from '@konekti/runtime';
+import { MICROSERVICE } from '@konekti/microservices';
+
+const app = await KonektiFactory.create(AppModule, { mode: 'prod' });
+const microservice = await app.container.resolve(MICROSERVICE);
+
+await Promise.all([app.listen(), microservice.listen()]);
+```
+
+### 로우(Raw) 웹훅 바디 (선택 사항)
 
 ```typescript
 import { Controller, Post, type RequestContext } from '@konekti/http';
@@ -101,9 +157,9 @@ await runNodeApplication(AppModule, {
 });
 ```
 
-`rawBody`는 opt-in이며 파싱된 `request.body`와 함께 원본 request 바이트를 보존합니다. 현재 Node adapter는 JSON, text 같은 non-multipart body에서만 이를 적용하고, 옵션이 꺼져 있거나 multipart parsing을 사용하는 요청에서는 `request.rawBody`를 설정하지 않습니다.
+`rawBody`는 선택 사항(opt-in)이며 파싱된 `request.body`와 함께 원래의 요청 바이트를 보존합니다. Node 어댑터는 현재 이를 JSON 및 텍스트와 같은 멀티파트가 아닌 바디에 적용하며, 옵션이 비활성화되어 있거나 요청이 멀티파트 파싱을 사용하는 경우에는 `request.rawBody`를 설정하지 않은 상태로 둡니다.
 
-### Host 바인딩과 HTTPS
+### 호스트 바인딩 및 HTTPS
 
 ```typescript
 import { readFileSync } from 'node:fs';
@@ -119,9 +175,9 @@ await runNodeApplication(AppModule, {
 });
 ```
 
-`host`를 지정하면 Node adapter가 기본 all-interfaces 바인딩 대신 해당 host에 명시적으로 바인딩합니다. `https`를 제공하면 adapter가 HTTPS 서버로 시작되고, startup log도 `https://...` URL을 기준으로 출력됩니다. 공개 URL과 실제 bind target이 다르면 startup log에 둘 다 표시됩니다. `https` 객체는 Node의 `node:https.createServer`로 그대로 전달되므로, 호출자가 `key`, `cert` 같은 유효한 TLS 재료를 직접 제공해야 합니다.
+`host`가 설정되면 Node 어댑터는 기본 인터페이스 바인딩 대신 해당 호스트에 명시적으로 바인딩합니다. `https`가 제공되면 어댑터는 HTTPS 서버를 시작하고 시작 로그에 `https://...` URL을 보고합니다. 공개 URL이 실제 바인딩 대상과 다른 경우 시작 로그에 두 URL이 모두 포함됩니다. `https` 객체는 Node의 `node:https.createServer`로 전달되므로 호출자는 `key`와 `cert` 같은 유효한 TLS 자료를 제공해야 합니다.
 
-### 애플리케이션 라우트용 global prefix
+### 애플리케이션 라우트를 위한 글로벌 접두사(Prefix)
 
 ```typescript
 await runNodeApplication(AppModule, {
@@ -131,13 +187,14 @@ await runNodeApplication(AppModule, {
 });
 ```
 
-`globalPrefix`는 runtime-owned HTTP app의 애플리케이션 라우트에 적용되므로, `/app/info` 같은 controller route는 `/api/app/info`로 노출됩니다. 기본적으로 runtime-owned 운영 엔드포인트인 `/health`, `/ready`, `/openapi.json`, `/docs`, `/metrics`는 prefix 없이 유지되고, `/api/health` 같은 prefixed 경로는 의도적으로 `404`를 반환합니다. `globalPrefixExclude`는 이 기본 exclusion 집합 위에 추가로 unprefixed path pattern을 더합니다.
+`globalPrefix`는 런타임 소유의 HTTP 앱이 소유한 애플리케이션 라우트에 적용되므로, `/app/info`와 같은 컨트롤러 라우트는 `/api/app/info`가 됩니다. 기본적으로 런타임 소유의 운영 엔드포인트는 접두사 없이 `/health`, `/ready`, `/openapi.json`, `/docs`, `/metrics`로 유지되며, `/api/health`와 같은 접두사가 붙은 형태는 설계상 `404`를 반환합니다. `globalPrefixExclude`는 이 기본 제외 세트 위에 더 많은 접두사 없는 경로 패턴을 추가합니다.
 
-`globalPrefixExclude`는 `/internal/ping` 같은 exact path와 `/internal/*` 같은 trailing `/*` pattern만 지원합니다. 런타임은 매칭 전에 중복 슬래시와 trailing slash를 정규화하며, `globalPrefix: '/'`는 no-op으로 취급합니다.
+`globalPrefixExclude`는 `/internal/ping`과 같은 정확한 경로와 `/internal/*`과 같은 후행 `/*` 패턴을 지원합니다. 런타임은 매칭 전에 중복된 슬래시와 후행 슬래시를 정규화하며, `globalPrefix: '/'`는 아무런 동작을 하지 않는 것(no-op)으로 처리합니다.
 
-### 전역 예외 필터
+### 글로벌 예외 필터
 
 ```typescript
+import { NotFoundException } from '@konekti/http';
 import type { ExceptionFilterHandler } from '@konekti/runtime';
 
 class DomainExceptionFilter implements ExceptionFilterHandler {
@@ -158,9 +215,9 @@ await runNodeApplication(AppModule, {
 });
 ```
 
-`filters`는 handler, guard, interceptor, middleware에서 예외가 발생했을 때 순서대로 실행되는 전역 exception filter를 등록합니다. 응답을 작성한 뒤 `true`를 반환하면 체인이 중단되고, `undefined`를 반환하면 다음 filter 및 내장 HTTP exception serializer로 계속 진행합니다.
+`filters`는 핸들러, 가드, 인터셉터 또는 미들웨어에서 예외가 발생할 때 순서대로 실행되는 글로벌 예외 필터를 등록합니다. 응답을 작성한 후 체인을 중단하려면 `true`를 반환하고, 다음 필터로 넘어가서 최종적으로 내장 HTTP 예외 직렬화기(serializer)에 도달하게 하려면 `undefined`를 반환하세요.
 
-### 중복 provider 진단
+### 중복 프로바이더 진단
 
 ```typescript
 await bootstrapApplication({
@@ -170,12 +227,12 @@ await bootstrapApplication({
 });
 ```
 
-`duplicateProviderPolicy`는 bootstrap 중 여러 모듈이 같은 provider token을 등록했을 때의 동작을 제어합니다. `'warn'`은 로그 후 계속 진행, `'throw'`는 `DuplicateProviderError`로 즉시 실패, `'ignore'`는 기존 last-registration-wins 동작을 유지합니다.
+`duplicateProviderPolicy`는 부트스트랩 중에 여러 모듈이 동일한 프로바이더 토큰을 등록할 때 발생하는 상황을 제어합니다. 로그를 남기고 계속하려면 `'warn'`, `DuplicateProviderError`로 즉시 실패하게 하려면 `'throw'`, 기존의 마지막 등록 우선 동작을 유지하려면 `'ignore'`를 사용하세요.
 
-### URI 버저닝
+### 버전 관리 전략
 
 ```typescript
-import { Controller, Get, Version } from '@konekti/http';
+import { Controller, Get, Version, VersioningType } from '@konekti/http';
 
 @Version('1')
 @Controller('/users')
@@ -185,11 +242,26 @@ class UsersController {
     return [];
   }
 }
+
+await runNodeApplication(AppModule, {
+  mode: 'prod',
+  versioning: {
+    header: 'X-API-Version',
+    type: VersioningType.HEADER,
+  },
+});
 ```
 
-현재 Konekti는 URI 버저닝만 지원합니다. `@Version('1')`은 `/users`를 `/v1/users`로 바꾸고, handler 레벨 버전은 특정 route에서 controller 레벨 버전을 override합니다.
+런타임은 네 가지 버전 관리 전략을 지원합니다.
 
-### imports와 exports를 가진 모듈
+- `VersioningType.URI` (기본값): `/v1/users`
+- `VersioningType.HEADER`: 구성된 헤더에서 읽음
+- `VersioningType.MEDIA_TYPE`: `v=`와 같은 키를 사용하여 `Accept` 파싱
+- `VersioningType.CUSTOM`: 커스텀 추출 함수 사용
+
+`@Version()` 데코레이터 사용법은 전략에 관계없이 동일합니다. `versioning`이 생략된 경우 URI 버전 관리가 기본값으로 유지됩니다.
+
+### 임포트(imports) 및 익스포트(exports)가 포함된 모듈
 
 ```typescript
 import { Module } from '@konekti/core';
@@ -205,102 +277,105 @@ export class UsersModule {}
 
 @Module({
   imports: [UsersModule],
-  // UsersModule이 UserService를 export하기 때문에 주입 가능
+  // UsersModule이 UserService를 익스포트하므로 주입 가능
 })
 export class AppModule {}
 ```
 
-## 핵심 API
+## 주요 API
 
-| Export | 위치 | 설명 |
+| 익스포트(Export) | 위치 | 설명 |
 |---|---|---|
-| `runNodeApplication(rootModule, options)` | `src/node.ts` | Node용 bootstrap + listen + shutdown wiring |
-| `bootstrapNodeApplication(rootModule, options)` | `src/node.ts` | Node 기본값으로 bootstrap만 (listen 없음) |
-| `bootstrapApplication(options)` | `src/bootstrap.ts` | 범용 bootstrap — `Application` 반환 |
-| `KonektiFactory.createMicroservice(rootModule, options)` | `src/bootstrap.ts` | transport 기반 microservice runtime을 부트스트랩하고 `listen()`/`close()`를 제공 |
-| `bootstrapModule(module)` | `src/bootstrap.ts` | 하위 레벨: module graph 컴파일 + container 구성 |
-| `defineModule(cls, metadata)` | `src/bootstrap.ts` | 데코레이터 없이 module 메타데이터를 붙이는 하위 레벨 helper |
+| `runNodeApplication(rootModule, options)` | `src/node.ts` | Node를 위한 부트스트랩 + 수신(listen) + 종료 연결 |
+| `bootstrapNodeApplication(rootModule, options)` | `src/node.ts` | Node 기본값으로 부트스트랩만 수행 (수신 없음) |
+| `bootstrapApplication(options)` | `src/bootstrap.ts` | 일반적인 부트스트랩 — `Application` 반환 |
+| `KonektiFactory.createApplicationContext(rootModule, options)` | `src/bootstrap.ts` | HTTP 런타임 없이 DI/생명주기 컨텍스트 부트스트랩 |
+| `KonektiFactory.createMicroservice(rootModule, options)` | `src/bootstrap.ts` | DI/생명주기 컨텍스트를 부트스트랩하고 트랜스포트 기반 마이크로서비스 런타임 연결 |
+| `bootstrapModule(module)` | `src/bootstrap.ts` | 하위 레벨: 모듈 그래프 컴파일 + 컨테이너 빌드 |
+| `defineModule(cls, metadata)` | `src/bootstrap.ts` | 데코레이터 없이 모듈 메타데이터를 연결하는 하위 레벨 헬퍼 |
 | `Application` | `src/types.ts` | 인터페이스: `config`, `container`, `dispatcher`, `dispatch()`, `ready()`, `listen()`, `close()` |
-| `@Module(metadata)` | `@konekti/core` | module의 provider, controller, import, export 선언 |
-| `@Global()` | `@konekti/core` | 모듈을 전역적으로 visible하게 표시 |
+| `@Module(metadata)` | `@konekti/core` | 모듈 프로바이더, 컨트롤러, 임포트, 익스포트 선언 |
+| `@Global()` | `@konekti/core` | 모듈을 전역적으로 가시성 있게 표시 |
 
-## 구조
+## 아키텍처
 
-### Bootstrap 흐름
+### 부트스트랩 흐름
 
 ```text
 runNodeApplication(options)  [또는 bootstrapApplication]
   → loadConfig(...)               (@konekti/config)
-  → ConfigService provider 등록
+  → ConfigService 프로바이더 등록
   → compileModuleGraph()
-      → imports/exports visibility 검증
-      → circular import 감지
-      → 모든 provider + controller 수집
-  → root Container 생성        (@konekti/di)
-  → bootstrap-level provider 등록
-  → module provider + controller 등록
-  → singleton 인스턴스 resolve
-  → onModuleInit hook
-  → onApplicationBootstrap hook
+      → 임포트/익스포트 가시성 검증
+      → 순환 참조 감지
+      → 모든 프로바이더 + 컨트롤러 수집
+  → 루트 컨테이너(Container) 생성 (@konekti/di)
+  → 부트스트랩 레벨 프로바이더 등록
+  → 모듈 프로바이더 + 컨트롤러 등록
+  → 싱글톤 인스턴스 해결(resolve)
+  → onModuleInit 훅
+  → onApplicationBootstrap 훅
   → createHandlerMapping()     (@konekti/http)
   → createDispatcher()         (@konekti/http)
   → KonektiApplication 반환
 ```
 
-### Module graph 컴파일은 순회가 아니라 증명이다
+### 모듈 그래프 컴파일은 순회가 아닌 증명입니다
 
-`compileModuleGraph()`는 단순히 노드를 방문하는 것 이상을 한다. 다음을 검증한다:
-- controller나 service가 필요한 모든 provider 토큰이 접근 가능한지 (local, export된 모듈에서 import, 또는 global)
-- 모듈이 소유하지 않거나 re-export할 수 없는 토큰을 export하려 하지 않는지
-- `imports` 체인에 circular dependency가 없는지
+`compileModuleGraph()`는 노드를 방문하는 것 이상의 역할을 합니다. 다음을 검증합니다.
+- 컨트롤러나 서비스가 필요한 모든 프로바이더 토큰에 접근 가능한지 (로컬, 익스포트된 모듈로부터 임포트됨, 또는 글로벌)
+- 모듈이 소유하지 않았거나 재익스포트할 수 없는 토큰을 익스포트하려고 하지 않는지
+- 순환 `imports` 체인이 존재하지 않는지
 
-이 중 하나라도 실패하면 provider가 인스턴스화되기 전에 bootstrap이 throw한다. 이것은 의도적인 설계 선택 — 깨진 앱은 첫 번째 요청에서 조용히 실패하는 것이 아니라 startup 시 크게 실패한다.
+이 중 하나라도 실패하면 프로바이더가 인스턴스화되기 전에 부트스트랩이 예외를 발생시킵니다. 이는 의도적인 설계 선택입니다. 깨진 앱은 첫 번째 요청에서 조용히 실패하는 것이 아니라 시작 시 명확하게 실패하게 됩니다.
 
-### Lifecycle hook 순서
+### 생명주기 훅 순서
 
 ```text
-시작:   onModuleInit → onApplicationBootstrap
-종료:   onModuleDestroy (역순) → onApplicationShutdown (역순)
+시작: onModuleInit → onApplicationBootstrap
+종료: onModuleDestroy (역순) → onApplicationShutdown (역순)
 ```
 
-Request-scoped provider와 transient provider는 lifecycle hook 대상에서 제외된다 — singleton-scoped provider만 참여한다.
+요청 스코프(Request-scoped) 및 트랜지언트(transient) 프로바이더는 생명주기 훅에서 제외되며, 싱글톤 스코프 프로바이더만 참여합니다.
 
-### KonektiApplication은 thin shell이다
+### KonektiApplication은 얇은 셸(shell)입니다
 
-`KonektiApplication`은 어떤 런타임 부분도 재구현하지 않는다. 조립된 config, container, dispatcher에 대한 참조를 보관하고 상태 전환을 관리한다: `bootstrapped` → `ready` → `closed`.
+`KonektiApplication`은 런타임의 어떤 부분도 재구현하지 않습니다. 조립된 설정, 컨테이너, 디스패처에 대한 참조를 유지하며 상태 전이를 관리합니다: `부트스트랩됨` → `준비됨` → `닫힘`.
 
-추가 public export로는 `KonektiFactory`, `createHealthModule`, `createNodeHttpAdapter`, `parseMultipart`, `compressResponse`, `createConsoleApplicationLogger`, `createJsonApplicationLogger`, `APPLICATION_LOGGER`, `raceWithAbort`, `createAbortError` 등이 있다.
+추가적인 공개 익스포트에는 `KonektiFactory`, `createHealthModule`, `createNodeHttpAdapter`, `parseMultipart`, `compressResponse`, `createConsoleApplicationLogger`, `createJsonApplicationLogger`, `APPLICATION_LOGGER`, `raceWithAbort`, `createAbortError`와 같은 헬퍼들이 포함됩니다.
 
-### 런타임이 소유하는 Node startup concerns
+`createHealthModule()`은 런타임 소유의 활성/준비 상태 쌍을 노출합니다. `/health`는 `200 { status: 'ok' }`를 반환하는 활성(liveness) 엔드포인트이며, `/ready`는 시작 상태와 등록된 준비 상태 확인(readiness checks) 결과를 `starting`, `ready`, `unavailable` 상태로 반영합니다.
 
-`runNodeApplication()`은 애플리케이션 코드에 있으면 안 되는 Node-specific startup 세부사항을 통합한다:
-- HTTP adapter 생성과 바인딩
-- 기본 CORS middleware
-- config에서 port 결정
-- Startup 로그
-- `SIGTERM`/`SIGINT` → `app.close()` wiring
-- Request abort signal → `FrameworkRequest.signal` bridge
+### 런타임이 소유하는 Node 시작 관심사
 
-Node adapter는 종료 시 새 연결 수락을 중단하고, 제한된 시간 동안 시작된 요청을 drain한 뒤, idle keep-alive 연결을 닫고, timeout이 지나면 남은 연결을 강제로 종료합니다. 기본 drain 윈도는 10초이며 Node bootstrap 옵션의 `shutdownTimeoutMs`로 조정할 수 있습니다.
+`runNodeApplication()`은 애플리케이션 코드에 있어서는 안 될 Node 전용 시작 세부사항들을 통합합니다.
+- HTTP 어댑터 생성 및 바인딩
+- 기본 CORS 미들웨어
+- 설정으로부터 포트 해결
+- 시작 로그
+- `SIGTERM`/`SIGINT` → `app.close()` 연결
+- 요청 중단 시그널 → `FrameworkRequest.signal` 브리지
 
-## 파일 읽기 순서 (기여자용)
+Node 어댑터는 종료 시 새로운 연결 수락을 중단하고, 시작된 요청들을 정해진 시간 동안 드레인(drain)하며, 유휴 상태의 keep-alive 연결을 닫고, 종료 타임아웃이 만료되면 남은 연결들을 강제로 종료합니다. 기본 10초 드레인 윈도우를 변경하려면 Node 부트스트랩 옵션에서 `shutdownTimeoutMs`를 사용하세요.
 
-1. `packages/core/src/decorators.ts` — `@Module()`, `@Global()` 메타데이터 writer
-2. `src/types.ts` — `Application` 인터페이스, module 메타데이터 shape
-3. `src/errors.ts` — bootstrap 에러 타입
+## 기여자를 위한 파일 읽기 순서
+
+1. `packages/core/src/decorators.ts` — `@Module()`, `@Global()` 메타데이터 작성자
+2. `src/types.ts` — `Application` 인터페이스, 모듈 메타데이터 형태
+3. `src/errors.ts` — 부트스트랩 오류 유형
 4. `src/bootstrap.ts` — `compileModuleGraph`, `bootstrapModule`, `bootstrapApplication`
 5. `src/node.ts` — `bootstrapNodeApplication`, `runNodeApplication`
-6. `src/bootstrap.test.ts` — module graph 컴파일, visibility/export 규칙
-7. `src/application.test.ts` — lifecycle hook, close 경로, bootstrap 실패 unwind
+6. `src/bootstrap.test.ts` — 모듈 그래프 컴파일, 가시성/익스포트 규칙
+7. `src/application.test.ts` — 생명주기 훅, 종료 경로, 부트스트랩 실패 시 되돌리기(unwind)
 
 ## 관련 패키지
 
-- `@konekti/config` — bootstrap 시 사용되는 `loadConfig`와 `ConfigService` 제공
-- `@konekti/di` — `bootstrapModule`이 provider를 등록하는 `Container`
-- `@konekti/http` — `bootstrapApplication`이 호출하는 `createHandlerMapping`과 `createDispatcher`
+- `@konekti/config` — 부트스트랩 중에 사용되는 `loadConfig`와 `ConfigService` 제공
+- `@konekti/di` — `bootstrapModule`이 프로바이더를 등록하는 `Container`
+- `@konekti/http` — `bootstrapApplication`에 의해 호출되는 `createHandlerMapping`과 `createDispatcher`
 
-## 한 줄 mental model
+## 한 줄 멘탈 모델
 
 ```text
-@konekti/runtime = 메타데이터로 검증된 module graph → 조립된 config/DI/HTTP application shell
+@konekti/runtime = 메타데이터로 검증된 모듈 그래프 → 조립된 설정/DI/HTTP 애플리케이션 셸
 ```

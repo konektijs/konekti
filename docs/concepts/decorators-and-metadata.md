@@ -2,58 +2,57 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./decorators-and-metadata.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide outlines the decorator and metadata model used in `@konekti/core`, `@konekti/http`, and `@konekti/dto-validator`.
 
-This guide describes the current decorator and metadata model across `@konekti/core`, `@konekti/http`, and `@konekti/dto-validator`.
-
-See also:
+### related documentation
 
 - `./http-runtime.md`
 - `./di-and-modules.md`
 - `../../packages/core/README.md`
 
-## current decorator stance
+## decorator implementation
 
-The public model is decorator-first and standard-decorator-only.
+Konekti uses a decorator-first approach based exclusively on TC39 standard decorators.
 
-Core families include:
+### core decorator families
 
-- module and DI decorators such as `@Module()`, `@Inject()`, `@Scope()`, `@Global()`
-- HTTP decorators such as `@Controller()`, `@Get()`, `@Post()`, `@UseGuard()`, `@UseInterceptor()`
-- DTO binding decorators such as `@FromBody()`, `@FromPath()`, `@FromQuery()`, `@FromHeader()`, `@FromCookie()`
-- validation decorators from `@konekti/dto-validator`
+- **Module and DI**: `@Module()`, `@Inject()`, `@Scope()`, `@Global()`
+- **HTTP Routing**: `@Controller()`, `@Get()`, `@Post()`, `@UseGuard()`, `@UseInterceptor()`
+- **DTO Binding**: `@FromBody()`, `@FromPath()`, `@FromQuery()`, `@FromHeader()`, `@FromCookie()`
+- **Validation**: Decorators provided by `@konekti/dto-validator`
 
-## DTO strategy
+## dto strategy
 
-- request DTO binding is explicit opt-in only
-- method-level route metadata plus DTO field decorators are preferred over parameter-decorator magic
-- validation runs from framework-owned decorator metadata
-- nested DTO validation is part of the first-party model
+- Request DTO binding is an explicit opt-in.
+- Method-level route metadata and DTO field decorators are used instead of parameter-based injection magic.
+- Validation is driven by framework-owned decorator metadata.
+- Nested DTO validation is a first-class feature.
 
-Current public boundary:
+### current constraints
 
-- keep the decorator-first DTO model as the supported contract
-- do not add schema-object validation as a first-class public path now
-- do not broaden validation-adapter contracts into a richer general extension API now
+- The decorator-first DTO model is the primary supported contract.
+- Direct schema-object validation is not a priority at this time.
+- Validation-adapter contracts will not be expanded into a general extension API for now.
 
-## DTO security rules
+## dto security
 
-- request DTO, response DTO, and persistence model stay separate
-- one field maps to one request source
-- body binding uses strict allowlist behavior
-- dangerous keys such as `__proto__`, `constructor`, and `prototype` are blocked
+- Request DTOs, response DTOs, and persistence models remain separate.
+- Each field maps to a single request source.
+- Body binding uses a strict allowlist.
+- Sensitive or dangerous keys (e.g., `__proto__`, `constructor`, `prototype`) are blocked.
 
-## metadata ownership
+## metadata management
 
-- helper-owned metadata APIs remain the low-level write/read boundary
-- runtime and other packages should read normalized metadata through helper APIs
-- custom decorators should not depend on raw storage shape as a public contract
-- third-party metadata/decorator extension beyond framework-owned categories is not part of the current public contract
-- `ensureMetadataSymbol()` / helper exports are the supported compatibility boundary when `Symbol.metadata` needs to be present; consumers should not rely on incidental import order from internal helper modules
+- Low-level metadata read/write operations are handled by internal helper APIs.
+- The runtime and other packages must access normalized metadata through these helpers.
+- Custom decorators should not rely on the internal storage format.
+- Third-party extensions to the metadata system are not currently part of the public API.
+- Use `ensureMetadataSymbol()` and other exported helpers to ensure compatibility when `Symbol.metadata` is required.
 
-## practical mental model
+## conceptual model
 
 ```text
 decorators write framework-owned metadata
 runtime packages read normalized metadata
-raw storage shape is not the public extension surface
+internal storage remains private
 ```

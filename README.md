@@ -2,22 +2,22 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
-Konekti is a TypeScript backend framework built on **TC39 standard decorators** as an explicit alternative to NestJS legacy decorator mode.
+Konekti is a TypeScript backend framework built on **TC39 standard decorators**. It provides an explicit alternative to the legacy decorator mode used by NestJS.
 
-## Why Standard Decorators?
+## why standard decorators?
 
-Konekti ships on the current TypeScript standard decorator model, so starter apps do not need legacy compiler behavior.
+Konekti uses the modern TypeScript standard decorator model, removing the need for legacy compiler behaviors in starter applications.
 
 - `experimentalDecorators`: enables legacy (pre-standard) decorator emit and type behavior.
 - `emitDecoratorMetadata`: emits runtime design-type metadata for reflection-based injection.
-- NestJS: depends on legacy decorators plus emitted metadata for implicit constructor injection.
-- Konekti: does not require emitted metadata because dependencies are declared explicitly with tokens.
+- NestJS: depends on legacy decorators and emitted metadata for implicit constructor injection.
+- Konekti: uses explicit tokens for dependency declaration, so emitted metadata is not required.
 
-For project config, that means you can keep standard TypeScript defaults and avoid legacy decorator flags.
+By using Konekti, you can stick to standard TypeScript defaults and avoid legacy decorator flags in your project configuration.
 
-## TypeScript-first, with Verifiable Differences
+## typescript-first, with verifiable differences
 
-TypeScript-first in Konekti means no legacy decorator compiler flags and no reflection-driven DI.
+TypeScript-first in Konekti means zero legacy decorator compiler flags and no reliance on reflection-driven DI.
 
 ### `tsconfig.json` comparison
 
@@ -42,7 +42,7 @@ Konekti standard decorator setup:
 }
 ```
 
-You can also omit `experimentalDecorators` entirely in Konekti apps.
+You can omit `experimentalDecorators` entirely in Konekti projects.
 
 ### DI style comparison
 
@@ -66,7 +66,7 @@ class UsersService {
 }
 ```
 
-## Quick Start
+## quick start
 
 ```sh
 pnpm add -g @konekti/cli
@@ -75,36 +75,36 @@ cd starter-app
 pnpm dev
 ```
 
-You get a runnable app with:
+The generated application includes:
 
 - runtime-owned bootstrap in `src/main.ts`
-- `/health` and `/ready` endpoints out of the box
-- starter `health/` module example at `/health-info/`
-- ready-to-run `dev`, `build`, `typecheck`, and `test` scripts
+- built-in `/health` and `/ready` endpoints
+- sample `health/` module at `/health-info/`
+- pre-configured `dev`, `build`, `typecheck`, and `test` scripts
 
-## Why Teams Pick Konekti
+## why teams pick konekti
 
-- **Standard decorators, not legacy flags**: no `"experimentalDecorators": true`, no `emitDecoratorMetadata` requirement
-- **Explicit DI over reflection magic**: dependencies stay readable and auditable via tokens
-- **Composable package boundaries**: add auth, OpenAPI, metrics, queues, microservices, Redis, Prisma, Drizzle, and more when needed
-- **CLI-first onboarding**: create, generate, run, and verify with one consistent workflow
+- **Standard decorators, not legacy flags**: avoid `"experimentalDecorators": true` and `emitDecoratorMetadata`.
+- **Explicit DI over reflection magic**: maintain readable and auditable dependencies via tokens.
+- **Composable package boundaries**: add auth, OpenAPI, metrics, queues, microservices, Redis, Prisma, Drizzle, and more as needed.
+- **CLI-first onboarding**: create, generate, run, and verify with a consistent workflow.
 
-## Start Here (Docs-first)
+## start here (docs-first)
 
-- `docs/README.md` - full reading order and docs ownership map
-- `docs/getting-started/quick-start.md` - fastest path from install to running app
+- `docs/README.md` - reading order and documentation map
+- `docs/getting-started/quick-start.md` - fastest path from installation to a running app
 - `docs/concepts/architecture-overview.md` - package boundaries and runtime flow
-- `docs/reference/package-surface.md` - current public package surface
+- `docs/reference/package-surface.md` - public package surface reference
 
-Need package-level API details? Jump to `packages/*/README.md` for each package's source of truth.
+For package-level API details, see `packages/*/README.md` in each package directory.
 
-## Release History
+## release history
 
 - `CHANGELOG.md`
-- `https://github.com/konektijs/konekti/releases`
+- [GitHub Releases](https://github.com/konektijs/konekti/releases)
 
-## Contributing
+## contributing
 
-- update `docs/` when cross-package contracts change
-- update `packages/*/README*.md` when package API surface changes
-- track future work in GitHub Issues, not phase/status prose in the repo
+- Update `docs/` when cross-package contracts change.
+- Update `packages/*/README*.md` when package API surfaces change.
+- Track future work in GitHub Issues rather than in-repo prose.

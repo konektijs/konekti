@@ -2,64 +2,70 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./auth-and-jwt.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide explains how authentication and JWT support are distributed across Konekti packages.
 
-This guide explains how the current auth stack is split across Konekti packages.
+## package boundaries
 
-## package boundary
+- **`@konekti/jwt`**: Core JWT contracts, signing, verification, claim validation, and principal normalization.
+- **`@konekti/passport`**: Strategy registration, generic authentication guard wiring, and strategy adapter contracts.
+- **`@konekti/http`**: Guard orchestration, `RequestContext` management, and runtime execution.
+- **`@konekti/config`**: Management of key material, issuers, and audiences.
 
-- `@konekti/jwt` owns JWT token-core contracts, signing, verification, claim validation, and principal normalization
-- `@konekti/passport` owns strategy registration metadata, generic auth guard wiring, and strategy adapter contracts
-- `@konekti/http` owns guard orchestration, `RequestContext`, and runtime execution order
-- `@konekti/config` owns key material and issuer/audience loading
+## responsibility split
 
-## execution ownership
+- **Token extraction**: Strategy-specific adapter logic.
+- **Signature and claim verification**: Handled by `JwtVerifier`.
+- **Principal normalization**: Handled by `JwtVerifier`.
+- **Route-level auth requirements**: Managed via passport metadata and authentication guards.
+- **Context attachment**: Attaching the verified principal to the `RequestContext`.
+- **Error mapping**: Handled by the passport and HTTP exception layers.
 
-- token extraction: strategy-owned adapter logic
-- signature and claim verification: `JwtVerifier`
-- verified principal normalization: `JwtVerifier`
-- route-aware auth requirement: passport metadata and auth guard
-- principal attachment to `RequestContext`: passport guard path
-- HTTP auth error mapping: passport + HTTP exception layer
+## request flow
 
-## current default request flow
+A typical authenticated request follows this path:
 
-```text
-HTTP request
--> route-aware auth guard
--> selected auth strategy
--> verified principal
--> RequestContext.principal set
--> controller/service execution
-```
+1.  **HTTP request** arrives.
+2.  **Auth guard** identifies the required strategy.
+3.  **Auth strategy** verifies the credentials (e.g., JWT).
+4.  **Principal** is extracted and normalized.
+5.  **`RequestContext.principal`** is populated.
+6.  **Controller/Service** executes with the authenticated principal.
 
-## current stance
+## core principles
 
-- JWT is one strategy, not the whole auth model
-- `@konekti/passport` is strategy-generic today
-- `@konekti/jwt` stays transport-agnostic
-- app code should prefer normalized principals over raw JWT payloads
+- JWT is a specific strategy, not the entire authentication model.
+- `@konekti/passport` remains strategy-agnostic.
+- `@konekti/jwt` remains transport-agnostic.
+- Application code should interact with normalized principals instead of raw payloads.
 
-## current shipped JWT scope
+## jwt support scope
 
-- the built-in JWT core supports HMAC algorithms: `HS256`, `HS384`, and `HS512`
-- the built-in JWT core supports asymmetric algorithms: `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, and `ES512`
-- for asymmetric algorithms, pass `privateKey` and `publicKey` (PEM string or `KeyObject`) to `JwtVerifierOptions`; key-per-kid rotation is supported via the `keys` array
+### algorithms
 
-## official default auth story
+- **HMAC**: `HS256`, `HS384`, `HS512`.
+- **Asymmetric**: `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512`.
 
-The current official docs/examples story is bearer-token auth with JWT verification through the `Authorization: Bearer <token>` header.
+### key management
 
-Explicitly not standardized as framework-wide defaults today:
+For asymmetric algorithms, provide `privateKey` and `publicKey` (PEM strings or `KeyObject`) in `JwtVerifierOptions`. Key rotation is supported via the `keys` array, using the `kid` (Key ID) header.
 
-- HttpOnly cookie auth as the primary official preset
-- refresh-token lifecycle and rotation policy
-- logout/revoke semantics
-- account-linking policy across identity sources
+## standard auth pattern
 
-Those remain application-level policy choices. The current framework docs should describe them as app-owned behavior rather than implying a hidden default lifecycle.
+The recommended authentication pattern is Bearer token authentication via the `Authorization: Bearer <token>` header.
 
-## related package docs
+### application-level policies
 
-- `../../packages/jwt/README.md`
-- `../../packages/passport/README.md`
-- `../../packages/http/README.md`
+The following areas are currently treated as application-specific and are not standardized within the framework:
+
+- HttpOnly cookie authentication presets.
+- Refresh token lifecycles and rotation.
+- Logout and token revocation.
+- Identity provider account linking.
+
+These should be implemented at the application level based on project requirements.
+
+## further reading
+
+- **`@konekti/jwt`**: `../../packages/jwt/README.md`
+- **`@konekti/passport`**: `../../packages/passport/README.md`
+- **`@konekti/http`**: `../../packages/http/README.md`

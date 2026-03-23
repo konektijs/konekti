@@ -2,46 +2,46 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./di-and-modules.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide explains the dependency injection (DI) and module system implemented across `@konekti/core`, `@konekti/di`, and `@konekti/runtime`.
 
-This guide describes the current dependency-injection and module model across `@konekti/core`, `@konekti/di`, and `@konekti/runtime`.
-
-See also:
+### related documentation
 
 - `./architecture-overview.md`
 - `./http-runtime.md`
 - `../../packages/di/README.md`
 - `../../packages/runtime/README.md`
 
-## DI principles
+## di principles
 
-- explicit token DI
-- no runtime type-reflection autowiring dependency
-- constructor-first injection by default
-- `@Inject([...])` owns constructor dependency metadata
-- `@Scope(...)` owns lifecycle scope metadata
+- **Explicit token DI**: Dependencies are identified by explicit tokens rather than inferred types.
+- **No reflection-based autowiring**: Konekti does not rely on runtime type reflection for dependency resolution.
+- **Constructor-first injection**: Constructor injection is the default and recommended pattern.
+- **`@Inject([...])`**: Stores constructor dependency metadata.
+- **`@Scope(...)`**: Defines the lifecycle scope of a provider.
 
 ## provider forms
 
 - `useClass`
 - `useFactory`
 - `useValue`
-- tokens must choose one registration mode: single provider or multi provider collection
+
+Each token must use a single registration mode: either as a single provider or as part of a multi-provider collection.
 
 ## scopes
 
-- `singleton`
-- `request`
-- `transient`
+- `singleton`: One instance per application lifecycle.
+- `request`: One instance per incoming request.
+- `transient`: A new instance for every injection.
 
-## override retention policy
+## provider overrides
 
-- `override()` invalidates cached singleton/request entries for the token being replaced
-- evicted stale instances are disposed immediately when disposable (`onDestroy()`)
-- stale overridden instances are not retained until global container `dispose()`
+- Calling `override()` invalidates any cached singleton or request-scoped instances for the replaced token.
+- Evicted instances that implement `onDestroy()` are disposed of immediately.
+- Instances are not retained after being overridden.
 
-## app-facing injection strategy
+## injection strategy
 
-The current public path is decorator-authored metadata rather than ad hoc static properties.
+Konekti uses decorator-authored metadata for dependency declaration.
 
 ```ts
 @Inject([USER_REPOSITORY, LOGGER])
@@ -54,64 +54,63 @@ class UserService {
 }
 ```
 
-## explicit token model vs reflection DI
+## explicit tokens vs reflection
 
-Konekti resolves dependencies from explicit token metadata, not from runtime type reflection metadata.
+Konekti resolves dependencies using explicit token metadata instead of runtime type reflection.
 
-- Konekti uses declared DI tokens (`@Inject([...])`) as the source of truth.
-- Konekti does not require `"emitDecoratorMetadata": true`.
-- Konekti does not rely on reflection-based constructor type autowiring.
+- Injection tokens (`@Inject([...])`) serve as the source of truth.
+- `"emitDecoratorMetadata": true` is not required.
+- Reflection-based constructor autowiring is not supported.
 
-This keeps DI behavior explicit: what is declared in injection metadata is what the container resolves.
+This ensures that dependency resolution is predictable and based entirely on declared metadata.
 
-## token ownership rules
+## token ownership
 
-- tokens are part of the public contract when they cross module or package boundaries
-- exported tokens should be stable constants or types, not ad hoc literals
-- token ownership stays with the package that owns the underlying resource or contract
-- examples and generators should follow the same token-authoring rules as framework packages
+- Tokens crossing module or package boundaries are part of the public contract.
+- Exported tokens should be defined as stable constants or symbols, not string literals.
+- Token ownership belongs to the package that provides the underlying resource.
+- Generated code and examples follow the same token-authoring conventions as the framework.
 
 ## module responsibilities
 
-Modules define:
+Modules serve several critical functions:
 
-- DI visibility boundaries
-- feature boundaries
-- deterministic bootstrap ordering
-- explicit import/export seams for future service boundaries
+- **Visibility boundaries**: Defining which providers are accessible.
+- **Feature grouping**: Organizing related logic.
+- **Bootstrap ordering**: Ensuring deterministic application startup.
+- **Encapsulation**: Providing explicit import/export points.
 
 ## visibility rules
 
-- providers are visible inside the defining module by default
-- cross-module access requires both `exports` from the provider module and `imports` from the consumer module
-- if a token is neither local nor re-exported from an imported module, resolution fails fast at bootstrap time
+- Providers are private to their defining module by default.
+- Cross-module access requires the provider to be in the `exports` list of its module and the consumer module to include that module in its `imports`.
+- If a token is neither local nor explicitly imported/exported, resolution will fail during bootstrap.
 
-In short:
+Summary:
+- **Intra-module**: Access is granted to all local providers.
+- **Inter-module**: Requires both `exports` and `imports`.
 
-- same module -> local provider access is allowed
-- cross-module -> requires `exports` + `imports`
+## diagnostics and errors
 
-## diagnostics expectations
+- Constructor dependency metadata must match the constructor's arity.
+- Bootstrap errors distinguish between missing local providers, missing exports, missing imports, and malformed metadata.
+- Rapid failure (fail-fast) is a core framework feature.
+- Registering both single and multi-providers for the same token results in a bootstrap error.
 
-- constructor dependency metadata and constructor arity must agree
-- bootstrap errors should distinguish missing local provider, missing export, missing import, and malformed injection metadata
-- fail-fast diagnostics are part of the framework contract, not optional polish
-- mixed single-provider + multi-provider registration for the same token is a fail-fast container error, not a last-write or silent-shadowing case
+## testing
 
-## testing stance
+- Use direct construction for unit tests where possible.
+- Use testing modules and provider overrides for integration tests.
+- `@Inject([...])` provides metadata and does not interfere with manual instantiation in test environments.
 
-- unit tests should use direct construction when possible
-- integration tests should use a testing module/container with provider overrides
-- `@Inject([...])` is metadata only and does not block normal direct construction in tests
+## runtime behavior
 
-## runtime ownership
+`@konekti/runtime` processes module and DI metadata to:
 
-`@konekti/runtime` consumes module metadata and DI metadata to:
+- Construct the module graph.
+- Enforce visibility rules (imports/exports).
+- Register providers and controllers.
+- Instantiate singleton-scoped providers.
+- Assemble the application shell.
 
-- compile the module graph
-- validate imports/exports visibility
-- register providers and controllers
-- instantiate singleton providers
-- build the application shell
-
-The low-level helpers exist, but the intended app-facing DX is decorator-first.
+While low-level APIs are available, the recommended development experience is decorator-based.

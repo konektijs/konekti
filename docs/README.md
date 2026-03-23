@@ -2,45 +2,45 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
-This is the cross-package documentation hub for Konekti.
+Welcome to the Konekti cross-package documentation hub.
 
-Use this folder for framework-level truth that spans multiple packages. For package-local APIs and examples, use `../packages/*/README.md`.
+This directory contains framework-level information that spans multiple packages. For package-specific APIs and examples, refer to `../packages/*/README.md`.
 
-## Choose Your Path
+## choose your path
 
-### I want to run Konekti quickly
+### quick start
 
 - `getting-started/quick-start.md`
 - `getting-started/bootstrap-paths.md`
 - `getting-started/generator-workflow.md`
 
-### I am migrating from NestJS
+### nestjs migration
 
 - `getting-started/migrate-from-nestjs.md`
 - `operations/nestjs-parity-gaps.md`
 
-### I want to understand architecture and runtime flow
+### architecture and runtime
 
 - `concepts/architecture-overview.md`
 - `concepts/http-runtime.md`
 - `concepts/di-and-modules.md`
 - `concepts/lifecycle-and-shutdown.md`
 
-### I need auth, validation, and API docs behavior
+### authentication and api behavior
 
 - `concepts/auth-and-jwt.md`
 - `concepts/decorators-and-metadata.md`
 - `concepts/error-responses.md`
 - `concepts/openapi.md`
 
-### I need operations and release guidance
+### operations and releases
 
 - `operations/testing-guide.md`
 - `operations/deployment.md`
 - `operations/release-governance.md`
 - `operations/third-party-extension-contract.md`
 
-### I need exact contracts and naming conventions
+### contracts and conventions
 
 - `reference/package-surface.md`
 - `reference/support-matrix.md`
@@ -48,8 +48,8 @@ Use this folder for framework-level truth that spans multiple packages. For pack
 - `reference/naming-and-file-conventions.md`
 - `reference/glossary-and-mental-model.md`
 
-## Authority Rules
+## authority rules
 
-- if a doc describes shipped behavior, it belongs here or in a package README
-- if a doc describes future work, it belongs in a GitHub Issue
-- if a topic is owned by one package, prefer the package README over duplicating it here
+- Documentation for shipped behavior belongs here or in a package README.
+- Future work belongs in GitHub Issues.
+- If a topic is specific to one package, prefer the package README to avoid duplication.

@@ -1,11 +1,10 @@
-# 테스트 가이드
+# testing guide
 
-<p><a href="./testing-guide.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
-
+<p><strong><kbd>한국어</kbd></strong> <a href="./testing-guide.md"><kbd>English</kbd></a></p>
 
 이 가이드는 Konekti의 현재 테스트 및 검증 기준선을 설명합니다.
 
-## 명령
+## commands
 
 저장소 루트에서 다음 명령을 사용합니다:
 
@@ -18,7 +17,7 @@ pnpm verify:release-candidate
 
 생성된 스타터 프로젝트도 선택한 패키지 매니저를 통해 동일한 명령을 제공합니다.
 
-## 공식 테스트 API
+## official testing API
 
 `@konekti/testing`은 현재 다음과 같은 최소하지만 실용적인 공개 테스트 인터페이스를 제공합니다:
 
@@ -29,7 +28,7 @@ pnpm verify:release-candidate
 - 엔드투엔드 스타일 요청 실행을 위한 `createTestApp(...)`
 - 빌더 없이 직접 요청을 실행하는 `TestApp.dispatch(...)`
 - 요청 principal 주입을 포함한 플루언트 request 빌더
-- `createTestApp().close()`를 통한 정리(cleanup)
+- `createTestApp().close()`를 통한 예측 가능한 정리(cleanup)
 
 현재 public boundary:
 
@@ -43,10 +42,9 @@ pnpm verify:release-candidate
 - `packages/testing/src/app.ts`
 - `packages/testing/src/http.ts`
 - `packages/testing/src/module.test.ts`
-- `../../packages/testing/README.ko.md`
 - `packages/testing/README.ko.md`
 
-## 런타임 및 슬라이스 커버리지
+## runtime and slice coverage
 
 테스트를 확장할 때 다음 파일들을 계약 예시로 참고하세요:
 
@@ -55,7 +53,7 @@ pnpm verify:release-candidate
 - `packages/prisma/src/vertical-slice.test.ts`
 - `packages/drizzle/src/vertical-slice.test.ts`
 
-## 생성된 앱에 대한 기대 사항
+## generated app expectations
 
 `konekti new`는 실행 가능한 `src/app.test.ts`가 포함된 스타터 앱을 생성합니다. `packages/cli/src/cli.test.ts`의 스캐폴드 통합 커버리지는 새 프로젝트가 설치 직후 `typecheck`, `build`, `test`, `konekti g ...`를 실행할 수 있는지 검증하며, 생성된 앱 테스트 자체는 `/health`, `/ready`, 그리고 스타터가 소유한 `/health-info/` 라우트 작동 여부를 증명합니다.
 

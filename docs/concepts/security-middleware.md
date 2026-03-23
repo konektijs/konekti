@@ -2,37 +2,36 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./security-middleware.ko.md"><kbd>한국어</kbd></a></p>
 
+This guide outlines the transport-level security middleware implemented in `@konekti/http`.
 
-This guide describes the current transport-level security middleware model in `@konekti/http`.
-
-See also:
+### related documentation
 
 - `./http-runtime.md`
 - `../../packages/http/README.md`
 
-## current middleware families
+## middleware families
 
 ### rate limiting
 
-`RateLimitMiddleware` is transport-level middleware that:
+The `RateLimitMiddleware` provides transport-level protection:
 
-- is exported from `@konekti/http`
-- follows the standard middleware interface
-- can resolve a request key through a custom resolver
-- returns `429 Too Many Requests` with `Retry-After` when the limit is exceeded
-- uses an in-process store by default, so it is not cluster-safe without a shared adapter
-- should be treated as single-process protection unless you place a shared limiter at the edge or in app-owned infrastructure
+- **Availability**: Exported from `@konekti/http`.
+- **Interface**: Implements the standard middleware interface.
+- **Identification**: Supports custom resolvers for request identification.
+- **Response**: Returns `429 Too Many Requests` with a `Retry-After` header when limits are exceeded.
+- **Storage**: Uses an in-process store by default. It is not cluster-safe without a shared adapter.
+- **Usage**: Recommended for single-process protection. For distributed systems, use shared limiters at the edge or infrastructure level.
 
 ### security headers
 
-`SecurityHeadersMiddleware` is transport-level middleware that:
+The `SecurityHeadersMiddleware` manages security-focused HTTP headers:
 
-- is exported from `@konekti/http`
-- writes a default set of security-focused headers
-- allows individual headers to be overridden or disabled
-- never sets `X-Powered-By`
+- **Availability**: Exported from `@konekti/http`.
+- **Behavior**: Writes a baseline set of security headers.
+- **Customization**: Supports overriding or disabling specific headers.
+- **Safety**: Never includes `X-Powered-By`.
 
-## default header set
+## default security headers
 
 - `X-Content-Type-Options: nosniff`
 - `X-Frame-Options: SAMEORIGIN`
@@ -41,9 +40,10 @@ See also:
 - `Content-Security-Policy: default-src 'self'`
 - `Referrer-Policy: strict-origin-when-cross-origin`
 
-## ownership boundaries
+## responsibilities
 
-- these middleware live with the HTTP runtime package
-- applications opt into them explicitly; they are not silently enabled by default
-- rate limiting acts before route dispatch and does not know handler identities
-- security headers should be applied regardless of handler outcome
+- **Location**: These middleware reside within the HTTP runtime package.
+- **Opt-in**: Security middleware must be explicitly enabled by the application.
+- **Lifecycle**:
+  - Rate limiting occurs before route dispatch and is independent of handler logic.
+  - Security headers are applied to all responses, regardless of the handler's outcome.

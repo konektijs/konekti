@@ -1,19 +1,19 @@
-# 빠른 시작 (quick start)
+# 빠른 시작
 
 <p><a href="./quick-start.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
+이 가이드는 Konekti의 표준 부트스트랩 프로세스를 설명합니다.
 
-이 가이드는 현재 Konekti의 공개 부트스트랩 경로를 설명합니다.
-
-> [!NOTE]
-> Konekti는 TC39 표준 데코레이터(TypeScript 5.0+)를 사용합니다.
-> 스타터 앱의 `tsconfig.json`에서 레거시 데코레이터 플래그를 켜지 마세요:
-> - `"experimentalDecorators": true`를 설정하지 마세요
-> - `"emitDecoratorMetadata": true`를 설정하지 마세요
-> NestJS는 현재 레거시 데코레이터 + 메타데이터 경로에 의존하지만, Konekti는 그렇지 않습니다.
-> Konekti에서는 표준 설정(`"experimentalDecorators": false` 또는 생략)만으로 충분합니다.
+> [!IMPORTANT]
+> Konekti는 TC39 표준 데코레이터(TypeScript 5.0+)를 사용합니다. `tsconfig.json`에서 레거시 데코레이터 플래그를 활성화하지 마세요:
+> - `"experimentalDecorators": true` 설정을 피하세요.
+> - `"emitDecoratorMetadata": true` 설정을 피하세요.
+>
+> NestJS와 달리, Konekti는 레거시 데코레이터나 메타데이터 생성에 의존하지 않습니다. 표준 TypeScript 설정으로 충분합니다.
 
 ## 표준 부트스트랩 경로
+
+새 프로젝트를 시작하는 권장 방법은 Konekti CLI를 사용하는 것입니다:
 
 ```sh
 pnpm add -g @konekti/cli
@@ -22,17 +22,13 @@ cd starter-app
 pnpm dev
 ```
 
-이것이 현재 지원되는 공식적인 공개 엔트리포인트입니다.
-
-한 번만 실행하는 zero-install 부트스트랩에는 아래 대안도 계속 지원됩니다:
+또는 전역 설치 없이 `dlx`를 사용하여 일회성으로 실행할 수 있습니다:
 
 ```sh
 pnpm dlx @konekti/cli new starter-app
 ```
 
-`pnpm add -g @konekti/cli` + `konekti new ...` 경로가 이제 표준 공개 부트스트랩 흐름입니다.
-
-참고 항목:
+### 관련 문서
 
 - `./bootstrap-paths.ko.md`
 - `./generator-workflow.ko.md`
@@ -40,48 +36,48 @@ pnpm dlx @konekti/cli new starter-app
 
 ## 생성된 스타터 앱 구조
 
-새 앱에는 현재 다음이 포함되어 있습니다:
+새로 생성된 애플리케이션에는 다음이 포함됩니다:
 
-- 런타임 소유의 Node 부트스트랩을 포함한 `src/main.ts`
-- 스타터 모듈 연결을 포함한 `src/app.ts`
-- 런타임 소유의 `/health` 및 `/ready`
-- `/health-info/`를 노출하는 스타터 소유 `health/` 모듈
-- 앱이 올바르게 부팅되고 디스패치되는지 증명하는 스타터 테스트
+- `src/main.ts`: Node 부트스트랩을 포함한 애플리케이션 엔트리 포인트.
+- `src/app.ts`: 메인 모듈 설정.
+- 기본 제공되는 `/health` 및 `/ready` 엔드포인트.
+- `/health-info/`에 위치한 예제 `health/` 모듈.
+- 애플리케이션 시작 및 디스패칭을 검증하는 기본 테스트 스위트.
 
-## 생성된 프로젝트 명령어
+## 프로젝트 명령어
 
-생성된 프로젝트 루트에서 실행하세요:
+프로젝트 루트에서 다음 명령어를 실행하세요:
 
 ```sh
-pnpm dev
-pnpm typecheck
-pnpm build
-pnpm test
+pnpm dev        # 개발 서버 시작
+pnpm typecheck  # TypeScript 타입 체크 실행
+pnpm build      # 프로덕션 빌드
+pnpm test       # 테스트 실행
 ```
 
-스캐폴드는 `pnpm`, `npm`, `yarn`에 대해 동일한 단일 프로젝트 레이아웃을 생성하며, 설치 및 실행 명령어는 사용 중인 패키지 매니저를 인식합니다.
+스캐폴드는 `pnpm`, `npm`, `yarn`과 호환되는 일관된 레이아웃을 생성합니다.
 
-## 첫 번째 생성기 명령어
+## 컴포넌트 생성
 
-프로젝트 루트에서 리포지토리를 생성합니다:
+새 리포지토리를 생성하려면:
 
 ```sh
 konekti g repo User
 ```
 
-CLI는 생성된 앱의 `src/` 디렉토리에 파일을 기본으로 작성합니다.
+CLI는 생성된 파일을 기본적으로 `src/` 디렉토리에 작성합니다.
 
-## 기억해야 할 DTO 규칙
+## DTO 검증
 
-DTO 바인딩과 DTO 검증은 서로 다른 패키지에서 제공됩니다:
+DTO 바인딩과 검증은 별도의 패키지에서 처리됨에 유의하세요:
 
 ```ts
 import { FromBody } from '@konekti/http';
 import { IsString, MinLength } from '@konekti/dto-validator';
 ```
 
-## 업그레이드 기대 사항
+## 업그레이드 정책
 
-- 마이너 릴리스는 문서화된 스타터 명령어 세트와 파일 구조를 안정적으로 유지합니다. 단, 문서에서 해당 부분을 내부 전용으로 명시한 경우는 제외합니다.
-- 메이저 릴리스에서는 공개 계약이 변경될 때 코드모드(codemods)나 수동 수정이 필요할 수 있습니다.
-- 레포지토리 로컬의 smoke 명령어는 구현 지원용이며 공개 부트스트랩 계약이 아닙니다.
+- 마이너 릴리스는 안정적인 명령어 세트와 파일 구조를 유지합니다.
+- 메이저 릴리스에는 공개 계약에 대한 하위 호환되지 않는 변경 사항이 포함될 수 있으며, 수동 업데이트나 코드모드(codemod)가 필요할 수 있습니다.
+- 레포지토리 내의 유틸리티 명령어는 내부 개발용이며 공개 API의 일부가 아닙니다.

@@ -2,5 +2,4 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
-
-Internal workspace for the shared Babel transform contract.
+This package defines shared Babel transformation contracts and configurations for the Konekti workspace.
