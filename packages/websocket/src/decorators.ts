@@ -63,8 +63,8 @@ function createMethodDecorator(metadata: WebSocketGatewayHandlerMetadata): Metho
   return decorator as MethodDecoratorLike;
 }
 
-export function WebSocketGateway<TEvents extends WebSocketEventMap = WebSocketEventMap>(
-  options: WebSocketGatewayOptions<TEvents> = {},
+export function WebSocketGateway(
+  options: WebSocketGatewayOptions = {},
 ): ClassDecoratorLike {
   const decorator = (_value: Function, context: ClassDecoratorContext) => {
     defineStandardGatewayMetadata(context.metadata, options);

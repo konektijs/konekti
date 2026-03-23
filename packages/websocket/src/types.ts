@@ -11,7 +11,7 @@ export type TypedOnMessageHandler<TEvents extends WebSocketEventMap, K extends k
   request: IncomingMessage,
 ) => void | Promise<void>;
 
-export interface WebSocketGatewayOptions<TEvents extends WebSocketEventMap = WebSocketEventMap> {
+export interface WebSocketGatewayOptions {
   path?: string;
 }
 

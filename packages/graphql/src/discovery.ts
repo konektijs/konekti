@@ -1,6 +1,6 @@
 import { getClassDiMetadata, type MetadataPropertyKey, type Token } from '@konekti/core';
 import type { Provider } from '@konekti/di';
-import type { ApplicationLogger, CompiledModule } from '@konekti/runtime';
+import type { CompiledModule } from '@konekti/runtime';
 
 import { getArgFieldMetadataEntries, getResolverHandlerMetadataEntries, getResolverMetadata } from './metadata.js';
 import type { GraphqlModuleOptions, ResolverDescriptor } from './types.js';
@@ -81,7 +81,6 @@ function discoveryCandidates(compiledModules: readonly CompiledModule[]): Discov
 export function discoverResolverDescriptors(
   compiledModules: readonly CompiledModule[],
   options: GraphqlModuleOptions,
-  logger: ApplicationLogger,
 ): ResolverDescriptor[] {
   const allowedResolvers = normalizeAllowedResolverSet(options.resolvers);
   const seenTargets = new Set<Function>();

@@ -288,7 +288,7 @@ export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplic
   }
 
   private discoverResolverDescriptors(): ResolverDescriptor[] {
-    return discoverResolverDescriptors(this.compiledModules, this.options, this.logger);
+    return discoverResolverDescriptors(this.compiledModules, this.options);
   }
 
   private registerMiddleware(): void {

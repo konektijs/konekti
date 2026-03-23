@@ -60,7 +60,7 @@ interface NodeUpgradeServer {
 interface ClassProviderLike {
   provide: Token;
   scope?: 'request' | 'singleton' | 'transient';
-  useClass: new (...args: any[]) => unknown;
+  useClass: new (...args: unknown[]) => unknown;
 }
 
 type NodeUpgradeListener = (request: IncomingMessage, socket: Duplex, head: Buffer) => void;

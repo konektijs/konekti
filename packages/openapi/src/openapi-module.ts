@@ -13,6 +13,9 @@ import { defineModule, type ModuleType } from '@konekti/runtime';
 import { OpenApiHandlerRegistry } from './handler-registry.js';
 import { buildOpenApiDocument, type DefaultErrorResponsesPolicy, type OpenApiDocument } from './schema-builder.js';
 
+const SWAGGER_UI_CSS_URL = 'https://unpkg.com/swagger-ui-dist@5/swagger-ui.css';
+const SWAGGER_UI_BUNDLE_JS_URL = 'https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js';
+
 export interface OpenApiModuleOptions {
   defaultErrorResponsesPolicy?: DefaultErrorResponsesPolicy;
   title: string;
@@ -40,11 +43,11 @@ function createSwaggerUiHtml(title: string): string {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title}</title>
-    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <link rel="stylesheet" href="${SWAGGER_UI_CSS_URL}" />
   </head>
   <body>
     <div id="swagger-ui"></div>
-    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+    <script src="${SWAGGER_UI_BUNDLE_JS_URL}" crossorigin></script>
     <script>
       window.ui = SwaggerUIBundle({
         url: '/openapi.json',
