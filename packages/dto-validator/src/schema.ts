@@ -52,16 +52,6 @@ interface ValibotIssueLike {
   readonly type?: string;
 }
 
-interface ValibotSafeParseFailureLike {
-  readonly success: false;
-  readonly issues: readonly ValibotIssueLike[];
-}
-
-interface ValibotSafeParseSuccessLike<T> {
-  readonly success: true;
-  readonly output: T;
-}
-
 function toFieldPath(path: readonly PropertyKey[] | undefined): string | undefined {
   if (!path || path.length === 0) {
     return undefined;
