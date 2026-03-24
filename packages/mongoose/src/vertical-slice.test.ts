@@ -76,7 +76,10 @@ describe('@konekti/mongoose vertical slice', () => {
 
     const users = new Map<string, UserRecord>();
     const events: string[] = [];
+    const createSessions: Array<MongooseSessionLike | undefined> = [];
+    const findSessions: Array<MongooseSessionLike | undefined> = [];
     let sequence = 0;
+    const startedSessions: MongooseSessionLike[] = [];
     let resolveAbortCreate!: () => void;
     const abortCreateReached = new Promise<void>((resolve) => {
       resolveAbortCreate = resolve;
@@ -102,7 +105,9 @@ describe('@konekti/mongoose vertical slice', () => {
     const connection: MongooseConnectionLike = {
       async startSession() {
         events.push('connection:startSession');
-        return createSession(events);
+        const session = createSession(events);
+        startedSessions.push(session);
+        return session;
       },
     };
 
@@ -125,6 +130,7 @@ describe('@konekti/mongoose vertical slice', () => {
 
       async create(input: CreateUserRequest) {
         events.push(`repo:insert:${input.email}`);
+        createSessions.push(this.conn.currentSession());
 
         if (input.email === 'abort@example.com') {
           resolveAbortCreate();
@@ -141,6 +147,7 @@ describe('@konekti/mongoose vertical slice', () => {
 
       async findById(id: string) {
         events.push(`repo:find:${id}`);
+        findSessions.push(this.conn.currentSession());
         return users.get(id) ?? null;
       }
     }
@@ -209,6 +216,8 @@ describe('@konekti/mongoose vertical slice', () => {
     await app.dispatch(createRequest('/users', 'POST', { email: 'ada@example.com', name: 'Ada' }), createResponseOk);
 
     expect(createResponseOk.body).toEqual({ email: 'ada@example.com', id: 'user-1', name: 'Ada' });
+    expect(createSessions[0]).toBeDefined();
+    expect(createSessions[0]).toBe(startedSessions[0]);
     expect(events).toEqual([
       'connection:startSession',
       'session:tx:start',
@@ -222,6 +231,8 @@ describe('@konekti/mongoose vertical slice', () => {
     await app.dispatch(createRequest('/users/user-1', 'GET'), getResponseOk);
 
     expect(getResponseOk.body).toEqual({ email: 'ada@example.com', id: 'user-1', name: 'Ada' });
+    expect(findSessions[0]).toBeDefined();
+    expect(findSessions[0]).toBe(startedSessions[1]);
     expect(events).toEqual([
       'connection:startSession',
       'session:tx:start',
