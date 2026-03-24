@@ -78,12 +78,42 @@ await this.conn.transaction(async () => {
 });
 ```
 
+### 비동기 모듈 생성
+
+```typescript
+import { Global, Module } from '@konekti/core';
+import { ConfigService } from '@konekti/config';
+import { createMongooseModuleAsync } from '@konekti/mongoose';
+import mongoose from 'mongoose';
+
+@Global()
+@Module({
+  providers: [ConfigService],
+  exports: [ConfigService],
+})
+class ConfigModule {}
+
+@Module({
+  imports: [
+    ConfigModule,
+    createMongooseModuleAsync({
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        connection: mongoose.createConnection(config.get('MONGODB_URI')),
+      }),
+    }),
+  ],
+})
+class AppModule {}
+```
+
 ## 주요 API
 
 | Export | 위치 | 설명 |
 |---|---|---|
 | `MongooseConnection` | `src/connection.ts` | `current()`, `currentSession()`, `transaction()`, `requestTransaction()`, `onApplicationShutdown()` 포함 래퍼 |
 | `createMongooseModule(options)` | `src/module.ts` | 모든 프로바이더가 포함된 import 가능한 Konekti 모듈 생성 |
+| `createMongooseModuleAsync(options)` | `src/module.ts` | 주입된 의존성이나 비동기 팩토리로부터 모듈 옵션을 해석 |
 | `createMongooseProviders(options)` | `src/module.ts` | 수동 등록을 위한 원시 프로바이더 배열 반환 |
 | `MongooseTransactionInterceptor` | `src/transaction.ts` | 자동 요청 범위 트랜잭션을 위한 선택적 인터셉터 |
 

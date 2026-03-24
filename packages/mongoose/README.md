@@ -89,12 +89,42 @@ import { MongooseTransactionInterceptor } from '@konekti/mongoose';
 class UsersController {}
 ```
 
+### Async module creation
+
+```typescript
+import { Global, Module } from '@konekti/core';
+import { ConfigService } from '@konekti/config';
+import { createMongooseModuleAsync } from '@konekti/mongoose';
+import mongoose from 'mongoose';
+
+@Global()
+@Module({
+  providers: [ConfigService],
+  exports: [ConfigService],
+})
+class ConfigModule {}
+
+@Module({
+  imports: [
+    ConfigModule,
+    createMongooseModuleAsync({
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        connection: mongoose.createConnection(config.get('MONGODB_URI')),
+      }),
+    }),
+  ],
+})
+class AppModule {}
+```
+
 ## Key API
 
 | Export | Location | Description |
 |---|---|---|
 | `MongooseConnection` | `src/connection.ts` | Wrapper with `current()`, `currentSession()`, `transaction()`, `requestTransaction()`, `onApplicationShutdown()` |
 | `createMongooseModule(options)` | `src/module.ts` | Creates an importable Konekti module with all providers |
+| `createMongooseModuleAsync(options)` | `src/module.ts` | Resolves module options from injected dependencies or async factories |
 | `createMongooseProviders(options)` | `src/module.ts` | Returns the raw provider array for manual registration |
 | `MongooseTransactionInterceptor` | `src/transaction.ts` | Opt-in interceptor for automatic per-request transactions |
 | `MONGOOSE_CONNECTION` | `src/tokens.ts` | DI token for the raw Mongoose connection |
