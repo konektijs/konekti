@@ -15,6 +15,7 @@ interface AcceptToken {
 export interface ResolvedContentNegotiation {
   defaultFormatter: ResponseFormatter;
   formatters: ResponseFormatter[];
+  normalizedMediaTypes: string[];
 }
 
 const NO_ACCEPTABLE_REPRESENTATION_MESSAGE = 'No acceptable response representation found.';
@@ -127,14 +128,16 @@ export function resolveContentNegotiation(options: ContentNegotiationOptions | u
     return undefined;
   }
 
-  const formatters = options.formatters.filter((formatter, index, all) => {
+  const seen = new Set<string>();
+  const formatters = options.formatters.filter((formatter) => {
     const mediaType = normalizeMediaType(formatter.mediaType);
 
-    if (!mediaType) {
+    if (!mediaType || seen.has(mediaType)) {
       return false;
     }
 
-    return all.findIndex((item) => normalizeMediaType(item.mediaType) === mediaType) === index;
+    seen.add(mediaType);
+    return true;
   });
 
   if (!formatters.length) {
@@ -149,30 +152,43 @@ export function resolveContentNegotiation(options: ContentNegotiationOptions | u
   return {
     defaultFormatter,
     formatters,
+    normalizedMediaTypes: formatters.map((f) => normalizeMediaType(f.mediaType)),
   };
 }
 
 function resolveAllowedFormatters(
   handler: HandlerDescriptor,
   contentNegotiation: ResolvedContentNegotiation,
-): ResponseFormatter[] {
+): { formatters: ResponseFormatter[]; normalizedMediaTypes: string[] } {
   if (!handler.route.produces?.length) {
-    return contentNegotiation.formatters;
+    return { formatters: contentNegotiation.formatters, normalizedMediaTypes: contentNegotiation.normalizedMediaTypes };
   }
 
   const allowed = new Set(handler.route.produces.map((mediaType) => normalizeMediaType(mediaType)));
-  return contentNegotiation.formatters.filter((formatter) => allowed.has(normalizeMediaType(formatter.mediaType)));
+  const formatters: ResponseFormatter[] = [];
+  const normalizedMediaTypes: string[] = [];
+
+  for (let i = 0; i < contentNegotiation.formatters.length; i++) {
+    const normalized = contentNegotiation.normalizedMediaTypes[i]!;
+
+    if (allowed.has(normalized)) {
+      formatters.push(contentNegotiation.formatters[i]!);
+      normalizedMediaTypes.push(normalized);
+    }
+  }
+
+  return { formatters, normalizedMediaTypes };
 }
 
 function resolveDefaultFormatter(
   allowedFormatters: ResponseFormatter[],
+  allowedNormalizedMediaTypes: string[],
   contentNegotiation: ResolvedContentNegotiation,
 ): ResponseFormatter {
   const defaultMediaType = normalizeMediaType(contentNegotiation.defaultFormatter.mediaType);
+  const idx = allowedNormalizedMediaTypes.indexOf(defaultMediaType);
 
-  return allowedFormatters.find((formatter) => normalizeMediaType(formatter.mediaType) === defaultMediaType)
-    ?? allowedFormatters[0]
-    ?? contentNegotiation.defaultFormatter;
+  return idx >= 0 ? allowedFormatters[idx]! : (allowedFormatters[0] ?? contentNegotiation.defaultFormatter);
 }
 
 export function selectResponseFormatter(
@@ -180,13 +196,16 @@ export function selectResponseFormatter(
   request: FrameworkRequest,
   contentNegotiation: ResolvedContentNegotiation,
 ): ResponseFormatter {
-  const allowedFormatters = resolveAllowedFormatters(handler, contentNegotiation);
+  const { formatters: allowedFormatters, normalizedMediaTypes: allowedNormalizedMediaTypes } = resolveAllowedFormatters(
+    handler,
+    contentNegotiation,
+  );
 
   if (!allowedFormatters.length) {
     throw new NotAcceptableException(NO_ACCEPTABLE_REPRESENTATION_MESSAGE);
   }
 
-  const defaultFormatter = resolveDefaultFormatter(allowedFormatters, contentNegotiation);
+  const defaultFormatter = resolveDefaultFormatter(allowedFormatters, allowedNormalizedMediaTypes, contentNegotiation);
   const acceptHeader = readAcceptHeader(request);
 
   if (!acceptHeader) {
@@ -204,9 +223,14 @@ export function selectResponseFormatter(
       return defaultFormatter;
     }
 
-    const matchedFormatter = allowedFormatters.find((formatter) => {
-      return matchesMediaRange(token.mediaRange, normalizeMediaType(formatter.mediaType));
-    });
+    let matchedFormatter: ResponseFormatter | undefined;
+
+    for (let i = 0; i < allowedFormatters.length; i++) {
+      if (matchesMediaRange(token.mediaRange, allowedNormalizedMediaTypes[i]!)) {
+        matchedFormatter = allowedFormatters[i];
+        break;
+      }
+    }
 
     if (matchedFormatter) {
       return matchedFormatter;
