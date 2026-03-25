@@ -33,6 +33,16 @@ export async function writeSuccessResponse(
     return;
   }
 
+  for (const header of handler.route.headers ?? []) {
+    response.setHeader(header.name, header.value);
+  }
+
+  if (handler.route.redirect) {
+    const { url, statusCode = 302 } = handler.route.redirect;
+    response.redirect(statusCode, url);
+    return;
+  }
+
   const formatter = contentNegotiation
     ? selectResponseFormatter(handler, request, contentNegotiation)
     : undefined;

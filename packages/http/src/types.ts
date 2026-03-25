@@ -82,7 +82,9 @@ export interface RouteDefinition {
   produces?: string[];
   request?: Constructor;
   guards?: GuardLike[];
+  headers?: { name: string; value: string }[];
   interceptors?: InterceptorLike[];
+  redirect?: { url: string; statusCode?: number };
   successStatus?: number;
   version?: string;
 }

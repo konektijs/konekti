@@ -23,6 +23,8 @@ import {
   RequestDto,
   SseResponse,
   HttpCode,
+  Header,
+  Redirect,
   UseGuards,
   UseInterceptors,
   assertRequestContext,
@@ -530,7 +532,7 @@ describe('dispatcher runtime', () => {
     @Controller('/health')
     class HealthController {
       @Get('/:id')
-      @UseGuards($$$)
+      @UseGuards(HealthGuard)
       @UseInterceptors(HealthInterceptor)
       getHealth(_input: unknown, ctx: ReturnType<typeof assertRequestContext>) {
         events.push('handler');
@@ -771,7 +773,7 @@ describe('dispatcher runtime', () => {
     @Controller('/secure')
     class SecureController {
       @Get('/resource')
-      @UseGuards($$$)
+      @UseGuards(DenyGuard)
       getSecure() {
         return { ok: true };
       }
@@ -809,7 +811,7 @@ describe('dispatcher runtime', () => {
     @Controller('/secure')
     class SecureController {
       @Get('/resource')
-      @UseGuards($$$)
+      @UseGuards(PassGuard)
       getSecure() {
         return { ok: true };
       }
@@ -841,7 +843,7 @@ describe('dispatcher runtime', () => {
     @Controller('/secure')
     class SecureController {
       @Get('/login')
-      @UseGuards($$$)
+      @UseGuards(RedirectGuard)
       getSecure() {
         events.push('handler');
         return { ok: true };
@@ -876,7 +878,7 @@ describe('dispatcher runtime', () => {
     @Controller('/errors')
     class ErrorController {
       @Get('/boom')
-      @UseGuards($$$)
+      @UseGuards(PassGuard)
       @UseInterceptors(PassInterceptor)
       fail() {
         throw new Error('boom');
@@ -916,7 +918,7 @@ describe('dispatcher runtime', () => {
     @Controller('/users')
     class UsersController {
       @RequestDto(CreateUserRequest)
-      @HttpCode($$$)
+      @HttpCode(201)
       @Post('/')
       createUser(input: CreateUserRequest) {
         return {
@@ -1486,6 +1488,119 @@ describe('dispatcher runtime', () => {
 
       expect(events).toEqual(['A', 'C', 'handler']);
       expect(logger.calls).toEqual(['A:/dogs', 'C:/dogs']);
+    });
+  });
+
+  describe('@Header and @Redirect decorators', () => {
+    it('sets response headers declared with @Header', async () => {
+      @Controller('/api')
+      class ApiController {
+        @Get('/data')
+        @Header('X-Custom-Header', 'custom-value')
+        @Header('Cache-Control', 'no-cache')
+        getData() {
+          return { ok: true };
+        }
+      }
+
+      const root = new Container().register(ApiController);
+      const dispatcher = createDispatcher({
+        handlerMapping: createHandlerMapping([{ controllerToken: ApiController }]),
+        rootContainer: root,
+      });
+      const response = createResponse();
+
+      await dispatcher.dispatch(
+        {
+          body: {},
+          cookies: {},
+          headers: {},
+          method: 'GET',
+          params: {},
+          path: '/api/data',
+          query: {},
+          raw: {},
+          url: '/api/data',
+        },
+        response,
+      );
+
+      expect(response.headers['X-Custom-Header']).toBe('custom-value');
+      expect(response.headers['Cache-Control']).toBe('no-cache');
+      expect(response.body).toEqual({ ok: true });
+    });
+
+    it('redirects to the declared URL with @Redirect', async () => {
+      @Controller('/api')
+      class ApiController {
+        @Get('/old')
+        @Redirect('/api/new', 301)
+        getOld() {
+          return {};
+        }
+      }
+
+      const root = new Container().register(ApiController);
+      const dispatcher = createDispatcher({
+        handlerMapping: createHandlerMapping([{ controllerToken: ApiController }]),
+        rootContainer: root,
+      });
+      const response = createResponse();
+
+      await dispatcher.dispatch(
+        {
+          body: {},
+          cookies: {},
+          headers: {},
+          method: 'GET',
+          params: {},
+          path: '/api/old',
+          query: {},
+          raw: {},
+          url: '/api/old',
+        },
+        response,
+      );
+
+      expect(response.statusCode).toBe(301);
+      expect(response.headers['Location']).toBe('/api/new');
+      expect(response.committed).toBe(true);
+    });
+
+    it('uses 302 as the default redirect status when no statusCode is provided', async () => {
+      @Controller('/api')
+      class ApiController {
+        @Get('/moved')
+        @Redirect('/api/new')
+        getMoved() {
+          return {};
+        }
+      }
+
+      const root = new Container().register(ApiController);
+      const dispatcher = createDispatcher({
+        handlerMapping: createHandlerMapping([{ controllerToken: ApiController }]),
+        rootContainer: root,
+      });
+      const response = createResponse();
+
+      await dispatcher.dispatch(
+        {
+          body: {},
+          cookies: {},
+          headers: {},
+          method: 'GET',
+          params: {},
+          path: '/api/moved',
+          query: {},
+          raw: {},
+          url: '/api/moved',
+        },
+        response,
+      );
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers['Location']).toBe('/api/new');
     });
   });
 });
