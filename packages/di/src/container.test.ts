@@ -626,6 +626,24 @@ describe('Container', () => {
       expect(() => container.createRequestScope()).toThrow('Container has been disposed');
     });
 
+    it('rejects register() after dispose', async () => {
+      class SomeService {}
+      const container = new Container();
+
+      await container.dispose();
+
+      expect(() => container.register(SomeService)).toThrow('Container has been disposed');
+    });
+
+    it('rejects override() after dispose', async () => {
+      class SomeService {}
+      const container = new Container().register(SomeService);
+
+      await container.dispose();
+
+      expect(() => container.override(SomeService)).toThrow('Container has been disposed');
+    });
+
     it('continues disposal when one onDestroy fails', async () => {
       const events: string[] = [];
 
