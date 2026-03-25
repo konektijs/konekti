@@ -126,6 +126,10 @@ export class Container {
   }
 
   register(...providers: Provider[]): this {
+    if (this.disposed) {
+      throw new ContainerResolutionError('Container has been disposed and can no longer register providers.');
+    }
+
     for (const provider of providers) {
       const normalized = normalizeProvider(provider);
 
@@ -149,6 +153,10 @@ export class Container {
   }
 
   override(...providers: Provider[]): this {
+    if (this.disposed) {
+      throw new ContainerResolutionError('Container has been disposed and can no longer override providers.');
+    }
+
     for (const provider of providers) {
       const normalized = normalizeProvider(provider);
       const existing = this.lookupProvider(normalized.provide);
