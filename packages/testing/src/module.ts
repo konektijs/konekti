@@ -1,13 +1,21 @@
-import type { Token } from '@konekti/core';
+import type { MaybePromise, Token } from '@konekti/core';
 import { getModuleMetadata } from '@konekti/core';
-import type { ClassType, Provider } from '@konekti/di';
+import {
+  isForwardRef,
+  isOptionalToken,
+  type ClassType,
+  type ForwardRefFn,
+  type NormalizedProvider,
+  type OptionalToken,
+  type Provider,
+} from '@konekti/di';
 import type { BootstrapResult, ModuleDefinition, ModuleType } from '@konekti/runtime';
 import { bootstrapModule, defineModule } from '@konekti/runtime';
 
 import { createDispatcher, createHandlerMapping } from '@konekti/http';
 import type { Guard, HandlerSource, Interceptor } from '@konekti/http';
 import { createTestRequestContextMiddleware, makeRequest, type TestRequestWithOptions } from './http.js';
-import type { TestingModuleBuilder, TestingModuleOptions, TestingModuleRef } from './types.js';
+import type { OverrideProviderBuilder, TestingModuleBuilder, TestingModuleOptions, TestingModuleRef } from './types.js';
 
 export function extractModuleProviders(moduleType: ModuleType): Provider[] {
   const metadata = getModuleMetadata(moduleType);
@@ -95,13 +103,199 @@ function normalizeOverride<T>(token: Token<T>, value: Provider<T> | T): Provider
   return { provide: token, useValue: value };
 }
 
+interface ContainerIntrospection {
+  parent?: ContainerIntrospection;
+  registrations: Map<Token, NormalizedProvider>;
+  multiRegistrations: Map<Token, NormalizedProvider[]>;
+  requestScopeEnabled?: boolean;
+}
+
+function isPromiseLike<T>(value: unknown): value is PromiseLike<T> {
+  return (
+    (typeof value === 'object' || typeof value === 'function') &&
+    value !== null &&
+    typeof (value as { then?: unknown }).then === 'function'
+  );
+}
+
+function createSyncResolver(
+  container: BootstrapResult['container'],
+): <T>(token: Token<T>) => T {
+  const introspection = container as unknown as ContainerIntrospection;
+  const singletonCache = new Map<Token, unknown>();
+  const resolutionChain = new Set<Token>();
+
+  const collectMultiProviders = (target: ContainerIntrospection, token: Token): NormalizedProvider[] => {
+    const fromParent = target.parent ? collectMultiProviders(target.parent, token) : [];
+    const local = target.multiRegistrations.get(token) ?? [];
+    return [...fromParent, ...local];
+  };
+
+  const lookupProvider = (target: ContainerIntrospection, token: Token): NormalizedProvider | undefined => {
+    const local = target.registrations.get(token);
+    if (local) {
+      return local;
+    }
+
+    return target.parent ? lookupProvider(target.parent, token) : undefined;
+  };
+
+  const hasToken = (token: Token): boolean => {
+    return lookupProvider(introspection, token) !== undefined || collectMultiProviders(introspection, token).length > 0;
+  };
+
+  const resolveDep = (entry: Token | ForwardRefFn | OptionalToken): unknown => {
+    if (isOptionalToken(entry)) {
+      if (!hasToken(entry.token)) {
+        return undefined;
+      }
+
+      return resolveToken(entry.token);
+    }
+
+    if (isForwardRef(entry)) {
+      return resolveToken(entry.forwardRef());
+    }
+
+    return resolveToken(entry as Token);
+  };
+
+  const instantiateProvider = (provider: NormalizedProvider): unknown => {
+    switch (provider.type) {
+      case 'value': {
+        return provider.useValue;
+      }
+      case 'existing': {
+        if (!provider.useExisting) {
+          throw new Error('Existing provider is missing useExisting token.');
+        }
+
+        return resolveToken(provider.useExisting);
+      }
+      case 'factory': {
+        if (!provider.useFactory) {
+          throw new Error('Factory provider is missing useFactory.');
+        }
+
+        const deps = provider.inject.map((entry) => resolveDep(entry));
+        const value = provider.useFactory(...deps) as MaybePromise<unknown>;
+
+        if (isPromiseLike(value)) {
+          throw new Error(
+            `Token ${String(provider.provide)} requires async resolution. Use resolve() instead of get() for async providers.`,
+          );
+        }
+
+        return value;
+      }
+      case 'class': {
+        if (!provider.useClass) {
+          throw new Error('Class provider is missing useClass.');
+        }
+
+        const deps = provider.inject.map((entry) => resolveDep(entry));
+        return new provider.useClass(...deps);
+      }
+      default: {
+        throw new Error('Unknown provider type.');
+      }
+    }
+  };
+
+  const resolveProvider = (provider: NormalizedProvider): unknown => {
+    if (provider.scope === 'request' && !introspection.requestScopeEnabled) {
+      throw new Error(`Request-scoped provider ${String(provider.provide)} cannot be resolved outside request scope.`);
+    }
+
+    if (provider.scope === 'transient') {
+      return instantiateProvider(provider);
+    }
+
+    if (singletonCache.has(provider.provide)) {
+      return singletonCache.get(provider.provide);
+    }
+
+    const instance = instantiateProvider(provider);
+    singletonCache.set(provider.provide, instance);
+    return instance;
+  };
+
+  const resolveToken = (token: Token): unknown => {
+    if (resolutionChain.has(token)) {
+      throw new Error(`Circular dependency detected while resolving token ${String(token)} via get().`);
+    }
+
+    resolutionChain.add(token);
+
+    try {
+      const multiProviders = collectMultiProviders(introspection, token);
+      if (multiProviders.length > 0) {
+        return multiProviders.map((provider) => instantiateProvider(provider));
+      }
+
+      const provider = lookupProvider(introspection, token);
+
+      if (!provider) {
+        throw new Error(`No provider registered for token ${String(token)}.`);
+      }
+
+      return resolveProvider(provider);
+    } finally {
+      resolutionChain.delete(token);
+    }
+  };
+
+  return <T>(token: Token<T>): T => resolveToken(token) as T;
+}
+
+class DefaultOverrideProviderBuilder<T> implements OverrideProviderBuilder<T> {
+  constructor(
+    private readonly builder: DefaultTestingModuleBuilder,
+    private readonly token: Token<T>,
+  ) {}
+
+  useValue(value: T): TestingModuleBuilder {
+    this.builder.addOverride(normalizeOverride(this.token, value));
+    return this.builder;
+  }
+
+  useClass(cls: ClassType<T>): TestingModuleBuilder {
+    this.builder.addOverride({ provide: this.token, useClass: cls });
+    return this.builder;
+  }
+
+  useFactory(
+    factory: (...args: unknown[]) => MaybePromise<T>,
+    inject?: Array<Token | ForwardRefFn | OptionalToken>,
+  ): TestingModuleBuilder {
+    this.builder.addOverride({ provide: this.token, useFactory: factory, inject });
+    return this.builder;
+  }
+
+  useExisting(token: Token<T>): TestingModuleBuilder {
+    this.builder.addOverride({ provide: this.token, useExisting: token });
+    return this.builder;
+  }
+}
+
 class DefaultTestingModuleBuilder implements TestingModuleBuilder {
   private readonly overrides: Provider[] = [];
   private readonly moduleReplacements = new Map<ModuleType, ModuleType>();
 
   constructor(private readonly options: TestingModuleOptions) {}
 
-  overrideProvider<T>(token: Token<T>, value: Provider<T> | T): this {
+  addOverride(provider: Provider): void {
+    this.overrides.push(provider);
+  }
+
+  overrideProvider<T>(token: Token<T>): OverrideProviderBuilder<T>;
+  overrideProvider<T>(token: Token<T>, provider: Provider<T>): this;
+  overrideProvider<T>(token: Token<T>, value: T): this;
+  overrideProvider<T>(token: Token<T>, value?: Provider<T> | T): this | OverrideProviderBuilder<T> {
+    if (value === undefined) {
+      return new DefaultOverrideProviderBuilder(this, token);
+    }
+
     this.overrides.push(normalizeOverride(token, value));
     return this;
   }
@@ -158,10 +352,12 @@ class DefaultTestingModuleBuilder implements TestingModuleBuilder {
 
   private createTestingModuleRef(bootstrapped: BootstrapResult): TestingModuleRef {
     const dispatcher = createTestingDispatcher(bootstrapped);
+    const getSync = createSyncResolver(bootstrapped.container);
 
     return {
       ...bootstrapped,
       has: (token) => bootstrapped.container.has(token),
+      get: (token) => getSync(token),
       resolve: (token) => bootstrapped.container.resolve(token),
       resolveAll: async <T>(tokens: Token<T>[]): Promise<T[]> => {
         const results: T[] = [];
@@ -230,3 +426,7 @@ class DefaultTestingModuleBuilder implements TestingModuleBuilder {
 export function createTestingModule(options: TestingModuleOptions): TestingModuleBuilder {
   return new DefaultTestingModuleBuilder(options);
 }
+
+export const Test = {
+  createTestingModule,
+};
