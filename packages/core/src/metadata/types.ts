@@ -18,12 +18,24 @@ export interface ControllerMetadata {
   version?: string;
 }
 
+export interface RouteHeader {
+  name: string;
+  value: string;
+}
+
+export interface RouteRedirect {
+  url: string;
+  statusCode?: number;
+}
+
 export interface RouteMetadata {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
   path: string;
   request?: new (...args: never[]) => unknown;
   guards?: MetadataCollection;
+  headers?: RouteHeader[];
   interceptors?: MetadataCollection;
+  redirect?: RouteRedirect;
   successStatus?: number;
   version?: string;
 }
@@ -185,9 +197,11 @@ export interface InjectionSchemaEntry {
 
 export interface StandardRouteMetadataRecord {
   guards?: MetadataCollection;
+  headers?: RouteHeader[];
   interceptors?: MetadataCollection;
   method?: RouteMetadata['method'];
   path?: string;
+  redirect?: RouteRedirect;
   request?: new (...args: never[]) => unknown;
   successStatus?: number;
   version?: string;
