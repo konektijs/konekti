@@ -81,12 +81,26 @@ export function getDtoBindingSchema(dto: Constructor): DtoBindingSchemaEntry[] {
     new Map<MetadataPropertyKey, StandardDtoBindingRecord>();
   const keys = mergeMetadataPropertyKeys(stored, standard);
 
-  return keys
-    .map((propertyKey) => ({
-      propertyKey,
-      metadata: getDtoFieldBindingMetadata(dto.prototype, propertyKey),
-    }))
-    .filter((entry): entry is DtoBindingSchemaEntry => entry.metadata !== undefined);
+  return keys.flatMap((propertyKey) => {
+    const storedEntry = stored.get(propertyKey);
+    const standardEntry = standard.get(propertyKey);
+    const source = storedEntry?.source ?? standardEntry?.source;
+
+    if (!source) {
+      return [];
+    }
+
+    return [
+      {
+        propertyKey,
+        metadata: {
+          key: storedEntry?.key ?? standardEntry?.key,
+          optional: storedEntry?.optional ?? standardEntry?.optional,
+          source,
+        },
+      },
+    ];
+  });
 }
 
 export function getDtoFieldValidationRules(target: object, propertyKey: MetadataPropertyKey): readonly DtoFieldValidationRule[] {
@@ -101,12 +115,18 @@ export function getDtoValidationSchema(dto: Constructor): DtoValidationSchemaEnt
   const standard = getStandardDtoValidationMap(dto.prototype) ?? new Map<MetadataPropertyKey, StandardDtoValidationRecord>();
   const keys = mergeMetadataPropertyKeys(stored, standard);
 
-  return keys
-    .map((propertyKey) => ({
-      propertyKey,
-      rules: getDtoFieldValidationRules(dto.prototype, propertyKey),
-    }))
-    .filter((entry) => entry.rules.length > 0);
+  return keys.flatMap((propertyKey) => {
+    const rules: DtoFieldValidationRule[] = [
+      ...(standard.get(propertyKey) ?? []),
+      ...(stored.get(propertyKey) ?? []),
+    ];
+
+    if (rules.length === 0) {
+      return [];
+    }
+
+    return [{ propertyKey, rules }];
+  });
 }
 
 export function getClassValidationRules(target: Function): readonly ClassValidationRule[] {

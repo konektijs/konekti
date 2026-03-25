@@ -483,16 +483,19 @@ export class Container {
     const seenInstances = new Set<unknown>();
     const errors: unknown[] = [];
 
-    for (const [, instancePromise] of entries) {
-      try {
-        const instance = await instancePromise;
+    const settled = await Promise.allSettled(entries.map(([, p]) => p));
 
-        if (this.isDisposable(instance) && !seenInstances.has(instance)) {
-          seenInstances.add(instance);
-          disposables.push(instance);
-        }
-      } catch (error) {
-        errors.push(error);
+    for (const result of settled) {
+      if (result.status === 'rejected') {
+        errors.push(result.reason);
+        continue;
+      }
+
+      const instance = result.value;
+
+      if (this.isDisposable(instance) && !seenInstances.has(instance)) {
+        seenInstances.add(instance);
+        disposables.push(instance);
       }
     }
 
