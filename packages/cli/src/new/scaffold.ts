@@ -131,7 +131,7 @@ function createProjectPackageJson(
       ...localOverrideConfig,
       scripts: {
         build: "babel src --extensions .ts --ignore 'src/**/*.test.ts' --out-dir dist --config-file ./babel.config.cjs && tsc -p tsconfig.build.json",
-        dev: 'node --env-file=.env.dev --watch --watch-preserve-output --import tsx src/main.ts',
+        dev: 'node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts',
         test: 'vitest run',
         'test:watch': 'vitest',
         typecheck: 'tsc -p tsconfig.json --noEmit',
@@ -257,6 +257,7 @@ Use unit templates for fast logic checks. Use slice/e2e templates when you need 
 
 function createAppFile(): string {
   return `import { Global, Module } from '@konekti/core';
+import { ConfigModule } from '@konekti/config';
 import { createHealthModule } from '@konekti/runtime';
 
 import { HealthModule } from './health/health.module';
@@ -266,6 +267,9 @@ const RuntimeHealthModule = createHealthModule();
 @Global()
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      envFile: '.env',
+    }),
     HealthModule,
     RuntimeHealthModule,
   ],
@@ -541,9 +545,7 @@ function buildScaffoldFiles(
     { content: createBabelConfig(), path: 'babel.config.cjs' },
     { content: createVitestConfig(), path: 'vitest.config.ts' },
     { content: createGitignore(), path: '.gitignore' },
-    { content: createEnvFile(), path: '.env.dev' },
-    { content: createEnvFile(), path: '.env.test' },
-    { content: createEnvFile(), path: '.env.prod' },
+    { content: createEnvFile(), path: '.env' },
     { content: createAppFile(), path: 'src/app.ts' },
     { content: createMainFile(), path: 'src/main.ts' },
     { content: createHealthResponseDtoFile(), path: 'src/health/health.response.dto.ts' },
