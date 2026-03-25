@@ -48,9 +48,11 @@ function getStandardRouteMetadata(target: object, propertyKey: MetadataPropertyK
 
   return cloneRouteMetadata({
     guards: metadata.guards,
+    headers: metadata.headers,
     interceptors: metadata.interceptors,
     method: metadata.method,
     path: metadata.path,
+    redirect: metadata.redirect,
     request: metadata.request,
     successStatus: metadata.successStatus,
     version: metadata.version,
@@ -107,9 +109,11 @@ function mergeRouteMetadata(
 ): RouteMetadata {
   return {
     guards: mergeUnique(stored?.guards, standard?.guards),
+    headers: stored?.headers ?? standard?.headers,
     interceptors: mergeUnique(stored?.interceptors, standard?.interceptors),
     method: required.method,
     path: required.path,
+    redirect: stored?.redirect ?? standard?.redirect,
     request: stored?.request ?? standard?.request,
     successStatus: stored?.successStatus ?? standard?.successStatus,
     version: stored?.version ?? standard?.version,
