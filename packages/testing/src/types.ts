@@ -1,7 +1,7 @@
 import type { Mock } from 'vitest';
 
-import type { Token } from '@konekti/core';
-import type { Container, Provider } from '@konekti/di';
+import type { MaybePromise, Token } from '@konekti/core';
+import type { ClassType, Container, ForwardRefFn, OptionalToken, Provider } from '@konekti/di';
 import type { BootstrapResult, BootstrapModuleOptions, ModuleType } from '@konekti/runtime';
 import type { Guard, Interceptor } from '@konekti/http';
 import type { RequestBuilder, TestPrincipal, TestRequest, TestRequestWithOptions, TestResponse } from './http.js';
@@ -16,13 +16,25 @@ export interface TestRequestOptions {
 
 export interface TestingModuleRef extends BootstrapResult {
   has(token: Token): boolean;
+  get<T>(token: Token<T>): T;
   resolve<T>(token: Token<T>): Promise<T>;
   resolveAll<T>(tokens: Token<T>[]): Promise<T[]>;
   dispatch(request: TestRequestWithOptions): Promise<TestResponse>;
 }
 
+export interface OverrideProviderBuilder<T> {
+  useValue(value: T): TestingModuleBuilder;
+  useClass(cls: ClassType<T>): TestingModuleBuilder;
+  useFactory(
+    factory: (...args: unknown[]) => MaybePromise<T>,
+    inject?: Array<Token | ForwardRefFn | OptionalToken>,
+  ): TestingModuleBuilder;
+  useExisting(token: Token<T>): TestingModuleBuilder;
+}
+
 export interface TestingModuleBuilder {
   compile(): Promise<TestingModuleRef>;
+  overrideProvider<T>(token: Token<T>): OverrideProviderBuilder<T>;
   overrideProvider<T>(token: Token<T>, provider: Provider<T>): this;
   overrideProvider<T>(token: Token<T>, value: T): this;
   overrideProviders(overrides: Array<[Token, unknown]>): this;
