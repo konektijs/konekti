@@ -15,6 +15,7 @@ import {
   extractModuleProviders,
   makeRequest,
   mockToken,
+  Test,
 } from './index.js';
 
 @Controller('/users')
@@ -40,6 +41,21 @@ class UserController {
 class AppModule {}
 
 describe('@konekti/testing', () => {
+  it('exposes Test.createTestingModule for NestJS-style module builder access', async () => {
+    const TOKEN = Symbol('token');
+
+    @Module({
+      providers: [{ provide: TOKEN, useValue: 'from-test-namespace' }],
+    })
+    class NamespaceModule {}
+
+    const testingModule = await Test.createTestingModule({
+      rootModule: NamespaceModule,
+    }).compile();
+
+    expect(testingModule.get<string>(TOKEN)).toBe('from-test-namespace');
+  });
+
   it('creates a testing module and resolves providers from the module graph', async () => {
     class Logger {
       readonly name = 'logger';
@@ -59,7 +75,7 @@ describe('@konekti/testing', () => {
       rootModule: ServiceModule,
     }).compile();
 
-    const service = await testingModule.resolve(UserService);
+    const service = await testingModule.resolve<UserService>(UserService);
 
     expect(testingModule.has(UserService)).toBe(true);
     expect(service.logger.name).toBe('logger');
@@ -89,6 +105,55 @@ describe('@konekti/testing', () => {
     const service = await testingModule.resolve(UserService);
 
     expect(service.logger).toEqual({ name: 'fake-logger' });
+  });
+
+  it('supports NestJS-style overrideProvider(token).useValue(value) chain', async () => {
+    class Logger {
+      readonly name: string = 'logger';
+    }
+
+    @Inject([Logger])
+    class UserService {
+      constructor(readonly logger: Logger) {}
+    }
+
+    @Module({
+      providers: [Logger, UserService],
+    })
+    class ServiceModule {}
+
+    const testingModule = await createTestingModule({
+      rootModule: ServiceModule,
+    })
+      .overrideProvider(Logger)
+      .useValue({ name: 'nest-style-fake' })
+      .compile();
+
+    const service = await testingModule.resolve(UserService);
+
+    expect(service.logger).toEqual({ name: 'nest-style-fake' });
+    expect(testingModule.get<Logger>(Logger)).toEqual({ name: 'nest-style-fake' });
+  });
+
+  it('throws from get() for async providers and guides to resolve()', async () => {
+    const TOKEN = Symbol('async-token');
+
+    @Module({
+      providers: [
+        {
+          provide: TOKEN,
+          useFactory: async () => 'async-value',
+        },
+      ],
+    })
+    class AsyncProviderModule {}
+
+    const testingModule = await createTestingModule({
+      rootModule: AsyncProviderModule,
+    }).compile();
+
+    expect(() => testingModule.get<string>(TOKEN)).toThrow(/requires async resolution/);
+    await expect(testingModule.resolve<string>(TOKEN)).resolves.toBe('async-value');
   });
 
   it('treats direct function mocks in overrideProvider as useValue', async () => {
