@@ -209,7 +209,6 @@ export class Container {
     try {
       await this.disposePromise;
     } catch (error) {
-      this.disposed = false;
       this.disposePromise = undefined;
       throw error;
     }
@@ -270,8 +269,8 @@ export class Container {
     const multiProviders = this.collectMultiProviders(token);
 
     if (multiProviders.length > 0) {
-      const instances = await this.withTokenInChain(token, chain, activeTokens, async () =>
-        this.resolveMultiProviderInstances(multiProviders, chain, activeTokens),
+      const instances = await this.withTokenInChain(token, chain, activeTokens, async (c, at) =>
+        this.resolveMultiProviderInstances(multiProviders, c, at),
       );
 
       return instances as T;
@@ -285,11 +284,11 @@ export class Container {
     }
 
     if (provider.scope === 'transient') {
-      return (await this.withTokenInChain(token, chain, activeTokens, async () => this.instantiate(provider, chain, activeTokens))) as T;
+      return (await this.withTokenInChain(token, chain, activeTokens, async (c, at) => this.instantiate(provider, c, at))) as T;
     }
 
-    return (await this.withTokenInChain(token, chain, activeTokens, async () =>
-      this.resolveScopedOrSingletonInstance(provider, chain, activeTokens),
+    return (await this.withTokenInChain(token, chain, activeTokens, async (c, at) =>
+      this.resolveScopedOrSingletonInstance(provider, c, at),
     )) as T;
   }
 
@@ -304,8 +303,8 @@ export class Container {
   }
 
   private async resolveAliasTarget<T>(existingTarget: Token<T>, token: Token, chain: Token[], activeTokens: Set<Token>): Promise<T> {
-    return await this.withTokenInChain(token, chain, activeTokens, async () =>
-      this.resolveWithChain(existingTarget, chain, activeTokens),
+    return await this.withTokenInChain(token, chain, activeTokens, async (c, at) =>
+      this.resolveWithChain(existingTarget, c, at),
     );
   }
 
@@ -380,10 +379,12 @@ export class Container {
     const cache = this.cacheFor(provider);
 
     if (!cache.has(provider.provide)) {
-      const promise = this.instantiate(provider, chain, activeTokens);
+      const promise = this.instantiate(provider, chain, activeTokens).catch((error: unknown) => {
+        cache.delete(provider.provide);
+        throw error;
+      });
 
       cache.set(provider.provide, promise);
-      promise.catch(() => cache.delete(provider.provide));
     }
 
     return cache.get(provider.provide);
@@ -429,17 +430,12 @@ export class Container {
     token: Token,
     chain: Token[],
     activeTokens: Set<Token>,
-    run: () => Promise<T>,
+    run: (chain: Token[], activeTokens: Set<Token>) => Promise<T>,
   ): Promise<T> {
-    chain.push(token);
-    activeTokens.add(token);
+    const nextChain = [...chain, token];
+    const nextActiveTokens = new Set([...activeTokens, token]);
 
-    try {
-      return await run();
-    } finally {
-      activeTokens.delete(token);
-      chain.pop();
-    }
+    return await run(nextChain, nextActiveTokens);
   }
 
   private root(): Container {
@@ -622,15 +618,29 @@ export class Container {
 
     for (const depEntry of provider.inject) {
       const depToken = this.resolveProviderDependencyToken(depEntry);
-      const depProvider = this.lookupProvider(depToken);
+      const effectiveProvider = this.resolveEffectiveProvider(depToken);
 
-      if (depProvider?.scope === 'request') {
+      if (effectiveProvider?.scope === 'request') {
         throw new ScopeMismatchError(
           `Singleton provider ${String(provider.provide)} depends on request-scoped provider ${String(depToken)}. ` +
             'Singleton providers cannot depend on request-scoped providers.',
         );
       }
     }
+  }
+
+  private resolveEffectiveProvider(token: Token): NormalizedProvider | undefined {
+    const provider = this.lookupProvider(token);
+
+    if (!provider) {
+      return undefined;
+    }
+
+    if (provider.type === 'existing' && provider.useExisting !== undefined) {
+      return this.resolveEffectiveProvider(provider.useExisting);
+    }
+
+    return provider;
   }
 
   private resolveProviderDependencyToken(depEntry: Token | ForwardRefFn | OptionalToken): Token {
