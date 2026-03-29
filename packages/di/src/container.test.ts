@@ -595,6 +595,35 @@ describe('Container', () => {
       await expect(root.resolve<string[]>(PLUGINS)).resolves.toEqual(['root-a', 'root-b']);
       await expect(child.resolve<string[]>(PLUGINS)).resolves.toEqual(['child-only']);
     });
+
+    it('keeps request-scoped multi providers isolated per request scope', async () => {
+      const PLUGINS = Symbol('Plugins');
+      let created = 0;
+
+      class RequestPlugin {
+        readonly id = ++created;
+      }
+
+      const root = new Container().register({
+        provide: PLUGINS,
+        useClass: RequestPlugin,
+        multi: true,
+        scope: Scope.REQUEST,
+      });
+
+      await expect(root.resolve(PLUGINS)).rejects.toThrow('outside request scope');
+
+      const requestA = root.createRequestScope();
+      const requestB = root.createRequestScope();
+
+      const a1 = await requestA.resolve<RequestPlugin[]>(PLUGINS);
+      const a2 = await requestA.resolve<RequestPlugin[]>(PLUGINS);
+      const b1 = await requestB.resolve<RequestPlugin[]>(PLUGINS);
+
+      expect(a1).toHaveLength(1);
+      expect(a1[0]).toBe(a2[0]);
+      expect(a1[0]).not.toBe(b1[0]);
+    });
   });
 
   describe('dispose', () => {
@@ -653,6 +682,18 @@ describe('Container', () => {
       await root.dispose();
 
       expect(events).toEqual(['request', 'singleton']);
+    });
+
+    it('removes disposed request scopes from the root child scope registry', async () => {
+      const root = new Container();
+      const rootInternals = root as unknown as { childScopes: Set<Container> };
+      const requestScope = root.createRequestScope();
+
+      expect(rootInternals.childScopes.size).toBe(1);
+
+      await requestScope.dispose();
+
+      expect(rootInternals.childScopes.size).toBe(0);
     });
 
     it('does not call onDestroy more than once', async () => {
