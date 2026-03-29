@@ -129,12 +129,14 @@ class AppModule {}
 
 - Cache reads are **GET-only** by default.
 - Default cache key depends on `httpKeyStrategy`:
-  - `'route'` (default) — matched route path only, query params ignored.
-  - `'route+query'` — route path + sorted query string (recommended for query-sensitive endpoints).
-  - `'full'` — route path + sorted query string; currently equivalent to `'route+query'`.
+  - `'route'` (default) — matched route path only for unauthenticated requests; authenticated requests append `principal.issuer` + `principal.subject`.
+  - `'route+query'` — route path + sorted query string, plus authenticated principal scope when present.
+  - `'full'` — route path + sorted query string, plus authenticated principal scope when present; currently equivalent to `'route+query'`.
   - `function` — custom resolver `(context) => string`.
 - `@CacheKey(...)` decorator overrides the module-level strategy for individual handlers.
 - `@CacheEvict(...)` runs after the response write of successful non-GET handlers.
+
+> Built-in string strategies are principal-aware by default. If you override the key with `@CacheKey(...)` or a custom function, you are responsible for including any auth, tenant, locale, or header variance required by the route.
 
 #### Query-Sensitive Caching Example
 
@@ -169,9 +171,10 @@ class ProductController {
 
 #### Migration Note
 
-The default `httpKeyStrategy` is `'route'` for backward compatibility. This means:
+The default `httpKeyStrategy` is `'route'`. This means:
 - Existing applications continue to work without changes.
 - Query parameters are ignored in cache keys by default.
+- Authenticated requests are isolated by `principal.issuer` + `principal.subject` when `RequestContext.principal` is present.
 - For new projects or query-sensitive endpoints, set `httpKeyStrategy: 'route+query'`.
 
 To opt in to query-aware caching globally:

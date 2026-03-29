@@ -49,6 +49,19 @@ function buildSortedQueryString(query: Record<string, unknown>): string {
   return entries.join('&');
 }
 
+function appendPrincipalScope(key: string, context: InterceptorContext): string {
+  const principal = context.requestContext.principal;
+
+  if (!principal) {
+    return key;
+  }
+
+  const issuer = encodeURIComponent(principal.issuer ?? 'unknown');
+  const subject = encodeURIComponent(principal.subject);
+
+  return `${key}|principal:${issuer}:${subject}`;
+}
+
 function defaultCacheKey(context: InterceptorContext, strategy: CacheKeyStrategy): string {
   if (typeof strategy === 'function') {
     return strategy(context);
@@ -58,16 +71,16 @@ function defaultCacheKey(context: InterceptorContext, strategy: CacheKeyStrategy
   const query = context.requestContext.request.query;
 
   if (strategy === 'route') {
-    return path;
+    return appendPrincipalScope(path, context);
   }
 
   const queryString = buildSortedQueryString(query);
 
   if (!queryString) {
-    return path;
+    return appendPrincipalScope(path, context);
   }
 
-  return `${path}?${queryString}`;
+  return appendPrincipalScope(`${path}?${queryString}`, context);
 }
 
 function normalizeTtl(ttlSeconds: number | undefined, fallback: number): number | undefined {
