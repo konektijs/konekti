@@ -22,7 +22,7 @@
 ## 요청 동작 규약
 
 - 기본 read-through 캐시는 **GET 전용**입니다.
-- 기본 키는 매칭된 라우트 경로(`handler.metadata.effectivePath`)이며, 쿼리 문자열은 기본적으로 키에 포함되지 않습니다.
+- 기본 키는 매칭된 라우트 경로(`handler.metadata.effectivePath`)에서 시작합니다. `RequestContext.principal`이 있으면 내장 문자열 전략이 `principal.issuer` + `principal.subject`를 추가해 인증된 응답을 사용자 단위로 분리합니다. 쿼리 문자열은 query-aware 전략을 명시적으로 선택하지 않는 한 기본적으로 키에 포함되지 않습니다.
 - `@CacheKey(...)`는 핸들러 키를 오버라이드합니다.
 - `@CacheTTL(...)`는 모듈 기본 TTL을 핸들러 단위로 오버라이드합니다.
 - `@CacheEvict(...)`는 성공한 non-GET 핸들러의 응답이 기록된 뒤 실행되며 하나 이상의 키를 삭제할 수 있습니다.
@@ -66,7 +66,7 @@ await bootstrapApplication({
 });
 ```
 
-`CacheInterceptor`를 글로벌로 등록해도 기본 read-through 캐시는 GET 핸들러에만 적용됩니다. 쿼리 문자열까지 포함한 키가 필요하면 `@CacheKey(...)`로 명시적으로 지정하세요.
+`CacheInterceptor`를 글로벌로 등록해도 기본 read-through 캐시는 GET 핸들러에만 적용됩니다. 내장 문자열 전략은 인증된 principal을 자동으로 분리하지만, 쿼리 문자열까지 포함한 키가 필요하면 `httpKeyStrategy: 'route+query'` 또는 `@CacheKey(...)`를 명시적으로 지정하세요.
 
 ### 메모리 전용 구성
 
