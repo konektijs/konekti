@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { CallHandler, HttpMethod, InterceptorContext, RequestContext } from '@konekti/http';
+import type { CallHandler, HttpMethod, InterceptorContext, Principal, RequestContext } from '@konekti/http';
 
 import { CacheEvict, CacheKey, CacheTTL } from './decorators.js';
 import { CacheInterceptor } from './interceptor.js';
@@ -16,7 +16,13 @@ const cacheOptions: NormalizedCacheModuleOptions = {
   httpKeyStrategy: 'route',
 };
 
-function createRequestContext(method: string, url: string, path = url, headers: Record<string, string | string[]> = {}): RequestContext {
+function createRequestContext(
+  method: string,
+  url: string,
+  path = url,
+  headers: Record<string, string | string[]> = {},
+  principal?: Principal,
+): RequestContext {
   const queryStart = url.indexOf('?');
   const query: Record<string, string> = {};
 
@@ -40,6 +46,7 @@ function createRequestContext(method: string, url: string, path = url, headers: 
       },
     },
     metadata: {},
+    principal,
     request: {
       body: undefined,
       cookies: {},
@@ -303,6 +310,40 @@ describe('CacheInterceptor', () => {
       expect(await cacheService.get('/products')).toEqual({ page: 1 });
     });
 
+    it('strategy "route" isolates authenticated principals by default', async () => {
+      class ProductController {
+        @CacheTTL(120)
+        list() {}
+      }
+
+      const { interceptor, cacheService } = createInterceptor({ httpKeyStrategy: 'route' });
+      const alice: Principal = { subject: 'alice', issuer: 'issuer-a', claims: {} };
+      const bob: Principal = { subject: 'bob', issuer: 'issuer-a', claims: {} };
+      const firstContext = createContext(
+        ProductController,
+        'list',
+        createRequestContext('GET', '/products', '/products', {}, alice),
+      );
+      const secondContext = createContext(
+        ProductController,
+        'list',
+        createRequestContext('GET', '/products', '/products', {}, bob),
+      );
+      const next: CallHandler = {
+        handle: vi
+          .fn<CallHandler['handle']>()
+          .mockResolvedValueOnce({ owner: 'alice' })
+          .mockResolvedValueOnce({ owner: 'bob' }),
+      };
+
+      await interceptor.intercept(firstContext, next);
+      await interceptor.intercept(secondContext, next);
+
+      expect(next.handle).toHaveBeenCalledTimes(2);
+      expect(await cacheService.get('/products|principal:issuer-a:alice')).toEqual({ owner: 'alice' });
+      expect(await cacheService.get('/products|principal:issuer-a:bob')).toEqual({ owner: 'bob' });
+    });
+
     it('strategy "route+query" includes sorted query in cache key', async () => {
       class ProductController {
         @CacheTTL(120)
@@ -414,7 +455,7 @@ describe('CacheInterceptor', () => {
       expect(await cacheService.get('/products?page=1')).toBeUndefined();
     });
 
-    it('default strategy is "route" for backward compatibility', async () => {
+    it('default strategy still ignores query parameters for unauthenticated requests', async () => {
       class ProductController {
         @CacheTTL(120)
         list() {}

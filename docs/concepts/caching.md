@@ -22,7 +22,7 @@ This guide explains Konekti's HTTP response caching model powered by `@konekti/c
 ## request behavior
 
 - **Read-through cache is GET-only by default**.
-- The default key is the matched route path (`handler.metadata.effectivePath`), so different query strings share the same key unless you override it.
+- The default key starts from the matched route path (`handler.metadata.effectivePath`). If `RequestContext.principal` is present, built-in string strategies append `principal.issuer` + `principal.subject` so authenticated responses are isolated by user. Different query strings still share the same key unless you opt into a query-aware strategy.
 - `@CacheKey(...)` overrides the key for a handler.
 - `@CacheTTL(...)` overrides module-level default TTL for a handler.
 - `@CacheEvict(...)` runs after the response write of successful non-GET handlers and can evict one or many keys.
@@ -66,7 +66,7 @@ await bootstrapApplication({
 });
 ```
 
-When you register `CacheInterceptor` globally, only GET handlers are read-through cached by default. Use `@CacheKey(...)` to opt into query-aware keys.
+When you register `CacheInterceptor` globally, only GET handlers are read-through cached by default. Built-in string strategies isolate authenticated principals automatically, but query-sensitive routes still need `httpKeyStrategy: 'route+query'` or an explicit `@CacheKey(...)` override.
 
 ### memory-only setup
 

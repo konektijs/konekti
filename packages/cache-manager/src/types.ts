@@ -52,12 +52,4 @@ export type CacheEvictFactory = (
 
 export type CacheEvictDecoratorValue = string | readonly string[] | CacheEvictFactory;
 
-/**
- * Strategy for computing default HTTP cache keys.
- *
- * - `'route'` — key is the matched route path only (legacy default).
- * - `'route+query'` — route path + sorted query string (recommended).
- * - `'full'` — route path + sorted query string; currently equivalent to `'route+query'`.
- * - `function` — custom resolver receiving the interceptor context.
- */
 export type CacheKeyStrategy = 'route' | 'route+query' | 'full' | ((context: InterceptorContext) => string);
