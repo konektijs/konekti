@@ -116,6 +116,7 @@ export class Container {
   private readonly multiRegistrations = new Map<Token, NormalizedProvider[]>();
   private readonly multiOverriddenTokens = new Set<Token>();
   private readonly requestCache = new Map<Token, Promise<unknown>>();
+  private readonly multiRequestCache = new Map<NormalizedProvider, Promise<unknown>>();
   private readonly multiSingletonCache = new Map<NormalizedProvider, Promise<unknown>>();
   private readonly staleDisposalTasks = new Set<Promise<void>>();
   private readonly staleDisposalErrors: unknown[] = [];
@@ -233,13 +234,19 @@ export class Container {
   }
 
   private async disposeAll(): Promise<void> {
-    // Dispose all live request-scope children first (root only)
-    if (!this.parent && this.childScopes.size > 0) {
-      await Promise.all(Array.from(this.childScopes).map((child) => child.dispose()));
-      this.childScopes.clear();
-    }
+    try {
+      // Dispose all live request-scope children first (root only)
+      if (!this.parent && this.childScopes.size > 0) {
+        await Promise.all(Array.from(this.childScopes).map((child) => child.dispose()));
+        this.childScopes.clear();
+      }
 
-    await this.disposeCache(this.disposalCacheEntries());
+      await this.disposeCache(this.disposalCacheEntries());
+    } finally {
+      if (this.parent) {
+        this.root().childScopes.delete(this);
+      }
+    }
   }
 
   private hasMulti(token: Token): boolean {
@@ -405,15 +412,15 @@ export class Container {
         continue;
       }
 
-      const rootCache = this.root().multiSingletonCache;
+      const cache = this.multiCacheFor(provider);
 
-      if (!rootCache.has(provider)) {
+      if (!cache.has(provider)) {
         const promise = this.instantiate(provider, chain, activeTokens);
-        rootCache.set(provider, promise);
-        promise.catch(() => rootCache.delete(provider));
+        cache.set(provider, promise);
+        promise.catch(() => cache.delete(provider));
       }
 
-      instances.push(await rootCache.get(provider)!);
+      instances.push(await cache.get(provider)!);
     }
 
     return instances;
@@ -537,9 +544,35 @@ export class Container {
     return this.requestCache;
   }
 
+  private multiCacheFor(provider: NormalizedProvider): Map<NormalizedProvider, Promise<unknown>> {
+    if (provider.scope === Scope.DEFAULT) {
+      const localMultiProviders = this.multiRegistrations.get(provider.provide);
+
+      if (this.requestScopeEnabled && localMultiProviders?.includes(provider)) {
+        return this.multiRequestCache;
+      }
+
+      return this.root().multiSingletonCache;
+    }
+
+    if (!this.requestScopeEnabled) {
+      throw new RequestScopeResolutionError(
+        `Request-scoped provider ${String(provider.provide)} cannot be resolved outside request scope.`,
+      );
+    }
+
+    return this.multiRequestCache;
+  }
+
   private disposalCacheEntries(): Array<[NormalizedProvider | Token, Promise<unknown>]> {
     if (this.parent) {
-      return Array.from(this.requestCache.entries());
+      const entries: Array<[NormalizedProvider | Token, Promise<unknown>]> = Array.from(this.requestCache.entries());
+
+      for (const [provider, promise] of this.multiRequestCache.entries()) {
+        entries.push([provider, promise]);
+      }
+
+      return entries;
     }
 
     const entries: Array<[NormalizedProvider | Token, Promise<unknown>]> = Array.from(this.singletonCache.entries());
@@ -605,6 +638,7 @@ export class Container {
   private clearDisposalCaches(): void {
     if (this.parent) {
       this.requestCache.clear();
+      this.multiRequestCache.clear();
       return;
     }
 
@@ -781,6 +815,15 @@ export class Container {
         this.scheduleStaleDisposal(cached);
         this.multiSingletonCache.delete(provider);
       }
+    }
+
+    for (const [provider, cached] of this.multiRequestCache.entries()) {
+      if (provider.provide !== token) {
+        continue;
+      }
+
+      this.scheduleStaleDisposal(cached);
+      this.multiRequestCache.delete(provider);
     }
   }
 }

@@ -151,6 +151,30 @@ describe('DefaultValidator', () => {
     expect(Object.keys(result.child as object)).toEqual([]);
   });
 
+  it('ignores dangerous keys when materializing nested DTO instances', async () => {
+    class ChildDto {
+      @MinLength(1)
+      city = '';
+    }
+
+    class ParentDto {
+      @ValidateNested(() => ChildDto)
+      child = new ChildDto();
+    }
+
+    const validator = new DefaultValidator();
+    const payload = JSON.parse('{"child":{"city":"Seoul","__proto__":{"polluted":true}}}') as {
+      child: { city: string; __proto__: { polluted: boolean } };
+    };
+
+    const result = await validator.transform<ParentDto>(payload, ParentDto);
+
+    expect(result.child).toBeInstanceOf(ChildDto);
+    expect(result.child.city).toBe('Seoul');
+    expect(Object.getPrototypeOf(result.child)).toBe(ChildDto.prototype);
+    expect('polluted' in (result.child as object)).toBe(false);
+  });
+
   it('transform throws DtoValidationError on invalid input', async () => {
     class CreateUserDto {
       @IsEmail()

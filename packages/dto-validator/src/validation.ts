@@ -78,6 +78,25 @@ function isPlainObject(value: unknown): value is Record<PropertyKey, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function assignSafeOwnEnumerableProperties(
+  target: Record<PropertyKey, unknown>,
+  source: Record<PropertyKey, unknown>,
+): void {
+  for (const key of Reflect.ownKeys(source)) {
+    if (typeof key === 'string' && DANGEROUS_KEYS.has(key)) {
+      continue;
+    }
+
+    if (!Object.prototype.propertyIsEnumerable.call(source, key)) {
+      continue;
+    }
+
+    target[key] = source[key as keyof typeof source];
+  }
+}
+
 function isEmptyValue(value: unknown): boolean {
   return value === '' || value === null || value === undefined;
 }
@@ -385,7 +404,7 @@ function createNestedDtoInstance<T>(target: Constructor<T>, rawValue: unknown): 
     return instance as T;
   }
 
-  Object.assign(instance, rawValue);
+  assignSafeOwnEnumerableProperties(instance, rawValue);
 
   const metadata = getCachedDtoMetadata(target);
   applyBindingValues(instance, rawValue, metadata.mergedPropertyKeys, metadata.bindingMap);
