@@ -374,4 +374,24 @@ describe('RefreshTokenService', () => {
         }),
     ).toThrow(JwtConfigurationError);
   });
+
+  it('fails fast when refresh token verification has no available HMAC algorithms', () => {
+    const store = new InMemoryRefreshTokenStore();
+
+    expect(
+      () =>
+        new DefaultJwtVerifier({
+          algorithms: ['RS256'],
+          publicKey: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApseudo\n-----END PUBLIC KEY-----',
+          refreshToken: {
+            expiresInSeconds: 3600,
+            rotation: false,
+            secret: 'refresh-secret',
+            store,
+          },
+        }),
+    ).toThrowError(
+      'JWT refresh token verifier requires at least one HMAC algorithm (HS256/HS384/HS512) in the allowed algorithms list.',
+    );
+  });
 });

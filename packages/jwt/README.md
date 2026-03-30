@@ -186,6 +186,8 @@ If `iss`, `aud`, `iat`, or `exp` are absent from the claims passed to `signAcces
 
 Two separate checks exist: "is this algorithm in the allowlist?" and "does this implementation support it?". HMAC algorithms (HS*) use `createHmac` with a shared secret; asymmetric algorithms (RS*, ES*) use `createVerify`/`createSign` with a key pair. The separation makes it safe to extend the allowlist without accidentally opening unsupported paths.
 
+Refresh token verification is HMAC-only. If `refreshToken` is configured, the verifier requires at least one of `HS256` / `HS384` / `HS512` in the allowed algorithm list and fails fast during construction otherwise.
+
 ## File reading order for contributors
 
 1. `src/types.ts` — `JwtVerifierOptions`, `JwtClaims`, `JwtPrincipal`, `JwtVerifier`, `JwtSigner`
