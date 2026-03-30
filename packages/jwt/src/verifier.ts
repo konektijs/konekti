@@ -256,6 +256,12 @@ export class DefaultJwtVerifier {
   ): JwtVerifierOptions {
     const algorithms = this.options.algorithms.filter((algorithm): algorithm is JwtAlgorithm => algorithm in HMAC_HASH);
 
+    if (algorithms.length === 0) {
+      throw new JwtConfigurationError(
+        'JWT refresh token verifier requires at least one HMAC algorithm (HS256/HS384/HS512) in the allowed algorithms list.',
+      );
+    }
+
     return {
       algorithms,
       audience: this.options.audience,

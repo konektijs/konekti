@@ -217,6 +217,30 @@ describe('JwtModule', () => {
     await expect(container.resolve(RefreshTokenService)).resolves.toBeInstanceOf(RefreshTokenService);
   });
 
+  it('fails singleton provider resolution when refreshToken is configured without any HMAC algorithms', async () => {
+    const container = new Container();
+    const moduleType = JwtModule.forRootAsync({
+      useFactory: async () => ({
+        algorithms: ['RS256'],
+        publicKey: '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApseudo\n-----END PUBLIC KEY-----',
+        refreshToken: {
+          expiresInSeconds: 60,
+          rotation: false,
+          secret: 'refresh-secret',
+          store: new NoopRefreshTokenStore(),
+        },
+      }),
+    });
+
+    const providers = moduleProviders(moduleType);
+
+    container.register(...providers);
+
+    await expect(resolveSingletonProviders(container, providers)).rejects.toThrow(
+      'JWT refresh token verifier requires at least one HMAC algorithm (HS256/HS384/HS512) in the allowed algorithms list.',
+    );
+  });
+
   it('registers refresh token service when refresh options are provided', async () => {
     const container = new Container();
     const moduleType = JwtModule.forRoot({
