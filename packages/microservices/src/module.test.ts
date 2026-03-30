@@ -284,7 +284,7 @@ describe('@konekti/microservices', () => {
     await microservice.listen();
 
     await expect(microservice.send('calc.double', { value: 21 })).rejects.toThrow(
-      'No message handler registered for pattern "calc.double".',
+      'RedisPubSubMicroserviceTransport does not support request/reply send().',
     );
     await microservice.emit('audit.login', { message: 'ok' });
 
