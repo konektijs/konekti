@@ -29,9 +29,7 @@ type ActiveRequestTransactionHandle = {
   settle(): void;
 };
 
-type PrismaClientVersionCarrier = {
-  _clientVersion?: unknown;
-};
+type TransactionAbortSignalSupport = 'unknown' | 'supported' | 'unsupported';
 
 @Inject([PRISMA_CLIENT, PRISMA_OPTIONS])
 export class PrismaService<
@@ -43,6 +41,7 @@ export class PrismaService<
 {
   private readonly transactions = new AsyncLocalStorage<TTransactionClient>();
   private readonly activeRequestTransactions = new Set<ActiveRequestTransaction>();
+  private transactionAbortSignalSupport: TransactionAbortSignalSupport = 'unknown';
 
   constructor(
     private readonly client: TClient,
@@ -129,28 +128,60 @@ export class PrismaService<
     signal: AbortSignal,
     options?: TTransactionOptions,
   ): Promise<T> {
-    if (!this.supportsTransactionAbortSignalOption(options)) {
+    if (!this.canAttemptTransactionAbortSignalOption(options)) {
       return this.client.$transaction!<T>(callback, options);
     }
 
-    return this.client.$transaction!<T>(callback, this.withTransactionAbortSignal(options, signal));
+    return this.runTransactionWithAbortSignalFallback(callback, signal, options);
   }
 
-  private supportsTransactionAbortSignalOption(options?: TTransactionOptions): boolean {
+  private canAttemptTransactionAbortSignalOption(options?: TTransactionOptions): boolean {
     if (options !== undefined && (typeof options !== 'object' || options === null)) {
       return false;
     }
 
-    const clientVersion = (this.client as PrismaClientVersionCarrier)._clientVersion;
-
-    if (typeof clientVersion !== 'string') {
+    if (this.transactionAbortSignalSupport === 'unsupported') {
       return false;
     }
 
-    const rawSegment = clientVersion.split('.')[0] ?? '';
-    const majorVersion = Number.parseInt(rawSegment.replace(/^v/i, ''), 10);
+    return true;
+  }
 
-    return Number.isInteger(majorVersion) && majorVersion >= 5;
+  private async runTransactionWithAbortSignalFallback<T>(
+    callback: (transactionClient: TTransactionClient) => Promise<T>,
+    signal: AbortSignal,
+    options?: TTransactionOptions,
+  ): Promise<T> {
+    try {
+      const result = await this.client.$transaction!<T>(callback, this.withTransactionAbortSignal(options, signal));
+      this.transactionAbortSignalSupport = 'supported';
+      return result;
+    } catch (error) {
+      if (!this.shouldRetryWithoutAbortSignal(error)) {
+        throw error;
+      }
+
+      this.transactionAbortSignalSupport = 'unsupported';
+      return this.client.$transaction!<T>(callback, options);
+    }
+  }
+
+  private shouldRetryWithoutAbortSignal(error: unknown): boolean {
+    if (this.transactionAbortSignalSupport === 'supported') {
+      return false;
+    }
+
+    const message = this.toErrorMessage(error);
+
+    return /signal/i.test(message) && /(argument|field|option|unknown|invalid|unexpected|unsupported|not support)/i.test(message);
+  }
+
+  private toErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return String(error);
   }
 
   private withTransactionAbortSignal(options: TTransactionOptions | undefined, signal: AbortSignal): TTransactionOptions {
