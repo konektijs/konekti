@@ -315,13 +315,12 @@ describe('@konekti/prisma', () => {
     expect(optionsCalls[1]?.signal).not.toBe(requestAbortController.signal);
   });
 
-  it('does not inject request signal into transaction options for legacy Prisma clients', async () => {
+  it('retries without request signal when the client rejects the signal transaction option', async () => {
     const optionsCalls: Array<{ isolationLevel: string; signal?: AbortSignal } | undefined> = [];
     const transactionClient = {
       kind: 'transaction' as const,
     };
     const client = {
-      _clientVersion: '4.16.2',
       async $connect() {},
       async $disconnect() {},
       async $transaction<T>(
@@ -329,6 +328,11 @@ describe('@konekti/prisma', () => {
         options?: { isolationLevel: string; signal?: AbortSignal },
       ): Promise<T> {
         optionsCalls.push(options);
+
+        if (options?.signal) {
+          throw new Error('Unknown argument `signal`.');
+        }
+
         return callback(transactionClient);
       },
     };
@@ -342,14 +346,23 @@ describe('@konekti/prisma', () => {
       }),
     ).resolves.toBe(transactionClient);
 
-    expect(optionsCalls).toEqual([{ isolationLevel: 'repeatable read' }]);
+    await expect(
+      prisma.requestTransaction(async () => prisma.current(), requestAbortController.signal, {
+        isolationLevel: 'serializable',
+      }),
+    ).resolves.toBe(transactionClient);
+
+    expect(optionsCalls).toHaveLength(3);
+    expect(optionsCalls[0]).toMatchObject({ isolationLevel: 'repeatable read' });
+    expect(optionsCalls[0]?.signal).toBeDefined();
+    expect(optionsCalls[1]).toEqual({ isolationLevel: 'repeatable read' });
+    expect(optionsCalls[2]).toEqual({ isolationLevel: 'serializable' });
   });
 
-  it('injects request signal when _clientVersion uses a v-prefixed format', async () => {
+  it('injects request signal when the client accepts the signal transaction option', async () => {
     const optionsCalls: Array<{ signal?: AbortSignal } | undefined> = [];
     const transactionClient = {};
     const client = {
-      _clientVersion: 'v5.0.0',
       async $connect() {},
       async $disconnect() {},
       async $transaction<T>(
