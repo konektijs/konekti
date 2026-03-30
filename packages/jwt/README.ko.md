@@ -184,6 +184,8 @@ verifyAccessToken(token)
 
 "이 알고리즘이 허용 목록에 있는가?"와 "이 구현이 이를 지원하는가?"라는 두 가지 별도의 확인 과정이 존재합니다. HMAC 알고리즘(HS*)은 공유 비밀키와 함께 `createHmac`을 사용하고, 비대칭 알고리즘(RS*, ES*)은 키 쌍과 함께 `createVerify`/`createSign`을 사용합니다. 이러한 분리는 지원되지 않는 경로가 실수로 열리는 일 없이 안전하게 허용 목록을 확장할 수 있게 해줍니다.
 
+refresh token 검증은 HMAC 전용 경로입니다. `refreshToken`이 구성된 경우 verifier는 허용 알고리즘 목록에 `HS256` / `HS384` / `HS512` 중 최소 하나가 있어야 하며, 그렇지 않으면 생성 시점에 즉시 실패합니다.
+
 ## 기여자를 위한 파일 읽기 순서
 
 1. `src/types.ts` — `JwtVerifierOptions`, `JwtClaims`, `JwtPrincipal`, `JwtVerifier`, `JwtSigner`
