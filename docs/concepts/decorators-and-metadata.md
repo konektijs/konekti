@@ -2,7 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./decorators-and-metadata.ko.md"><kbd>한국어</kbd></a></p>
 
-This guide outlines the decorator and metadata model used in `@konekti/core`, `@konekti/http`, and the `@konekti/validation` package.
+This guide outlines the decorator and metadata model used in `@konekti/core`, `@konekti/http`, `@konekti/validation`, and `@konekti/serialization`.
 
 ### related documentation
 
@@ -18,28 +18,31 @@ Konekti uses a decorator-first approach based exclusively on TC39 standard decor
 
 - **Module and DI**: `@Module()`, `@Inject()`, `@Scope()`, `@Global()`
 - **HTTP Routing**: `@Controller()`, `@Get()`, `@Post()`, `@UseGuards()`, `@UseInterceptors()`
-- **DTO Binding**: `@FromBody()`, `@FromPath()`, `@FromQuery()`, `@FromHeader()`, `@FromCookie()`
-- **Validation**: Decorators provided by the `@konekti/validation` package
+- **Input Binding**: `@FromBody()`, `@FromPath()`, `@FromQuery()`, `@FromHeader()`, `@FromCookie()`
+- **Validation**: Input materialization and validation decorators provided by the `@konekti/validation` package
+- **Serialization**: Output shaping and response serialization decorators provided by the `@konekti/serialization` package
 
-## dto strategy
+## input and output strategy
 
-- Request DTO binding is an explicit opt-in.
-- Method-level route metadata and DTO field decorators are used instead of parameter-based injection magic.
-- Validation is driven by framework-owned decorator metadata.
-- Nested DTO validation is a first-class feature.
+- Input materialization (binding) is an explicit opt-in.
+- Method-level route metadata and input field decorators are used instead of parameter-based injection magic.
+- Validation is driven by framework-owned decorator metadata on the input-side.
+- Serialization is handled as a separate output-side concern to shape response data.
+- Nested validation and serialization are first-class features.
 
 ### current constraints
 
-- The decorator-first DTO model is the primary supported contract.
-- Direct schema-object validation is not a priority at this time.
-- Validation-adapter contracts will not be expanded into a general extension API for now.
+- The decorator-driven model is the primary supported contract.
+- Direct schema-object validation or serialization is not a priority at this time.
+- Validation and serialization adapter contracts will not be expanded into a general extension API for now.
 
-## dto security
+## boundary security
 
-- Request DTOs, response DTOs, and persistence models remain separate.
-- Each field maps to a single request source.
-- Body binding uses a strict allowlist.
-- Sensitive or dangerous keys (e.g., `__proto__`, `constructor`, `prototype`) are blocked.
+- Input models, output models, and persistence models remain separate.
+- Each input field maps to a single request source.
+- Body materialization uses a strict allowlist.
+- Sensitive or dangerous keys (e.g., `__proto__`, `constructor`, `prototype`) are blocked during input processing.
+- Output serialization ensures only intended fields are sent to the client.
 
 ## metadata management
 

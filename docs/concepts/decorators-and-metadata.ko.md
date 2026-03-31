@@ -2,7 +2,7 @@
 
 <p><a href="./decorators-and-metadata.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
-이 가이드는 `@konekti/core`, `@konekti/http`, 그리고 `@konekti/validation` 패키지에서 사용되는 데코레이터와 메타데이터 모델을 설명합니다.
+이 가이드는 `@konekti/core`, `@konekti/http`, `@konekti/validation`, 그리고 `@konekti/serialization`에서 사용되는 데코레이터와 메타데이터 모델을 설명합니다.
 
 ### 관련 문서
 
@@ -18,28 +18,31 @@ Konekti는 TC39 표준 데코레이터만을 기반으로 하는 데코레이터
 
 - **모듈 및 DI**: `@Module()`, `@Inject()`, `@Scope()`, `@Global()`
 - **HTTP 라우팅**: `@Controller()`, `@Get()`, `@Post()`, `@UseGuards()`, `@UseInterceptors()`
-- **DTO 바인딩**: `@FromBody()`, `@FromPath()`, `@FromQuery()`, `@FromHeader()`, `@FromCookie()`
-- **유효성 검사**: `@konekti/validation` 패키지에서 제공하는 데코레이터들
+- **입력 바인딩**: `@FromBody()`, `@FromPath()`, `@FromQuery()`, `@FromHeader()`, `@FromCookie()`
+- **유효성 검사**: `@konekti/validation` 패키지에서 제공하는 입력 물질화(materialization) 및 유효성 검사 데코레이터
+- **직렬화(Serialization)**: `@konekti/serialization` 패키지에서 제공하는 출력 형태 조정 및 응답 직렬화 데코레이터
 
-## DTO 전략
+## 입력 및 출력 전략
 
-- 요청 DTO 바인딩은 명시적인 옵트인(opt-in) 방식입니다.
-- 파라미터 기반 주입 매직 대신 메서드 수준의 라우트 메타데이터와 DTO 필드 데코레이터가 사용됩니다.
-- 유효성 검사는 프레임워크 소유의 데코레이터 메타데이터에 의해 구동됩니다.
-- 중첩된 DTO 유효성 검사는 주요 기능입니다.
+- 입력 물질화(바인딩)는 명시적인 옵트인(opt-in) 방식입니다.
+- 파라미터 기반 주입 매직 대신 메서드 수준의 라우트 메타데이터와 입력 필드 데코레이터가 사용됩니다.
+- 유효성 검사는 입력 측의 프레임워크 소유 데코레이터 메타데이터에 의해 구동됩니다.
+- 직렬화(Serialization)는 응답 데이터를 조정하기 위한 별개의 출력 측 관심사로 처리됩니다.
+- 중첩된 유효성 검사와 직렬화는 주요 기능입니다.
 
 ### 현재 제약 사항
 
-- 데코레이터 우선 DTO 모델이 현재 지원되는 주요 규약입니다.
-- 직접적인 스키마 객체 유효성 검사는 현재 우선순위가 아닙니다.
-- 유효성 검사 어댑터 규약은 당분간 일반적인 확장 API로 확장되지 않습니다.
+- 데코레이터 기반 모델이 현재 지원되는 주요 규약입니다.
+- 직접적인 스키마 객체 유효성 검사나 직렬화는 현재 우선순위가 아닙니다.
+- 유효성 검사 및 직렬화 어댑터 규약은 당분간 일반적인 확장 API로 확장되지 않습니다.
 
-## DTO 보안
+## 경계 보안
 
-- 요청 DTO, 응답 DTO, 영속성(persistence) 모델은 분리되어 유지됩니다.
-- 각 필드는 단일 요청 소스에 매핑됩니다.
-- 본문(Body) 바인딩은 엄격한 허용 목록(allowlist)을 사용합니다.
-- 위험한 키(예: `__proto__`, `constructor`, `prototype`)는 차단됩니다.
+- 입력 모델, 출력 모델, 영속성(persistence) 모델은 분리되어 유지됩니다.
+- 각 입력 필드는 단일 요청 소스에 매핑됩니다.
+- 본문(Body) 물질화는 엄격한 허용 목록(allowlist)을 사용합니다.
+- 입력 처리 중 위험한 키(예: `__proto__`, `constructor`, `prototype`)는 차단됩니다.
+- 출력 직렬화는 의도된 필드만 클라이언트에 전송되도록 보장합니다.
 
 ## 메타데이터 관리
 
