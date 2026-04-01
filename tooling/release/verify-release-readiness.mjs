@@ -5,13 +5,13 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDirectory, '..', '..');
-const summaryPath = join(scriptDirectory, 'release-candidate-summary.md');
-const summaryKoPath = join(scriptDirectory, 'release-candidate-summary.ko.md');
+const summaryPath = join(scriptDirectory, 'release-readiness-summary.md');
+const summaryKoPath = join(scriptDirectory, 'release-readiness-summary.ko.md');
 const changelogPath = join(repoRoot, 'CHANGELOG.md');
 
 function languageToggle(current) {
-  const english = current === 'en' ? '<strong><kbd>English</kbd></strong>' : '<a href="./release-candidate-summary.md"><kbd>English</kbd></a>';
-  const korean = current === 'ko' ? '<strong><kbd>한국어</kbd></strong>' : '<a href="./release-candidate-summary.ko.md"><kbd>한국어</kbd></a>';
+  const english = current === 'en' ? '<strong><kbd>English</kbd></strong>' : '<a href="./release-readiness-summary.md"><kbd>English</kbd></a>';
+  const korean = current === 'ko' ? '<strong><kbd>한국어</kbd></strong>' : '<a href="./release-readiness-summary.ko.md"><kbd>한국어</kbd></a>';
   return `<p>${english} ${korean}</p>`;
 }
 
@@ -35,7 +35,7 @@ function assertCheck(checks, label, condition, detail) {
   checks.push({ detail, label, pass: condition });
 
   if (!condition) {
-    throw new Error(`Release candidate check failed: ${label}. ${detail}`);
+    throw new Error(`Release readiness check failed: ${label}. ${detail}`);
   }
 }
 
@@ -106,24 +106,24 @@ function workspacePackageNames() {
 function writeSummary(checks) {
   mkdirSync(scriptDirectory, { recursive: true });
   const summary = [
-    '# release candidate summary',
+    '# release readiness summary',
     '',
     languageToggle('en'),
     '',
     ...checks.map((check) => `- [${check.pass ? 'x' : ' '}] ${check.label} — ${check.detail}`),
     '',
     '- Commands executed: `pnpm typecheck`, `pnpm build`, `pnpm test`',
-    '- Side effects: `CHANGELOG.md` draft release-candidate section updated',
+    '- Side effects: `CHANGELOG.md` draft release-readiness section updated',
   ].join('\n');
   const summaryKo = [
-    '# 릴리즈 후보 검증 요약',
+    '# 릴리즈 준비도 검증 요약',
     '',
     languageToggle('ko'),
     '',
     ...checks.map((check) => `- [${check.pass ? 'x' : ' '}] ${check.label} — ${check.detail}`),
     '',
     '- 실행한 명령: `pnpm typecheck`, `pnpm build`, `pnpm test`',
-    '- 부수 효과: `CHANGELOG.md` 릴리즈 후보 드래프트 섹션 갱신',
+    '- 부수 효과: `CHANGELOG.md` 릴리즈 준비도 드래프트 섹션 갱신',
   ].join('\n');
 
   writeFileSync(summaryPath, `${summary}\n`, 'utf8');
@@ -132,16 +132,16 @@ function writeSummary(checks) {
 
 function upsertReleaseCandidateDraft() {
   if (!existsSync(changelogPath)) {
-    throw new Error('Release candidate check failed: CHANGELOG.md is missing at the repository root.');
+    throw new Error('Release readiness check failed: CHANGELOG.md is missing at the repository root.');
   }
 
   const changelog = readFileSync(changelogPath, 'utf8');
   const draftDate = new Date().toISOString().slice(0, 10);
-  const startMarker = '<!-- release-candidate-draft:start -->';
-  const endMarker = '<!-- release-candidate-draft:end -->';
+  const startMarker = '<!-- release-readiness-draft:start -->';
+  const endMarker = '<!-- release-readiness-draft:end -->';
   const draftBlock = [
     startMarker,
-    `### Draft release candidate entry (${draftDate})`,
+    `### Draft release readiness entry (${draftDate})`,
     '',
     '- Breaking changes:',
     '  - _Describe public contract changes and include migration notes._',
@@ -155,10 +155,10 @@ function upsertReleaseCandidateDraft() {
   ].join('\n');
 
   if (!changelog.includes('## [Unreleased]')) {
-    throw new Error('Release candidate check failed: CHANGELOG.md must define an `## [Unreleased]` section.');
+    throw new Error('Release readiness check failed: CHANGELOG.md must define an `## [Unreleased]` section.');
   }
 
-  const blockRegex = /<!-- release-candidate-draft:start -->[\s\S]*?<!-- release-candidate-draft:end -->/;
+  const blockRegex = /<!-- release-readiness-draft:start -->[\s\S]*?<!-- release-readiness-draft:end -->/;
   let next = changelog;
 
   if (blockRegex.test(changelog)) {
@@ -274,4 +274,4 @@ assertCheck(
 );
 
 writeSummary(checks);
-console.log(`Release candidate summary written to ${summaryPath}`);
+console.log(`Release readiness summary written to ${summaryPath}`);
