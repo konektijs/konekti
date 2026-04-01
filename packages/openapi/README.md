@@ -92,6 +92,8 @@ class OpenApiModule {
 }
 ```
 
+When both `sources` and `descriptors` are provided, OpenAPI generation composes both sets into a single document.
+
 **Endpoints:**
 
 | Route | Description |
@@ -136,7 +138,7 @@ Documents a response for a handler.
 ```typescript
 interface ApiResponseOptions {
   description?: string;
-  schema?: Record<string, unknown>;
+  schema?: OpenApiSchemaObject;
   type?: Constructor;
 }
 
@@ -151,6 +153,8 @@ Multiple `@ApiResponse` decorators can be stacked on the same handler.
 ### Mapped DTO helpers from the `@konekti/validation` package
 
 OpenAPI generation preserves metadata from `PickType()`, `OmitType()`, `IntersectionType()`, and `PartialType()` request DTOs, so derived request bodies and parameter schemas continue to render from the resolved DTO class.
+
+This includes composition-friendly schemas (for example `allOf` / `oneOf` / `anyOf` / `not` and discriminator metadata) when explicit OpenAPI schema objects are provided.
 
 `PartialType()` also changes required semantics: request bodies and non-path parameters become optional in the generated OpenAPI document, while path parameters stay required because the OpenAPI spec requires that.
 
@@ -233,6 +237,7 @@ The generated document follows OpenAPI 3.1.0:
 - **`security`** requirements can be declared with `@ApiBearerAuth()` and/or `@ApiSecurity(...)`.
 - **`securitySchemes`** can be registered via module/document options (API key, HTTP, OAuth2, OpenID Connect). `bearerAuth` is still auto-added when needed by `@ApiBearerAuth()`.
 - Request DTOs decorated with the `@konekti/validation` package are emitted as `components.schemas` entries and linked through `requestBody`.
+- Explicit schemas provided through decorators can use OpenAPI composition keywords (`allOf`, `oneOf`, `anyOf`, `not`, `discriminator`) and are emitted as-is.
 - `extraModels` can register additional schema components even when they are not referenced by request/response DTO discovery.
 - Cookie-bound DTO fields are emitted as `in: cookie` parameters.
 - Request bodies are only marked `required: true` when at least one body-bound DTO field is required.
