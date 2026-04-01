@@ -1,6 +1,6 @@
-# release candidate summary
+# release readiness summary
 
-<p><strong><kbd>한국어</kbd></strong> <a href="./release-candidate-summary.md"><kbd>English</kbd></a></p>
+<p><strong><kbd>한국어</kbd></strong> <a href="./release-readiness-summary.md"><kbd>English</kbd></a></p>
 
 ## checklist
 
