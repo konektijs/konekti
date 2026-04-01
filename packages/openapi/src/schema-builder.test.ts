@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { IsArray, IsEnum, IsOptional, IsString, MinLength, ValidateNested } from '@konekti/validation';
 import { Controller, FromBody, Get, Post, RequestDto, createHandlerMapping } from '@konekti/http';
 
-import { ApiBearerAuth, ApiExcludeEndpoint, ApiOperation, ApiSecurity } from './decorators.js';
+import { ApiBearerAuth, ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiSecurity } from './decorators.js';
 import { buildOpenApiDocument } from './schema-builder.js';
 
 describe('buildOpenApiDocument', () => {
@@ -297,5 +297,124 @@ describe('buildOpenApiDocument', () => {
     expect(withoutTransform.info.title).toBe('Health API');
     expect(withTransform.info.title).toBe('Health API (Transformed)');
     expect(withTransform.paths).toEqual(withoutTransform.paths);
+  });
+
+  it('emits explicit composition schemas from response and request decorators', () => {
+    @Controller('/composition')
+    class CompositionController {
+      @ApiResponse(200, {
+        description: 'Composed response',
+        schema: {
+          allOf: [
+            {
+              properties: {
+                id: { type: 'string' },
+              },
+              type: 'object',
+            },
+            {
+              properties: {
+                role: { enum: ['admin', 'user'], type: 'string' },
+              },
+              required: ['role'],
+              type: 'object',
+            },
+          ],
+          discriminator: {
+            propertyName: 'role',
+          },
+        },
+      })
+      @Get('/response')
+      response() {
+        return { id: '1', role: 'admin' };
+      }
+
+      @ApiBody({
+        schema: {
+          oneOf: [
+            {
+              properties: {
+                name: { type: 'string' },
+              },
+              required: ['name'],
+              type: 'object',
+            },
+            {
+              properties: {
+                email: { format: 'email', type: 'string' },
+              },
+              required: ['email'],
+              type: 'object',
+            },
+          ],
+        },
+      })
+      @Post('/request')
+      request() {
+        return { ok: true };
+      }
+    }
+
+    const descriptors = createHandlerMapping([{ controllerToken: CompositionController }]).descriptors;
+    const document = buildOpenApiDocument({
+      defaultErrorResponsesPolicy: 'omit',
+      descriptors,
+      title: 'Composition API',
+      version: '1.0.0',
+    });
+
+    expect(document.paths['/composition/response']?.get?.responses['200']).toEqual({
+      content: {
+        'application/json': {
+          schema: {
+            allOf: [
+              {
+                properties: {
+                  id: { type: 'string' },
+                },
+                type: 'object',
+              },
+              {
+                properties: {
+                  role: { enum: ['admin', 'user'], type: 'string' },
+                },
+                required: ['role'],
+                type: 'object',
+              },
+            ],
+            discriminator: {
+              propertyName: 'role',
+            },
+          },
+        },
+      },
+      description: 'Composed response',
+    });
+
+    expect(document.paths['/composition/request']?.post?.requestBody).toEqual({
+      content: {
+        'application/json': {
+          schema: {
+            oneOf: [
+              {
+                properties: {
+                  name: { type: 'string' },
+                },
+                required: ['name'],
+                type: 'object',
+              },
+              {
+                properties: {
+                  email: { format: 'email', type: 'string' },
+                },
+                required: ['email'],
+                type: 'object',
+              },
+            ],
+          },
+        },
+      },
+    });
   });
 });
