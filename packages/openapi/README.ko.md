@@ -92,6 +92,8 @@ class OpenApiModule {
 }
 ```
 
+`sources`와 `descriptors`를 동시에 제공하면 OpenAPI 생성 시 두 입력이 하나의 문서로 함께 구성됩니다.
+
 **엔드포인트:**
 
 | 라우트 | 설명 |
@@ -136,7 +138,7 @@ getProduct() { ... }
 ```typescript
 interface ApiResponseOptions {
   description?: string;
-  schema?: Record<string, unknown>;
+  schema?: OpenApiSchemaObject;
   type?: Constructor;
 }
 
@@ -151,6 +153,8 @@ getProduct() { ... }
 ### `@konekti/validation` 패키지의 매핑된 DTO 헬퍼
 
 OpenAPI 생성 시 `PickType()`, `OmitType()`, `IntersectionType()`, `PartialType()` 요청 DTO의 메타데이터가 보존되므로, 파생된 요청 바디와 파라미터 스키마가 해결된 DTO 클래스를 기반으로 계속 렌더링됩니다.
+
+명시적 OpenAPI 스키마 객체를 제공하는 경우 `allOf` / `oneOf` / `anyOf` / `not` 및 discriminator 메타데이터 같은 구성 키워드도 함께 유지됩니다.
 
 `PartialType()`은 필수 여부 시맨틱도 변경합니다. 생성된 OpenAPI 문서에서 요청 바디와 경로가 아닌 파라미터는 선택 사항(optional)이 되지만, 경로 파라미터는 OpenAPI 스펙상 필수여야 하므로 필수 상태로 유지됩니다.
 
@@ -233,6 +237,7 @@ getInternalHealth() { ... }
 - **`security`** 요구사항은 `@ApiBearerAuth()` 또는 `@ApiSecurity(...)`로 선언할 수 있습니다.
 - **`securitySchemes`**는 모듈/문서 옵션으로 등록할 수 있습니다(API key, HTTP, OAuth2, OpenID Connect). `@ApiBearerAuth()`가 사용되면 `bearerAuth`는 기존처럼 자동 등록됩니다.
 - `@konekti/validation` 패키지로 장식된 요청 DTO는 `components.schemas` 항목으로 생성되며 `requestBody`를 통해 연결됩니다.
+- 데코레이터에 제공한 명시적 스키마는 OpenAPI 구성 키워드(`allOf`, `oneOf`, `anyOf`, `not`, `discriminator`)를 그대로 유지한 채 출력됩니다.
 - `extraModels`로 요청/응답 DTO 탐색에 직접 연결되지 않은 모델도 `components.schemas`에 미리 등록할 수 있습니다.
 - 쿠키에 바인딩된 DTO 필드는 `in: cookie` 파라미터로 생성됩니다.
 - 요청 바디는 바인딩된 DTO 필드 중 최소 하나 이상이 필수인 경우에만 `required: true`로 표시됩니다.

@@ -15,14 +15,22 @@ import {
   getControllerTags,
   getMethodApiMetadata,
 } from './decorators.js';
+import type { OpenApiSchemaObject } from './schema-builder.js';
 
 describe('OpenAPI decorator metadata readers', () => {
   it('returns defensive copies and preserves write-time snapshots', () => {
-    const responseSchema: Record<string, unknown> = {
-      properties: {
-        id: { type: 'string' },
+    const responseSchema: OpenApiSchemaObject = {
+      allOf: [
+        {
+          properties: {
+            id: { type: 'string' },
+          },
+          type: 'object',
+        },
+      ],
+      discriminator: {
+        propertyName: 'kind',
       },
-      type: 'object',
     };
 
     @ApiTag('users')
@@ -32,7 +40,22 @@ describe('OpenAPI decorator metadata readers', () => {
       @ApiQuery('expand', { schema: { enum: ['profile'], type: 'string' } })
       @ApiHeader('x-request-id', { required: true, schema: { type: 'string' } })
       @ApiCookie('session', { schema: { type: 'string' } })
-      @ApiBody({ description: 'Explicit body', required: true, schema: { properties: { name: { type: 'string' } }, type: 'object' } })
+      @ApiBody({
+        description: 'Explicit body',
+        required: true,
+        schema: {
+          oneOf: [
+            {
+              properties: { name: { type: 'string' } },
+              type: 'object',
+            },
+            {
+              properties: { email: { format: 'email', type: 'string' } },
+              type: 'object',
+            },
+          ],
+        },
+      })
       @ApiBearerAuth()
       @ApiSecurity('oauth2Auth', ['read:users'])
       @ApiExcludeEndpoint()
@@ -42,10 +65,8 @@ describe('OpenAPI decorator metadata readers', () => {
       }
     }
 
-    responseSchema.type = 'array';
-    responseSchema.properties = {
-      id: { type: 'number' },
-    };
+    responseSchema.allOf = [{ type: 'array' }];
+    responseSchema.discriminator = { propertyName: 'mutatedKind' };
 
     const firstTags = getControllerTags(UsersController);
     expect(firstTags).toEqual(['users']);
@@ -64,10 +85,17 @@ describe('OpenAPI decorator metadata readers', () => {
     }
 
     expect(firstMeta.responses[0]?.schema).toEqual({
-      properties: {
-        id: { type: 'string' },
+      allOf: [
+        {
+          properties: {
+            id: { type: 'string' },
+          },
+          type: 'object',
+        },
+      ],
+      discriminator: {
+        propertyName: 'kind',
       },
-      type: 'object',
     });
 
     firstMeta.operation = { summary: 'Mutated summary' };
@@ -113,10 +141,17 @@ describe('OpenAPI decorator metadata readers', () => {
           {
             description: 'OK',
             schema: {
-              properties: {
-                id: { type: 'string' },
+              allOf: [
+                {
+                  properties: {
+                    id: { type: 'string' },
+                  },
+                  type: 'object',
+                },
+              ],
+              discriminator: {
+                propertyName: 'kind',
               },
-              type: 'object',
             },
             status: 200,
             type: undefined,
@@ -128,12 +163,25 @@ describe('OpenAPI decorator metadata readers', () => {
           description: 'Explicit body',
           required: true,
           schema: {
-            properties: {
-              name: {
-                type: 'string',
+            oneOf: [
+              {
+                properties: {
+                  name: {
+                    type: 'string',
+                  },
+                },
+                type: 'object',
               },
-            },
-            type: 'object',
+              {
+                properties: {
+                  email: {
+                    format: 'email',
+                    type: 'string',
+                  },
+                },
+                type: 'object',
+              },
+            ],
           },
         },
       }),

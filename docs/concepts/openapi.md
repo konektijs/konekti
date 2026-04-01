@@ -17,7 +17,7 @@ Use `OpenApiModule.forRoot(...)` to enable OpenAPI support. By default, it provi
 - **JSON Document**: `GET /openapi.json`
 - **Swagger UI** (optional): `GET /docs`
 
-The OpenAPI document is constructed during application startup from handler descriptors. `OpenApiModule.forRoot(...)` accepts either prebuilt descriptors or the `HandlerSource[]` model used by `createHandlerMapping()`.
+The OpenAPI document is constructed during application startup from handler descriptors. `OpenApiModule.forRoot(...)` accepts prebuilt descriptors, the `HandlerSource[]` model used by `createHandlerMapping()`, or both together for composed input.
 
 ## documentation decorators
 
@@ -41,6 +41,7 @@ The OpenAPI generator extracts schema information from route metadata and input 
 - **Request Bodies**: Linked via `requestBody`.
 - **Parameters**: Bound input fields are mapped into parameter definitions.
 - **Responses**: Response models can be documented using `@ApiResponse(..., { type: ... })`.
+- **Explicit composition schemas**: Explicit decorator schemas can use composition keywords such as `allOf`, `oneOf`, `anyOf`, `not`, and `discriminator`.
 - **Nesting**: Nested models and arrays are represented as schema references.
 - **Extra models**: `extraModels` option can register schema components that are not discovered from request/response metadata.
 
@@ -48,7 +49,7 @@ The OpenAPI generator extracts schema information from route metadata and input 
 
 - **Route Metadata**: Extracted from handler descriptors.
 - **Versioning**: Versioning defined via `@Version(...)` is reflected in URI paths (e.g., `/v1/users`).
-- **Composition**: Tags, operations, responses, and schema metadata are combined into a single OpenAPI 3.1 document.
+- **Composition**: Tags, operations, responses, schema metadata, and explicit OpenAPI composition keywords are combined into a single OpenAPI 3.1 document.
 - **Lifecycle**: The document is generated once at startup and served statically.
 
 ## architectural boundaries
