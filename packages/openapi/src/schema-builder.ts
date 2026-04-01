@@ -29,11 +29,19 @@ export interface OpenApiSchemaObject {
   type?: 'array' | 'boolean' | 'integer' | 'number' | 'object' | 'string';
   format?: string;
   description?: string;
+  allOf?: OpenApiSchemaObject[];
+  oneOf?: OpenApiSchemaObject[];
+  anyOf?: OpenApiSchemaObject[];
+  not?: OpenApiSchemaObject;
+  discriminator?: {
+    propertyName: string;
+    mapping?: Record<string, string>;
+  };
   properties?: Record<string, OpenApiSchemaObject>;
   items?: OpenApiSchemaObject;
   required?: string[];
   enum?: unknown[];
-  additionalProperties?: boolean;
+  additionalProperties?: boolean | OpenApiSchemaObject;
   minimum?: number;
   maximum?: number;
   minLength?: number;

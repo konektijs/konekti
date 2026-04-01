@@ -1,4 +1,5 @@
 import { metadataSymbol, type Constructor, type MetadataPropertyKey } from '@konekti/core';
+import type { OpenApiSchemaObject } from './schema-builder.js';
 
 export interface ApiOperationOptions {
   summary?: string;
@@ -9,21 +10,21 @@ export interface ApiOperationOptions {
 export interface ApiResponseOptions {
   status: number;
   description?: string;
-  schema?: Record<string, unknown>;
+  schema?: OpenApiSchemaObject;
   type?: Constructor;
 }
 
 export interface ApiParameterOptions {
   description?: string;
   required?: boolean;
-  schema?: Record<string, unknown>;
+  schema?: OpenApiSchemaObject;
 }
 
 export interface ApiBodyOptions {
   description?: string;
   required?: boolean;
-  schema?: Record<string, unknown>;
-  content?: Record<string, { schema: Record<string, unknown> }>;
+  schema?: OpenApiSchemaObject;
+  content?: Record<string, { schema: OpenApiSchemaObject }>;
 }
 
 export interface ApiOperationMetadata {
@@ -39,7 +40,7 @@ export interface ApiSecurityRequirementMetadata {
 export interface ApiResponseMetadata {
   status: number;
   description?: string;
-  schema?: Record<string, unknown>;
+  schema?: OpenApiSchemaObject;
   type?: Constructor;
 }
 
@@ -48,14 +49,14 @@ export interface ApiParameterMetadata {
   in: 'cookie' | 'header' | 'path' | 'query';
   description?: string;
   required?: boolean;
-  schema?: Record<string, unknown>;
+  schema?: OpenApiSchemaObject;
 }
 
 export interface ApiBodyMetadata {
   description?: string;
   required?: boolean;
-  schema?: Record<string, unknown>;
-  content?: Record<string, { schema: Record<string, unknown> }>;
+  schema?: OpenApiSchemaObject;
+  content?: Record<string, { schema: OpenApiSchemaObject }>;
 }
 
 export interface MethodApiMetadata {
