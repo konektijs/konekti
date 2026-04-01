@@ -48,7 +48,7 @@ const notes = [
   '',
   '---',
   '',
-  'Release-candidate verification summary is attached as `release-candidate-summary.md`.',
+  'Release-readiness verification summary is attached as `release-readiness-summary.md`.',
 ].join('\n');
 
 writeFileSync(releaseNotesPath, `${notes}\n`, 'utf8');

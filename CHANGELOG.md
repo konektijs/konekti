@@ -15,8 +15,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - `@konekti/terminus`: Terminus-style health indicators, structured `/health` aggregation, and runtime readiness integration layered on `createHealthModule()`.
 
-<!-- release-candidate-draft:start -->
-### Draft release candidate entry (2026-03-24)
+<!-- release-readiness-draft:start -->
+### Draft release readiness entry (2026-03-24)
 
 - Breaking changes:
   - _Describe public contract changes and include migration notes._
@@ -26,7 +26,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - _List notable fixes by package._
 - Deprecations:
   - _List newly deprecated APIs and removal timelines._
-<!-- release-candidate-draft:end -->
+<!-- release-readiness-draft:end -->
 
 ## [0.0.0] - 2026-03-11
 
