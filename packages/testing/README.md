@@ -185,6 +185,49 @@ export default defineConfig({
 });
 ```
 
+### Platform conformance test kit
+
+Use `createPlatformConformanceHarness(...)` when authoring official platform-facing packages to lock the shared lifecycle/diagnostics/snapshot contract.
+
+```ts
+import { createPlatformConformanceHarness } from '@konekti/testing';
+
+const harness = createPlatformConformanceHarness({
+  createComponent: () => createQueuePlatformComponent(),
+  captureValidationSideEffects: (component) => ({
+    ownership: component.snapshot().ownership,
+  }),
+  diagnostics: {
+    expectedCodes: ['QUEUE_DEPENDENCY_NOT_READY'],
+  },
+  scenarios: {
+    degraded: {
+      name: 'degraded',
+      createComponent: () => createQueuePlatformComponent({ mode: 'degraded' }),
+      enterState: async () => undefined,
+      expectedState: 'degraded',
+    },
+    failed: {
+      name: 'failed',
+      createComponent: () => createQueuePlatformComponent({ mode: 'failed' }),
+      enterState: async () => undefined,
+      expectedState: 'failed',
+    },
+  },
+});
+
+await harness.assertAll();
+```
+
+The kit enforces these invariants:
+
+- `validate()` must not transition `component.state()`.
+- hidden long-lived side effects beyond state are checked when `captureValidationSideEffects` is provided.
+- `start()` and `stop()` are deterministic/idempotent.
+- `snapshot()` remains callable in degraded and failed states.
+- diagnostics keep stable non-empty `code` values and include error-level `fixHint`.
+- snapshots remain sanitized (no secret-bearing key paths).
+
 ### Resolving tokens directly
 
 ```typescript
@@ -228,6 +271,12 @@ interface TestingModuleOptions {
 
 createTestingModule(options: TestingModuleOptions): TestingModuleBuilder
 ```
+
+### `createPlatformConformanceHarness(options)`
+
+Shared platform conformance test harness for official platform-facing packages.
+
+`captureValidationSideEffects` is optional. Without it, validation-side-effect coverage is limited to the unconditional state-transition guard (`validate()` must not change `component.state()`).
 
 ### `TestingModuleBuilder`
 
