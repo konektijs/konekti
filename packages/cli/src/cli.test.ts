@@ -260,6 +260,9 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).toMatch(/\| Option\s+\| Aliases \| Description\s+\|/);
     expect(stdoutBuffer.join('')).toContain('--package-manager <pnpm|npm|yarn>');
     expect(stdoutBuffer.join('')).not.toContain('Schematics');
+    expect(stdoutBuffer.join('')).toContain('Next steps:');
+    expect(stdoutBuffer.join('')).toContain('cd <app-name>');
+    expect(stdoutBuffer.join('')).toContain('pnpm dev');
     expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md');
   });
 
@@ -297,6 +300,8 @@ describe('CLI command runner', () => {
 
     expect(stdoutBuffer.join('')).toContain('| Option                    | Aliases | Description');
     expect(stdoutBuffer.join('')).not.toContain('Usage: konekti new|create');
+    expect(stdoutBuffer.join('')).toContain('Next steps:');
+    expect(stdoutBuffer.join('')).toContain("Run 'pnpm typecheck'");
     expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/generator-workflow.md');
   });
 
@@ -765,6 +770,8 @@ describe('CLI command runner', () => {
     expect(output).toContain('provider in the module');
     expect(output).toContain('persistence-agnostic');
     expect(output).toContain('route-level data binding');
+    expect(output).toContain('Next steps:');
+    expect(output).toContain("Run 'pnpm typecheck'");
   });
 
   it('returns a non-zero exit code for invalid commands', async () => {
@@ -1081,6 +1088,8 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).toContain('Usage: konekti migrate <path> [options]');
     expect(stdoutBuffer.join('')).toContain('--apply');
     expect(stdoutBuffer.join('')).toContain('--only <comma-list>');
+    expect(stdoutBuffer.join('')).toContain('Next steps:');
+    expect(stdoutBuffer.join('')).toContain('--apply');
     expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/migrate-from-nestjs.md');
   });
 
