@@ -194,6 +194,9 @@ import { createPlatformConformanceHarness } from '@konekti/testing';
 
 const harness = createPlatformConformanceHarness({
   createComponent: () => createQueuePlatformComponent(),
+  captureValidationSideEffects: (component) => ({
+    ownership: component.snapshot().ownership,
+  }),
   diagnostics: {
     expectedCodes: ['QUEUE_DEPENDENCY_NOT_READY'],
   },
@@ -218,7 +221,8 @@ await harness.assertAll();
 
 The kit enforces these invariants:
 
-- `validate()` has no long-lived side effects.
+- `validate()` must not transition `component.state()`.
+- hidden long-lived side effects beyond state are checked when `captureValidationSideEffects` is provided.
 - `start()` and `stop()` are deterministic/idempotent.
 - `snapshot()` remains callable in degraded and failed states.
 - diagnostics keep stable non-empty `code` values and include error-level `fixHint`.
@@ -271,6 +275,8 @@ createTestingModule(options: TestingModuleOptions): TestingModuleBuilder
 ### `createPlatformConformanceHarness(options)`
 
 Shared platform conformance test harness for official platform-facing packages.
+
+`captureValidationSideEffects` is optional. Without it, validation-side-effect coverage is limited to the unconditional state-transition guard (`validate()` must not change `component.state()`).
 
 ### `TestingModuleBuilder`
 
