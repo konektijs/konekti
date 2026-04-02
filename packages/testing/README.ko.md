@@ -199,6 +199,49 @@ export default defineConfig({
 });
 ```
 
+### 플랫폼 conformance test kit
+
+공식 플랫폼-지향 패키지를 작성할 때는 `createPlatformConformanceHarness(...)`로 공유 라이프사이클/진단/스냅샷 계약을 고정하세요.
+
+```ts
+import { createPlatformConformanceHarness } from '@konekti/testing';
+
+const harness = createPlatformConformanceHarness({
+  createComponent: () => createQueuePlatformComponent(),
+  captureValidationSideEffects: (component) => ({
+    ownership: component.snapshot().ownership,
+  }),
+  diagnostics: {
+    expectedCodes: ['QUEUE_DEPENDENCY_NOT_READY'],
+  },
+  scenarios: {
+    degraded: {
+      name: 'degraded',
+      createComponent: () => createQueuePlatformComponent({ mode: 'degraded' }),
+      enterState: async () => undefined,
+      expectedState: 'degraded',
+    },
+    failed: {
+      name: 'failed',
+      createComponent: () => createQueuePlatformComponent({ mode: 'failed' }),
+      enterState: async () => undefined,
+      expectedState: 'failed',
+    },
+  },
+});
+
+await harness.assertAll();
+```
+
+이 test kit는 다음 invariant를 강제합니다.
+
+- `validate()`가 `component.state()`를 전이시키지 않음
+- state 외의 숨은 장수명 side effect는 `captureValidationSideEffects`를 제공한 경우에만 검증됨
+- `start()`/`stop()`이 결정적/멱등임
+- `snapshot()`을 degraded/failed 상태에서도 호출 가능함
+- diagnostics가 안정적인 비어 있지 않은 `code`와 error 수준 `fixHint`를 유지함
+- snapshot에 비밀 키 경로가 남지 않도록 sanitize됨
+
 ## 핵심 API
 
 ### `createTestingModule(options)`
@@ -212,6 +255,12 @@ interface TestingModuleOptions {
 
 createTestingModule(options: TestingModuleOptions): TestingModuleBuilder
 ```
+
+### `createPlatformConformanceHarness(options)`
+
+공식 플랫폼-지향 패키지를 위한 공유 conformance 테스트 하니스입니다.
+
+`captureValidationSideEffects`는 선택 사항입니다. 이 옵션이 없으면 validation side-effect 커버리지는 상태 전이 가드(`validate()`가 `component.state()`를 바꾸지 않아야 함)까지로 제한됩니다.
 
 ### `TestingModuleBuilder`
 
