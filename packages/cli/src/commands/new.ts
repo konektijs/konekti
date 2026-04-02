@@ -146,6 +146,12 @@ export function newUsage(): string {
         render: (entry) => entry.description,
       },
     ]),
+    '',
+    'Next steps:',
+    '  cd <app-name>',
+    '  pnpm dev',
+    '',
+    'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md',
   ].join('\n');
 }
 
