@@ -6,7 +6,7 @@ Konekti is built on standard TypeScript decorators and explicit contract discipl
 
 Konekti uses a monorepo structure managed by `pnpm`.
 
-1. **Prerequisites**: Node.js 18+ and `pnpm`.
+1. **Prerequisites**: Node.js 20+ and `pnpm`.
 2. **Install dependencies**:
    ```sh
    pnpm install

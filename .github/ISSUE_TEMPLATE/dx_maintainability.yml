@@ -1,6 +1,6 @@
 name: DX/Maintainability Request
 description: Propose an improvement to developer experience or repo maintainability
-labels: ["type: dx", "priority: p2"]
+labels: ["type:maintainability", "priority:p2"]
 body:
   - type: markdown
     attributes:
