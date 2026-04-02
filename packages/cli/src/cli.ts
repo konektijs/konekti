@@ -114,6 +114,9 @@ function generateUsage(): string {
       { header: 'Description', render: (entry) => entry.description },
     ]),
     '',
+    'Next steps:',
+    '  Run \'pnpm typecheck\' to verify the generated module wiring.',
+    '',
     'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/generator-workflow.md',
   ].join('\n');
 }

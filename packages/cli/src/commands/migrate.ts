@@ -152,6 +152,9 @@ export function migrateUsage(): string {
       { header: 'Description', render: (entry) => entry.description },
     ]),
     '',
+    'Next steps:',
+    '  Review warnings in the output, then run again with --apply to write changes.',
+    '',
     'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/migrate-from-nestjs.md',
   ].join('\n');
 }

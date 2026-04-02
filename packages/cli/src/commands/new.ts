@@ -147,6 +147,10 @@ export function newUsage(): string {
       },
     ]),
     '',
+    'Next steps:',
+    '  cd <app-name>',
+    '  pnpm dev',
+    '',
     'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md',
   ].join('\n');
 }
