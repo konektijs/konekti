@@ -1,6 +1,6 @@
 name: Bug Report
 description: Report a bug in the Konekti framework or CLI
-labels: ["type: bug", "priority: p2"]
+labels: ["bug", "priority:p2"]
 body:
   - type: markdown
     attributes:
