@@ -22,12 +22,15 @@ Every official platform-facing package must include tests that execute the share
 
 Minimum invariants covered by the harness:
 
-- `validate()` does not create long-lived side effects.
+- `validate()` must not transition component state (always checked).
+- hidden long-lived side effects beyond state are checked when `captureValidationSideEffects` is wired.
 - `start()` is deterministic (idempotent success or deterministic duplicate rejection).
 - `stop()` is idempotent.
 - `snapshot()` is callable in degraded and failed states.
 - diagnostics expose stable non-empty codes and include fix hints for error severities.
 - snapshots are sanitized (no sensitive credential/secret key paths).
+
+For platform packages with ownership/resource semantics, provide `captureValidationSideEffects` in harness tests so hidden resource mutations are asserted explicitly.
 
 ## package authoring checklist
 

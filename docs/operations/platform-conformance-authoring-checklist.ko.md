@@ -22,12 +22,15 @@
 
 하니스가 보장해야 하는 최소 invariant:
 
-- `validate()`가 장수명(side-effect) 리소스를 생성하지 않는다.
+- `validate()`가 컴포넌트 상태를 전이시키지 않는다(항상 검증).
+- 상태 외의 숨은 장수명 side effect는 `captureValidationSideEffects`를 연결한 경우에 검증된다.
 - `start()`가 결정적이다(멱등 성공 또는 중복 호출 시 결정적 실패).
 - `stop()`이 멱등이다.
 - `snapshot()`을 degraded/failed 상태에서도 호출할 수 있다.
 - diagnostics가 비어 있지 않은 안정적인 코드와 error 수준 `fixHint`를 제공한다.
 - snapshot이 민감 정보 키를 포함하지 않도록 sanitize된다.
+
+리소스 소유/점유 semantics가 있는 플랫폼 패키지는 하니스 테스트에서 `captureValidationSideEffects`를 제공해 숨은 리소스 변화를 명시적으로 검증해야 합니다.
 
 ## 패키지 작성 체크리스트
 
