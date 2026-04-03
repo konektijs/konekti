@@ -353,12 +353,12 @@ describe('CacheInterceptor', () => {
 
       const { interceptor, cacheService } = createInterceptor({
         httpKeyStrategy: 'route',
-        principalScopeResolver: (context) => context.requestContext.metadata['tenantId'] as string | undefined,
+        principalScopeResolver: (context) => context.requestContext.metadata.tenantId as string | undefined,
       });
       const firstRequestContext = createRequestContext('GET', '/products', '/products');
       const secondRequestContext = createRequestContext('GET', '/products', '/products');
-      firstRequestContext.metadata['tenantId'] = 'tenant-a';
-      secondRequestContext.metadata['tenantId'] = 'tenant-b';
+      firstRequestContext.metadata.tenantId = 'tenant-a';
+      secondRequestContext.metadata.tenantId = 'tenant-b';
 
       const firstContext = createContext(ProductController, 'list', firstRequestContext);
       const secondContext = createContext(ProductController, 'list', secondRequestContext);
@@ -385,11 +385,11 @@ describe('CacheInterceptor', () => {
 
       const { interceptor, cacheService } = createInterceptor({
         httpKeyStrategy: 'route',
-        principalScopeResolver: (context) => context.requestContext.metadata['tenantId'] as string | undefined,
+        principalScopeResolver: (context) => context.requestContext.metadata.tenantId as string | undefined,
       });
       const anonymousRequestContext = createRequestContext('GET', '/products', '/products');
       const tenantScopedRequestContext = createRequestContext('GET', '/products', '/products');
-      tenantScopedRequestContext.metadata['tenantId'] = 'tenant-a';
+      tenantScopedRequestContext.metadata.tenantId = 'tenant-a';
 
       const anonymousContext = createContext(ProductController, 'list', anonymousRequestContext);
       const tenantScopedContext = createContext(ProductController, 'list', tenantScopedRequestContext);

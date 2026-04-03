@@ -92,7 +92,9 @@ function collectForbiddenKeyPaths(
   violations: string[],
 ): void {
   if (Array.isArray(value)) {
-    value.forEach((entry, index) => collectForbiddenKeyPaths(entry, patterns, allowPatterns, `${currentPath}[${index}]`, violations));
+    value.forEach((entry, index) => {
+      collectForbiddenKeyPaths(entry, patterns, allowPatterns, `${currentPath}[${index}]`, violations);
+    });
     return;
   }
 
