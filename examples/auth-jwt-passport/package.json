@@ -1,0 +1,24 @@
+{
+  "name": "@konekti/example-auth-jwt-passport",
+  "description": "Runnable Konekti authentication example with JWT issuance and Passport-style route protection.",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@konekti/core": "workspace:*",
+    "@konekti/http": "workspace:*",
+    "@konekti/jwt": "workspace:*",
+    "@konekti/passport": "workspace:*",
+    "@konekti/runtime": "workspace:*",
+    "@konekti/validation": "workspace:*"
+  },
+  "devDependencies": {
+    "@konekti/testing": "workspace:*"
+  }
+}
