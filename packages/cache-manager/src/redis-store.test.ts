@@ -35,7 +35,7 @@ class MockRedisClient implements RedisCompatibleClient {
   }
 
   async scan(cursor: string, ...args: Array<string | number>): Promise<[string, string[]]> {
-    const matchIndex = args.findIndex((value) => value === 'MATCH');
+    const matchIndex = args.indexOf('MATCH');
     const rawPattern = matchIndex >= 0 ? args[matchIndex + 1] : '*';
     const pattern = typeof rawPattern === 'string' ? rawPattern : '*';
     const prefix = pattern.endsWith('*') ? pattern.slice(0, -1) : pattern;

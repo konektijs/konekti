@@ -557,14 +557,14 @@ describe('DefaultValidator', () => {
 
   it('supports custom validators with each over Set and Map', async () => {
     class CustomEachDto {
-      @Validate((value: unknown) => (typeof value === 'string' && value.startsWith('ok') ? true : false), {
+      @Validate((value: unknown) => !!(typeof value === 'string' && value.startsWith('ok')), {
         code: 'CUSTOM_PREFIX',
         each: true,
         message: 'entry must start with ok',
       })
       entries = new Set<string>();
 
-      @Validate((value: unknown) => (typeof value === 'number' && value > 0 ? true : false), {
+      @Validate((value: unknown) => !!(typeof value === 'number' && value > 0), {
         code: 'CUSTOM_POSITIVE',
         each: true,
         message: 'count must be positive',

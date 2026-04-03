@@ -44,7 +44,7 @@ class MockRedisClient implements RedisCompatibleClient {
       return ['0', []];
     }
 
-    const matchIndex = args.findIndex((value) => value === 'MATCH');
+    const matchIndex = args.indexOf('MATCH');
     const pattern = String(args[matchIndex + 1] ?? '*');
     const prefix = pattern.endsWith('*') ? pattern.slice(0, -1) : pattern;
 

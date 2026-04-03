@@ -132,7 +132,7 @@ function buildWarning(filePath: string, sourceFile: ts.SourceFile, node: ts.Node
 
 function getImportBindings(importDeclaration: ts.ImportDeclaration): ImportBinding[] {
   const importClause = importDeclaration.importClause;
-  if (!importClause || !importClause.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
+  if (!importClause?.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
     return [];
   }
 
@@ -160,7 +160,7 @@ function toBindingKey(binding: ImportBinding): string {
 
 function updateNamedImports(importDeclaration: ts.ImportDeclaration, bindings: ImportBinding[]): ts.ImportDeclaration | undefined {
   const importClause = importDeclaration.importClause;
-  if (!importClause || !importClause.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
+  if (!importClause?.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
     return importDeclaration;
   }
 
@@ -304,7 +304,7 @@ function rewriteImports(source: string, filePath: string): { changed: boolean; s
     }
 
     const importClause = statement.importClause;
-    if (!importClause || !importClause.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
+    if (!importClause?.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
       warnings.push(buildWarning(filePath, sourceFile, statement, 'import-unsupported', 'Unsupported Nest import form detected. Review this import manually.'));
       statements.push(statement);
       continue;
@@ -378,7 +378,7 @@ function hasDecoratorNamed(modifiers: readonly ts.ModifierLike[] | undefined, na
 
 function hasConflictingScopeImport(sourceFile: ts.SourceFile): boolean {
   for (const statement of sourceFile.statements) {
-    if (!ts.isImportDeclaration(statement) || !statement.importClause || !statement.importClause.namedBindings || !ts.isNamedImports(statement.importClause.namedBindings)) {
+    if (!ts.isImportDeclaration(statement) || !statement.importClause?.namedBindings || !ts.isNamedImports(statement.importClause.namedBindings)) {
       continue;
     }
 

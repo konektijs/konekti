@@ -33,7 +33,7 @@ class MockRedisClient {
   async set(key: string, value: string, ...args: Array<string | number>): Promise<'OK'> {
     this.storage.set(key, value);
 
-    const exIndex = args.findIndex((a) => a === 'EX');
+    const exIndex = args.indexOf('EX');
 
     if (exIndex >= 0) {
       const ttlSeconds = Number(args[exIndex + 1]);
@@ -66,7 +66,7 @@ class MockRedisClient {
       return ['0', []];
     }
 
-    const matchIndex = args.findIndex((value) => value === 'MATCH');
+    const matchIndex = args.indexOf('MATCH');
     const rawPattern = matchIndex >= 0 ? args[matchIndex + 1] : '*';
     const pattern = typeof rawPattern === 'string' ? rawPattern : '*';
     const prefix = pattern.endsWith('*') ? pattern.slice(0, -1) : pattern;
