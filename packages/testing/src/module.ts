@@ -327,11 +327,12 @@ class DefaultTestingModuleBuilder implements TestingModuleBuilder {
   overrideProvider<T>(token: Token<T>): OverrideProviderBuilder<T>;
   overrideProvider<T>(token: Token<T>, provider: Provider<T>): this;
   overrideProvider<T>(token: Token<T>, value: T): this;
-  overrideProvider<T>(token: Token<T>, value?: Provider<T> | T): this | OverrideProviderBuilder<T> {
-    if (arguments.length < 2) {
+  overrideProvider<T>(token: Token<T>, ...rest: [Provider<T> | T] | []): this | OverrideProviderBuilder<T> {
+    if (rest.length < 1) {
       return new DefaultOverrideProviderBuilder(this, token);
     }
 
+    const [value] = rest;
     this.overrides.push(normalizeOverride(token, value));
     return this;
   }

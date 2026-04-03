@@ -185,11 +185,11 @@ export function createTestRequestContextMiddleware(): Middleware {
 function buildFrameworkRequest(req: TestRequestWithOptions): FrameworkTestRequest {
   const method = (req.method ?? 'GET').toUpperCase() as HttpMethod;
   const queryString = req.query
-    ? '?' + new URLSearchParams(
+    ? `?${new URLSearchParams(
         Object.entries(req.query).flatMap(([key, value]) =>
           Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]],
         ),
-      ).toString()
+      ).toString()}`
     : '';
 
   return {
