@@ -3,7 +3,6 @@ import { defineModule, type ModuleType } from '@konekti/runtime';
 
 import { SocketIoLifecycleService } from './adapter.js';
 import {
-  SOCKETIO_LIFECYCLE_SERVICE,
   SOCKETIO_OPTIONS,
   SOCKETIO_ROOM_SERVICE,
   SOCKETIO_SERVER,
@@ -17,17 +16,17 @@ export function createSocketIoProviders(options: SocketIoModuleOptions = {}): Pr
       useValue: options,
     },
     {
-      provide: SOCKETIO_LIFECYCLE_SERVICE,
+      provide: SocketIoLifecycleService,
       useClass: SocketIoLifecycleService,
     },
     {
       provide: SOCKETIO_SERVER,
       useFactory: (service: unknown) => (service as SocketIoLifecycleService).getServer(),
-      inject: [SOCKETIO_LIFECYCLE_SERVICE],
+      inject: [SocketIoLifecycleService],
     },
     {
       provide: SOCKETIO_ROOM_SERVICE,
-      useExisting: SOCKETIO_LIFECYCLE_SERVICE,
+      useExisting: SocketIoLifecycleService,
     },
   ];
 }
