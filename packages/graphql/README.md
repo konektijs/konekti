@@ -118,6 +118,12 @@ interface GraphQLContext {
 
 `GRAPHQL_MODULE_OPTIONS` and `GRAPHQL_LIFECYCLE_SERVICE` are internal lifecycle wiring tokens used by the package implementation and are not part of the public module/resolver API surface.
 
+#### 0.x migration note
+
+- `GRAPHQL_MODULE_OPTIONS` and `GRAPHQL_LIFECYCLE_SERVICE` were removed from the public `@konekti/graphql` package surface in 0.x.
+- Consumers should stop importing these tokens from `@konekti/graphql`.
+- Supported usage remains `createGraphqlModule(...)`, resolver decorators, and documented helper APIs.
+
 ## Decorators
 
 ### `@Resolver(typeName?)`

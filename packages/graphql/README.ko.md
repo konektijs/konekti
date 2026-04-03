@@ -118,6 +118,12 @@ interface GraphQLContext {
 
 `GRAPHQL_MODULE_OPTIONS`와 `GRAPHQL_LIFECYCLE_SERVICE`는 패키지 내부 lifecycle wiring에 사용하는 토큰이며, 공개 module/resolver API surface에 포함되지 않습니다.
 
+#### 0.x 마이그레이션 노트
+
+- `GRAPHQL_MODULE_OPTIONS`와 `GRAPHQL_LIFECYCLE_SERVICE`는 0.x에서 공개 `@konekti/graphql` 패키지 surface에서 제거되었습니다.
+- 소비자 코드는 `@konekti/graphql`에서 이 토큰들을 import하지 않도록 변경해야 합니다.
+- 지원되는 사용 방식은 `createGraphqlModule(...)`, resolver 데코레이터, README에 문서화된 helper API입니다.
+
 ## 데코레이터
 
 ### `@Resolver(typeName?)`
