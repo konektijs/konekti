@@ -7,7 +7,7 @@ import { OnConnect, OnDisconnect, OnMessage, WebSocketGateway } from '@konekti/w
 import { io as createClient, type Socket as ClientSocket } from 'socket.io-client';
 import type { Server as SocketIoServer, Socket } from 'socket.io';
 
-import { createSocketIoModule } from './module.js';
+import { createSocketIoModule, createSocketIoProviders } from './module.js';
 import * as publicApi from './index.js';
 import { SocketIoLifecycleService } from './adapter.js';
 import { SOCKETIO_ROOM_SERVICE, SOCKETIO_SERVER } from './tokens.js';
@@ -91,6 +91,24 @@ describe('@konekti/platform-socket.io', () => {
     expect(publicApi.SOCKETIO_SERVER).toBeDefined();
     expect('SOCKETIO_LIFECYCLE_SERVICE' in publicApi).toBe(false);
     expect('SOCKETIO_OPTIONS' in publicApi).toBe(false);
+  });
+
+  it('wires lifecycle dependencies through the lifecycle service class internally', () => {
+    const providers = createSocketIoProviders();
+    const serverProvider = providers.find(
+      (provider) =>
+        typeof provider === 'object' && provider !== null && 'provide' in provider && provider.provide === SOCKETIO_SERVER,
+    ) as { inject?: unknown[] } | undefined;
+    const roomProvider = providers.find(
+      (provider) =>
+        typeof provider === 'object' &&
+        provider !== null &&
+        'provide' in provider &&
+        provider.provide === SOCKETIO_ROOM_SERVICE,
+    ) as { useExisting?: unknown } | undefined;
+
+    expect(serverProvider?.inject).toEqual([SocketIoLifecycleService]);
+    expect(roomProvider?.useExisting).toBe(SocketIoLifecycleService);
   });
 
   it('injects the Socket.IO server token into singleton providers', async () => {
