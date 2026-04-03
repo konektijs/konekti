@@ -64,7 +64,7 @@ function findNamedImportSource(sourceFile: ts.SourceFile, className: string): st
     }
 
     const importClause = statement.importClause;
-    if (!importClause || !importClause.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
+    if (!importClause?.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
       continue;
     }
 
@@ -119,7 +119,7 @@ export function ensureModuleImport(source: string, className: string, importPath
     }
 
     const importClause = statement.importClause;
-    if (!importClause || !importClause.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
+    if (!importClause?.namedBindings || !ts.isNamedImports(importClause.namedBindings)) {
       continue;
     }
 
@@ -147,7 +147,7 @@ export function ensureModuleImport(source: string, className: string, importPath
 
   if (imports.length > 0) {
     const lastImport = imports[imports.length - 1];
-    return source.slice(0, lastImport.getEnd()) + `\n${newImportLine}` + source.slice(lastImport.getEnd());
+    return `${source.slice(0, lastImport.getEnd())}\n${newImportLine}${source.slice(lastImport.getEnd())}`;
   }
 
   return `${newImportLine}\n${source}`;
