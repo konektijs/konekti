@@ -217,7 +217,7 @@ Prisma Client
 2. `src/types.ts` — `PrismaClientLike` seam; 최소 계약(contract) 확인
 3. `src/service.ts` — `PrismaService`: `current()`, `transaction()`, `requestTransaction()`, ALS 사용 방식
 4. `src/transaction.ts` — `PrismaTransactionInterceptor`: 트랜잭션을 여는 요청 경계
-5. `src/module.ts` — `createPrismaProviders()`와 `PrismaModule.forRoot()`: 모든 것이 어떻게 연결되는지
+5. `src/module.ts` — `createPrismaProviders()`, `PrismaModule.forRoot()`, `PrismaModule.forRootAsync()`: 모든 것이 어떻게 연결되는지
 6. `src/vertical-slice.test.ts` — 통합 테스트: DTO → 검증 → 서비스 → 리포지토리 → Prisma 경로; 표준 201 / 400 / 404 계약
 
 ## 관련 패키지
