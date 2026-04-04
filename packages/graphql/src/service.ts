@@ -33,8 +33,8 @@ import type { Extra as GraphqlWsExtra } from 'graphql-ws/lib/use/ws';
 import { WebSocketServer, type WebSocket } from 'ws';
 
 import { discoverResolverDescriptors } from './discovery.js';
+import { GRAPHQL_INTERNAL_MODULE_OPTIONS_TOKEN } from './internal-tokens.js';
 import { createCodeFirstSchema, resolveSchema } from './schema.js';
-import { GRAPHQL_MODULE_OPTIONS } from './tokens.js';
 import { isGraphqlPath, toFetchRequest, writeFetchResponse } from './transport.js';
 import { GRAPHQL_OPERATION_CONTAINER } from './types.js';
 import type {
@@ -287,7 +287,7 @@ async function loadGraphqlDeps(): Promise<GraphqlDeps> {
   };
 }
 
-@Inject([RUNTIME_CONTAINER, COMPILED_MODULES, APPLICATION_LOGGER, HTTP_APPLICATION_ADAPTER, GRAPHQL_MODULE_OPTIONS])
+@Inject([RUNTIME_CONTAINER, COMPILED_MODULES, APPLICATION_LOGGER, HTTP_APPLICATION_ADAPTER, GRAPHQL_INTERNAL_MODULE_OPTIONS_TOKEN])
 export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplicationShutdown {
   private middlewareRegistered = false;
   private readonly operationContainers = new WeakMap<Request, Container>();
