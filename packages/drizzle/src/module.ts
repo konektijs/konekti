@@ -128,9 +128,9 @@ export function createDrizzleModule<
   TTransactionDatabase = TDatabase,
   TTransactionOptions = unknown,
 >(options: DrizzleModuleOptions<TDatabase, TTransactionDatabase, TTransactionOptions>): ModuleType {
-  class DrizzleModule {}
+  class DrizzleRootModuleDefinition {}
 
-  return defineModule(DrizzleModule, {
+  return defineModule(DrizzleRootModuleDefinition, {
     exports: DRIZZLE_MODULE_EXPORTS,
     providers: createDrizzleProviders(options),
   });
@@ -141,10 +141,28 @@ export function createDrizzleModuleAsync<
   TTransactionDatabase = TDatabase,
   TTransactionOptions = unknown,
 >(options: AsyncModuleOptions<DrizzleModuleOptions<TDatabase, TTransactionDatabase, TTransactionOptions>>): ModuleType {
-  class DrizzleAsyncModule {}
+  class DrizzleAsyncModuleDefinition {}
 
-  return defineModule(DrizzleAsyncModule, {
+  return defineModule(DrizzleAsyncModuleDefinition, {
     exports: DRIZZLE_MODULE_EXPORTS,
     providers: createDrizzleProvidersAsync(options),
   });
+}
+
+export class DrizzleModule {
+  static forRoot<
+    TDatabase extends DrizzleDatabaseLike<TTransactionDatabase, TTransactionOptions>,
+    TTransactionDatabase = TDatabase,
+    TTransactionOptions = unknown,
+  >(options: DrizzleModuleOptions<TDatabase, TTransactionDatabase, TTransactionOptions>): ModuleType {
+    return createDrizzleModule<TDatabase, TTransactionDatabase, TTransactionOptions>(options);
+  }
+
+  static forRootAsync<
+    TDatabase extends DrizzleDatabaseLike<TTransactionDatabase, TTransactionOptions>,
+    TTransactionDatabase = TDatabase,
+    TTransactionOptions = unknown,
+  >(options: AsyncModuleOptions<DrizzleModuleOptions<TDatabase, TTransactionDatabase, TTransactionOptions>>): ModuleType {
+    return createDrizzleModuleAsync<TDatabase, TTransactionDatabase, TTransactionOptions>(options);
+  }
 }

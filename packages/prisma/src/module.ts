@@ -80,9 +80,9 @@ export function createPrismaModule<
 >(
   options: PrismaModuleOptions<TClient, TTransactionClient, TTransactionOptions>,
 ): ModuleType {
-  class PrismaModule {}
+  class PrismaRootModuleDefinition {}
 
-  return defineModule(PrismaModule, {
+  return defineModule(PrismaRootModuleDefinition, {
     exports: PRISMA_MODULE_EXPORTS,
     providers: createPrismaProviders(options),
   });
@@ -93,7 +93,7 @@ export function createPrismaModuleAsync<
   TTransactionClient = TClient,
   TTransactionOptions = unknown,
 >(options: AsyncModuleOptions<PrismaModuleOptions<TClient, TTransactionClient, TTransactionOptions>>): ModuleType {
-  class PrismaAsyncModule {}
+  class PrismaAsyncModuleDefinition {}
 
   const factory = options.useFactory as (
     ...args: unknown[]
@@ -118,8 +118,30 @@ export function createPrismaModuleAsync<
     useFactory: (...deps: unknown[]) => memoizedFactory(...deps),
   };
 
-  return defineModule(PrismaAsyncModule, {
+  return defineModule(PrismaAsyncModuleDefinition, {
     exports: PRISMA_MODULE_EXPORTS,
     providers: createPrismaRuntimeProviders<TClient, TTransactionClient, TTransactionOptions>(normalizedOptionsProvider),
   });
+}
+
+export class PrismaModule {
+  static forRoot<
+    TClient extends PrismaClientLike<TTransactionClient, TTransactionOptions>,
+    TTransactionClient = TClient,
+    TTransactionOptions = unknown,
+  >(
+    options: PrismaModuleOptions<TClient, TTransactionClient, TTransactionOptions>,
+  ): ModuleType {
+    return createPrismaModule<TClient, TTransactionClient, TTransactionOptions>(options);
+  }
+
+  static forRootAsync<
+    TClient extends PrismaClientLike<TTransactionClient, TTransactionOptions>,
+    TTransactionClient = TClient,
+    TTransactionOptions = unknown,
+  >(
+    options: AsyncModuleOptions<PrismaModuleOptions<TClient, TTransactionClient, TTransactionOptions>>,
+  ): ModuleType {
+    return createPrismaModuleAsync<TClient, TTransactionClient, TTransactionOptions>(options);
+  }
 }
