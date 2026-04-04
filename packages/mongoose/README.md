@@ -191,7 +191,7 @@ Use `createMongoosePlatformStatusSnapshot(...)` (or `mongooseConnection.createPl
 1. `src/types.ts` — `MongooseConnectionLike`, `MongooseSessionLike`, `MongooseModuleOptions`, `MongooseHandleProvider`
 2. `src/tokens.ts` — `MONGOOSE_CONNECTION`, `MONGOOSE_DISPOSE`, `MONGOOSE_OPTIONS`
 3. `src/connection.ts` — `MongooseConnection` wrapper, ALS-based session context
-4. `src/module.ts` — `createMongooseProviders`, `MongooseModule.forRoot`
+4. `src/module.ts` — `createMongooseProviders`, `MongooseModule.forRoot`, `MongooseModule.forRootAsync`
 5. `src/transaction.ts` — `MongooseTransactionInterceptor`
 6. `src/module.test.ts` — connection usage, session transactions, dispose hook
 

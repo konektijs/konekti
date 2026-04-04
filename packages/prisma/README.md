@@ -217,7 +217,7 @@ Start here to understand the full package in ~15 minutes:
 2. `src/types.ts` — `PrismaClientLike` seam; shows the minimum contract required
 3. `src/service.ts` — `PrismaService`: `current()`, `transaction()`, `requestTransaction()`, ALS usage
 4. `src/transaction.ts` — `PrismaTransactionInterceptor`: the request boundary that opens transactions
-5. `src/module.ts` — `createPrismaProviders()` and `PrismaModule.forRoot()`: how everything wires together
+5. `src/module.ts` — `createPrismaProviders()`, `PrismaModule.forRoot()`, and `PrismaModule.forRootAsync()`: how everything wires together
 6. `src/vertical-slice.test.ts` — integration test: DTO → validation → service → repository → Prisma path; the canonical 201 / 400 / 404 contract
 
 ## Related packages

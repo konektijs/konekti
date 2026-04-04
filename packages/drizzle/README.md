@@ -192,7 +192,7 @@ Use `createDrizzlePlatformStatusSnapshot(...)` (or `drizzleDatabase.createPlatfo
 1. `src/types.ts` — `DrizzleDatabaseLike`, `DrizzleModuleOptions`, `DrizzleHandleProvider`
 2. `src/tokens.ts` — `DRIZZLE_DATABASE`, `DRIZZLE_DISPOSE`
 3. `src/database.ts` — `DrizzleDatabase` wrapper, ALS-based tx context
-4. `src/module.ts` — `createDrizzleProviders`, `DrizzleModule.forRoot`
+4. `src/module.ts` — `createDrizzleProviders`, `DrizzleModule.forRoot`, `DrizzleModule.forRootAsync`
 5. `src/transaction.ts` — `DrizzleTransactionInterceptor`
 6. `src/module.test.ts` — root handle usage, tx handle inside callback, dispose hook
 
