@@ -50,7 +50,12 @@ describe('createPassportProviders', () => {
     );
 
     const strategyRegistryProvider = providers.find(
-      (provider) => typeof provider === 'object' && provider !== null && 'provide' in provider && provider.provide === AUTH_STRATEGY_REGISTRY,
+      (provider) =>
+        typeof provider === 'object'
+        && provider !== null
+        && 'provide' in provider
+        && typeof provider.provide === 'symbol'
+        && provider.provide === AUTH_STRATEGY_REGISTRY,
     );
 
     if (!strategyRegistryProvider || !('useValue' in strategyRegistryProvider)) {
