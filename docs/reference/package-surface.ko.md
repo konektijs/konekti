@@ -43,6 +43,19 @@
 - `@konekti/cli`
 - `@konekti/studio`
 
+## canonical runtime package matrix
+
+이 섹션은 공개 런타임/패키지 가이드의 단일 기준(source of truth)입니다. 작업 중심 문서, 허브 인덱스, 패키지 가이드는 동일한 지원 매트릭스를 반복하지 말고 이 섹션을 링크해야 합니다.
+
+| runtime target | canonical package guide | notes |
+| --- | --- | --- |
+| Node.js | 스타터 경로는 `@konekti/platform-fastify`, Node.js 호환성 중심 대안은 `@konekti/platform-express` | 스타터 앱과 공식 예제는 기본적으로 Fastify를 유지합니다. Express 미들웨어 호환성이 중요할 때만 Express를 선택하세요. |
+| Bun | `packages/platform-bun/README.ko.md` | 공식 Bun 네이티브 fetch-style startup 경로입니다. |
+| Deno | `packages/platform-deno/README.ko.md` | 공식 `Deno.serve(...)` startup 경로입니다. |
+| Cloudflare Workers | `packages/platform-cloudflare-workers/README.ko.md` | 공식 Worker `fetch` 엔트리포인트와 stateless isolate lifecycle 경로입니다. |
+
+런타임별 동작, startup API, intentional limitation 상세는 각 어댑터 README가 계속 소유합니다.
+
 ## package responsibilities
 
 Konekti 패키지는 **클래스 우선(class-first)** 공개 인터페이스 규칙을 따릅니다. 구체 서비스, 가드, 인터셉터는 클래스 자체를 주요 주입 토큰으로 사용하며, 심볼과 상수는 인터페이스, 설정 및 런타임 핸들을 위해 예약됩니다.
