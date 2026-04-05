@@ -59,8 +59,12 @@ export class AppModule {}
 Runtime root-barrel governance tests cover runtime exports. Public TypeScript-only contracts documented below remain part of the package API, but they are not represented in `Object.keys(...)` snapshot assertions.
 
 - **supported**: `EventBusModule.forRoot`, `createEventBusProviders`, `EVENT_BUS`, `EventBus`, `EventBusTransport`, `@OnEvent`, and status snapshot helpers.
-- **compatibility-only**: Metadata helper exports (`defineEventHandlerMetadata`, `getEventHandlerMetadata`, `getEventHandlerMetadataEntries`, `eventBusMetadataSymbol`) remain exported for 0.x compatibility and framework/tooling integration, but are not recommended for new app-level imports.
-- **internal**: `EVENT_BUS_OPTIONS` and undocumented lifecycle/runtime wiring details are non-contract internals even when the broad root barrel currently re-exports related symbols.
+- **internal**: metadata helpers/descriptors (`defineEventHandlerMetadata`, `getEventHandlerMetadata`, `getEventHandlerMetadataEntries`, `eventBusMetadataSymbol`, `EventHandlerMetadata`, `EventHandlerDescriptor`) plus `EVENT_BUS_OPTIONS` and undocumented lifecycle/runtime wiring details are non-contract internals and are not part of the root barrel public contract.
+
+### migration notes (0.x)
+
+- The root barrel now exports only the documented event-bus runtime API plus public TypeScript option/transport contracts.
+- Move any root-barrel imports of metadata helpers or descriptor types to internal package files if you intentionally depend on framework internals.
 
 ### Module options
 
