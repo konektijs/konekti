@@ -32,6 +32,7 @@ This matrix locks the public toolchain contract for generated apps and release-r
 
 ## runtime and manifest parity notes
 
+- The canonical public runtime/package matrix lives in `./package-surface.md`; this page does not duplicate runtime support tables.
 - Runtime support tiers and bootstrap-policy changes are documented in `../operations/release-governance.md`.
 - The shared Babel decorators transform contract is the product contract.
 - Runtime helper reads remain the semantic source of truth.

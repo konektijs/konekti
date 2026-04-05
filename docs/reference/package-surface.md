@@ -43,6 +43,19 @@ This page provides an overview of the current public package family within the K
 - `@konekti/cli`
 - `@konekti/studio`
 
+## canonical runtime package matrix
+
+This section is the canonical source of truth for public runtime/package guidance. Task-oriented docs, hub indexes, and package guides should link here instead of restating the same support matrix.
+
+| runtime target | canonical package guide | notes |
+| --- | --- | --- |
+| Node.js | `@konekti/platform-fastify` starter path, with `@konekti/platform-express` as the Node.js compatibility-oriented alternative | Starter apps and official examples stay on Fastify by default. Reach for Express when middleware compatibility matters. |
+| Bun | `packages/platform-bun/README.md` | Official Bun-native fetch-style startup path. |
+| Deno | `packages/platform-deno/README.md` | Official `Deno.serve(...)` startup path. |
+| Cloudflare Workers | `packages/platform-cloudflare-workers/README.md` | Official Worker `fetch` entrypoint and stateless isolate lifecycle path. |
+
+Package-level runtime behavior, startup APIs, and intentional limitations stay documented in the corresponding adapter README.
+
 ## package responsibilities
 
 Konekti packages follow a **class-first** public surface rule. Concrete services, guards, and interceptors use the class itself as the primary injection token, while symbols and constants are reserved for interfaces, configuration, and runtime handles.

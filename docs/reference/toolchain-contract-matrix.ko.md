@@ -31,6 +31,7 @@
 
 ## runtime and manifest parity notes
 
+- 공개 런타임/패키지 매트릭스의 단일 기준은 `./package-surface.ko.md`이며, 이 페이지는 런타임 지원 표를 중복해서 싣지 않습니다.
 - 런타임 지원 티어와 부트스트랩 정책 변경 사항은 `../operations/release-governance.ko.md`에서 문서화합니다.
 - 공유 Babel decorators transform 계약은 제품 계약입니다.
 - runtime helper reads는 semantic source of truth로 유지됩니다.
