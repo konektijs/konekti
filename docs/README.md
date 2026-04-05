@@ -40,11 +40,12 @@ Practical guides for day-to-day development once your application is running.
 
 Konekti is highly composable. Use these links to discover and select the right tools for your task.
 
-Official runtime guidance now spans Node.js, Bun, Deno, and Cloudflare Workers. The default starter/examples stay on `@konekti/platform-fastify`, `@konekti/platform-express` remains the official Node.js alternative when Express middleware compatibility matters, and runtime-specific startup/hosting details live in the published adapter READMEs for `@konekti/platform-bun`, `@konekti/platform-deno`, and `@konekti/platform-cloudflare-workers`.
+For the canonical runtime/package matrix, start with `reference/package-surface.md`. This hub keeps the starter/default-path framing short, still points readers to the default `@konekti/platform-fastify` starter path and the `@konekti/platform-express` Node.js alternative, and links to the published adapter READMEs for runtime-specific startup or hosting details.
 
 - `reference/package-chooser.md` - **Start here**: Pick the right packages for your specific use case.
 - `reference/package-surface.md` - Overview of the public API surface across the framework.
 - `reference/toolchain-contract-matrix.md` - Versioning and compatibility across the ecosystem.
+- `../packages/platform-fastify/README.md` - `@konekti/platform-fastify` contract for the default Node.js starter path.
 - `../packages/platform-express/README.md` - `@konekti/platform-express` contract for Node.js compatibility-focused apps.
 - `../packages/platform-bun/README.md` - `@konekti/platform-bun` contract and startup path.
 - `../packages/platform-deno/README.md` - `@konekti/platform-deno` contract and startup path.
