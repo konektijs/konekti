@@ -358,6 +358,69 @@ function enforceDocsHubOfficialTransportLinks() {
   }
 }
 
+function enforceCanonicalRuntimeMatrixReferences() {
+  const packageSurface = readFileSync(join(repoRoot, 'docs/reference/package-surface.md'), 'utf8');
+  const packageSurfaceKo = readFileSync(join(repoRoot, 'docs/reference/package-surface.ko.md'), 'utf8');
+  const packageChooser = readFileSync(join(repoRoot, 'docs/reference/package-chooser.md'), 'utf8');
+  const packageChooserKo = readFileSync(join(repoRoot, 'docs/reference/package-chooser.ko.md'), 'utf8');
+  const docsReadme = readFileSync(join(repoRoot, 'docs/README.md'), 'utf8');
+  const docsReadmeKo = readFileSync(join(repoRoot, 'docs/README.ko.md'), 'utf8');
+  const rootReadme = readFileSync(join(repoRoot, 'README.md'), 'utf8');
+  const rootReadmeKo = readFileSync(join(repoRoot, 'README.ko.md'), 'utf8');
+  const cliReadme = readFileSync(join(repoRoot, 'packages/cli/README.md'), 'utf8');
+  const cliReadmeKo = readFileSync(join(repoRoot, 'packages/cli/README.ko.md'), 'utf8');
+  const toolchainMatrix = readFileSync(join(repoRoot, 'docs/reference/toolchain-contract-matrix.md'), 'utf8');
+  const toolchainMatrixKo = readFileSync(join(repoRoot, 'docs/reference/toolchain-contract-matrix.ko.md'), 'utf8');
+
+  assert(
+    packageSurface.includes('## canonical runtime package matrix'),
+    'docs/reference/package-surface.md must define the canonical runtime package matrix section.',
+  );
+  assert(
+    packageSurfaceKo.includes('## canonical runtime package matrix'),
+    'docs/reference/package-surface.ko.md must define the canonical runtime package matrix section.',
+  );
+
+  assert(
+    packageChooser.includes('./package-surface.md#canonical-runtime-package-matrix'),
+    'docs/reference/package-chooser.md must point to the canonical runtime package matrix anchor.',
+  );
+  assert(
+    packageChooserKo.includes('./package-surface.ko.md#canonical-runtime-package-matrix'),
+    'docs/reference/package-chooser.ko.md must point to the canonical runtime package matrix anchor.',
+  );
+
+  assert(
+    docsReadme.includes('reference/package-surface.md'),
+    'docs/README.md must point readers to the canonical runtime package matrix page.',
+  );
+  assert(
+    docsReadmeKo.includes('reference/package-surface.ko.md'),
+    'docs/README.ko.md must point readers to the canonical runtime package matrix page.',
+  );
+  assert(rootReadme.includes('docs/reference/package-surface.md'), 'README.md must point to the canonical runtime package matrix page.');
+  assert(
+    rootReadmeKo.includes('docs/reference/package-surface.ko.md'),
+    'README.ko.md must point to the canonical runtime package matrix page.',
+  );
+  assert(
+    cliReadme.includes('../../docs/reference/package-surface.md'),
+    'packages/cli/README.md must point to the canonical runtime package matrix page.',
+  );
+  assert(
+    cliReadmeKo.includes('../../docs/reference/package-surface.ko.md'),
+    'packages/cli/README.ko.md must point to the canonical runtime package matrix page.',
+  );
+  assert(
+    toolchainMatrix.includes('./package-surface.md'),
+    'docs/reference/toolchain-contract-matrix.md must defer runtime matrix ownership to package-surface.md.',
+  );
+  assert(
+    toolchainMatrixKo.includes('./package-surface.ko.md'),
+    'docs/reference/toolchain-contract-matrix.ko.md must defer runtime matrix ownership to package-surface.ko.md.',
+  );
+}
+
 function enforceRemovedRuntimeFactoryNamesNotUsedInDocs() {
   const markdownFiles = [
     ...collectMarkdownFiles('docs'),
@@ -388,6 +451,7 @@ enforceSsotMirrorStructure();
 enforcePackageDirectoriesHaveManifests();
 enforceReleaseGovernancePublishSurfaceSync();
 enforceDocsHubOfficialTransportLinks();
+enforceCanonicalRuntimeMatrixReferences();
 enforceRemovedRuntimeFactoryNamesNotUsedInDocs();
 enforceContractCompanionUpdates(changedFiles);
 enforceAlignmentClaimsBackedByHarness(changedFiles);
