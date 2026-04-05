@@ -1,6 +1,6 @@
-import { defineKonektiVitestConfig } from '../../tooling/vitest/src';
+import { createKonektiVitestWorkspaceConfig } from '../../tooling/vitest/src';
 
-export default defineKonektiVitestConfig({
+export default createKonektiVitestWorkspaceConfig(new URL('../../', import.meta.url), {
   test: {
     include: ['src/**/*.test.ts'],
   },
