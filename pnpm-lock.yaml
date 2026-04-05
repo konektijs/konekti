@@ -427,6 +427,7 @@ importers:
         version: link:../runtime
 
   packages/platform-deno:
+  packages/platform-cloudflare-workers:
     dependencies:
       '@konekti/http':
         specifier: workspace:*
