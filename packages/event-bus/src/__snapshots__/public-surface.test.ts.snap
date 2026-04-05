@@ -7,9 +7,5 @@ exports[`@konekti/event-bus root barrel public surface > keeps the documented ro
   "OnEvent",
   "createEventBusPlatformStatusSnapshot",
   "createEventBusProviders",
-  "defineEventHandlerMetadata",
-  "eventBusMetadataSymbol",
-  "getEventHandlerMetadata",
-  "getEventHandlerMetadataEntries",
 ]
 `;
