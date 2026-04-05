@@ -133,9 +133,11 @@ export class PrismaService<
   /**
    * Opens a Prisma interactive transaction boundary and executes the callback in that context.
    *
-   * @param fn Callback executed with `current()` bound to the active transaction client.
+   * @param fn Callback executed inside the transaction flow where `current()` resolves from ALS to the active transaction client,
+   * or reuses the already-active context / direct-execution path when no new boundary is opened.
    * @param options Optional Prisma transaction options forwarded to `$transaction`.
-   * @returns The callback result after transaction commit.
+   * @returns The callback result, after commit when a new interactive transaction is opened, or from direct execution when
+   * nested context reuse or non-strict `$transaction` fallback applies.
    * @throws {Error} When nested transaction options are provided while already inside an active transaction.
    * @throws {Error} When strict transaction mode is enabled and the Prisma client does not implement `$transaction`.
    */
@@ -150,13 +152,16 @@ export class PrismaService<
   /**
    * Opens an abort-aware request transaction boundary.
    *
-   * @param fn Callback executed within the request transaction boundary.
+   * @param fn Callback executed inside the request-scoped transaction flow where `current()` resolves from ALS to the active
+   * transaction client, or reuses the already-active context / direct-execution path when no new boundary is opened.
    * @param signal Optional abort signal propagated to request transaction handling.
    * @param options Optional Prisma transaction options forwarded to `$transaction`.
-   * @returns The callback result after transaction commit.
+   * @returns The callback result, after commit when a new interactive transaction is opened, or from direct execution when
+   * nested context reuse or non-strict `$transaction` fallback applies.
    * @throws {Error} When nested transaction options are provided while already inside an active transaction.
    * @throws {Error} When strict transaction mode is enabled and the Prisma client does not implement `$transaction`.
-   * @throws {Error} An `AbortError` when `signal` aborts before the transaction callback settles.
+   * @throws {Error} Propagates an abort-related error when `signal` aborts before the transaction callback settles; concrete
+   * error type/message depends on the runtime abort implementation.
    */
   async requestTransaction<T>(fn: () => Promise<T>, signal?: AbortSignal, options?: TTransactionOptions): Promise<T> {
     const abortContext = createRequestAbortContext(signal);

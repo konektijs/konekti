@@ -9,7 +9,8 @@ import type { GraphqlModuleOptions } from './types.js';
  * Creates GraphQL runtime providers for module-level options and lifecycle wiring.
  *
  * @param options GraphQL module options used by the lifecycle service and endpoint controller.
- * @returns Provider definitions that register the internal options token and GraphQL lifecycle service.
+ * @returns Provider definitions that register only the internal options token and GraphQL lifecycle service; this helper
+ * does not register `GraphqlEndpointController` or mount the `/graphql` endpoint by itself.
  */
 export function createGraphqlProviders(options: GraphqlModuleOptions): Provider[] {
   return [
@@ -23,10 +24,11 @@ export function createGraphqlProviders(options: GraphqlModuleOptions): Provider[
 
 export class GraphqlModule {
   /**
-   * Registers the GraphQL endpoint controller and lifecycle providers.
+   * Registers the GraphQL endpoint controller together with lifecycle providers.
    *
    * @param options Optional GraphQL module options for schema, resolver discovery, context, and plugins.
-   * @returns A module definition that wires GraphQL runtime behavior into the application.
+   * @returns A module definition that wires GraphQL runtime behavior and mounts the GraphQL endpoint controller; use this
+   * module path (not `createGraphqlProviders(...)` alone) when the application should expose `/graphql`.
    */
   static forRoot(options: GraphqlModuleOptions = {}): ModuleType {
     class GraphqlRootModule extends GraphqlModule {}
