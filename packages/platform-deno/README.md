@@ -2,7 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
-Deno-backed HTTP adapter for Konekti runtime applications, built on the shared `@konekti/runtime/web` request/response core.
+Deno-backed HTTP adapter for Konekti runtime applications, built on the shared `@konekti/runtime/web` fetch-style adapter seam.
 
 ## See also
 
@@ -62,7 +62,7 @@ await runDenoApplication(AppModule, {
 
 ## supported operations
 
-- Bridges native Web `Request` / `Response` handling through `@konekti/runtime/web` so Deno shares the same request parsing, raw-body, multipart, error-envelope, and SSE semantics as the fetch-style runtime core.
+- Bridges native Web `Request` / `Response` handling through the shared `@konekti/runtime/web` fetch-style adapter seam so Deno shares the same request parsing, raw-body, multipart, error-envelope, and SSE semantics as the other fetch-style adapters.
 - Exposes `handle(request)` for direct request dispatch in tests and custom `Deno.serve(...)` composition.
 - Supports `rawBody` opt-in for non-multipart requests.
 - Supports multipart form-data parsing and exposes uploaded files as `UploadedFile[]`.
@@ -73,7 +73,7 @@ await runDenoApplication(AppModule, {
 - `rawBody` is never populated for multipart requests.
 - SSE and other streamed responses flow through native Web `Response` streaming rather than Node-only response objects.
 - If the dispatcher has not been bound yet, incoming requests are serialized through the canonical framework error envelope instead of hanging.
-- The adapter keeps request/response translation in the shared Web runtime core instead of forking Deno-specific parsing logic.
+- The adapter keeps request/response translation in the shared fetch-style adapter seam instead of forking Deno-specific parsing logic.
 
 ## lifecycle guarantees
 

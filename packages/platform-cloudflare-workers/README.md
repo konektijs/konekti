@@ -2,7 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
-Cloudflare Workers HTTP adapter for Konekti runtime applications, built on the shared `@konekti/runtime/web` request/response bridge.
+Cloudflare Workers HTTP adapter for Konekti runtime applications, built on the shared `@konekti/runtime/web` fetch-style adapter seam.
 
 ## See also
 
@@ -74,7 +74,7 @@ Worker bootstrap helpers accept the shared HTTP adapter middleware/runtime optio
 
 ## supported operations
 
-- Reuses `dispatchWebRequest(...)` from `@konekti/runtime/web` instead of forking Request/Response translation logic.
+- Reuses `dispatchWebRequest(...)` from the shared `@konekti/runtime/web` fetch-style adapter seam instead of forking Request/Response translation logic.
 - Bridges native Worker `Request` objects into Konekti `FrameworkRequest` / `FrameworkResponse` contracts.
 - Preserves `rawBody` opt-in behavior for non-multipart requests.
 - Supports multipart parsing and `request.files` exposure through the shared Web core.
