@@ -2,7 +2,7 @@
 
 <p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
-공유 `@konekti/runtime/web` request/response 브리지를 기반으로 한 Cloudflare Workers용 Konekti HTTP 어댑터입니다.
+공유 `@konekti/runtime/web` fetch-style 어댑터 seam을 기반으로 한 Cloudflare Workers용 Konekti HTTP 어댑터입니다.
 
 ## 관련 문서
 
@@ -74,7 +74,7 @@ Worker 부트스트랩 헬퍼는 `@konekti/runtime/internal/http-adapter`의 공
 
 ## supported operations
 
-- Request/Response 변환 로직을 복제하지 않고 `@konekti/runtime/web`의 `dispatchWebRequest(...)`를 재사용합니다.
+- Request/Response 변환 로직을 복제하지 않고 공유 `@konekti/runtime/web` fetch-style 어댑터 seam의 `dispatchWebRequest(...)`를 재사용합니다.
 - native Worker `Request`를 Konekti `FrameworkRequest` / `FrameworkResponse` 계약으로 브리지합니다.
 - 멀티파트가 아닌 요청에 대해 `rawBody` opt-in 동작을 유지합니다.
 - 공유 Web 코어를 통해 multipart 파싱과 `request.files` 노출을 지원합니다.
