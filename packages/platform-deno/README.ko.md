@@ -2,7 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.md"><kbd>English</kbd></a></p>
 
-공유 `@konekti/runtime/web` request/response 코어 위에 구축된 Konekti 런타임용 Deno 기반 HTTP 어댑터입니다.
+공유 `@konekti/runtime/web` fetch-style 어댑터 seam 위에 구축된 Konekti 런타임용 Deno 기반 HTTP 어댑터입니다.
 
 ## See also
 
@@ -62,7 +62,7 @@ await runDenoApplication(AppModule, {
 
 ## supported operations
 
-- native Web `Request` / `Response` 처리를 `@konekti/runtime/web`로 브리지하여, Deno가 fetch 스타일 런타임 코어와 동일한 요청 파싱, raw-body, multipart, error-envelope, SSE 동작을 공유합니다.
+- native Web `Request` / `Response` 처리를 공유 `@konekti/runtime/web` fetch-style 어댑터 seam으로 브리지하여, Deno가 다른 fetch-style 어댑터와 동일한 요청 파싱, raw-body, multipart, error-envelope, SSE 동작을 공유합니다.
 - 테스트와 커스텀 `Deno.serve(...)` 조합을 위해 `handle(request)`를 제공합니다.
 - non-multipart 요청에 대해 `rawBody` opt-in을 지원합니다.
 - multipart form-data 파싱을 지원하고 업로드 파일을 `UploadedFile[]`로 노출합니다.
@@ -73,7 +73,7 @@ await runDenoApplication(AppModule, {
 - multipart 요청에서는 `rawBody`가 절대 채워지지 않습니다.
 - SSE 및 기타 스트리밍 응답은 Node 전용 response 객체가 아니라 native Web `Response` 스트리밍을 통해 전송됩니다.
 - dispatcher가 아직 바인딩되지 않았다면 요청은 멈추지 않고 canonical framework error envelope로 직렬화됩니다.
-- 어댑터는 Deno 전용 파싱 로직을 복제하지 않고 shared Web runtime core 안에서 request/response 변환을 유지합니다.
+- 어댑터는 Deno 전용 파싱 로직을 복제하지 않고 공유 fetch-style 어댑터 seam 안에서 request/response 변환을 유지합니다.
 
 ## lifecycle guarantees
 
