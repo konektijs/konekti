@@ -12,7 +12,7 @@ import type {
   VersioningOptions,
 } from '@konekti/http';
 
-import type { BootstrapTimingDiagnostics } from './diagnostics.js';
+import type { BootstrapTimingDiagnostics } from './health/diagnostics.js';
 import type { PlatformComponentInput } from './platform-contract.js';
 
 export type ModuleType = Constructor & { definition?: ModuleDefinition };

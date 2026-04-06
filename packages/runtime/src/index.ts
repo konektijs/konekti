@@ -1,10 +1,10 @@
 export * from './abort.js';
 export * from './bootstrap.js';
-export * from './diagnostics.js';
+export * from './health/diagnostics.js';
 export * from './errors.js';
-export * from './health.js';
-export * from './json-logger.js';
-export * from './logger.js';
+export * from './health/health.js';
+export * from './logging/json-logger.js';
+export * from './logging/logger.js';
 export type {
   MultipartOptions,
   MultipartRequestLike,

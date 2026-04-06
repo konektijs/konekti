@@ -1,4 +1,4 @@
-import type { ApplicationLogger } from './types.js';
+import type { ApplicationLogger } from '../types.js';
 
 const RESET = '\u001B[0m';
 const BRIGHT_GREEN = '\u001B[32m';

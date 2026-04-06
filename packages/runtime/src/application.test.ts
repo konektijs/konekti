@@ -26,8 +26,8 @@ import {
 import { Exclude, Expose, SerializerInterceptor } from '@konekti/serialization';
 import { bootstrapApplication, defineModule, KonektiFactory } from './bootstrap.js';
 import { ModuleInjectionMetadataError } from './errors.js';
-import { createHealthModule } from './health.js';
-import { bootstrapNodeApplication, createNodeHttpAdapter, runNodeApplication } from './node.js';
+import { createHealthModule } from './health/health.js';
+import { bootstrapNodeApplication, createNodeHttpAdapter, runNodeApplication } from './node/node.js';
 import { COMPILED_MODULES, HTTP_APPLICATION_ADAPTER, RUNTIME_CONTAINER } from './tokens.js';
 import type { ApplicationLogger, CompiledModule, ExceptionFilterContext, ExceptionFilterHandler, OnApplicationBootstrap, OnModuleInit } from './types.js';
 

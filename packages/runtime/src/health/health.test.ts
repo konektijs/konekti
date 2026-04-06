@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { FrameworkRequest, FrameworkResponse } from '@konekti/http';
 
-import { bootstrapApplication, defineModule } from './bootstrap.js';
+import { bootstrapApplication, defineModule } from '../bootstrap.js';
 import { createHealthModule } from './health.js';
 
 type TestResponse = FrameworkResponse & { body?: unknown };

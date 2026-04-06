@@ -15,7 +15,7 @@ import {
 } from '@konekti/http';
 
 import { bootstrapApplication } from './bootstrap.js';
-import { createConsoleApplicationLogger } from './logger.js';
+import { createConsoleApplicationLogger } from './logging/logger.js';
 import type { Application, ApplicationLogger, CreateApplicationOptions, ModuleType } from './types.js';
 
 export type HttpAdapterCorsInput = false | string | string[] | CorsOptions;
