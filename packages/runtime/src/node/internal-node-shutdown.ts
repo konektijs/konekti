@@ -1,5 +1,5 @@
-import type { Application, ApplicationLogger } from './types.js';
-import type { HttpAdapterShutdownRegistration } from './http-adapter-shared.js';
+import type { Application, ApplicationLogger } from '../types.js';
+import type { HttpAdapterShutdownRegistration } from '../http-adapter-shared.js';
 
 type NodeShutdownSignal = 'SIGINT' | 'SIGTERM';
 

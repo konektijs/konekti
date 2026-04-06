@@ -2,7 +2,7 @@ import { type Token } from '@konekti/core';
 import { getClassDiMetadata } from '@konekti/core/internal';
 import type { Provider, Scope } from '@konekti/di';
 
-import type { CompiledModule, ModuleType } from './types.js';
+import type { CompiledModule, ModuleType } from '../types.js';
 
 export interface RuntimeDiagnosticsGraph {
   version: 1;

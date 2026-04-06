@@ -4,9 +4,9 @@ import { describe, expect, it } from 'vitest';
 
 import * as runtime from './index.js';
 import * as runtimeInternal from './internal.js';
-import * as runtimeInternalHttpAdapter from './internal-http-adapter.js';
-import * as runtimeInternalRequestResponseFactory from './internal-request-response-factory.js';
-import * as runtimeNode from './node.js';
+import * as runtimeInternalHttpAdapter from './adapters/internal-http-adapter.js';
+import * as runtimeInternalRequestResponseFactory from './adapters/internal-request-response-factory.js';
+import * as runtimeNode from './node/node.js';
 import * as runtimeWeb from './web.js';
 
 describe('runtime export boundaries', () => {

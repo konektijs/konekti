@@ -14,7 +14,7 @@ import {
 import {
   bootstrapHttpAdapterApplication,
   runHttpAdapterApplication,
-} from './http-adapter-shared.js';
+} from '../http-adapter-shared.js';
 import {
   createNodeResponseCompression,
   compressNodeResponse,
@@ -34,12 +34,12 @@ import {
   defaultNodeShutdownSignals,
   registerShutdownSignals,
 } from './internal-node-shutdown.js';
-import type { MultipartOptions, UploadedFile } from './multipart.js';
+import type { MultipartOptions, UploadedFile } from '../multipart.js';
 import {
   dispatchWithRequestResponseFactory,
   type RequestResponseFactory,
-} from './request-response-factory.js';
-import type { Application, ApplicationLogger, CreateApplicationOptions, ModuleType } from './types.js';
+} from '../adapters/request-response-factory.js';
+import type { Application, ApplicationLogger, CreateApplicationOptions, ModuleType } from '../types.js';
 
 declare module '@konekti/http' {
   interface FrameworkRequest {

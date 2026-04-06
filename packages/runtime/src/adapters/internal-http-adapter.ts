@@ -9,4 +9,4 @@ export {
   type HttpAdapterMiddlewareOptions,
   type HttpAdapterShutdownRegistration,
   type RunHttpAdapterApplicationOptions,
-} from './http-adapter-shared.js';
+} from '../http-adapter-shared.js';

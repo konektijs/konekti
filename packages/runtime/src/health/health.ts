@@ -1,7 +1,7 @@
 import { Controller, Get } from '@konekti/http';
 
-import { defineModule } from './bootstrap.js';
-import type { ModuleType } from './types.js';
+import { defineModule } from '../bootstrap.js';
+import type { ModuleType } from '../types.js';
 
 export interface HealthStatus {
   status: 'ok' | 'unavailable';

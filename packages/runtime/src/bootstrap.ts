@@ -13,8 +13,8 @@ import {
 } from '@konekti/http';
 
 import { DuplicateProviderError } from './errors.js';
-import { createBootstrapTimingDiagnostics, type BootstrapTimingPhase } from './diagnostics.js';
-import { createConsoleApplicationLogger } from './logger.js';
+import { createBootstrapTimingDiagnostics, type BootstrapTimingPhase } from './health/diagnostics.js';
+import { createConsoleApplicationLogger } from './logging/logger.js';
 import { compileModuleGraph, createRuntimeTokenSet, providerToken } from './module-graph.js';
 import { createRuntimePlatformShell, type RuntimePlatformShell } from './platform-shell.js';
 import { APPLICATION_LOGGER, COMPILED_MODULES, HTTP_APPLICATION_ADAPTER, PLATFORM_SHELL, RUNTIME_CONTAINER } from './tokens.js';

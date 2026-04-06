@@ -1,6 +1,6 @@
 import { getCurrentRequestContext } from '@konekti/http';
 
-import type { ApplicationLogger } from './types.js';
+import type { ApplicationLogger } from '../types.js';
 
 type LogLevel = 'debug' | 'error' | 'log' | 'warn';
 

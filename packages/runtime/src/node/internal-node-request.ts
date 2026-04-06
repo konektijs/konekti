@@ -16,7 +16,7 @@ import {
   parseMultipart,
   type MultipartOptions,
   type UploadedFile,
-} from './multipart.js';
+} from '../multipart.js';
 
 type NodeFrameworkRequest = FrameworkRequest & {
   files?: UploadedFile[];
