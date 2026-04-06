@@ -17,7 +17,7 @@ import {
 import {
   dispatchWithRequestResponseFactory,
   type RequestResponseFactory,
-} from './request-response-factory.js';
+} from './adapters/request-response-factory.js';
 
 declare module '@konekti/http' {
   interface FrameworkRequest {

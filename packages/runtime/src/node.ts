@@ -1,1 +1,1 @@
-export * from './internal-node.js';
+export * from './node/internal-node.js';

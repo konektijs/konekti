@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import * as rootRuntimeApi from './index.js';
+import * as rootRuntimeApi from '../index.js';
 import { createNodeHttpAdapter, type NodeHttpApplicationAdapter } from './node.js';
 
 describe('createNodeHttpAdapter', () => {
