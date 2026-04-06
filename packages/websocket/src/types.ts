@@ -3,7 +3,7 @@ import type {
   TypedOnMessageHandler as NodeTypedOnMessageHandler,
   WebSocketGatewayContext as NodeWebSocketGatewayContext,
   WebSocketModuleOptions as NodeWebSocketModuleOptions,
-} from './node-types.js';
+} from './node/node-types.js';
 
 export type WebSocketEventMap = Record<string, unknown>;
 
