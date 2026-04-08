@@ -434,17 +434,31 @@ export class NodeWebSocketGatewayLifecycleService
         continue;
       }
 
-      await dispatchGatewayMessage(
+      await this.handleMessage(
         state.resolved,
         socket,
         request,
         nextMessage,
-        this.logger,
-        'WebSocketGatewayLifecycleService',
       );
     }
 
     this.clearQueuedMessages(state);
+  }
+
+  private async handleMessage(
+    resolved: readonly ResolvedGatewayInstance[],
+    socket: WebSocket,
+    request: IncomingMessage,
+    data: RawData,
+  ): Promise<void> {
+    await dispatchGatewayMessage(
+      resolved,
+      socket,
+      request,
+      data,
+      this.logger,
+      'WebSocketGatewayLifecycleService',
+    );
   }
 
   private enqueueDisconnectDispatch(
