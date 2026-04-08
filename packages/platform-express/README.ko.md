@@ -62,6 +62,7 @@ await app.listen();
 - SSE 및 기타 어댑터 소유 응답 스트리밍 경로를 위해 `FrameworkResponse.stream`을 노출합니다.
 - Node가 소유하는 realtime listener 경계가 필요한 통합을 위해 `{ kind: 'server-backed', server }` realtime capability를 노출합니다.
 - 그 realtime capability seam을 통해 raw `@konekti/websockets/node` 게이트웨이 호스팅을 지원합니다.
+- server-backed 전용 루트 데코레이터 opt-in인 `@WebSocketGateway({ serverBacked: { port } })`도 같은 seam을 통해 지원하며, 해당 게이트웨이에 websocket 전용 리스너를 만듭니다.
 - 모든 인바운드 요청을 Konekti HTTP 디스패처로 전달합니다.
 - 멀티파트가 아닌 요청에서 `rawBody` 선택(opt-in) 보존을 지원합니다.
 - multipart form-data 파싱과 `UploadedFile[]` 노출을 지원합니다.
@@ -87,6 +88,7 @@ await app.listen();
 - Express plugin/middleware passthrough 계층은 제공하지 않으며, 미들웨어/가드/인터셉터는 Konekti 디스패처 계약을 통해 동작합니다.
 - standalone Express 모드는 제공하지 않습니다. 이 어댑터는 런타임 소유 시작 경로를 전제로 합니다.
 - 이 패키지가 자체 WebSocket 게이트웨이 API나 별도 트랜스포트 표면을 제공하지는 않으며, realtime 통합은 노출된 server-backed capability seam을 통해 붙어야 합니다.
+- 전용 websocket 리스너 소유권은 Express 어댑터 플래그가 아니라 websocket 패키지 관심사입니다. 여기서 Express 전용 옵션을 기대하지 말고 `@konekti/websockets/node`의 `@WebSocketGateway({ serverBacked: { port } })`를 사용하세요.
 
 #### 0.x 마이그레이션 노트
 
