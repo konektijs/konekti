@@ -141,6 +141,8 @@ export class BunWebSocketGatewayLifecycleService
       return;
     }
 
+    this.assertNoServerBackedGatewayOptIn(descriptors);
+
     resolveSupportedFetchStyleRealtimeCapability(this.adapter);
 
     if (!hasBunWebSocketBindingHost(this.adapter)) {
@@ -151,6 +153,20 @@ export class BunWebSocketGatewayLifecycleService
 
     const bunAdapter = this.adapter as HttpApplicationAdapter & BunWebSocketBindingHost;
     bunAdapter.configureWebSocketBinding(this.createBinding(descriptors));
+  }
+
+  private assertNoServerBackedGatewayOptIn(
+    descriptors: readonly WebSocketGatewayDescriptor[],
+  ): void {
+    const descriptor = descriptors.find((entry) => entry.serverBacked !== undefined);
+
+    if (!descriptor) {
+      return;
+    }
+
+    throw new Error(
+      `@WebSocketGateway({ serverBacked }) is not supported on @konekti/websockets/bun. Gateway path ${descriptor.path} must use the default fetch-style request-upgrade host instead.`,
+    );
   }
 
   async onApplicationShutdown(): Promise<void> {

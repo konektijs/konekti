@@ -176,6 +176,8 @@
 
 현재 이 브랜치에서 정직하게 지원하는 raw `@konekti/websockets/node` 범위는 문서화·테스트된 server-backed 어댑터인 `@konekti/platform-nodejs`, `@konekti/platform-fastify`, `@konekti/platform-express`로 한정됩니다.
 
+이 어댑터들에서 게이트웨이 전용 리스너가 필요하면 루트 데코레이터 opt-in인 `@WebSocketGateway({ path, serverBacked: { port } })`를 사용하세요. 이 메타데이터는 의도적으로 server-backed 전용이며, Bun·Deno·Cloudflare Workers websocket 바인딩에서는 명시적으로 거부됩니다.
+
 `@konekti/platform-bun`, `@konekti/platform-deno`, `@konekti/platform-cloudflare-workers`는 이제 전용 `@konekti/websockets/bun`, `@konekti/websockets/deno`, `@konekti/websockets/cloudflare-workers` 바인딩과 짝을 이루어 공식 raw websocket 호스팅을 제공합니다. 다만 Cloudflare Workers 경로는 isolate-local/stateless 범위에 한정되며, Durable Object와 cross-isolate coordination은 여전히 범위 밖입니다.
 
 ### 선택 B — Socket.IO
@@ -192,6 +194,7 @@
 - 선택한 런타임이 `{ kind: 'fetch-style', contract: 'raw-websocket-expansion', support: 'contract-only', ... }`를 보고한다면, 그것은 현재 raw websocket 지원이 아니라 이후 작업용 계약으로 취급하세요.
 - 별도 브랜치에서 호환 구현과 테스트가 추가되지 않았다면 Bun·Deno·Cloudflare Workers에서 `@konekti/socket.io` 지원을 가정하지 마세요.
 - 별도 브랜치에서 호환 가능한 런타임별 구현과 테스트가 추가되지 않았다면 Bun·Deno·Cloudflare Workers에서 raw `@konekti/websockets/node` 지원을 가정하지 마세요.
+- Bun·Deno·Cloudflare Workers websocket 바인딩에서는 `@WebSocketGateway({ serverBacked })`를 사용하지 마세요. 현재 브랜치는 이 server-backed 전용 메타데이터를 그 런타임들에서 명시적으로 거부합니다.
 
 ---
 

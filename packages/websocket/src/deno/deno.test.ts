@@ -222,6 +222,29 @@ describe('@konekti/websockets/deno', () => {
     expect(optionsProvider).toHaveProperty('useValue', options);
   });
 
+  it('rejects serverBacked gateway opt-in on the Deno fetch-style binding', async () => {
+    const adapter = new TestDenoAdapter();
+
+    @WebSocketGateway({ path: '/chat', serverBacked: { port: 4102 } })
+    class ChatGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [DenoWebSocketModule.forRoot()],
+      providers: [ChatGateway],
+    });
+
+    await expect(
+      bootstrapApplication({
+        adapter,
+        rootModule: AppModule,
+      }),
+    ).rejects.toThrow('@WebSocketGateway({ serverBacked }) is not supported on @konekti/websockets/deno');
+  });
+
   it('preserves Deno-backed websocket behavior through the explicit deno seam', async () => {
     const adapter = new TestDenoAdapter();
 
