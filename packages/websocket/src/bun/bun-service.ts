@@ -92,7 +92,7 @@ function resolveSupportedFetchStyleRealtimeCapability(
 ): FetchStyleRealtimeCapability {
   if (typeof adapter.getRealtimeCapability !== 'function') {
     throw new Error(
-      'Bun WebSocket gateway bootstrap requires an HTTP adapter with getRealtimeCapability(). Use @konekti/platform-bun together with @konekti/websocket/bun.',
+      'Bun WebSocket gateway bootstrap requires an HTTP adapter with getRealtimeCapability(). Use @konekti/platform-bun together with @konekti/websockets/bun.',
     );
   }
 
@@ -145,7 +145,7 @@ export class BunWebSocketGatewayLifecycleService
 
     if (!hasBunWebSocketBindingHost(this.adapter)) {
       throw new Error(
-        'Bun WebSocket gateway bootstrap requires the selected adapter to expose Bun websocket binding configuration. Use @konekti/platform-bun with @konekti/websocket/bun.',
+        'Bun WebSocket gateway bootstrap requires the selected adapter to expose Bun websocket binding configuration. Use @konekti/platform-bun with @konekti/websockets/bun.',
       );
     }
 
