@@ -40,7 +40,7 @@ const removedRuntimeModuleFactoryNames = [
 const officialTransportDocsPackages = [
   '@konekti/platform-fastify',
   '@konekti/platform-express',
-  '@konekti/platform-socket.io',
+  '@konekti/socket.io',
   '@konekti/platform-bun',
   '@konekti/platform-deno',
   '@konekti/platform-cloudflare-workers',
