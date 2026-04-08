@@ -1,5 +1,5 @@
 {
-  "name": "@konekti/websocket",
+  "name": "@konekti/websockets",
   "description": "Decorator-based WebSocket gateway authoring core for Konekti, with explicit Node, Bun, Deno, and Cloudflare Workers raw websocket bindings on dedicated subpaths.",
   "keywords": [
     "konekti",
