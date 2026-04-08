@@ -161,6 +161,29 @@ describe('@konekti/websockets/bun', () => {
     expect(optionsProvider).toHaveProperty('useValue', options);
   });
 
+  it('rejects serverBacked gateway opt-in on the Bun fetch-style binding', async () => {
+    const adapter = new TestBunAdapter();
+
+    @WebSocketGateway({ path: '/chat', serverBacked: { port: 4101 } })
+    class ChatGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [BunWebSocketModule.forRoot()],
+      providers: [ChatGateway],
+    });
+
+    await expect(
+      bootstrapApplication({
+        adapter,
+        rootModule: AppModule,
+      }),
+    ).rejects.toThrow('@WebSocketGateway({ serverBacked }) is not supported on @konekti/websockets/bun');
+  });
+
   it('preserves Bun-backed websocket behavior through the explicit bun seam', async () => {
     const adapter = new TestBunAdapter();
 
