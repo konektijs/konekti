@@ -176,6 +176,8 @@ Import the transport-specific entrypoint you need: `@konekti/microservices/kafka
 
 Current honest support for raw `@konekti/websockets/node` is limited to the server-backed adapters documented and tested in this branch: `@konekti/platform-nodejs`, `@konekti/platform-fastify`, and `@konekti/platform-express`.
 
+When you need a gateway-owned dedicated listener on those adapters, use the root decorator opt-in `@WebSocketGateway({ path, serverBacked: { port } })`. That metadata is intentionally server-backed-only and is rejected by the Bun, Deno, and Cloudflare Workers websocket bindings.
+
 `@konekti/platform-bun`, `@konekti/platform-deno`, and `@konekti/platform-cloudflare-workers` now pair with the dedicated `@konekti/websockets/bun`, `@konekti/websockets/deno`, and `@konekti/websockets/cloudflare-workers` bindings for official raw websocket hosting. The Cloudflare Workers path stays isolate-local/stateless; Durable Object and cross-isolate coordination remain out of scope.
 
 ### option B — Socket.IO
@@ -192,6 +194,7 @@ Current honest support for `@konekti/socket.io` is limited to the server-backed 
 - If your selected runtime reports `{ kind: 'fetch-style', contract: 'raw-websocket-expansion', support: 'contract-only', ... }`, treat that as a future-work contract only — not as current raw websocket support.
 - Do not assume Bun, Deno, or Cloudflare Workers support for `@konekti/socket.io` unless a branch explicitly adds and tests a compatible implementation there.
 - Do not assume Bun, Deno, or Cloudflare Workers support for raw `@konekti/websockets/node` unless a branch explicitly adds and tests a compatible runtime-specific implementation there.
+- Do not use `@WebSocketGateway({ serverBacked })` on Bun, Deno, or Cloudflare Workers websocket bindings; the current branch rejects that server-backed-only metadata there.
 
 ---
 
