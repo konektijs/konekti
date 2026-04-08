@@ -35,7 +35,7 @@ class TestBunAdapter implements HttpApplicationAdapter, BunWebSocketBindingHost 
       kind: 'fetch-style' as const,
       mode: 'request-upgrade' as const,
       reason:
-        'Bun exposes Bun.serve() + server.upgrade() request-upgrade hosting. Use @konekti/websocket/bun for the official raw websocket binding.',
+        'Bun exposes Bun.serve() + server.upgrade() request-upgrade hosting. Use @konekti/websockets/bun for the official raw websocket binding.',
       support: 'supported' as const,
       version: 1 as const,
     };
@@ -141,7 +141,7 @@ async function flushAsyncWork(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-describe('@konekti/websocket/bun', () => {
+describe('@konekti/websockets/bun', () => {
   it('exposes the explicit Bun websocket seam', () => {
     expect(bunPublicApi).toHaveProperty('BunWebSocketModule');
     expect(bunPublicApi).toHaveProperty('BunWebSocketGatewayLifecycleService');
