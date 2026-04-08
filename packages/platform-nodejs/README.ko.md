@@ -67,6 +67,7 @@ await app.listen();
 - raw Node 어댑터 entrypoint를 이 패키지가 직접 소유하고, 명시적인 `@konekti/runtime/internal-node` seam을 조합하여 현재 Node request/response 브리지, startup logging, graceful shutdown, HTTPS, retry 시맨틱을 그대로 유지합니다.
 - `{ kind: 'server-backed', server }` 형태의 realtime capability를 노출하여, Node 기반 realtime binder가 모든 런타임을 Node처럼 가정하지 않고도 플랫폼 선택 결과를 소비할 수 있게 합니다.
 - 이 realtime capability seam 위에서 현재 raw `@konekti/websockets/node` 바인딩을 지원합니다.
+- 루트 데코레이터 opt-in인 `@WebSocketGateway({ serverBacked: { port } })`도 지원하며, 이 경우 게이트웨이는 애플리케이션 HTTP 리스너를 건드리지 않고 websocket 전용 리스너로 이동합니다.
 - 헬퍼 wrapper 경로가 필요한 사용자를 위해 호환 부트스트랩 헬퍼도 계속 제공합니다.
 
 ## runtime invariants
@@ -86,3 +87,4 @@ await app.listen();
 - 이 패키지는 raw Node 어댑터 경계를 직접 소유하지만, 공유되는 Node 전용 transport 내부 구현은 명시적인 `@konekti/runtime/internal-node` seam에 의존합니다.
 - 여기서는 새로운 adapterless startup 시맨틱을 도입하지 않습니다. 어댑터를 생략한 경우 HTTP 서빙을 기대하지 말고, DI/생명주기 전용 부트스트랩에는 `createApplicationContext()`를 사용하세요.
 - compression helper나 shutdown registration utility 같은 고급 Node 전용 내부 API는 `@konekti/runtime/node`에 남겨 두어, 기본 `@konekti/platform-nodejs` startup surface가 어댑터 선택과 Node 전용 wrapper entrypoint에 집중되도록 유지합니다.
+- 전용 websocket 리스너 opt-in의 소유권은 이 패키지의 HTTP 어댑터 옵션이 아니라 `@konekti/websockets/node`에 있습니다. 여기서 새 HTTP 어댑터 플래그를 기대하지 말고 루트 게이트웨이 데코레이터 메타데이터를 사용하세요.

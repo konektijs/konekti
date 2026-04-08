@@ -67,6 +67,7 @@ await app.listen();
 - Preserves the current Node request/response bridge, startup logging, graceful shutdown, HTTPS, and retry semantics by owning the raw Node adapter entrypoints and composing the explicit `@konekti/runtime/internal-node` seam.
 - Exposes a `{ kind: 'server-backed', server }` realtime capability so Node-backed realtime binders can consume platform selection without assuming every runtime behaves like Node.
 - Supports the current raw `@konekti/websockets/node` binding on that realtime capability seam.
+- Supports the explicit root decorator opt-in `@WebSocketGateway({ serverBacked: { port } })`, which moves a gateway onto a dedicated websocket-owned listener while keeping the application HTTP listener unchanged.
 - Keeps compatibility bootstrap helpers available for users who still want the helper-wrapper path.
 
 ## runtime invariants
@@ -86,3 +87,4 @@ await app.listen();
 - This package owns the raw Node adapter boundary directly, but still relies on the explicit `@konekti/runtime/internal-node` seam for shared Node-only transport internals.
 - No new adapterless startup semantics are introduced here. If you omit an adapter entirely, use `createApplicationContext()` for DI/lifecycle-only bootstraps instead of expecting HTTP serving behavior.
 - Advanced Node-only internals such as compression helpers and shutdown-registration utilities stay on `@konekti/runtime/node`, so the primary `@konekti/platform-nodejs` startup surface remains focused on adapter selection and Node-scoped wrapper entrypoints.
+- The dedicated websocket listener opt-in belongs to `@konekti/websockets/node`, not this package's adapter options. Use the root gateway decorator metadata instead of expecting a new HTTP adapter flag here.
