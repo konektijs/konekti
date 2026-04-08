@@ -89,6 +89,6 @@ describe('officialTransportDocsPackages', () => {
       getOfficialTransportDocsPackages: () => string[];
     };
 
-    expect(governanceModule.getOfficialTransportDocsPackages()).toContain('@konekti/platform-socket.io');
+    expect(governanceModule.getOfficialTransportDocsPackages()).toContain('@konekti/socket.io');
   });
 });
