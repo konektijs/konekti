@@ -20,7 +20,7 @@ This page provides an overview of the current public package family within the K
 - `@konekti/platform-express`
 - `@konekti/platform-bun`
 - `@konekti/platform-deno`
-- `@konekti/platform-socket.io`
+- `@konekti/socket.io`
 - `@konekti/microservices`
 - `@konekti/jwt`
 - `@konekti/passport`
@@ -37,7 +37,7 @@ This page provides an overview of the current public package family within the K
 - `@konekti/cron`
 - `@konekti/cqrs`
 - `@konekti/event-bus`
-- `@konekti/websocket`
+- `@konekti/websockets`
 - `@konekti/queue`
 - `@konekti/throttler`
 - `@konekti/testing`
@@ -57,11 +57,11 @@ This section is the canonical source of truth for public runtime/package guidanc
 
 Package-level runtime behavior, startup APIs, and intentional limitations stay documented in the corresponding adapter README.
 
-## `platform-*` naming convention
+## runtime/protocol adapter naming convention
 
-The `platform-*` prefix is reserved for packages that implement the `PlatformAdapter` interface and bridge Konekti's abstract HTTP layer to a specific runtime, server library, or protocol surface.
+The `platform-*` prefix is reserved for packages that implement the `PlatformAdapter` interface and bridge Konekti's abstract HTTP layer to a specific runtime, server library, or protocol surface. `@konekti/socket.io` is the explicit exception: it stays an adapter package, but its public name now mirrors the upstream transport brand instead of preserving the `platform-*` prefix.
 
-Current `platform-*` packages:
+Current adapter packages in this family:
 
 - `@konekti/platform-bun`
 - `@konekti/platform-cloudflare-workers`
@@ -69,19 +69,22 @@ Current `platform-*` packages:
 - `@konekti/platform-express`
 - `@konekti/platform-fastify`
 - `@konekti/platform-nodejs`
-- `@konekti/platform-socket.io`
+- `@konekti/socket.io`
 
-Rationale for the prefix:
+Rationale for the naming:
 
-- **NestJS migration familiarity**: NestJS uses the same `platform-*` convention, so the naming stays recognizable for teams moving from NestJS.
+- **NestJS migration familiarity**: `platform-*` remains the default convention for runtime adapters, so the naming stays recognizable for teams moving from NestJS.
 - **Collision prevention**: names like `@konekti/express` or `@konekti/bun` could be confused with the underlying library or runtime itself.
-- **Adapter signal**: the prefix tells readers that the package is an adapter layer for `@konekti/runtime`, not the upstream runtime or library.
+- **Adapter signal**: the convention tells readers that the package is an adapter layer for `@konekti/runtime`, not the upstream runtime or library.
+- **Transport-brand exception**: `@konekti/socket.io` is named after the upstream transport brand because the package acts as the dedicated Socket.IO adapter rather than an HTTP `PlatformAdapter`.
 
-Use `platform-*` when a package:
+Use `platform-*` by default when a package:
 
 - implements `PlatformAdapter`
 - acts as a runtime or protocol bridge into the Konekti runtime
 - owns runtime-specific request/response or gateway integration semantics
+
+Use an explicit non-`platform-*` adapter name only when the package is intentionally centered on a branded transport surface and the exception is documented here.
 
 Do not use `platform-*` when a package:
 
@@ -101,12 +104,12 @@ Konekti packages follow a **class-first** public surface rule. Concrete services
 - **`@konekti/http`**: HTTP execution, binding, exceptions, and route metadata.
 - **`@konekti/runtime`**: Application bootstrap/runtime orchestration, runtime-enforced platform shell registration (`platform.components`) with dependency-ordered start/stop, shared platform contract spine types (`PlatformOptionsBase`, `PlatformComponent`, lifecycle/readiness/health/diagnostic/snapshot contracts), versioned module diagnostics export, opt-in bootstrap timing, and the narrow bootstrap-scoped operational surface (`createHealthModule()`, `APPLICATION_LOGGER`, default console/JSON loggers, `PLATFORM_SHELL`). The root barrel stays transport-neutral: raw Node adapter selection and Node-scoped startup wrappers belong to `@konekti/platform-nodejs`, advanced Node-only shutdown/compression helpers stay under `@konekti/runtime/node`, the dedicated fetch-style adapter seam lives under `@konekti/runtime/web`, metrics and enriched health indicators stay in `@konekti/metrics` and `@konekti/terminus`, and `@konekti/runtime/internal` is reserved for framework-internal wiring tokens while adapter helpers move to explicit internal subpaths.
 - **`@konekti/platform-nodejs`**: Raw Node.js HTTP adapter package that owns the primary bare-Node startup surface (`createNodejsAdapter()`) plus the Node-scoped compatibility wrappers (`bootstrapNodejsApplication()` / `runNodejsApplication()`), keeping process/compression utilities off the primary startup path.
-- **`@konekti/platform-cloudflare-workers`**: Cloudflare Workers HTTP adapter built on the shared `@konekti/runtime/web` fetch-style adapter seam, including eager/lazy Worker fetch entrypoints, explicit stateless lifecycle semantics for Worker isolates, and the shared supported raw websocket expansion seam for Worker-native request-upgrade hosting. Official raw websocket hosting is provided by the dedicated `@konekti/websocket/cloudflare-workers` binding in an isolate-local/stateless scope without Durable Object distribution.
+- **`@konekti/platform-cloudflare-workers`**: Cloudflare Workers HTTP adapter built on the shared `@konekti/runtime/web` fetch-style adapter seam, including eager/lazy Worker fetch entrypoints, explicit stateless lifecycle semantics for Worker isolates, and the shared supported raw websocket expansion seam for Worker-native request-upgrade hosting. Official raw websocket hosting is provided by the dedicated `@konekti/websockets/cloudflare-workers` binding in an isolate-local/stateless scope without Durable Object distribution.
 - **`@konekti/platform-fastify`**: Fastify-based HTTP adapter.
 - **`@konekti/platform-express`**: Express-based HTTP adapter.
-- **`@konekti/platform-bun`**: Bun-based HTTP adapter that reuses the shared `@konekti/runtime/web` fetch-style adapter seam for fetch-style runtime parity and exposes the shared supported raw websocket expansion seam for Bun-native request-upgrade hosting. Official raw websocket hosting is provided by the dedicated `@konekti/websocket/bun` binding, while `@konekti/websocket/node` remains Node-upgrade-listener-specific.
-- **`@konekti/platform-deno`**: Deno `Deno.serve(...)` adapter built on the shared `@konekti/runtime/web` fetch-style adapter seam and the shared supported raw websocket expansion seam for Deno-native request-upgrade hosting. Official raw websocket hosting is provided by the dedicated `@konekti/websocket/deno` binding, while `@konekti/websocket/node` remains Node-upgrade-listener-specific.
-- **`@konekti/platform-socket.io`**: Socket.IO v4 gateway adapter built on the shared Konekti runtime and websocket decorators, consuming the platform-selected realtime capability instead of assuming direct raw Node server ownership. The current honest support claim is limited to the documented/tested server-backed adapters `@konekti/platform-nodejs`, `@konekti/platform-fastify`, and `@konekti/platform-express`.
+- **`@konekti/platform-bun`**: Bun-based HTTP adapter that reuses the shared `@konekti/runtime/web` fetch-style adapter seam for fetch-style runtime parity and exposes the shared supported raw websocket expansion seam for Bun-native request-upgrade hosting. Official raw websocket hosting is provided by the dedicated `@konekti/websockets/bun` binding, while `@konekti/websockets/node` remains Node-upgrade-listener-specific.
+- **`@konekti/platform-deno`**: Deno `Deno.serve(...)` adapter built on the shared `@konekti/runtime/web` fetch-style adapter seam and the shared supported raw websocket expansion seam for Deno-native request-upgrade hosting. Official raw websocket hosting is provided by the dedicated `@konekti/websockets/deno` binding, while `@konekti/websockets/node` remains Node-upgrade-listener-specific.
+- **`@konekti/socket.io`**: Socket.IO v4 gateway adapter built on the shared Konekti runtime and websocket decorators, consuming the platform-selected realtime capability instead of assuming direct raw Node server ownership. The current honest support claim is limited to the documented/tested server-backed adapters `@konekti/platform-nodejs`, `@konekti/platform-fastify`, and `@konekti/platform-express`.
 - **`@konekti/microservices`**: Transport abstraction, pattern decorators, and microservice runtime. Subpath exports include `./tcp`, `./redis`, `./nats`, `./kafka`, `./rabbitmq`, `./grpc`, and `./mqtt` transport entrypoints.
 - **`@konekti/validation`**: Validation decorators, mapped DTO helpers, and validation engine.
 - **`@konekti/jwt`**: Core JWT logic.
@@ -119,7 +122,7 @@ Konekti packages follow a **class-first** public surface rule. Concrete services
 - **`@konekti/cron`**: Decorator-based (`@Cron`, `@Interval`, `@Timeout`) and runtime-registry task scheduling with distributed lock support.
 - **`@konekti/cqrs`**: Command/query buses with bootstrap-time handler discovery, saga/process-manager support, and event-bus delegation.
 - **`@konekti/event-bus`**: In-process event publishing and discovery.
-- **`@konekti/websocket`**: Transport-neutral WebSocket gateway authoring decorators, metadata, descriptors, and shared contracts. Runtime-specific raw websocket bindings live on explicit subpaths: `@konekti/websocket/node` for server-backed Node upgrade-listener hosts, `@konekti/websocket/bun` for Bun-native request-upgrade hosting via `@konekti/platform-bun`, `@konekti/websocket/deno` for Deno-native request-upgrade hosting via `@konekti/platform-deno`, and `@konekti/websocket/cloudflare-workers` for Worker-native request-upgrade hosting via `@konekti/platform-cloudflare-workers` in an isolate-local/stateless scope.
+- **`@konekti/websockets`**: Transport-neutral WebSocket gateway authoring decorators, metadata, descriptors, and shared contracts. Runtime-specific raw websocket bindings live on explicit subpaths: `@konekti/websockets/node` for server-backed Node upgrade-listener hosts, `@konekti/websockets/bun` for Bun-native request-upgrade hosting via `@konekti/platform-bun`, `@konekti/websockets/deno` for Deno-native request-upgrade hosting via `@konekti/platform-deno`, and `@konekti/websockets/cloudflare-workers` for Worker-native request-upgrade hosting via `@konekti/platform-cloudflare-workers` in an isolate-local/stateless scope.
 - **`@konekti/queue`**: Redis-backed background jobs with worker discovery and DLQ support.
 - **`@konekti/redis`**: App-scoped Redis lifecycle ownership (`lazyConnect` bootstrap + graceful shutdown), raw token injection, and `RedisService` facade with `getRawClient()` escape hatch.
 - **`@konekti/prisma`**: Prisma lifecycle and ALS-backed transaction context, including async module factory, strict transaction mode, and abort-aware request transaction handling.
