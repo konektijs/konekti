@@ -727,6 +727,9 @@ importers:
       '@konekti/runtime':
         specifier: workspace:*
         version: link:../runtime
+      vitest:
+        specifier: ^3.0.8
+        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
     devDependencies:
       '@konekti/platform-express':
         specifier: workspace:*

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import * as testing from './index.js';
@@ -30,5 +32,30 @@ describe('@konekti/testing surface', () => {
     expect(portability.createHttpAdapterPortabilityHarness).toBeTypeOf('function');
     expect(webPortability.createWebRuntimeHttpAdapterPortabilityHarness).toBeTypeOf('function');
     expect(fetchStyleWebsocket.createFetchStyleWebSocketConformanceHarness).toBeTypeOf('function');
+  });
+
+  it('keeps published subpath metadata aligned with the built surface', () => {
+    const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+      exports: Record<string, { import: string; types: string }>;
+      peerDependencies: Record<string, string>;
+    };
+
+    expect(packageJson.exports['./platform-conformance']).toEqual({
+      types: './dist/platform-conformance.d.ts',
+      import: './dist/platform-conformance.js',
+    });
+    expect(packageJson.exports['./http-adapter-portability']).toEqual({
+      types: './dist/http-adapter-portability.d.ts',
+      import: './dist/http-adapter-portability.js',
+    });
+    expect(packageJson.exports['./web-runtime-adapter-portability']).toEqual({
+      types: './dist/web-runtime-adapter-portability.d.ts',
+      import: './dist/web-runtime-adapter-portability.js',
+    });
+    expect(packageJson.exports['./fetch-style-websocket-conformance']).toEqual({
+      types: './dist/fetch-style-websocket-conformance.d.ts',
+      import: './dist/fetch-style-websocket-conformance.js',
+    });
+    expect(packageJson.peerDependencies.vitest).toBe('^3.0.8');
   });
 });
