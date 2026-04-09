@@ -135,6 +135,7 @@ class UsersModule {}
 ### 유틸리티
 - `defineModule(cls, metadata)`: 프로그래밍 방식의 모듈 정의 헬퍼입니다.
 - `bootstrapApplication(options)`: 저수준 비동기 부트스트랩 함수입니다.
+- Node 전용 로깅 헬퍼(`createConsoleApplicationLogger`, `createJsonApplicationLogger`)는 루트 `@konekti/runtime` 배럴의 크로스 런타임 안전성을 유지하기 위해 `@konekti/runtime/node`에서 제공합니다.
 
 ## 관련 패키지
 

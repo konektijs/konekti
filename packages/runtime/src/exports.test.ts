@@ -6,7 +6,7 @@ import * as runtime from './index.js';
 import * as runtimeInternal from './internal.js';
 import * as runtimeInternalHttpAdapter from './adapters/internal-http-adapter.js';
 import * as runtimeInternalRequestResponseFactory from './adapters/internal-request-response-factory.js';
-import * as runtimeNode from './node/node.js';
+import * as runtimeNode from './node.js';
 import * as runtimeWeb from './web.js';
 
 describe('runtime export boundaries', () => {
@@ -20,8 +20,8 @@ describe('runtime export boundaries', () => {
 
   it('keeps only bootstrap-scoped operational helpers on the runtime root barrel', () => {
     expect(runtime.createHealthModule).toBeTypeOf('function');
-    expect(runtime.createConsoleApplicationLogger).toBeTypeOf('function');
-    expect(runtime.createJsonApplicationLogger).toBeTypeOf('function');
+    expect(runtime).not.toHaveProperty('createConsoleApplicationLogger');
+    expect(runtime).not.toHaveProperty('createJsonApplicationLogger');
     expect(runtime).toHaveProperty('APPLICATION_LOGGER');
     expect(runtime).toHaveProperty('PLATFORM_SHELL');
     expect(runtime).not.toHaveProperty('MetricsModule');
@@ -40,6 +40,8 @@ describe('runtime export boundaries', () => {
 
   it('moves transport helpers onto explicit subpaths', () => {
     expect(runtimeWeb.parseMultipart).toBeTypeOf('function');
+    expect(runtimeNode.createConsoleApplicationLogger).toBeTypeOf('function');
+    expect(runtimeNode.createJsonApplicationLogger).toBeTypeOf('function');
     expect(runtimeNode.createNodeShutdownSignalRegistration).toBeTypeOf('function');
     expect(runtimeNode.defaultNodeShutdownSignals).toBeTypeOf('function');
     expect(runtimeInternalHttpAdapter.bootstrapHttpAdapterApplication).toBeTypeOf('function');
@@ -53,6 +55,7 @@ describe('runtime export boundaries', () => {
     ) as { exports: Record<string, unknown> };
 
     expect(packageJson.exports).toHaveProperty('./web');
+    expect(packageJson.exports).toHaveProperty('./node');
     expect(packageJson.exports).toHaveProperty('./internal');
     expect(packageJson.exports).toHaveProperty('./internal/http-adapter');
     expect(packageJson.exports).toHaveProperty('./internal/request-response-factory');

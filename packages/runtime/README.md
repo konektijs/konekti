@@ -135,6 +135,7 @@ The static facade for application lifecycle management.
 ### Utilities
 - `defineModule(cls, metadata)`: Programmatic module definition helper.
 - `bootstrapApplication(options)`: Lower-level async bootstrap function.
+- Node-only logging helpers (`createConsoleApplicationLogger`, `createJsonApplicationLogger`) are available from `@konekti/runtime/node` so the root `@konekti/runtime` barrel stays cross-runtime safe.
 
 ## Related Packages
 
@@ -148,4 +149,3 @@ The static facade for application lifecycle management.
 - [examples/minimal](../../examples/minimal): Smallest possible bootstrap.
 - [examples/realworld-api](../../examples/realworld-api): Full application with complex module wiring.
 - [packages/runtime/src/bootstrap.test.ts](./src/bootstrap.test.ts): Behavioral tests for bootstrap phases.
-
