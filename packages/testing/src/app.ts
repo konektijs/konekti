@@ -43,6 +43,16 @@ function normalizeRequestInput(
 
 /**
  * Boots a lightweight test app with the real dispatcher and a fluent request client.
+ *
+ * @param options Testing bootstrap options, including the root module and any extra providers.
+ * @returns A request-driven test app facade that dispatches through the real runtime stack.
+ *
+ * @example
+ * ```ts
+ * const app = await createTestApp({ rootModule: AppModule });
+ * const response = await app.request('GET', '/health').send();
+ * await app.close();
+ * ```
  */
 export async function createTestApp(options: TestingModuleOptions): Promise<TestApp> {
   const app = await bootstrapApplication({

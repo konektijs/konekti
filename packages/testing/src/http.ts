@@ -129,6 +129,10 @@ function normalizePrincipal(principal?: TestPrincipal): Principal | undefined {
 
 /**
  * Creates a fluent request builder around a dispatcher.
+ *
+ * @param dispatcher Dispatcher that should execute the synthetic request.
+ * @param request Initial request state for the fluent builder.
+ * @returns A builder that can mutate the request before dispatching it.
  */
 export function createRequestBuilder(dispatcher: Dispatcher, request: TestRequestWithOptions): RequestBuilder {
   let current: TestRequestWithOptions = {
@@ -187,6 +191,8 @@ export function createRequestBuilder(dispatcher: Dispatcher, request: TestReques
 
 /**
  * Middleware that maps test-request principal data into `RequestContext.principal`.
+ *
+ * @returns Middleware that injects synthetic principal data before the next handler runs.
  */
 export function createTestRequestContextMiddleware(): Middleware {
   return {
@@ -288,6 +294,13 @@ function buildFrameworkResponse(): { response: MutableFrameworkResponse; result:
   return { response, result };
 }
 
+/**
+ * Dispatches one synthetic request through a Konekti dispatcher and captures the serialized response.
+ *
+ * @param dispatcher Dispatcher that should handle the request.
+ * @param req Normalized synthetic request payload.
+ * @returns The captured status, body, and headers produced by the dispatcher.
+ */
 export async function makeRequest(dispatcher: Dispatcher, req: TestRequestWithOptions): Promise<TestResponse> {
   const frameworkRequest = buildFrameworkRequest(req);
   const { response, result } = buildFrameworkResponse();
