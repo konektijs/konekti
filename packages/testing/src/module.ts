@@ -19,6 +19,9 @@ import type { OverrideProviderBuilder, TestingModuleBuilder, TestingModuleOption
 
 /**
  * Returns providers declared on a module metadata definition.
+ *
+ * @param moduleType Module type whose `providers` metadata should be inspected.
+ * @returns The declared provider list, or an empty array when the module has none.
  */
 export function extractModuleProviders(moduleType: ModuleType): Provider[] {
   const metadata = getModuleMetadata(moduleType);
@@ -32,6 +35,9 @@ export function extractModuleProviders(moduleType: ModuleType): Provider[] {
 
 /**
  * Returns controllers declared on a module metadata definition.
+ *
+ * @param moduleType Module type whose `controllers` metadata should be inspected.
+ * @returns The declared controller list, or an empty array when the module has none.
  */
 export function extractModuleControllers(moduleType: ModuleType): ClassType[] {
   const metadata = getModuleMetadata(moduleType);
@@ -45,6 +51,9 @@ export function extractModuleControllers(moduleType: ModuleType): ClassType[] {
 
 /**
  * Returns imported modules declared on a module metadata definition.
+ *
+ * @param moduleType Module type whose `imports` metadata should be inspected.
+ * @returns The declared import list, or an empty array when the module has none.
  */
 export function extractModuleImports(moduleType: ModuleType): ModuleType[] {
   const metadata = getModuleMetadata(moduleType);
@@ -473,6 +482,16 @@ class DefaultTestingModuleBuilder implements TestingModuleBuilder {
 
 /**
  * Creates a fluent testing-module builder for overriding providers and compiling a test graph.
+ *
+ * @param options Bootstrap options plus the root module that should be compiled for the test.
+ * @returns A builder that supports provider and module overrides before compilation.
+ *
+ * @example
+ * ```ts
+ * const module = await createTestingModule({ rootModule: AppModule })
+ *   .overrideProvider(USER_REPOSITORY, fakeUserRepository)
+ *   .compile();
+ * ```
  */
 export function createTestingModule(options: TestingModuleOptions): TestingModuleBuilder {
   return new DefaultTestingModuleBuilder(options);
