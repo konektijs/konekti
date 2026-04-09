@@ -66,6 +66,31 @@ function parsePackageListFromSection(markdown, sectionTitle) {
   return packages;
 }
 
+function parsePackageNamesFromFamilyTable(markdown, sectionTitle) {
+  const lines = markdown.split('\n');
+  const start = lines.findIndex((line) => line.trim() === `## ${sectionTitle}`);
+
+  if (start < 0) {
+    return [];
+  }
+
+  const packages = new Set();
+
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index]?.trim() ?? '';
+
+    if (line.startsWith('## ')) {
+      break;
+    }
+
+    for (const match of line.matchAll(/`(@konekti\/[^`]+)`/g)) {
+      packages.add(match[1]);
+    }
+  }
+
+  return [...packages].sort((left, right) => left.localeCompare(right));
+}
+
 function sorted(values) {
   return [...values].sort((left, right) => left.localeCompare(right));
 }
@@ -186,7 +211,7 @@ const scaffoldSource = read('packages/cli/src/new/scaffold.ts');
 const cliPackage = JSON.parse(read('packages/cli/package.json'));
 const changelog = read('CHANGELOG.md');
 const governancePackageList = sorted(parsePackageListFromSection(releaseGovernance, 'intended publish surface'));
-const packageSurfaceList = sorted(parsePackageListFromSection(packageSurface, 'public package family'));
+const packageSurfaceList = parsePackageNamesFromFamilyTable(packageSurface, 'public package families');
 const workspacePackages = workspacePackageNames();
 const officialFetchAdapterDocs = [
   {
