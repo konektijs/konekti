@@ -46,20 +46,20 @@
       "import": "./dist/mock.js"
     },
     "./platform-conformance": {
-      "types": "./dist/conformance/platform-conformance.d.ts",
-      "import": "./dist/conformance/platform-conformance.js"
+      "types": "./dist/platform-conformance.d.ts",
+      "import": "./dist/platform-conformance.js"
     },
     "./http-adapter-portability": {
-      "types": "./dist/portability/http-adapter-portability.d.ts",
-      "import": "./dist/portability/http-adapter-portability.js"
+      "types": "./dist/http-adapter-portability.d.ts",
+      "import": "./dist/http-adapter-portability.js"
     },
     "./web-runtime-adapter-portability": {
-      "types": "./dist/portability/web-runtime-adapter-portability.d.ts",
-      "import": "./dist/portability/web-runtime-adapter-portability.js"
+      "types": "./dist/web-runtime-adapter-portability.d.ts",
+      "import": "./dist/web-runtime-adapter-portability.js"
     },
     "./fetch-style-websocket-conformance": {
-      "types": "./dist/conformance/fetch-style-websocket-conformance.d.ts",
-      "import": "./dist/conformance/fetch-style-websocket-conformance.js"
+      "types": "./dist/fetch-style-websocket-conformance.d.ts",
+      "import": "./dist/fetch-style-websocket-conformance.js"
     },
     "./types": {
       "types": "./dist/types.d.ts",
@@ -95,7 +95,8 @@
     "@konekti/runtime": "workspace:*"
   },
   "peerDependencies": {
-    "@babel/core": ">=7.0.0"
+    "@babel/core": ">=7.0.0",
+    "vitest": "^3.0.8"
   },
   "peerDependenciesMeta": {
     "@babel/core": {
