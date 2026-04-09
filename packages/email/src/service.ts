@@ -273,6 +273,7 @@ export class EmailService implements Email, OnModuleInit, OnApplicationShutdown 
 
   private normalizeMessage(message: EmailMessage): NormalizedEmailMessage {
     const from = message.from ? normalizeAddress(message.from) : this.options.defaultFrom;
+    const replyTo = normalizeAddressList(message.replyTo);
 
     if (!from) {
       throw new EmailMessageValidationError('Email messages require `from` or `defaultFrom` to be configured.');
@@ -286,7 +287,7 @@ export class EmailService implements Email, OnModuleInit, OnApplicationShutdown 
       headers: message.headers,
       html: message.html,
       metadata: message.metadata,
-      replyTo: normalizeAddressList(message.replyTo).length > 0 ? normalizeAddressList(message.replyTo) : this.options.defaultReplyTo,
+      replyTo: replyTo.length > 0 ? replyTo : this.options.defaultReplyTo,
       subject: message.subject,
       text: message.text,
       to: normalizeAddressList(message.to),
