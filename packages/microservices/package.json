@@ -34,32 +34,32 @@
       "import": "./dist/index.js"
     },
     "./grpc": {
-      "types": "./dist/grpc-transport.d.ts",
-      "import": "./dist/grpc-transport.js"
+      "types": "./dist/transports/grpc-transport.d.ts",
+      "import": "./dist/transports/grpc-transport.js"
     },
     "./kafka": {
-      "types": "./dist/kafka-transport.d.ts",
-      "import": "./dist/kafka-transport.js"
+      "types": "./dist/transports/kafka-transport.d.ts",
+      "import": "./dist/transports/kafka-transport.js"
     },
     "./mqtt": {
-      "types": "./dist/mqtt-transport.d.ts",
-      "import": "./dist/mqtt-transport.js"
+      "types": "./dist/transports/mqtt-transport.d.ts",
+      "import": "./dist/transports/mqtt-transport.js"
     },
     "./nats": {
-      "types": "./dist/nats-transport.d.ts",
-      "import": "./dist/nats-transport.js"
+      "types": "./dist/transports/nats-transport.d.ts",
+      "import": "./dist/transports/nats-transport.js"
     },
     "./redis": {
-      "types": "./dist/redis-transport.d.ts",
-      "import": "./dist/redis-transport.js"
+      "types": "./dist/transports/redis-transport.d.ts",
+      "import": "./dist/transports/redis-transport.js"
     },
     "./rabbitmq": {
-      "types": "./dist/rabbitmq-transport.d.ts",
-      "import": "./dist/rabbitmq-transport.js"
+      "types": "./dist/transports/rabbitmq-transport.d.ts",
+      "import": "./dist/transports/rabbitmq-transport.js"
     },
     "./tcp": {
-      "types": "./dist/tcp-transport.d.ts",
-      "import": "./dist/tcp-transport.js"
+      "types": "./dist/transports/tcp-transport.d.ts",
+      "import": "./dist/transports/tcp-transport.js"
     }
   },
   "main": "./dist/index.js",
