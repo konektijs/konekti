@@ -5,6 +5,7 @@ import type { Provider } from '@konekti/di';
 import { createDownResult, createUpResult, resolveIndicatorKey, throwHealthCheckError } from './utils.js';
 import type { HealthIndicator, HealthIndicatorResult } from '../types.js';
 
+/** Options for checking free disk bytes and free-ratio thresholds. */
 export interface DiskHealthIndicatorOptions {
   key?: string;
   minFreeBytes?: number;
@@ -18,10 +19,22 @@ function toNumber(value: bigint | number): number {
   return typeof value === 'bigint' ? Number(value) : value;
 }
 
+/**
+ * Create a disk-space health indicator.
+ *
+ * @param options Optional filesystem path and free-space thresholds.
+ * @returns A health indicator backed by `statfs()`.
+ */
 export function createDiskHealthIndicator(options: DiskHealthIndicatorOptions = {}): HealthIndicator {
   return new DiskHealthIndicator(options);
 }
 
+/**
+ * Create a provider that registers a `DiskHealthIndicator` instance.
+ *
+ * @param options Optional filesystem path and free-space thresholds.
+ * @returns A value provider that exposes `DiskHealthIndicator` from the DI container.
+ */
 export function createDiskHealthIndicatorProvider(options: DiskHealthIndicatorOptions = {}): Provider {
   return {
     provide: DiskHealthIndicator,
@@ -29,6 +42,7 @@ export function createDiskHealthIndicatorProvider(options: DiskHealthIndicatorOp
   };
 }
 
+/** Health indicator that inspects free space for one filesystem path. */
 export class DiskHealthIndicator implements HealthIndicator {
   readonly key: string | undefined;
 
