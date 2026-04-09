@@ -3,6 +3,7 @@ import type { Registry } from 'prom-client';
 import type { MeterCounter, MeterGauge, MeterHistogram, MeterProvider } from './meter-provider.js';
 import { createPrometheusCounter, createPrometheusGauge, createPrometheusHistogram } from './prometheus-metrics-factory.js';
 
+/** Meter-provider implementation that maps the framework abstraction onto Prometheus. */
 export class PrometheusMeterProvider implements MeterProvider {
   readonly type = 'prometheus' as const;
 
