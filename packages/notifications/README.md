@@ -112,7 +112,8 @@ NotificationsModule.forRoot({
 Behavioral contract notes:
 
 - Bulk queue delegation starts when the notification count reaches `bulkThreshold`.
-- Queue-backed delivery is opt-in. Direct dispatch remains the default path.
+- `dispatch()` stays direct by default even when a queue adapter is configured. Use `dispatch(..., { queue: true })` to opt one single notification into queue-backed delivery.
+- Queue-backed delivery is opt-in for single dispatch and threshold-driven for `dispatchMany(...)`.
 - The foundation package does not assume or import a concrete queue implementation.
 
 ### Lifecycle publication through an event publisher
