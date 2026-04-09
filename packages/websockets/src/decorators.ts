@@ -68,6 +68,23 @@ function createMethodDecorator(metadata: WebSocketGatewayHandlerMetadata): Metho
   return decorator as MethodDecoratorLike;
 }
 
+/**
+ * Marks a class as a WebSocket gateway discovered during module bootstrap.
+ *
+ * @param options Gateway path and optional server-backed listener configuration.
+ * @returns A class decorator that stores gateway metadata for runtime discovery.
+ *
+ * @example
+ * ```ts
+ * import { WebSocketGateway } from '@konekti/websockets';
+ *
+ * @WebSocketGateway({ path: '/chat' })
+ * class ChatGateway {}
+ * ```
+ *
+ * @remarks
+ * Multiple gateways may share one `path`; handlers run in discovery order.
+ */
 export function WebSocketGateway(
   options: WebSocketGatewayOptions = {},
 ): ClassDecoratorLike {
@@ -78,6 +95,24 @@ export function WebSocketGateway(
   return decorator as ClassDecoratorLike;
 }
 
+/**
+ * Registers a method as an inbound message handler for a gateway.
+ *
+ * @param event Optional event name filter. When omitted, the runtime treats the handler as a generic message listener.
+ * @returns A method decorator that records message-handler metadata for the gateway.
+ *
+ * @example
+ * ```ts
+ * import { OnMessage } from '@konekti/websockets';
+ *
+ * class ChatGateway {
+ *   @OnMessage('ping')
+ *   handlePing(payload: unknown) {
+ *     return payload;
+ *   }
+ * }
+ * ```
+ */
 export function OnMessage<
   TEvents extends WebSocketEventMap = WebSocketEventMap,
   K extends keyof TEvents = keyof TEvents,
@@ -88,12 +123,22 @@ export function OnMessage<
   });
 }
 
+/**
+ * Registers a method that runs when one client connection is established.
+ *
+ * @returns A method decorator that records a connection lifecycle handler.
+ */
 export function OnConnect(): MethodDecoratorLike {
   return createMethodDecorator({
     type: 'connect',
   });
 }
 
+/**
+ * Registers a method that runs when one client disconnects from the gateway.
+ *
+ * @returns A method decorator that records a disconnection lifecycle handler.
+ */
 export function OnDisconnect(): MethodDecoratorLike {
   return createMethodDecorator({
     type: 'disconnect',
