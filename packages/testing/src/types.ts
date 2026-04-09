@@ -6,14 +6,23 @@ import type { BootstrapResult, BootstrapModuleOptions, ModuleType } from '@konek
 import type { Guard, Interceptor } from '@konekti/http';
 import type { RequestBuilder, TestPrincipal, TestRequest, TestRequestWithOptions, TestResponse } from './http.js';
 
+/**
+ * Bootstrap options accepted by `createTestingModule(...)`.
+ */
 export interface TestingModuleOptions extends BootstrapModuleOptions {
   rootModule: ModuleType;
 }
 
+/**
+ * Optional request extras accepted by `TestApp.request(...)` overloads.
+ */
 export interface TestRequestOptions {
   principal?: TestPrincipal;
 }
 
+/**
+ * Compiled testing-module facade that exposes sync/async resolution and request dispatch helpers.
+ */
 export interface TestingModuleRef extends BootstrapResult {
   has(token: Token): boolean;
   get<T>(token: Token<T>): T;
@@ -22,6 +31,9 @@ export interface TestingModuleRef extends BootstrapResult {
   dispatch(request: TestRequestWithOptions): Promise<TestResponse>;
 }
 
+/**
+ * Fluent override builder returned by `overrideProvider(token)`.
+ */
 export interface OverrideProviderBuilder<T> {
   useValue(value: T): TestingModuleBuilder;
   useClass(cls: ClassType<T>): TestingModuleBuilder;
@@ -32,6 +44,9 @@ export interface OverrideProviderBuilder<T> {
   useExisting(token: Token<T>): TestingModuleBuilder;
 }
 
+/**
+ * Builder contract for compiling an application module graph with targeted test overrides.
+ */
 export interface TestingModuleBuilder {
   compile(): Promise<TestingModuleRef>;
   overrideProvider<T>(token: Token<T>): OverrideProviderBuilder<T>;
@@ -44,12 +59,18 @@ export interface TestingModuleBuilder {
   overrideModule(module: ModuleType, replacement: ModuleType): this;
 }
 
+/**
+ * Minimal testing bootstrap snapshot used by lower-level helpers.
+ */
 export interface TestingBootstrapResult {
   container: Container;
   modules: BootstrapResult['modules'];
   rootModule: ModuleType;
 }
 
+/**
+ * Lightweight request-dispatch facade for integration-style tests.
+ */
 export interface TestApp {
   request(method: string, path: string, options?: TestRequestOptions): RequestBuilder;
   request(request: TestRequest): RequestBuilder;
@@ -58,6 +79,9 @@ export interface TestApp {
   close(): Promise<void>;
 }
 
+/**
+ * Shallow method-mocked version of a type where function properties become `vitest` mocks.
+ */
 export type DeepMocked<T> = {
   [K in keyof T]: T[K] extends (...args: infer A) => infer R
     ? Mock<(...args: A) => R> & T[K]
