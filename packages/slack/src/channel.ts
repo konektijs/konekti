@@ -1,6 +1,7 @@
 import { Inject } from '@konekti/core';
 import type { NotificationChannel, NotificationChannelContext, NotificationChannelDelivery } from '@konekti/notifications';
 
+import { SlackTransportError } from './errors.js';
 import { SlackService } from './service.js';
 import { SLACK_OPTIONS } from './tokens.js';
 import type { NormalizedSlackModuleOptions, SlackNotificationDispatchRequest, SlackSendResult } from './types.js';
@@ -35,6 +36,12 @@ export class SlackChannel implements NotificationChannel<SlackNotificationDispat
     context: NotificationChannelContext,
   ): Promise<NotificationChannelDelivery<SlackSendResult>> {
     const receipt = await this.slack.sendNotification(notification, { signal: context.signal });
+
+    if (receipt.ok === false) {
+      throw new SlackTransportError(
+        `Slack transport reported an unsuccessful delivery${receipt.response ? `: ${receipt.response}` : '.'}`,
+      );
+    }
 
     return {
       externalId: receipt.messageTs,

@@ -5,7 +5,7 @@ import { getModuleMetadata } from '@konekti/core/internal';
 import { Container, type Provider } from '@konekti/di';
 
 import { SlackChannel } from './channel.js';
-import { SlackConfigurationError, SlackMessageValidationError } from './errors.js';
+import { SlackConfigurationError, SlackMessageValidationError, SlackTransportError } from './errors.js';
 import { SlackModule } from './module.js';
 import { SlackService } from './service.js';
 import { SLACK } from './tokens.js';
@@ -61,6 +61,18 @@ class PassiveTransport implements SlackTransport {
       channel: message.channel,
       ok: true,
       response: 'ok',
+      statusCode: 200,
+      warnings: [],
+    };
+  }
+}
+
+class UnsuccessfulTransport implements SlackTransport {
+  async send(message: NormalizedSlackMessage) {
+    return {
+      channel: message.channel,
+      ok: false,
+      response: 'denied',
       statusCode: 200,
       warnings: [],
     };
@@ -254,6 +266,27 @@ describe('SlackModule', () => {
         'Slack notifications accept exactly one target channel per dispatch. Use `dispatchMany(...)` for fan-out delivery.',
       ),
     );
+  });
+
+  it('surfaces an unsuccessful transport receipt as a notifications channel failure', async () => {
+    const container = new Container();
+    const moduleType = SlackModule.forRoot({
+      transport: new UnsuccessfulTransport(),
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const channel = await container.resolve(SlackChannel);
+
+    await expect(
+      channel.send(
+        {
+          channel: 'slack',
+          payload: { text: 'Denied' },
+          recipients: ['#ops'],
+        },
+        {},
+      ),
+    ).rejects.toThrowError(new SlackTransportError('Slack transport reported an unsuccessful delivery: denied'));
   });
 
   it('accepts custom provider-backed transports without bootstrap verification', async () => {
