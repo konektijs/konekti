@@ -26,6 +26,8 @@ export type {
   EmailSendManyOptions,
   EmailSendOptions,
   EmailSendResult,
+  NormalizedEmailAddressList,
+  NormalizedEmailMessage,
   EmailTemplateRenderInput,
   EmailTemplateRenderer,
   EmailTemplateRenderResult,

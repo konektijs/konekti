@@ -261,15 +261,9 @@ importers:
       '@konekti/queue':
         specifier: workspace:*
         version: link:../queue
-      '@konekti/redis':
-        specifier: workspace:*
-        version: link:../redis
       '@konekti/runtime':
         specifier: workspace:*
         version: link:../runtime
-      nodemailer:
-        specifier: ^6.10.1
-        version: 6.10.1
 
   packages/event-bus:
     dependencies:
