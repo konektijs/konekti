@@ -55,6 +55,33 @@ function parsePackageListFromSection(markdown: string, sectionTitle: string): st
   return packages.sort((left, right) => left.localeCompare(right));
 }
 
+function parsePackageNamesFromFamilyTable(markdown: string, sectionTitle: string): string[] {
+  const lines = markdown.split('\n');
+  const start = lines.findIndex((line) => line.trim() === `## ${sectionTitle}`);
+
+  if (start < 0) {
+    return [];
+  }
+
+  const packages = new Set<string>();
+
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index]?.trim() ?? '';
+
+    if (line.startsWith('## ')) {
+      break;
+    }
+
+    for (const match of line.matchAll(/`(@konekti\/[^`]+)`/g)) {
+      if (match[1]) {
+        packages.add(match[1]);
+      }
+    }
+  }
+
+  return [...packages].sort((left, right) => left.localeCompare(right));
+}
+
 function collectMarkdownFiles(relativeRoot: string): string[] {
   const absoluteRoot = resolve(repoRoot, relativeRoot);
   if (!existsSync(absoluteRoot)) {
@@ -115,6 +142,21 @@ describe('platform consistency governance docs', () => {
     expect(englishPublishSurface.length).toBeGreaterThan(0);
     expect(koreanPublishSurface.length).toBeGreaterThan(0);
     expect(koreanPublishSurface).toEqual(englishPublishSurface);
+  });
+
+  it('keeps canonical package-surface inventory synchronized with release-governance in both languages', () => {
+    const releaseGovernance = readFileSync(resolve(repoRoot, 'docs/operations/release-governance.md'), 'utf8');
+    const packageSurface = readFileSync(resolve(repoRoot, 'docs/reference/package-surface.md'), 'utf8');
+    const packageSurfaceKo = readFileSync(resolve(repoRoot, 'docs/reference/package-surface.ko.md'), 'utf8');
+
+    const intendedPublishSurface = parsePackageListFromSection(releaseGovernance, 'intended publish surface');
+    const englishPackageSurface = parsePackageNamesFromFamilyTable(packageSurface, 'public package families');
+    const koreanPackageSurface = parsePackageNamesFromFamilyTable(packageSurfaceKo, '공개 패키지 패밀리');
+
+    expect(englishPackageSurface.length).toBeGreaterThan(0);
+    expect(koreanPackageSurface.length).toBeGreaterThan(0);
+    expect(englishPackageSurface).toEqual(intendedPublishSurface);
+    expect(koreanPackageSurface).toEqual(englishPackageSurface);
   });
 
   it('keeps PR CI governance-gated while reserving release-readiness for main pushes', () => {
