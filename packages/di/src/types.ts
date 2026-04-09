@@ -5,9 +5,23 @@ import type { Constructor, MaybePromise, Token } from '@konekti/core';
  */
 export type Scope = 'singleton' | 'request' | 'transient';
 
+/**
+ * Namespace helpers for the public DI scope literals.
+ */
 export namespace Scope {
+  /**
+   * Default lifetime used when a provider omits an explicit scope.
+   */
   export const DEFAULT: Scope = 'singleton';
+
+  /**
+   * Scope literal for providers that should be recreated per request container.
+   */
   export const REQUEST: Scope = 'request';
+
+  /**
+   * Scope literal for providers that should be recreated on every resolution.
+   */
   export const TRANSIENT: Scope = 'transient';
 }
 
