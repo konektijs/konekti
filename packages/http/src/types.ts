@@ -2,8 +2,10 @@ import type { Constructor, MaybePromise, MetadataPropertyKey, MetadataSource, To
 import type { RequestScopeContainer } from '@konekti/di';
 export type { ValidationIssue, Validator } from '@konekti/validation';
 
+/** HTTP methods understood by Konekti route metadata and dispatcher matching. */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD' | 'ALL';
 
+/** Strategies that decide how versioned HTTP routes are selected for one request. */
 export enum VersioningType {
   URI = 'URI',
   HEADER = 'HEADER',
@@ -11,6 +13,13 @@ export enum VersioningType {
   CUSTOM = 'CUSTOM',
 }
 
+/**
+ * Adapter-normalized incoming request passed through the HTTP pipeline.
+ *
+ * Runtime adapters populate this shape so decorators, binders, guards, and
+ * middleware can reason about one stable contract instead of platform-specific
+ * request objects.
+ */
 export interface FrameworkRequest {
   method: HttpMethod | string;
   path: string;
@@ -25,6 +34,12 @@ export interface FrameworkRequest {
   signal?: AbortSignal;
 }
 
+/**
+ * Adapter-normalized mutable response facade shared across dispatch stages.
+ *
+ * Dispatch policies write headers, status, redirects, and bodies through this
+ * contract before the underlying platform commits the response.
+ */
 export interface FrameworkResponse {
   compression?: FrameworkResponseCompression;
   statusCode?: number;
@@ -39,6 +54,7 @@ export interface FrameworkResponse {
   send(body: unknown): MaybePromise<void>;
 }
 
+/** Compression writer used when a platform can stream encoded response bodies. */
 export interface FrameworkResponseCompression {
   write(
     body: Uint8Array,
@@ -46,10 +62,14 @@ export interface FrameworkResponseCompression {
   ): MaybePromise<boolean>;
 }
 
+/** Additional metadata passed to a response compression writer. */
 export interface FrameworkResponseCompressionWriteOptions {
   contentType?: string;
 }
 
+/**
+ * Low-level streaming handle used by SSE and other incremental response flows.
+ */
 export interface FrameworkResponseStream {
   readonly closed: boolean;
   close(): void;
@@ -59,16 +79,19 @@ export interface FrameworkResponseStream {
   write(chunk: string | Uint8Array): boolean;
 }
 
+/** Serializer used during response content negotiation. */
 export interface ResponseFormatter {
   readonly mediaType: string;
   format(body: unknown): string | Buffer;
 }
 
+/** Response negotiation settings applied to one route or dispatcher instance. */
 export interface ContentNegotiationOptions {
   defaultMediaType?: string;
   formatters?: ResponseFormatter[];
 }
 
+/** Authenticated caller identity attached to the active request context. */
 export interface Principal {
   subject: string;
   issuer?: string;
@@ -78,6 +101,10 @@ export interface Principal {
   claims: Record<string, unknown>;
 }
 
+/**
+ * Per-request execution context shared across binding, guards, interceptors,
+ * and controller handlers.
+ */
 export interface RequestContext {
   request: FrameworkRequest;
   response: FrameworkResponse;
@@ -87,17 +114,22 @@ export interface RequestContext {
   container: RequestScopeContainer;
 }
 
+/** Typed metadata key used to store request-scoped values safely. */
 export interface ContextKey<T> {
   readonly id: symbol;
   readonly description: string;
   readonly __type?: T;
 }
 
+/** Controller method signature after DTO binding and request-context injection. */
 export type ControllerHandler<Input = unknown, Result = unknown> = (
   input: Input,
   ctx: RequestContext,
 ) => MaybePromise<Result>;
 
+/**
+ * Route-level behavioral metadata collected from HTTP decorators.
+ */
 export interface RouteDefinition {
   method: HttpMethod;
   path: string;
@@ -111,6 +143,7 @@ export interface RouteDefinition {
   version?: string;
 }
 
+/** Derived metadata used while mapping controllers into dispatchable handlers. */
 export interface HandlerMetadata {
   controllerPath: string;
   effectivePath: string;
@@ -120,6 +153,7 @@ export interface HandlerMetadata {
   pathParams: string[];
 }
 
+/** Fully resolved controller handler descriptor stored in handler mappings. */
 export interface HandlerDescriptor {
   controllerToken: Constructor;
   metadata: HandlerMetadata;
@@ -127,26 +161,34 @@ export interface HandlerDescriptor {
   route: RouteDefinition;
 }
 
+/** Result returned when request matching resolves one handler and path params. */
 export interface HandlerMatch {
   descriptor: HandlerDescriptor;
   params: Readonly<Record<string, string>>;
 }
 
+/** Immutable lookup table that matches incoming requests to controller handlers. */
 export interface HandlerMapping {
   readonly descriptors: HandlerDescriptor[];
 
   match(request: FrameworkRequest): HandlerMatch | undefined;
 }
 
+/** Source module/controller pair used to build a handler mapping. */
 export interface HandlerSource {
   controllerToken: Constructor;
   moduleMiddleware?: MiddlewareLike[];
   moduleType?: Constructor;
 }
 
+/** Candidate version values returned by a custom version extractor. */
 export type VersioningExtractorResult = string | readonly string[] | undefined;
+/** Callback that extracts route version candidates from one framework request. */
 export type VersioningExtractor = (request: FrameworkRequest) => VersioningExtractorResult;
 
+/**
+ * Versioning configuration shared by dispatcher and route-mapping policies.
+ */
 export type VersioningOptions =
   | {
       type?: VersioningType.URI;
@@ -164,54 +206,66 @@ export type VersioningOptions =
       extractor: VersioningExtractor;
     };
 
+/** Runtime dispatcher that executes the full HTTP request lifecycle. */
 export interface Dispatcher {
   dispatch(request: FrameworkRequest, response: FrameworkResponse): Promise<void>;
 }
 
+/** Observation payload delivered to request observers throughout one dispatch. */
 export interface RequestObservationContext {
   handler?: HandlerDescriptor;
   requestContext: RequestContext;
 }
 
+/** Continuation callback that advances middleware or interceptor execution. */
 export type Next = () => Promise<void>;
 
+/** Input passed to one middleware invocation. */
 export interface MiddlewareContext {
   request: FrameworkRequest;
   requestContext: RequestContext;
   response: FrameworkResponse;
 }
 
+/** Request pipeline middleware contract. */
 export interface Middleware {
   handle(context: MiddlewareContext, next: Next): MaybePromise<void>;
 }
 
+/** Declarative middleware binding for selected route patterns. */
 export interface MiddlewareRouteConfig {
   middleware: Constructor<Middleware>;
   routes: string[];
 }
 
+/** Guard execution context for one matched handler invocation. */
 export interface GuardContext {
   handler: HandlerDescriptor;
   requestContext: RequestContext;
 }
 
+/** Authorization or precondition contract evaluated before handler execution. */
 export interface Guard {
   canActivate(context: GuardContext): MaybePromise<void | boolean>;
 }
 
+/** Lazy handle that lets interceptors continue into the next execution stage. */
 export interface CallHandler {
   handle(): Promise<unknown>;
 }
 
+/** Interceptor execution context for one matched handler. */
 export interface InterceptorContext {
   handler: HandlerDescriptor;
   requestContext: RequestContext;
 }
 
+/** Around-invocation hook for transforming handler input, output, or errors. */
 export interface Interceptor {
   intercept(context: InterceptorContext, next: CallHandler): MaybePromise<unknown>;
 }
 
+/** Lifecycle observer notified as one request moves through dispatch stages. */
 export interface RequestObserver {
   onHandlerMatched?(context: RequestObservationContext): MaybePromise<void>;
   onRequestError?(context: RequestObservationContext, error: unknown): MaybePromise<void>;
@@ -220,13 +274,16 @@ export interface RequestObserver {
   onRequestSuccess?(context: RequestObservationContext, value: unknown): MaybePromise<void>;
 }
 
+/** Context passed to DTO binders while resolving handler arguments. */
 export interface ArgumentResolverContext {
   handler: HandlerDescriptor;
   requestContext: RequestContext;
 }
 
+/** Converter reference accepted by binding decorators and binder configuration. */
 export type ConverterLike = Converter | Token<Converter>;
 
+/** DTO property target metadata supplied to a converter invocation. */
 export interface ConverterTarget {
   dto: Constructor;
   handler: HandlerDescriptor;
@@ -236,15 +293,21 @@ export interface ConverterTarget {
   source: MetadataSource;
 }
 
+/** DTO binder that materializes one handler input object from request data. */
 export interface Binder {
   bind(dto: Constructor, context: ArgumentResolverContext): MaybePromise<unknown>;
 }
 
+/** Value converter used to coerce one bound request field into a target shape. */
 export interface Converter {
   convert(value: unknown, target: ConverterTarget): MaybePromise<unknown>;
 }
 
+/** Middleware reference accepted by module/runtime configuration. */
 export type MiddlewareLike = Middleware | Token<Middleware> | MiddlewareRouteConfig;
+/** Guard reference accepted by route metadata and runtime configuration. */
 export type GuardLike = Guard | Token<Guard>;
+/** Interceptor reference accepted by route metadata and runtime configuration. */
 export type InterceptorLike = Interceptor | Token<Interceptor>;
+/** Request observer reference accepted by runtime configuration. */
 export type RequestObserverLike = RequestObserver | Token<RequestObserver>;

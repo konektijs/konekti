@@ -4,6 +4,7 @@ import { createDownResult, createUpResult, resolveIndicatorKey, throwHealthCheck
 import { HealthCheckError } from '../errors.js';
 import type { HealthIndicator, HealthIndicatorResult } from '../types.js';
 
+/** Options for probing one upstream HTTP dependency. */
 export interface HttpHealthIndicatorOptions {
   expectedStatus?: number | readonly number[] | ((status: number) => boolean);
   headers?: Record<string, string>;
@@ -31,10 +32,22 @@ function isExpectedStatus(status: number, expected?: HttpHealthIndicatorOptions[
   return status >= 200 && status < 300;
 }
 
+/**
+ * Create an HTTP-backed health indicator.
+ *
+ * @param options HTTP probe settings such as URL, method, headers, and accepted status codes.
+ * @returns A health indicator that fetches the configured endpoint on each check.
+ */
 export function createHttpHealthIndicator(options: HttpHealthIndicatorOptions): HealthIndicator {
   return new HttpHealthIndicator(options);
 }
 
+/**
+ * Create a provider that registers an `HttpHealthIndicator` instance.
+ *
+ * @param options HTTP probe settings such as URL, method, headers, and accepted status codes.
+ * @returns A value provider that exposes `HttpHealthIndicator` from the DI container.
+ */
 export function createHttpHealthIndicatorProvider(options: HttpHealthIndicatorOptions): Provider {
   return {
     provide: HttpHealthIndicator,
@@ -42,6 +55,7 @@ export function createHttpHealthIndicatorProvider(options: HttpHealthIndicatorOp
   };
 }
 
+/** Health indicator that probes an upstream HTTP endpoint with `fetch()`. */
 export class HttpHealthIndicator implements HealthIndicator {
   readonly key: string | undefined;
 
