@@ -15,9 +15,12 @@ import type {
 import type { BootstrapTimingDiagnostics } from './health/diagnostics.js';
 import type { PlatformComponentInput } from './platform-contract.js';
 
+/** Module class accepted by bootstrap and module-graph compilation helpers. */
 export type ModuleType = Constructor & { definition?: ModuleDefinition };
+/** Controller class discovered inside one compiled module definition. */
 export type ControllerType = Constructor;
 
+/** Programmatic module definition consumed by `defineModule()` and bootstrap. */
 export interface ModuleDefinition {
   imports?: ModuleType[];
   providers?: Provider[];
@@ -27,6 +30,7 @@ export interface ModuleDefinition {
   global?: boolean;
 }
 
+/** Low-level options used while compiling the runtime module graph. */
 export interface BootstrapModuleOptions {
   duplicateProviderPolicy?: 'warn' | 'throw' | 'ignore';
   logger?: ApplicationLogger;
@@ -34,6 +38,7 @@ export interface BootstrapModuleOptions {
   validationTokens?: Token[];
 }
 
+/** Compiled module record produced by module-graph analysis. */
 export interface CompiledModule {
   type: ModuleType;
   definition: ModuleDefinition;
@@ -41,28 +46,34 @@ export interface CompiledModule {
   providerTokens: Set<Token>;
 }
 
+/** Result returned by low-level bootstrap compilation helpers. */
 export interface BootstrapResult {
   container: Container;
   modules: CompiledModule[];
   rootModule: ModuleType;
 }
 
+/** Lifecycle hook invoked after one module's providers are instantiated. */
 export interface OnModuleInit {
   onModuleInit(): MaybePromise<void>;
 }
 
+/** Lifecycle hook invoked after the full application bootstrap finishes. */
 export interface OnApplicationBootstrap {
   onApplicationBootstrap(): MaybePromise<void>;
 }
 
+/** Lifecycle hook invoked when one module is being torn down. */
 export interface OnModuleDestroy {
   onModuleDestroy(): MaybePromise<void>;
 }
 
+/** Lifecycle hook invoked during application shutdown with the active signal. */
 export interface OnApplicationShutdown {
   onApplicationShutdown(signal?: string): MaybePromise<void>;
 }
 
+/** Logger contract used by runtime bootstrap and lifecycle diagnostics. */
 export interface ApplicationLogger {
   debug(message: string, context?: string): void;
   error(message: string, error?: unknown, context?: string): void;
@@ -70,6 +81,7 @@ export interface ApplicationLogger {
   warn(message: string, context?: string): void;
 }
 
+/** Runtime-visible application states for HTTP and microservice shells. */
 export type ApplicationState = 'bootstrapped' | 'ready' | 'closed';
 
 /**
@@ -83,10 +95,12 @@ export interface ExceptionFilterContext {
   requestId?: string;
 }
 
+/** Error filter contract evaluated when a request pipeline throws. */
 export interface ExceptionFilterHandler {
   catch(error: unknown, context: ExceptionFilterContext): MaybePromise<boolean | void>;
 }
 
+/** High-level bootstrap options for creating an HTTP application shell. */
 export interface BootstrapApplicationOptions {
   adapter?: HttpApplicationAdapter;
   /**
@@ -119,22 +133,27 @@ export interface BootstrapApplicationOptions {
   versioning?: VersioningOptions;
 }
 
+/** Options accepted by `KonektiFactory.create(...)`. */
 export type CreateApplicationOptions = Omit<BootstrapApplicationOptions, 'rootModule'>;
 
+/** Options accepted by `KonektiFactory.createApplicationContext(...)`. */
 export interface CreateApplicationContextOptions
   extends Omit<BootstrapApplicationOptions, 'adapter' | 'converters' | 'filters' | 'middleware' | 'observers' | 'rootModule'> {
 }
 
+/** Runtime transport contract used by microservice application shells. */
 export interface MicroserviceRuntime {
   emit?(pattern: string, payload: unknown): MaybePromise<void>;
   listen(): MaybePromise<void>;
   send?(pattern: string, payload: unknown, signal?: AbortSignal): MaybePromise<unknown>;
 }
 
+/** Options accepted by `Application.connectMicroservice(...)`. */
 export interface CreateMicroserviceOptions extends CreateApplicationContextOptions {
   microserviceToken?: Token<MicroserviceRuntime>;
 }
 
+/** Dependency-injection application shell without an HTTP listener. */
 export interface ApplicationContext {
   readonly bootstrapTiming?: BootstrapTimingDiagnostics;
   readonly container: Container;
@@ -145,6 +164,7 @@ export interface ApplicationContext {
   get<T>(token: Token<T>): Promise<T>;
 }
 
+/** Full HTTP application shell returned by `KonektiFactory.create(...)`. */
 export interface Application {
   readonly bootstrapTiming?: BootstrapTimingDiagnostics;
   readonly container: Container;
@@ -162,6 +182,7 @@ export interface Application {
   ready(): Promise<void>;
 }
 
+/** Connected microservice shell managed by an HTTP application or context. */
 export interface MicroserviceApplication extends ApplicationContext {
   readonly state: ApplicationState;
 
