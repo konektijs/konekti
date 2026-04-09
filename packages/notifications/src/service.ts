@@ -19,12 +19,20 @@ import type {
   NotificationsQueueJob,
 } from './types.js';
 
+let fallbackDeliveryIdSequence = 0;
+
 function normalizeDeliveryId(value: string | undefined, fallback: NotificationDispatchRequest): string {
   if (value && value.length > 0) {
     return value;
   }
 
-  return fallback.id ?? `${fallback.channel}:${Date.now().toString(36)}`;
+  if (fallback.id) {
+    return fallback.id;
+  }
+
+  fallbackDeliveryIdSequence = (fallbackDeliveryIdSequence + 1) % Number.MAX_SAFE_INTEGER;
+
+  return `${fallback.channel}:${Date.now().toString(36)}:${fallbackDeliveryIdSequence.toString(36)}:${Math.random().toString(36).slice(2, 10)}`;
 }
 
 /**
@@ -72,7 +80,7 @@ export class NotificationsService implements Notifications {
     notification: TRequest,
     options: NotificationDispatchOptions = {},
   ): Promise<NotificationDispatchResult> {
-    await this.publishLifecycleEvent('notification.dispatch.requested', notification, options);
+    await this.publishLifecycleEventSafely('notification.dispatch.requested', notification, options);
 
     if (this.shouldQueue(1, options)) {
       const job = this.createQueueJob(notification);
@@ -84,7 +92,7 @@ export class NotificationsService implements Notifications {
         status: 'queued',
       };
 
-      await this.publishLifecycleEvent('notification.dispatch.queued', notification, options, result.deliveryId);
+      await this.publishLifecycleEventSafely('notification.dispatch.queued', notification, options, result.deliveryId);
 
       return result;
     }
@@ -101,7 +109,7 @@ export class NotificationsService implements Notifications {
         status: delivery.status ?? 'delivered',
       };
 
-      await this.publishLifecycleEvent(
+      await this.publishLifecycleEventSafely(
         result.queued ? 'notification.dispatch.queued' : 'notification.dispatch.delivered',
         notification,
         options,
@@ -110,7 +118,7 @@ export class NotificationsService implements Notifications {
 
       return result;
     } catch (error) {
-      await this.publishLifecycleEvent('notification.dispatch.failed', notification, options, undefined, error);
+      await this.publishLifecycleEventSafely('notification.dispatch.failed', notification, options, undefined, error);
       throw error;
     }
   }
@@ -141,6 +149,11 @@ export class NotificationsService implements Notifications {
     if (this.shouldQueue(notifications.length, options)) {
       const queue = this.requireQueueAdapter();
       const jobs = notifications.map((notification) => this.createQueueJob(notification));
+
+      for (const notification of notifications) {
+        await this.publishLifecycleEventSafely('notification.dispatch.requested', notification, options);
+      }
+
       const ids = queue.enqueueMany
         ? await queue.enqueueMany(jobs)
         : await Promise.all(jobs.map((job) => queue.enqueue(job)));
@@ -154,8 +167,7 @@ export class NotificationsService implements Notifications {
 
       for (let index = 0; index < notifications.length; index += 1) {
         const notification = notifications[index];
-        await this.publishLifecycleEvent('notification.dispatch.requested', notification, options, results[index]?.deliveryId);
-        await this.publishLifecycleEvent('notification.dispatch.queued', notification, options, results[index]?.deliveryId);
+        await this.publishLifecycleEventSafely('notification.dispatch.queued', notification, options, results[index]?.deliveryId);
       }
 
       return {
@@ -282,5 +294,19 @@ export class NotificationsService implements Notifications {
     };
 
     await this.options.events.publisher.publish(event);
+  }
+
+  private async publishLifecycleEventSafely<TRequest extends NotificationDispatchRequest>(
+    name: NotificationLifecycleEvent['name'],
+    notification: TRequest,
+    options: NotificationDispatchOptions,
+    deliveryId?: string,
+    error?: unknown,
+  ): Promise<void> {
+    try {
+      await this.publishLifecycleEvent(name, notification, options, deliveryId, error);
+    } catch {
+      return;
+    }
   }
 }

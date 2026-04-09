@@ -31,8 +31,13 @@ function moduleProviders(moduleType: Constructor): Provider[] {
 
 class RecordingPublisher implements NotificationsEventPublisher {
   readonly events: NotificationLifecycleEvent[] = [];
+  failOnNames = new Set<NotificationLifecycleEvent['name']>();
 
   async publish(event: NotificationLifecycleEvent): Promise<void> {
+    if (this.failOnNames.has(event.name)) {
+      throw new Error(`publisher failed:${event.name}`);
+    }
+
     this.events.push(event);
   }
 }
@@ -143,6 +148,7 @@ describe('NotificationsModule', () => {
 
     expect(service).toBeInstanceOf(NotificationsService);
     expect(channels.map((channel: NotificationChannel) => channel.channel)).toEqual(['slack']);
+    expect(Object.isFrozen(channels)).toBe(true);
     expect(factoryCalls).toEqual(['secret-key']);
     expect(deliveries).toEqual(['hello:secret-key']);
     expect(publisher.events.map((event) => event.name)).toEqual([
@@ -153,6 +159,7 @@ describe('NotificationsModule', () => {
 
   it('uses the optional queue seam for bulk delivery when the threshold is met', async () => {
     const queue = new RecordingQueueAdapter();
+    const publisher = new RecordingPublisher();
     const container = new Container();
     const moduleType = NotificationsModule.forRoot({
       channels: [
@@ -166,6 +173,10 @@ describe('NotificationsModule', () => {
       queue: {
         adapter: queue,
         bulkThreshold: 2,
+      },
+      events: {
+        publishLifecycleEvents: true,
+        publisher,
       },
     });
 
@@ -183,6 +194,104 @@ describe('NotificationsModule', () => {
       succeeded: 2,
     });
     expect(result.results.map((entry: NotificationDispatchResult) => entry.deliveryId)).toEqual(['queued:1', 'queued:2']);
+    expect(publisher.events).toMatchObject([
+      {
+        channel: 'email',
+        deliveryId: undefined,
+        name: 'notification.dispatch.requested',
+      },
+      {
+        channel: 'email',
+        deliveryId: undefined,
+        name: 'notification.dispatch.requested',
+      },
+      {
+        channel: 'email',
+        deliveryId: 'queued:1',
+        name: 'notification.dispatch.queued',
+      },
+      {
+        channel: 'email',
+        deliveryId: 'queued:2',
+        name: 'notification.dispatch.queued',
+      },
+    ]);
+  });
+
+  it('preserves direct delivery results when lifecycle publication fails', async () => {
+    const publisher = new RecordingPublisher();
+    publisher.failOnNames.add('notification.dispatch.delivered');
+    const container = new Container();
+    const moduleType = NotificationsModule.forRoot({
+      channels: [
+        {
+          channel: 'email',
+          async send() {
+            return { externalId: 'delivery-safe' };
+          },
+        },
+      ],
+      events: {
+        publishLifecycleEvents: true,
+        publisher,
+      },
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(NotificationsService);
+
+    await expect(service.dispatch({ channel: 'email', payload: { template: 'safe' } })).resolves.toMatchObject({
+      deliveryId: 'delivery-safe',
+      status: 'delivered',
+    });
+  });
+
+  it('preserves underlying delivery errors when lifecycle failure publication also fails', async () => {
+    const publisher = new RecordingPublisher();
+    publisher.failOnNames.add('notification.dispatch.failed');
+    const container = new Container();
+    const moduleType = NotificationsModule.forRoot({
+      channels: [
+        {
+          channel: 'email',
+          async send() {
+            throw new Error('channel delivery failed');
+          },
+        },
+      ],
+      events: {
+        publishLifecycleEvents: true,
+        publisher,
+      },
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(NotificationsService);
+
+    await expect(service.dispatch({ channel: 'email', payload: { template: 'broken' } })).rejects.toThrow(
+      'channel delivery failed',
+    );
+  });
+
+  it('uses collision-resistant fallback delivery ids when channels omit external ids', async () => {
+    const container = new Container();
+    const moduleType = NotificationsModule.forRoot({
+      channels: [
+        {
+          channel: 'email',
+          async send() {
+            return {};
+          },
+        },
+      ],
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(NotificationsService);
+    const first = await service.dispatch({ channel: 'email', payload: { template: 'first' } });
+    const second = await service.dispatch({ channel: 'email', payload: { template: 'second' } });
+
+    expect(first.deliveryId).not.toBe(second.deliveryId);
   });
 
   it('captures missing-channel failures during tolerant bulk dispatch', async () => {
