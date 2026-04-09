@@ -101,6 +101,61 @@ describe('NotificationsModule', () => {
     ]);
   });
 
+  it('keeps single dispatch direct by default even when bulkThreshold is 1', async () => {
+    const queue = new RecordingQueueAdapter();
+    const deliveries: string[] = [];
+    const container = new Container();
+    const moduleType = NotificationsModule.forRoot({
+      channels: [
+        {
+          channel: 'email',
+          async send() {
+            deliveries.push('direct');
+            return { externalId: 'direct-1' };
+          },
+        },
+      ],
+      queue: {
+        adapter: queue,
+        bulkThreshold: 1,
+      },
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(NotificationsService);
+    const result = await service.dispatch({ channel: 'email', payload: { template: 'single' } });
+
+    expect(result).toMatchObject({ deliveryId: 'direct-1', queued: false, status: 'delivered' });
+    expect(deliveries).toEqual(['direct']);
+    expect(queue.jobs).toHaveLength(0);
+  });
+
+  it('still allows single dispatch to opt into queue delivery explicitly', async () => {
+    const queue = new RecordingQueueAdapter();
+    const container = new Container();
+    const moduleType = NotificationsModule.forRoot({
+      channels: [
+        {
+          channel: 'email',
+          async send() {
+            throw new Error('direct delivery should not run when queue is explicitly requested');
+          },
+        },
+      ],
+      queue: {
+        adapter: queue,
+        bulkThreshold: 50,
+      },
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(NotificationsService);
+    const result = await service.dispatch({ channel: 'email', payload: { template: 'single' } }, { queue: true });
+
+    expect(result).toMatchObject({ deliveryId: 'queued:1', queued: true, status: 'queued' });
+    expect(queue.jobs).toHaveLength(1);
+  });
+
   it('resolves async options once and exposes the compatibility facade and channel token', async () => {
     const API_KEY = Symbol('api-key');
     const publisher = new RecordingPublisher();

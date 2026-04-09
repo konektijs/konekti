@@ -82,7 +82,7 @@ export class NotificationsService implements Notifications {
   ): Promise<NotificationDispatchResult> {
     await this.publishLifecycleEventSafely('notification.dispatch.requested', notification, options);
 
-    if (this.shouldQueue(1, options)) {
+    if (this.shouldQueueSingleDispatch(options)) {
       const job = this.createQueueJob(notification);
       const deliveryId = await this.requireQueueAdapter().enqueue(job);
       const result: NotificationDispatchResult = {
@@ -254,6 +254,10 @@ export class NotificationsService implements Notifications {
     }
 
     return this.options.events?.publishLifecycleEvents ?? false;
+  }
+
+  private shouldQueueSingleDispatch(options: NotificationDispatchOptions): boolean {
+    return options.queue === true;
   }
 
   private shouldQueue(notificationCount: number, options: NotificationDispatchOptions): boolean {
