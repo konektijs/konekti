@@ -33,7 +33,7 @@ function normalizeNotificationsModuleOptions(
   }
 
   return {
-    channels,
+    channels: Object.freeze(channels),
     events: options.events
       ? {
           publishLifecycleEvents: options.events.publishLifecycleEvents ?? true,
