@@ -185,6 +185,61 @@ describe('CLI command runner', () => {
     expect(mainFile).toContain("createFastifyAdapter({ port })");
   });
 
+  it('scaffolds the TCP microservice starter when shape and transport are selected explicitly', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli([
+      'new',
+      '--shape',
+      'microservice',
+      '--transport',
+      'tcp',
+      '--runtime',
+      'node',
+      '--platform',
+      'none',
+      '--tooling',
+      'standard',
+      '--topology',
+      'single-package',
+      'starter-microservice',
+    ], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const projectDirectory = join(workspaceDirectory, 'starter-microservice');
+    const packageJson = readFileSync(join(projectDirectory, 'package.json'), 'utf8');
+    const mainFile = readFileSync(join(projectDirectory, 'src', 'main.ts'), 'utf8');
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Installing dependencies with pnpm');
+    expect(stdoutBuffer.join('')).toContain('cd ./starter-microservice');
+    expect(packageJson).toContain('@fluojs/microservices');
+    expect(packageJson).not.toContain('@fluojs/platform-fastify');
+    expect(mainFile).toContain('FluoFactory.createMicroservice(AppModule)');
+  });
+
+  it('reports validated-but-not-yet-runnable microservice transport families through the CLI contract', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stderrBuffer: string[] = [];
+
+    const exitCode = await runCli(['new', 'starter-app', '--shape', 'microservice', '--transport', 'kafka', '--platform', 'none'], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stderrBuffer.join('')).toContain('The first-class microservice starter currently emits the runnable TCP starter');
+  });
+
   it('scaffolds a local .env file while ignoring it from git by default', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
@@ -291,10 +346,10 @@ describe('CLI command runner', () => {
     expect(exitCode).toBe(0);
     expect(stdoutBuffer.join('')).toContain('Usage: fluo new|create [project-name] [options]');
     expect(stdoutBuffer.join('')).toMatch(/\| Option\s+\| Aliases \| Description\s+\|/);
-    expect(stdoutBuffer.join('')).toContain('--shape <application>');
-    expect(stdoutBuffer.join('')).toContain('--transport <http>');
+    expect(stdoutBuffer.join('')).toContain('--shape <application|microservice>');
+    expect(stdoutBuffer.join('')).toContain('--transport <http|tcp|redis|redis-streams|nats|kafka|rabbitmq|mqtt|grpc>');
     expect(stdoutBuffer.join('')).toContain('--runtime <node>');
-    expect(stdoutBuffer.join('')).toContain('--platform <fastify>');
+    expect(stdoutBuffer.join('')).toContain('--platform <fastify|none>');
     expect(stdoutBuffer.join('')).toContain('--tooling <standard>');
     expect(stdoutBuffer.join('')).toContain('--topology <single-package>');
     expect(stdoutBuffer.join('')).toContain('--package-manager <pnpm|npm|yarn|bun>');

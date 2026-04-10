@@ -109,4 +109,47 @@ describe('scaffoldBootstrapApp', () => {
 
     expect(readDirectorySnapshot(explicitTargetDirectory)).toEqual(readDirectorySnapshot(defaultTargetDirectory));
   });
+
+  it('generates a runnable TCP microservice starter scaffold', async () => {
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-microservice-'));
+    temporaryDirectories.push(targetDirectory);
+
+    await scaffoldBootstrapApp({
+      packageManager: 'pnpm',
+      platform: 'none',
+      projectName: 'starter-microservice',
+      runtime: 'node',
+      shape: 'microservice',
+      skipInstall: true,
+      targetDirectory,
+      tooling: 'standard',
+      topology: {
+        deferred: true,
+        mode: 'single-package',
+      },
+      transport: 'tcp',
+    });
+
+    const packageJson = JSON.parse(readFileSync(join(targetDirectory, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const envFile = readFileSync(join(targetDirectory, '.env'), 'utf8');
+    const appFile = readFileSync(join(targetDirectory, 'src', 'app.ts'), 'utf8');
+    const mainFile = readFileSync(join(targetDirectory, 'src', 'main.ts'), 'utf8');
+    const appTestFile = readFileSync(join(targetDirectory, 'src', 'app.test.ts'), 'utf8');
+
+    expect(packageJson.dependencies).toMatchObject({
+      '@fluojs/config': expect.any(String),
+      '@fluojs/microservices': expect.any(String),
+      '@fluojs/runtime': expect.any(String),
+    });
+    expect(packageJson.dependencies).not.toHaveProperty('@fluojs/http');
+    expect(packageJson.dependencies).not.toHaveProperty('@fluojs/platform-fastify');
+    expect(readme).toContain('Shape: `microservice`');
+    expect(envFile).toContain('MICROSERVICE_PORT=4000');
+    expect(appFile).toContain('new TcpMicroserviceTransport({ host, port })');
+    expect(mainFile).toContain('FluoFactory.createMicroservice(AppModule)');
+    expect(appTestFile).toContain('InMemoryLoopbackTransport');
+  });
 });
