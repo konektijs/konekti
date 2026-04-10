@@ -8,7 +8,7 @@ Eliminate manual boilerplate and maintain a consistent project structure using t
 Developers who want to stay productive by automating the creation of modules, controllers, and services while ensuring architectural consistency.
 
 ### 1. generating a complete feature module
-A **module** is the primary unit of organization in Konekti. One command gives you a clean module entry point, and you can add the remaining pieces with focused generators.
+A **module** is the primary unit of organization in fluo. One command gives you a clean module entry point, and you can add the remaining pieces with focused generators.
 
 ```sh
 fluo g module catalog
@@ -41,7 +41,7 @@ fluo g module shop --dry-run
 
 ### why use the CLI?
 - **Zero Boilerplate**: Skip manual directory creation, repetitive file naming, and import setup.
-- **Consistent Shape**: Generated files follow the naming and placement rules documented in Konekti's reference docs.
+- **Consistent Shape**: Generated files follow the naming and placement rules documented in fluo's reference docs.
 - **Composable Workflow**: Start with a module, then add controllers, services, DTOs, events, or repositories as the feature grows.
 
 ### next steps

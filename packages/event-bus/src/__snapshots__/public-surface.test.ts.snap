@@ -11,7 +11,7 @@ exports[`@fluojs/event-bus root barrel public surface > keeps the documented roo
 ]
 `;
 
-exports[`@konekti/event-bus root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
+exports[`@fluojs/event-bus root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
 [
   "EVENT_BUS",
   "EventBusLifecycleService",

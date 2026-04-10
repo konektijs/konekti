@@ -26,15 +26,11 @@ pnpm add -g @fluojs/cli
 pnpm dlx @fluojs/cli new my-app
 ```
 
-정식 실행 명령어는 `fluo`입니다. 기존 `konekti` 명령은 임시 호환용 alias로만 유지되며 문서상의 기본값이 아닙니다.
-
-모노레포 내부 smoke 검증은 prerelease를 배포하는 대신 `pnpm --dir packages/cli run sandbox:test`로 실행하세요.
-
 ## 사용 시점
 
 - **부트스트랩**: 표준적이고 검증 가능한 구조로 새 프로젝트를 시작할 때.
 - **코드 생성**: 일관된 네이밍 규칙과 자동 연결 기능을 갖춘 모듈, 컨트롤러, 서비스, 레포지토리를 생성할 때.
-- **마이그레이션**: 기존 NestJS 애플리케이션을 Konekti의 표준 데코레이터 모델로 전환할 때.
+- **마이그레이션**: 기존 NestJS 애플리케이션을 fluo의 표준 데코레이터 모델로 전환할 때.
 - **검사(Inspection)**: 런타임 의존성 그래프를 시각화하고 플랫폼 수준의 문제를 진단할 때.
 
 ## 빠른 시작
@@ -59,7 +55,7 @@ fluo generate service users
 
 ## 주요 패턴
 
-### NestJS에서 Konekti로 마이그레이션
+### NestJS에서 fluo로 마이그레이션
 코드베이스를 TC39 표준 데코레이터에 맞게 조정하기 위해 안전한 1차 codemod를 실행합니다.
 
 ```bash
@@ -71,7 +67,7 @@ fluo migrate ./src --apply
 ```
 
 **주요 변환 사항:**
-- `@nestjs/common` 임포트를 `@konekti/core` 또는 `@konekti/http`로 재작성합니다.
+- `@nestjs/common` 임포트를 `@fluojs/core` 또는 `@fluojs/http`로 재작성합니다.
 - `@Injectable()`을 제거하고 스코프를 `@Scope()`로 매핑합니다.
 - `tsconfig.json`을 업데이트하여 `experimentalDecorators`를 비활성화합니다.
 
@@ -82,7 +78,7 @@ fluo migrate ./src --apply
 # 의존성 그래프를 Mermaid 형식으로 내보내기
 fluo inspect ./src/app.module.ts --mermaid
 
-### @konekti/studio용 snapshot 내보내기
+### @fluojs/studio용 snapshot 내보내기
 fluo inspect ./src/app.module.ts --json > snapshot.json
 ```
 

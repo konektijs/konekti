@@ -23,7 +23,7 @@ exports[`@fluojs/microservices root barrel public surface > keeps the documented
 ]
 `;
 
-exports[`@konekti/microservices root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
+exports[`@fluojs/microservices root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
 [
   "BidiStreamPattern",
   "ClientStreamPattern",

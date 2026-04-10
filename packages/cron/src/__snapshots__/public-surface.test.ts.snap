@@ -22,7 +22,7 @@ exports[`@fluojs/cron root barrel public surface > keeps the documented root exp
 ]
 `;
 
-exports[`@konekti/cron root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
+exports[`@fluojs/cron root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
 [
   "Cron",
   "CronExpression",

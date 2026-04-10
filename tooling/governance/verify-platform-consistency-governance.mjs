@@ -41,12 +41,12 @@ const removedRuntimeModuleFactoryNames = [
 ];
 
 const officialTransportDocsPackages = [
-  '@konekti/platform-fastify',
-  '@konekti/platform-express',
-  '@konekti/socket.io',
-  '@konekti/platform-bun',
-  '@konekti/platform-deno',
-  '@konekti/platform-cloudflare-workers',
+  '@fluojs/platform-fastify',
+  '@fluojs/platform-express',
+  '@fluojs/socket.io',
+  '@fluojs/platform-bun',
+  '@fluojs/platform-deno',
+  '@fluojs/platform-cloudflare-workers',
 ];
 
 export function getOfficialTransportDocsPackages() {
@@ -164,7 +164,7 @@ export function parsePackageNamesFromFamilyTable(markdown, sectionTitle) {
       break;
     }
 
-    for (const match of line.matchAll(/`(@konekti\/[^`]+)`/g)) {
+    for (const match of line.matchAll(/`(@(?:fluojs|konekti)\/[^`]+)`/g)) {
       packages.add(match[1]);
     }
   }

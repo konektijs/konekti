@@ -6,7 +6,7 @@
 
 ## 이 예제가 보여주는 것
 
-- `KonektiFactory.create(..., { adapter: createFastifyAdapter(...) })` 기반 adapter-first Fastify 부트스트랩
+- `fluoFactory.create(..., { adapter: createFastifyAdapter(...) })` 기반 adapter-first Fastify 부트스트랩
 - `@Module`, `@Inject`, `@Controller`, `@Get`을 사용한 표준 데코레이터 DI
 - `createHealthModule()`의 내장 `/health` 및 `/ready` 엔드포인트
 - `/hello` 경로의 단일 스타터 컨트롤러

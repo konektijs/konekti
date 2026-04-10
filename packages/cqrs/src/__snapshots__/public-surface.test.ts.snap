@@ -38,7 +38,7 @@ exports[`@fluojs/cqrs root barrel public surface > keeps the documented root exp
 ]
 `;
 
-exports[`@konekti/cqrs root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
+exports[`@fluojs/cqrs root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
 [
   "COMMAND_BUS",
   "CommandBusLifecycleService",

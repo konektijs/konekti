@@ -1,8 +1,8 @@
-# @konekti/studio
+# @fluojs/studio
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
-File-first shared platform snapshot viewer for Konekti runtime exports.
+File-first shared platform snapshot viewer for fluo runtime exports.
 
 ## Table of Contents
 
@@ -17,7 +17,7 @@ File-first shared platform snapshot viewer for Konekti runtime exports.
 ## Installation
 
 ```bash
-pnpm add @konekti/studio
+pnpm add @fluojs/studio
 ```
 
 ## When to Use
@@ -29,7 +29,7 @@ pnpm add @konekti/studio
 
 ## Quick Start
 
-Studio consumes JSON exports from the Konekti CLI.
+Studio consumes JSON exports from the fluo CLI.
 
 1. **Export a snapshot**:
    ```bash
