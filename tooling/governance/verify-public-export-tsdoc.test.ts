@@ -140,7 +140,7 @@ describe('changedPublicExportSourcePathsFromGit', () => {
     ].join('\n');
 
     const previousSource = [
-      "import { Module } from '@konekti/core';",
+      "import { Module } from '@fluojs/core';",
       '',
       '/**',
       ' * Configure the example module.',

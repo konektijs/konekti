@@ -6,7 +6,7 @@ The smallest runnable fluo application. This example follows the exact same star
 
 ## what this example demonstrates
 
-- Adapter-first Fastify bootstrap via `KonektiFactory.create(..., { adapter: createFastifyAdapter(...) })`
+- Adapter-first Fastify bootstrap via `fluoFactory.create(..., { adapter: createFastifyAdapter(...) })`
 - Standard decorator DI with `@Module`, `@Inject`, `@Controller`, `@Get`
 - Built-in `/health` and `/ready` endpoints from `createHealthModule()`
 - A single starter controller at `/hello`

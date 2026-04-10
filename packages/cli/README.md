@@ -26,15 +26,11 @@ Or run directly without installation:
 pnpm dlx @fluojs/cli new my-app
 ```
 
-The canonical executable is `fluo`. The legacy `konekti` command remains as a temporary compatibility alias and is not the documented default.
-
-For repo-local smoke verification, run `pnpm --dir packages/cli run sandbox:test` instead of publishing prereleases.
-
 ## When to Use
 
 - **Bootstrapping**: When starting a new project with a standard, verifiable structure.
 - **Generation**: To create modules, controllers, services, and repositories with consistent naming and automatic wiring.
-- **Migration**: When moving an existing NestJS application to Konekti's standard decorator model.
+- **Migration**: When moving an existing NestJS application to fluo's standard decorator model.
 - **Inspection**: To visualize the runtime dependency graph and diagnose platform-level issues.
 
 ## Quick Start
@@ -59,7 +55,7 @@ fluo generate service users
 
 ## Common Patterns
 
-### NestJS to Konekti Migration
+### NestJS to fluo Migration
 Run safe, first-phase codemods to align your codebase with TC39 standard decorators.
 
 ```bash
@@ -71,7 +67,7 @@ fluo migrate ./src --apply
 ```
 
 **Key Transformations:**
-- Rewrites imports from `@nestjs/common` to `@konekti/core` or `@konekti/http`.
+- Rewrites imports from `@nestjs/common` to `@fluojs/core` or `@fluojs/http`.
 - Removes `@Injectable()` and maps scopes to `@Scope()`.
 - Updates `tsconfig.json` to disable `experimentalDecorators`.
 
@@ -82,7 +78,7 @@ Visualize your application structure and troubleshoot initialization issues.
 # Export dependency graph as Mermaid
 fluo inspect ./src/app.module.ts --mermaid
 
-# Export snapshot for @konekti/studio
+# Export snapshot for @fluojs/studio
 fluo inspect ./src/app.module.ts --json > snapshot.json
 ```
 

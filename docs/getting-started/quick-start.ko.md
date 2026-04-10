@@ -18,12 +18,12 @@ pnpm add -g @fluojs/cli
 새로운 애플리케이션을 초기화합니다. 기본적으로 Node.js 환경에서 고성능 **Fastify** 어댑터가 구성됩니다.
 
 ```sh
-fluo new my-konekti-app
-cd my-konekti-app
+fluo new my-fluo-app
+cd my-fluo-app
 ```
 
 ### 3. 개발 시작
-Konekti 스타터 앱에는 TypeScript 컴파일과 파일 변경 시 자동 재시작을 처리하는 최적화된 개발 환경이 포함되어 있습니다.
+fluo 스타터 앱에는 TypeScript 컴파일과 파일 변경 시 자동 재시작을 처리하는 최적화된 개발 환경이 포함되어 있습니다.
 
 ```sh
 pnpm dev
@@ -37,7 +37,7 @@ pnpm dev
 - **샘플 모듈**: `curl http://localhost:3000/health-info/`  
   *표준 데코레이터 패턴이 실제로 어떻게 작동하는지 확인하세요.*
 
-### 왜 Konekti인가요?
+### 왜 fluo인가요?
 생성된 프로젝트의 `tsconfig.json`을 열어보세요. 무언가 다른 점을 발견하셨나요?
 ```json
 {
@@ -47,7 +47,7 @@ pnpm dev
   }
 }
 ```
-Konekti는 **TypeScript의 표준 기본 설정**만으로 동작합니다. 지난 10년간의 "실험적(experimental)" 기능이라는 짐 없이, 완벽한 IDE 지원과 타입 안정성을 누릴 수 있습니다.
+fluo는 **TypeScript의 표준 기본 설정**만으로 동작합니다. 지난 10년간의 "실험적(experimental)" 기능이라는 짐 없이, 완벽한 IDE 지원과 타입 안정성을 누릴 수 있습니다.
 
 ### 다음 단계
 - **진짜 서비스 만들기**: [첫 번째 기능 구현 경로](./first-feature-path.ko.md)를 따라 나만의 로직을 추가해 보세요.

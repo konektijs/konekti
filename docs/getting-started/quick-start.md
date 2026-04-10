@@ -18,12 +18,12 @@ pnpm add -g @fluojs/cli
 Initialize a fresh application. By default, this bootstraps a high-performance **Fastify** adapter on Node.js.
 
 ```sh
-fluo new my-konekti-app
-cd my-konekti-app
+fluo new my-fluo-app
+cd my-fluo-app
 ```
 
 ### 3. start development
-Konekti's starter comes with a pre-configured development environment that handles TypeScript compilation and process restarts automatically.
+fluo's starter comes with a pre-configured development environment that handles TypeScript compilation and process restarts automatically.
 
 ```sh
 pnpm dev
@@ -47,7 +47,7 @@ Open `tsconfig.json` in your new project. Notice something?
   }
 }
 ```
-Konekti works with **standard TypeScript defaults**. You get full IDE support and type safety without the "experimental" baggage of the past decade.
+fluo works with **standard TypeScript defaults**. You get full IDE support and type safety without the "experimental" baggage of the past decade.
 
 ### next steps
 - **Build something real**: Follow the [First Feature Path](./first-feature-path.md) to add your own logic.
