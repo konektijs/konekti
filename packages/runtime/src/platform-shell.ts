@@ -130,6 +130,10 @@ function normalizeSnapshot(snapshot: PlatformSnapshot, component: PlatformCompon
   };
 }
 
+/**
+ * A runtime implementation of the {@link PlatformShell} that manages the lifecycle
+ * of registered platform components, including dependency ordering and diagnostics.
+ */
 export class RuntimePlatformShell implements PlatformShell {
   private started = false;
   private stopped = false;
@@ -139,6 +143,12 @@ export class RuntimePlatformShell implements PlatformShell {
 
   constructor(private readonly registeredComponents: RegisteredPlatformComponent[]) {}
 
+  /**
+   * Creates a {@link RuntimePlatformShell} from an optional array of platform component inputs.
+   *
+   * @param components - The platform component inputs to register in the shell.
+   * @returns A new {@link RuntimePlatformShell} instance.
+   */
   static fromInputs(components: readonly PlatformComponentInput[] | undefined): RuntimePlatformShell {
     return new RuntimePlatformShell(toRegisteredComponents(components));
   }
@@ -300,7 +310,7 @@ export class RuntimePlatformShell implements PlatformShell {
           },
           state: 'failed',
           telemetry: {
-            namespace: 'konekti.platform',
+            namespace: 'fluo.platform',
             tags: {},
           },
         });
@@ -444,6 +454,12 @@ export class RuntimePlatformShell implements PlatformShell {
   }
 }
 
+/**
+ * Creates a {@link RuntimePlatformShell} instance to manage platform component lifecycles.
+ *
+ * @param components - The platform component inputs to register in the shell.
+ * @returns A new {@link RuntimePlatformShell} instance.
+ */
 export function createRuntimePlatformShell(components: readonly PlatformComponentInput[] | undefined): RuntimePlatformShell {
   return RuntimePlatformShell.fromInputs(components);
 }

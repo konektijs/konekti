@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createTestApp } from '@fluojs/testing';
-import { KonektiFactory } from '@fluojs/runtime';
+import { FluoFactory } from '@fluojs/runtime';
 import type { FrameworkRequest, FrameworkResponse } from '@fluojs/http';
 
 import { AppModule } from './app';
@@ -59,7 +59,7 @@ describe('OpsMetricsService', () => {
 
 describe('AppModule integration', () => {
   it('dispatches /health, /ready, and the ops trigger route', async () => {
-    const app = await KonektiFactory.create(AppModule, {});
+    const app = await FluoFactory.create(AppModule, {});
 
     const healthRes = createResponse();
     await app.dispatch(createRequest('GET', '/health'), healthRes);
@@ -102,7 +102,7 @@ describe('AppModule e2e', () => {
     const metricsResult = await app.dispatch({ method: 'GET', path: '/metrics' });
     expect(metricsResult.status).toBe(200);
     expect(metricsResult.body).toContain('example_ops_jobs_triggered_total');
-    expect(metricsResult.body).toContain('konekti_component_ready');
+    expect(metricsResult.body).toContain('fluo_component_ready');
 
     await app.close();
   });

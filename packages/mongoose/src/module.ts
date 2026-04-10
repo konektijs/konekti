@@ -18,7 +18,7 @@ type ResolvedMongooseModuleOptions<TConnection extends MongooseConnectionLike> =
   strictTransactions: boolean;
 };
 
-const MONGOOSE_NORMALIZED_OPTIONS = Symbol('konekti.mongoose.normalized-options');
+const MONGOOSE_NORMALIZED_OPTIONS = Symbol('fluo.mongoose.normalized-options');
 const MONGOOSE_MODULE_EXPORTS = [MongooseConnection, MongooseTransactionInterceptor];
 
 function normalizeMongooseModuleOptions<TConnection extends MongooseConnectionLike>(
@@ -137,7 +137,7 @@ function buildMongooseModuleAsync<TConnection extends MongooseConnectionLike>(
 }
 
 /**
- * Module entrypoint for wiring a Mongoose connection into the Konekti runtime lifecycle.
+ * Module entrypoint for wiring a Mongoose connection into the Fluo runtime lifecycle.
  */
 export class MongooseModule {
   /** Creates a module definition from static Mongoose options. */

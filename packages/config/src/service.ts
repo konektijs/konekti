@@ -1,4 +1,4 @@
-import { KonektiError } from '@fluojs/core';
+import { FluoError } from '@fluojs/core';
 
 import { cloneConfigDictionary } from './clone.js';
 import type { ConfigDictionary, DotPaths, DotValue } from './types.js';
@@ -32,13 +32,13 @@ export class ConfigService<T extends Record<string, unknown> = ConfigDictionary>
    *
    * @param key Configuration key or dot-path key that must exist in the current snapshot.
    * @returns The resolved value clone for object-like entries.
-   * @throws {KonektiError} When the key is absent (`code: 'CONFIG_KEY_MISSING'`).
+   * @throws {FluoError} When the key is absent (`code: 'CONFIG_KEY_MISSING'`).
    */
   getOrThrow<K extends DotPaths<T>>(key: K): DotValue<T, K & string> {
     const value = this._resolve(key as string);
 
     if (value === undefined) {
-      throw new KonektiError(`Missing config key: ${String(key)}`, { code: 'CONFIG_KEY_MISSING' });
+      throw new FluoError(`Missing config key: ${String(key)}`, { code: 'CONFIG_KEY_MISSING' });
     }
 
     return value as DotValue<T, K & string>;
@@ -78,6 +78,12 @@ export class ConfigService<T extends Record<string, unknown> = ConfigDictionary>
   }
 }
 
+/**
+ * Replaces the underlying configuration snapshot of a `ConfigService`.
+ *
+ * @param service The `ConfigService` instance to update.
+ * @param values The new configuration dictionary.
+ */
 export function replaceConfigServiceSnapshot<T extends Record<string, unknown>>(
   service: ConfigService<T>,
   values: T,

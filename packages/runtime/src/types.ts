@@ -133,10 +133,10 @@ export interface BootstrapApplicationOptions {
   versioning?: VersioningOptions;
 }
 
-/** Options accepted by `KonektiFactory.create(...)`. */
+/** Options accepted by `FluoFactory.create(...)`. */
 export type CreateApplicationOptions = Omit<BootstrapApplicationOptions, 'rootModule'>;
 
-/** Options accepted by `KonektiFactory.createApplicationContext(...)`. */
+/** Options accepted by `FluoFactory.createApplicationContext(...)`. */
 export interface CreateApplicationContextOptions
   extends Omit<BootstrapApplicationOptions, 'adapter' | 'converters' | 'filters' | 'middleware' | 'observers' | 'rootModule'> {
 }
@@ -164,7 +164,7 @@ export interface ApplicationContext {
   get<T>(token: Token<T>): Promise<T>;
 }
 
-/** Full HTTP application shell returned by `KonektiFactory.create(...)`. */
+/** Full HTTP application shell returned by `FluoFactory.create(...)`. */
 export interface Application {
   readonly bootstrapTiming?: BootstrapTimingDiagnostics;
   readonly container: Container;

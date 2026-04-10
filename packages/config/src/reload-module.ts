@@ -13,12 +13,12 @@ import type {
   ConfigReloadSubscription,
 } from './types.js';
 
-const CONFIG_RELOAD_OPTIONS = Symbol('konekti.config.reload-options');
+const CONFIG_RELOAD_OPTIONS = Symbol('fluo.config.reload-options');
 
 /**
  * Exposes the config reload manager contract for dependency injection.
  */
-export const CONFIG_RELOADER = Symbol('konekti.config.reloader');
+export const CONFIG_RELOADER = Symbol('fluo.config.reloader');
 
 function createSubscription<T>(listeners: Set<T>, listener: T): ConfigReloadSubscription {
   listeners.add(listener);

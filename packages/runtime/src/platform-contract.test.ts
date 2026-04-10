@@ -31,7 +31,7 @@ describe('platform contract spine', () => {
       },
       state: 'ready',
       telemetry: {
-        namespace: 'konekti.queue',
+        namespace: 'fluo.queue',
         tags: {
           env: 'test',
           instance: 'local',
@@ -62,7 +62,7 @@ describe('platform contract spine', () => {
       code: 'QUEUE_DEPENDENCY_NOT_READY',
       componentId: 'queue.default',
       dependsOn: ['redis.default'],
-      docsUrl: 'https://github.com/konektijs/konekti/tree/main/docs/concepts/platform-consistency-design.md',
+      docsUrl: 'https://github.com/fluojs/fluo/tree/main/docs/concepts/platform-consistency-design.md',
       fixHint: 'Verify Redis connectivity or disable queue for this environment.',
       message: 'Queue startup requires a ready Redis component.',
       severity: 'error',
@@ -116,7 +116,7 @@ describe('platform contract spine', () => {
           },
           state: 'ready',
           telemetry: {
-            namespace: 'konekti.queue',
+            namespace: 'fluo.queue',
             tags: {},
           },
         },

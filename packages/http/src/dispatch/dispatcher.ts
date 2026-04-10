@@ -29,16 +29,30 @@ import type {
   RequestObserverLike,
 } from '../types.js';
 
+/**
+ * Type definition for a global HTTP error handler function.
+ */
 export type ErrorHandler = (error: unknown, request: FrameworkRequest, response: FrameworkResponse, requestId?: string) => Promise<boolean | void> | boolean | void;
 
+/**
+ * Options for creating an HTTP {@link Dispatcher}.
+ */
 export interface CreateDispatcherOptions {
+  /** Global middleware applied to all requests. */
   appMiddleware?: MiddlewareLike[];
+  /** Optional parameter binder for mapping request data to controller arguments. */
   binder?: Binder;
+  /** Optional content negotiation configuration. */
   contentNegotiation?: ContentNegotiationOptions;
+  /** Mapping of routes to their respective handlers. */
   handlerMapping: HandlerMapping;
+  /** Global interceptors applied to all matched handlers. */
   interceptors?: InterceptorLike[];
+  /** Global request observers for telemetry and logging. */
   observers?: RequestObserverLike[];
+  /** Optional global error handler. */
   onError?: ErrorHandler;
+  /** Root DI container for creating request scopes. */
   rootContainer: Container;
 }
 
@@ -118,7 +132,7 @@ async function notifyObserversSafely(
   try {
     await notifyObservers(observers, requestContext, callback, handler);
   } catch (error) {
-    console.error('[konekti] request observer threw an unhandled error:', error);
+    console.error('[fluo] request observer threw an unhandled error:', error);
   }
 }
 
@@ -274,6 +288,12 @@ async function handleDispatchError(context: DispatchPhaseContext, error: unknown
   await writeErrorResponse(error, context.response, context.requestContext.requestId);
 }
 
+/**
+ * Creates an HTTP dispatcher instance for processing requests.
+ *
+ * @param options Configuration for routing, middleware, and dependency resolution.
+ * @returns A {@link Dispatcher} capable of routing {@link FrameworkRequest}s.
+ */
 export function createDispatcher(options: CreateDispatcherOptions): Dispatcher {
   const contentNegotiation = resolveContentNegotiation(options.contentNegotiation);
 
@@ -299,7 +319,7 @@ export function createDispatcher(options: CreateDispatcherOptions): Dispatcher {
             await phaseContext.requestContext.container.dispose();
           } catch (error) {
             // dispose errors are logged but must not mask the original request error
-            console.error('[konekti] request-scoped container dispose threw an error:', error);
+            console.error('[fluo] request-scoped container dispose threw an error:', error);
           }
         }
       });

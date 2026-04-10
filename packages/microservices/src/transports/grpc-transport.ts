@@ -91,7 +91,7 @@ interface ParsedGrpcPattern {
   readonly serviceName: string;
 }
 
-const DEFAULT_KIND_METADATA_KEY = 'x-konekti-kind';
+const DEFAULT_KIND_METADATA_KEY = 'x-fluo-kind';
 const DEFAULT_MESSAGE_KIND_VALUE = 'message';
 const DEFAULT_EVENT_KIND_VALUE = 'event';
 
@@ -1255,7 +1255,7 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
   }
 
   private logEventHandlerFailure(error: unknown): void {
-    console.error('[konekti][GrpcMicroserviceTransport] event handler failed:', error);
+    console.error('[fluo][GrpcMicroserviceTransport] event handler failed:', error);
   }
 }
 

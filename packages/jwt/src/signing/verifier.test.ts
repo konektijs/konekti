@@ -35,13 +35,13 @@ describe('DefaultJwtVerifier', () => {
   it('verifies a valid token and normalizes the principal', async () => {
     const verifier = new DefaultJwtVerifier({
       algorithms: ['HS256'],
-      audience: 'konekti',
+      audience: 'fluo',
       issuer: 'tests',
       secret: 'secret',
     });
     const token = signToken(
       {
-        aud: 'konekti',
+        aud: 'fluo',
         exp: Math.floor(Date.now() / 1000) + 60,
         iss: 'tests',
         scope: 'read write',
@@ -51,7 +51,7 @@ describe('DefaultJwtVerifier', () => {
     );
 
     await expect(verifier.verifyAccessToken(token)).resolves.toEqual({
-      audience: 'konekti',
+      audience: 'fluo',
       claims: expect.objectContaining({ sub: 'user-1' }),
       issuer: 'tests',
       roles: undefined,

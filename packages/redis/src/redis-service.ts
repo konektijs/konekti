@@ -14,7 +14,7 @@ function decodeRedisValue(raw: string): unknown {
 /**
  * JSON-aware facade over the shared Redis client.
  *
- * Use this service for common key-value access when you want Konekti to handle
+ * Use this service for common key-value access when you want Fluo to handle
  * JSON serialization and lifecycle-managed connection reuse.
  *
  * @example

@@ -139,7 +139,7 @@ export interface VerifyOptions {
 }
 
 /**
- * NestJS-style facade over Konekti's default JWT signer and verifier.
+ * NestJS-style facade over Fluo's default JWT signer and verifier.
  *
  * @remarks
  * This class keeps the low-level JWT behavior from {@link DefaultJwtSigner} and

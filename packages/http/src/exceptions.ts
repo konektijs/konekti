@@ -1,9 +1,16 @@
-import { KonektiError, type MetadataSource } from '@fluojs/core';
+import { FluoError, type MetadataSource } from '@fluojs/core';
 
+/**
+ * Detailed error information for field-level validation or binding failures.
+ */
 export interface HttpExceptionDetail {
+  /** Stable error code for this specific detail. */
   code: string;
+  /** Name of the field that failed validation. */
   field?: string;
+  /** Human-readable error message. */
   message: string;
+  /** Source of the metadata that triggered the failure. */
   source?: MetadataSource;
 }
 
@@ -41,8 +48,10 @@ export interface ErrorResponse {
 /**
  * Base HTTP exception type used by the dispatcher error serializer.
  */
-export class HttpException extends KonektiError {
+export class HttpException extends FluoError {
+  /** Detailed field-level or source-level error info. */
   readonly details?: HttpExceptionDetail[];
+  /** HTTP status code. */
   readonly status: number;
 
   /**

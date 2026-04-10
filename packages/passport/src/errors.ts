@@ -1,25 +1,37 @@
-import { KonektiError, type KonektiErrorOptions } from '@fluojs/core';
+import { FluoError, type FluoErrorOptions } from '@fluojs/core';
 
-export class AuthStrategyResolutionError extends KonektiError {
+/**
+ * Error thrown when a requested authentication strategy cannot be resolved.
+ */
+export class AuthStrategyResolutionError extends FluoError {
   constructor(message: string) {
     super(message, { code: 'AUTH_STRATEGY_RESOLUTION_ERROR' });
   }
 }
 
-export class AuthenticationRequiredError extends KonektiError {
-  constructor(message = 'Authentication required.', options: Omit<KonektiErrorOptions, 'code'> = {}) {
+/**
+ * Error thrown when an anonymous user attempts to access a protected resource.
+ */
+export class AuthenticationRequiredError extends FluoError {
+  constructor(message = 'Authentication required.', options: Omit<FluoErrorOptions, 'code'> = {}) {
     super(message, { ...options, code: 'AUTHENTICATION_REQUIRED' });
   }
 }
 
-export class AuthenticationFailedError extends KonektiError {
-  constructor(message = 'Authentication failed.', options: Omit<KonektiErrorOptions, 'code'> = {}) {
+/**
+ * Error thrown when authentication credentials are provided but invalid.
+ */
+export class AuthenticationFailedError extends FluoError {
+  constructor(message = 'Authentication failed.', options: Omit<FluoErrorOptions, 'code'> = {}) {
     super(message, { ...options, code: 'AUTHENTICATION_FAILED' });
   }
 }
 
-export class AuthenticationExpiredError extends KonektiError {
-  constructor(message = 'Authentication token has expired.', options: Omit<KonektiErrorOptions, 'code'> = {}) {
+/**
+ * Error thrown when an authentication token is well-formed but expired.
+ */
+export class AuthenticationExpiredError extends FluoError {
+  constructor(message = 'Authentication token has expired.', options: Omit<FluoErrorOptions, 'code'> = {}) {
     super(message, { ...options, code: 'AUTHENTICATION_EXPIRED' });
   }
 }

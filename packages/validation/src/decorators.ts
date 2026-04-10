@@ -20,8 +20,8 @@ type FieldDecoratorFn = <This, Value>(value: undefined, context: ClassFieldDecor
 type ValidatorJsRuleName = Extract<DtoFieldValidationRule, { kind: 'validatorjs' }>['validator'];
 type ValidateClassInput = CustomClassValidator | StandardSchemaV1Like;
 
-const standardDtoValidationMetadataKey = Symbol.for('konekti.standard.dto-validation');
-const standardClassValidationMetadataKey = Symbol.for('konekti.standard.class-validation');
+const standardDtoValidationMetadataKey = Symbol.for('fluo.standard.dto-validation');
+const standardClassValidationMetadataKey = Symbol.for('fluo.standard.class-validation');
 
 function getStandardMetadataBag(metadata: unknown): StandardMetadataBag {
   if (metadata === null || metadata === undefined) {

@@ -41,7 +41,7 @@ import type {
   OnModuleInit,
 } from './types.js';
 
-const DEFAULT_MICROSERVICE_TOKEN = Symbol.for('konekti.microservices.service') as Token<MicroserviceRuntime>;
+const DEFAULT_MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service') as Token<MicroserviceRuntime>;
 const runtimePerformance = globalThis.performance;
 
 async function runExceptionFilters(
@@ -183,7 +183,7 @@ async function runBootstrapFailureCleanup(options: {
     options.logger.error(
       `Failed to clean up after ${options.scope} bootstrap failure.`,
       error,
-      'KonektiFactory',
+      'FluoFactory',
     );
   }
 }
@@ -400,7 +400,7 @@ export function bootstrapModule(rootModule: ModuleType, options: BootstrapModule
 /**
  * 애플리케이션 라이프사이클과 상태 전이를 담당하는 최소 런타임 셸이다.
  */
-class KonektiApplication implements Application {
+class FluoApplication implements Application {
   private applicationState: ApplicationState = 'bootstrapped';
   private closed = false;
   private closingPromise: Promise<void> | undefined;
@@ -450,7 +450,7 @@ class KonektiApplication implements Application {
       throw new InvariantError('Resolved microservice token does not implement listen().');
     }
 
-    const microservice = new KonektiMicroserviceApplication(this, this.logger, runtime);
+    const microservice = new FluoMicroserviceApplication(this, this.logger, runtime);
     this.connectedMicroservices.push(microservice);
 
     return microservice;
@@ -482,12 +482,12 @@ class KonektiApplication implements Application {
     try {
       await this.adapter.listen(this.dispatcher);
     } catch (error: unknown) {
-      this.logger.error('Failed to start the HTTP adapter.', error, 'KonektiApplication');
+      this.logger.error('Failed to start the HTTP adapter.', error, 'FluoApplication');
       throw error;
     }
 
     this.applicationState = 'ready';
-      this.logger.log('fluo application successfully started.', 'KonektiApplication');
+      this.logger.log('fluo application successfully started.', 'FluoApplication');
   }
 
   dispatch = async (...args: Parameters<Dispatcher['dispatch']>): Promise<void> => {
@@ -528,7 +528,7 @@ class KonektiApplication implements Application {
   }
 }
 
-class KonektiApplicationContext implements ApplicationContext {
+class FluoApplicationContext implements ApplicationContext {
   private closed = false;
   private closingPromise: Promise<void> | undefined;
 
@@ -574,7 +574,7 @@ class KonektiApplicationContext implements ApplicationContext {
   }
 }
 
-class KonektiMicroserviceApplication implements MicroserviceApplication {
+class FluoMicroserviceApplication implements MicroserviceApplication {
   private closed = false;
   private closingPromise: Promise<void> | undefined;
   private microserviceState: ApplicationState = 'bootstrapped';
@@ -616,7 +616,7 @@ class KonektiMicroserviceApplication implements MicroserviceApplication {
 
     await this.runtime.listen();
     this.microserviceState = 'ready';
-      this.logger.log('fluo microservice successfully started.', 'KonektiFactory');
+      this.logger.log('fluo microservice successfully started.', 'FluoFactory');
   }
 
   async send(pattern: string, payload: unknown, signal?: AbortSignal): Promise<unknown> {
@@ -930,7 +930,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
   const timingPhases: BootstrapTimingPhase[] = [];
 
   try {
-    logger.log('Starting fluo application...', 'KonektiFactory');
+    logger.log('Starting fluo application...', 'FluoFactory');
     const runtimeProviders = createRuntimeProviders(options, logger);
 
     const moduleBootstrapStart = timingEnabled ? runtimePerformance.now() : 0;
@@ -994,7 +994,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
       ? createBootstrapTimingDiagnostics(timingPhases, runtimePerformance.now() - timingStart)
       : undefined;
 
-    return new KonektiApplication(
+    return new FluoApplication(
       bootstrapped.container,
       bootstrapped.modules,
       options.rootModule,
@@ -1011,7 +1011,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
     logger.error(
       'Failed to bootstrap the fluo application. Check the error below for what failed and how to fix it.',
       error,
-      'KonektiFactory',
+      'FluoFactory',
     );
 
     await runBootstrapFailureCleanup({
@@ -1029,7 +1029,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
 /**
  * Canonical runtime bootstrap facade for HTTP, context-only, and microservice startup.
  */
-export class KonektiFactory {
+export class FluoFactory {
   /**
    * Creates a full HTTP-capable application from the root module.
    *
@@ -1067,7 +1067,7 @@ export class KonektiFactory {
     const timingPhases: BootstrapTimingPhase[] = [];
 
     try {
-      logger.log('Starting fluo application context...', 'KonektiFactory');
+      logger.log('Starting fluo application context...', 'FluoFactory');
       const runtimeProviders = createRuntimeProviders(options, logger);
 
   const moduleBootstrapStart = timingEnabled ? runtimePerformance.now() : 0;
@@ -1122,7 +1122,7 @@ export class KonektiFactory {
     ? createBootstrapTimingDiagnostics(timingPhases, runtimePerformance.now() - timingStart)
         : undefined;
 
-      return new KonektiApplicationContext(
+      return new FluoApplicationContext(
         bootstrapped.container,
         bootstrapped.modules,
         rootModule,
@@ -1134,7 +1134,7 @@ export class KonektiFactory {
       logger.error(
         'Failed to bootstrap application context. Check the error below for what failed and how to fix it.',
         error,
-        'KonektiFactory',
+        'FluoFactory',
       );
 
       await runBootstrapFailureCleanup({
@@ -1164,7 +1164,7 @@ export class KonektiFactory {
   ): Promise<MicroserviceApplication> {
     const logger = options.logger ?? createConsoleApplicationLogger();
     const microserviceToken = options.microserviceToken ?? DEFAULT_MICROSERVICE_TOKEN;
-    const context = await KonektiFactory.createApplicationContext(rootModule, options);
+    const context = await FluoFactory.createApplicationContext(rootModule, options);
 
     try {
       const runtime = await context.get<unknown>(microserviceToken);
@@ -1173,13 +1173,13 @@ export class KonektiFactory {
         throw new InvariantError('Resolved microservice token does not implement listen().');
       }
 
-      return new KonektiMicroserviceApplication(context, logger, runtime);
+      return new FluoMicroserviceApplication(context, logger, runtime);
     } catch (error) {
       await context.close('bootstrap-failed');
       logger.error(
         'Failed to bootstrap microservice context. Check the error below for what failed and how to fix it.',
         error,
-        'KonektiFactory',
+        'FluoFactory',
       );
       throw error;
     }

@@ -133,10 +133,10 @@ describe('@fluojs/throttler decorators', () => {
     }
 
     const bag = (AuthController as unknown as Record<symbol, unknown>)[metadataSymbol] as Record<PropertyKey, unknown>;
-    const routeMap = bag[Symbol.for('konekti.standard.route')] as Map<string, Record<PropertyKey, unknown>>;
+    const routeMap = bag[Symbol.for('fluo.standard.route')] as Map<string, Record<PropertyKey, unknown>>;
     const loginRecord = routeMap?.get('login');
 
-    expect(loginRecord?.[Symbol.for('konekti.throttler.throttle')]).toEqual({ limit: 5, ttl: 60 });
+    expect(loginRecord?.[Symbol.for('fluo.throttler.throttle')]).toEqual({ limit: 5, ttl: 60 });
   });
 
   it('writes @Throttle class-level metadata into the class bag', () => {
@@ -147,7 +147,7 @@ describe('@fluojs/throttler decorators', () => {
 
     const bag = (ApiController as unknown as Record<symbol, unknown>)[metadataSymbol] as Record<PropertyKey, unknown>;
 
-    expect(bag[Symbol.for('konekti.throttler.class-throttle')]).toEqual({ limit: 100, ttl: 60 });
+    expect(bag[Symbol.for('fluo.throttler.class-throttle')]).toEqual({ limit: 100, ttl: 60 });
   });
 
   it('rejects invalid @Throttle options eagerly', () => {
@@ -181,7 +181,7 @@ describe('@fluojs/throttler decorators', () => {
     options.limit = 99;
 
     const bag = (AuthController as unknown as Record<symbol, unknown>)[metadataSymbol] as Record<PropertyKey, unknown>;
-    const routeMap = bag[Symbol.for('konekti.standard.route')] as Map<string, Record<PropertyKey, unknown>>;
+    const routeMap = bag[Symbol.for('fluo.standard.route')] as Map<string, Record<PropertyKey, unknown>>;
     const loginRecord = routeMap?.get('login') ?? {};
 
     expect(getThrottleMetadata(loginRecord)).toEqual({ limit: 5, ttl: 60 });
@@ -194,7 +194,7 @@ describe('@fluojs/throttler decorators', () => {
     }
 
     const bag = (AuthController as unknown as Record<symbol, unknown>)[metadataSymbol] as Record<PropertyKey, unknown>;
-    const routeMap = bag[Symbol.for('konekti.standard.route')] as Map<string, Record<PropertyKey, unknown>>;
+    const routeMap = bag[Symbol.for('fluo.standard.route')] as Map<string, Record<PropertyKey, unknown>>;
     const loginRecord = routeMap?.get('login') ?? {};
     const firstRead = getThrottleMetadata(loginRecord);
 
@@ -214,10 +214,10 @@ describe('@fluojs/throttler decorators', () => {
     }
 
     const bag = (AuthController as unknown as Record<symbol, unknown>)[metadataSymbol] as Record<PropertyKey, unknown>;
-    const routeMap = bag[Symbol.for('konekti.standard.route')] as Map<string, Record<PropertyKey, unknown>>;
+    const routeMap = bag[Symbol.for('fluo.standard.route')] as Map<string, Record<PropertyKey, unknown>>;
     const refreshRecord = routeMap?.get('refresh');
 
-    expect(refreshRecord?.[Symbol.for('konekti.throttler.skip')]).toBe(true);
+    expect(refreshRecord?.[Symbol.for('fluo.throttler.skip')]).toBe(true);
   });
 
   it('writes @SkipThrottle class-level metadata into the class bag', () => {
@@ -228,7 +228,7 @@ describe('@fluojs/throttler decorators', () => {
 
     const bag = (PublicController as unknown as Record<symbol, unknown>)[metadataSymbol] as Record<PropertyKey, unknown>;
 
-    expect(bag[Symbol.for('konekti.throttler.class-skip')]).toBe(true);
+    expect(bag[Symbol.for('fluo.throttler.class-skip')]).toBe(true);
   });
 });
 

@@ -5,7 +5,7 @@ type PrismaTransactionCallback<TTransactionClient, TResult> = (client: TTransact
 /**
  * Infers the transaction-scoped Prisma client type exposed inside `$transaction(...)` callbacks.
  *
- * @typeParam TClient Root Prisma client shape registered with Konekti.
+ * @typeParam TClient Root Prisma client shape registered with Fluo.
  */
 export type InferPrismaTransactionClient<TClient> = TClient extends {
   $transaction?: <T>(
@@ -19,7 +19,7 @@ export type InferPrismaTransactionClient<TClient> = TClient extends {
 /**
  * Infers the optional Prisma transaction options object accepted by the registered client.
  *
- * @typeParam TClient Root Prisma client shape registered with Konekti.
+ * @typeParam TClient Root Prisma client shape registered with Fluo.
  */
 export type InferPrismaTransactionOptions<TClient> = TClient extends {
   $transaction?: <T>(
@@ -33,12 +33,12 @@ export type InferPrismaTransactionOptions<TClient> = TClient extends {
 /**
  * Alias for the transaction-scoped Prisma client type derived from a root client.
  *
- * @typeParam TClient Root Prisma client shape registered with Konekti.
+ * @typeParam TClient Root Prisma client shape registered with Fluo.
  */
 export type PrismaTransactionClient<TClient> = InferPrismaTransactionClient<TClient>;
 
 /**
- * Minimal Prisma client seam required by the Konekti runtime wrapper.
+ * Minimal Prisma client seam required by the Fluo runtime wrapper.
  *
  * @typeParam TTransactionClient Client shape passed into interactive transaction callbacks.
  * @typeParam TTransactionOptions Options shape forwarded to `$transaction(...)`.
@@ -50,7 +50,7 @@ export interface PrismaClientLike<TTransactionClient = unknown, TTransactionOpti
 }
 
 /**
- * Configures how `PrismaModule` wires a Prisma client into the Konekti lifecycle.
+ * Configures how `PrismaModule` wires a Prisma client into the Fluo lifecycle.
  *
  * @typeParam TClient Root Prisma client shape registered in the module.
  * @typeParam TTransactionClient Transaction-scoped client resolved by `current()` inside transaction boundaries.

@@ -54,7 +54,7 @@ export interface ExampleOptions {
  *
  * @example
  * \`\`\`ts
- * greet('Konekti');
+ * greet('Fluo');
  * \`\`\`
  */
 export function greet(name: string): string {

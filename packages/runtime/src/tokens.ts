@@ -6,8 +6,27 @@ import type { ApplicationLogger } from './types.js';
 import type { CompiledModule } from './types.js';
 import type { PlatformShell } from './platform-contract.js';
 
-export const APPLICATION_LOGGER: Token<ApplicationLogger> = Symbol.for('konekti.runtime.application-logger');
+/**
+ * Injection token for the application logger.
+ */
+export const APPLICATION_LOGGER: Token<ApplicationLogger> = Symbol.for('fluo.runtime.application-logger');
+
+/**
+ * Injection token for the runtime container.
+ */
 export const RUNTIME_CONTAINER: Token<Container> = Symbol('RUNTIME_CONTAINER');
+
+/**
+ * Injection token for the compiled module list.
+ */
 export const COMPILED_MODULES: Token<readonly CompiledModule[]> = Symbol('COMPILED_MODULES');
+
+/**
+ * Injection token for the HTTP application adapter.
+ */
 export const HTTP_APPLICATION_ADAPTER: Token<HttpApplicationAdapter> = Symbol('HTTP_APPLICATION_ADAPTER');
+
+/**
+ * Injection token for the platform shell.
+ */
 export const PLATFORM_SHELL: Token<PlatformShell> = Symbol('PLATFORM_SHELL');

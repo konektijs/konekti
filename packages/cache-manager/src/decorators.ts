@@ -1,10 +1,10 @@
 import type { CacheEvictDecoratorValue, CacheKeyDecoratorValue } from './types.js';
 
 /** Shared controller metadata key used to store per-route cache metadata records. */
-export const cacheRouteMetadataKey = Symbol.for('konekti.standard.route');
-const cacheKeyMetadataKey = Symbol.for('konekti.cache.key');
-const cacheTtlMetadataKey = Symbol.for('konekti.cache.ttl');
-const cacheEvictMetadataKey = Symbol.for('konekti.cache.evict');
+export const cacheRouteMetadataKey = Symbol.for('fluo.standard.route');
+const cacheKeyMetadataKey = Symbol.for('fluo.cache.key');
+const cacheTtlMetadataKey = Symbol.for('fluo.cache.ttl');
+const cacheEvictMetadataKey = Symbol.for('fluo.cache.evict');
 
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 type StandardMethodDecoratorFn = (value: Function, context: ClassMethodDecoratorContext) => void;

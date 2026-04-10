@@ -7,7 +7,7 @@ type StandardMetadataBag = Record<PropertyKey, unknown>;
 
 void ensureSymbolMetadataPolyfill();
 
-const standardEventHandlerMetadataKey = Symbol.for('konekti.event-bus.standard.handler');
+const standardEventHandlerMetadataKey = Symbol.for('fluo.event-bus.standard.handler');
 const eventHandlerMetadataStore = new WeakMap<object, Map<MetadataPropertyKey, EventHandlerMetadata>>();
 
 function cloneEventHandlerMetadata(metadata: EventHandlerMetadata): EventHandlerMetadata {

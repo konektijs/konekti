@@ -7,7 +7,7 @@ type StandardMetadataBag = Record<PropertyKey, unknown>;
 
 void ensureSymbolMetadataPolyfill();
 
-const standardSchedulingMetadataKey = Symbol.for('konekti.cron.standard.task');
+const standardSchedulingMetadataKey = Symbol.for('fluo.cron.standard.task');
 const schedulingMetadataStore = new WeakMap<object, Map<MetadataPropertyKey, SchedulingTaskMetadata>>();
 
 function cloneTaskMetadata(metadata: SchedulingTaskMetadata): SchedulingTaskMetadata {

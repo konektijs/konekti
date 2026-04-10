@@ -56,9 +56,9 @@ export class KafkaMicroserviceTransport implements MicroserviceTransport {
    * @param options Topic names, producer/consumer handles, and request-timeout settings.
    */
   constructor(private readonly options: KafkaMicroserviceTransportOptions) {
-    this.eventTopic = options.eventTopic ?? 'konekti.microservices.events';
-    this.messageTopic = options.messageTopic ?? 'konekti.microservices.messages';
-    this.responseTopic = options.responseTopic ?? `konekti.microservices.responses.${crypto.randomUUID()}`;
+    this.eventTopic = options.eventTopic ?? 'fluo.microservices.events';
+    this.messageTopic = options.messageTopic ?? 'fluo.microservices.messages';
+    this.responseTopic = options.responseTopic ?? `fluo.microservices.responses.${crypto.randomUUID()}`;
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
   }
 

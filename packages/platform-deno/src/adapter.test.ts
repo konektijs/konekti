@@ -253,7 +253,7 @@ describe('@fluojs/platform-deno', () => {
 
     expect(logger.log).toHaveBeenCalledWith(
       'Listening on http://localhost:3000 (bound to 0.0.0.0:3000)',
-      'KonektiFactory',
+      'FluoFactory',
     );
 
     await app.close();

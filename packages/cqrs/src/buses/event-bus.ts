@@ -1,5 +1,5 @@
 import { Inject, InvariantError } from '@fluojs/core';
-import { EVENT_BUS as KONEKTI_EVENT_BUS, type EventBus } from '@fluojs/event-bus';
+import { EVENT_BUS as FLUO_EVENT_BUS, type EventBus } from '@fluojs/event-bus';
 import type { OnApplicationShutdown, OnApplicationBootstrap } from '@fluojs/runtime';
 import { APPLICATION_LOGGER, COMPILED_MODULES, RUNTIME_CONTAINER } from '@fluojs/runtime/internal';
 
@@ -24,7 +24,7 @@ function isEventHandler(value: unknown): value is IEventHandler<IEvent> {
  * This service keeps CQRS event handlers singleton-only, fans events into saga orchestration,
  * and delegates the final publication step to `@fluojs/event-bus`.
  */
-@Inject(KONEKTI_EVENT_BUS, CqrsSagaLifecycleService, RUNTIME_CONTAINER, COMPILED_MODULES, APPLICATION_LOGGER)
+@Inject(FLUO_EVENT_BUS, CqrsSagaLifecycleService, RUNTIME_CONTAINER, COMPILED_MODULES, APPLICATION_LOGGER)
 export class CqrsEventBusService extends CqrsBusBase implements CqrsEventBus, OnApplicationBootstrap, OnApplicationShutdown {
   private descriptors: EventHandlerDescriptor[] = [];
   private discoveryPromise: Promise<void> | undefined;

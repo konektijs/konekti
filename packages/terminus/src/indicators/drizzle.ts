@@ -3,7 +3,7 @@ import type { Provider } from '@fluojs/di';
 import { createDownResult, createUpResult, resolveIndicatorKey, throwHealthCheckError, withIndicatorTimeout } from './utils.js';
 import type { HealthIndicator, HealthIndicatorResult } from '../types.js';
 
-const DRIZZLE_DATABASE = Symbol.for('konekti.drizzle.database');
+const DRIZZLE_DATABASE = Symbol.for('fluo.drizzle.database');
 
 interface DrizzleExecuteLike {
   execute?: (query: unknown) => Promise<unknown>;

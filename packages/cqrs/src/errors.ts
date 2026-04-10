@@ -1,7 +1,7 @@
-import { KonektiError } from '@fluojs/core';
+import { FluoError } from '@fluojs/core';
 
 /** Raised when the command bus cannot find a handler for the requested command type. */
-export class CommandHandlerNotFoundException extends KonektiError {
+export class CommandHandlerNotFoundException extends FluoError {
   /**
    * Creates a missing-command-handler error.
    *
@@ -13,7 +13,7 @@ export class CommandHandlerNotFoundException extends KonektiError {
 }
 
 /** Raised when two different singleton providers claim the same command type. */
-export class DuplicateCommandHandlerError extends KonektiError {
+export class DuplicateCommandHandlerError extends FluoError {
   /**
    * Creates a duplicate-command-handler error.
    *
@@ -25,7 +25,7 @@ export class DuplicateCommandHandlerError extends KonektiError {
 }
 
 /** Raised when the query bus cannot find a handler for the requested query type. */
-export class QueryHandlerNotFoundException extends KonektiError {
+export class QueryHandlerNotFoundException extends FluoError {
   /**
    * Creates a missing-query-handler error.
    *
@@ -37,7 +37,7 @@ export class QueryHandlerNotFoundException extends KonektiError {
 }
 
 /** Raised when two different singleton providers claim the same query type. */
-export class DuplicateQueryHandlerError extends KonektiError {
+export class DuplicateQueryHandlerError extends FluoError {
   /**
    * Creates a duplicate-query-handler error.
    *
@@ -49,7 +49,7 @@ export class DuplicateQueryHandlerError extends KonektiError {
 }
 
 /** Raised when conflicting event-handler registrations break the CQRS discovery contract. */
-export class DuplicateEventHandlerError extends KonektiError {
+export class DuplicateEventHandlerError extends FluoError {
   /**
    * Creates a duplicate-event-handler error.
    *
@@ -60,8 +60,8 @@ export class DuplicateEventHandlerError extends KonektiError {
   }
 }
 
-/** Raised when a saga throws a non-Konekti error while handling an event. */
-export class SagaExecutionError extends KonektiError {
+/** Raised when a saga throws a non-Fluo error while handling an event. */
+export class SagaExecutionError extends FluoError {
   /**
    * Creates a saga-execution error.
    *

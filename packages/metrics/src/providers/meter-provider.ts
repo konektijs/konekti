@@ -22,4 +22,4 @@ export interface MeterProvider {
 }
 
 /** Dependency-injection token for the active framework meter provider. */
-export const METER_PROVIDER = Symbol.for('konekti.metrics.meter-provider');
+export const METER_PROVIDER = Symbol.for('fluo.metrics.meter-provider');

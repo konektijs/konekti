@@ -2,7 +2,7 @@ import type { Constructor, MaybePromise, MetadataPropertyKey, MetadataSource, To
 import type { RequestScopeContainer } from '@fluojs/di';
 export type { ValidationIssue, Validator } from '@fluojs/validation';
 
-/** HTTP methods understood by Konekti route metadata and dispatcher matching. */
+/** HTTP methods understood by Fluo route metadata and dispatcher matching. */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD' | 'ALL';
 
 /** Strategies that decide how versioned HTTP routes are selected for one request. */

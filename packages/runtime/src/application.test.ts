@@ -24,7 +24,7 @@ import {
   type Converter,
 } from '@fluojs/http';
 import { Exclude, Expose, SerializerInterceptor } from '@fluojs/serialization';
-import { bootstrapApplication, defineModule, KonektiFactory } from './bootstrap.js';
+import { bootstrapApplication, defineModule, FluoFactory } from './bootstrap.js';
 import { ModuleInjectionMetadataError } from './errors.js';
 import { createHealthModule } from './health/health.js';
 import { bootstrapNodeApplication, createNodeHttpAdapter, runNodeApplication } from './node/node.js';
@@ -283,7 +283,7 @@ describe('bootstrapApplication', () => {
     });
 
     await expect(app.listen()).rejects.toThrow('listen failed');
-    expect(loggerEvents).toContain('error:KonektiApplication:Failed to start the HTTP adapter.:listen failed');
+    expect(loggerEvents).toContain('error:FluoApplication:Failed to start the HTTP adapter.:listen failed');
   });
 
   it('disposes container-managed instances when the application closes', async () => {
@@ -358,11 +358,11 @@ describe('bootstrapApplication', () => {
     expect(probe.sawRootModule).toBe(true);
   });
 
-  it('creates applications through KonektiFactory', async () => {
+  it('creates applications through FluoFactory', async () => {
     class AppModule {}
     defineModule(AppModule, {});
 
-    const app = await KonektiFactory.create(AppModule, {
+    const app = await FluoFactory.create(AppModule, {
     });
 
     expect(app.rootModule).toBe(AppModule);
@@ -372,7 +372,7 @@ describe('bootstrapApplication', () => {
     class AppModule {}
     defineModule(AppModule, {});
 
-    const app = await KonektiFactory.create(AppModule, {});
+    const app = await FluoFactory.create(AppModule, {});
 
     await expect(app.ready()).resolves.toBeUndefined();
     await expect(app.listen()).rejects.toThrow(
@@ -384,7 +384,7 @@ describe('bootstrapApplication', () => {
     expect(app.state).toBe('closed');
   });
 
-  it('applies global converters through KonektiFactory.create()', async () => {
+  it('applies global converters through FluoFactory.create()', async () => {
     class QueryNumberConverter implements Converter {
       convert(value: unknown, target: { source: string }) {
         if (target.source === 'query' && typeof value === 'string') {
@@ -414,7 +414,7 @@ describe('bootstrapApplication', () => {
       controllers: [SearchController],
     });
 
-    const app = await KonektiFactory.create(AppModule, {
+    const app = await FluoFactory.create(AppModule, {
       converters: [QueryNumberConverter],
     });
 
@@ -1178,7 +1178,7 @@ describe('bootstrapApplication', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
-    expect(loggerEvents).toContain(`log:KonektiFactory:Listening on http://127.0.0.1:${String(port)}`);
+    expect(loggerEvents).toContain(`log:FluoFactory:Listening on http://127.0.0.1:${String(port)}`);
 
     await app.close();
   });
@@ -1263,7 +1263,7 @@ describe('bootstrapApplication', () => {
 
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body)).toEqual({ ok: true });
-    expect(loggerEvents).toContain(`log:KonektiFactory:Listening on https://127.0.0.1:${String(port)}`);
+    expect(loggerEvents).toContain(`log:FluoFactory:Listening on https://127.0.0.1:${String(port)}`);
 
     await app.close();
   });
@@ -1942,7 +1942,7 @@ describe('bootstrapApplication', () => {
       'app:shutdown:bootstrap-failed',
     ]);
     expect(loggerEvents).toContain(
-      'error:KonektiFactory:Failed to bootstrap the fluo application. Check the error below for what failed and how to fix it.:boom',
+      'error:FluoFactory:Failed to bootstrap the fluo application. Check the error below for what failed and how to fix it.:boom',
     );
   });
 
@@ -1986,14 +1986,14 @@ describe('bootstrapApplication', () => {
     });
 
     expect(loggerEvents).toEqual([
-      'log:KonektiFactory:Starting fluo application...',
+      'log:FluoFactory:Starting fluo application...',
       'log:InstanceLoader:AppModule dependencies initialized',
       'log:RoutesResolver:HealthController {/health}',
       'log:RouterExplorer:Mapped {/health, GET} route',
     ]);
 
     await expect(app.listen()).rejects.toThrow('port already in use');
-    expect(loggerEvents).toContain('error:KonektiApplication:Failed to start the HTTP adapter.:port already in use');
+    expect(loggerEvents).toContain('error:FluoApplication:Failed to start the HTTP adapter.:port already in use');
   });
 
   it('parses Cookie header and exposes individual cookies via FromCookie', async () => {
@@ -2262,12 +2262,12 @@ describe('bootstrapApplication', () => {
   });
 });
 
-describe('KonektiFactory facade', () => {
+describe('FluoFactory facade', () => {
   it('creates an application shell without requiring options', async () => {
     class AppModule {}
     defineModule(AppModule, {});
 
-    const app = await KonektiFactory.create(AppModule);
+    const app = await FluoFactory.create(AppModule);
 
     expect(app.rootModule).toBe(AppModule);
     await expect(app.get(RUNTIME_CONTAINER)).resolves.toBeDefined();

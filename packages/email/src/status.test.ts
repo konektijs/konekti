@@ -9,7 +9,7 @@ describe('createEmailPlatformStatusSnapshot', () => {
       defaultFromConfigured: true,
       lifecycleState: 'ready',
       ownsTransportResources: true,
-      queueWorkerJobName: 'konekti.email.notification',
+      queueWorkerJobName: 'fluo.email.notification',
       transportKind: 'resend-http',
       verifiedOnModuleInit: true,
     });
@@ -30,7 +30,7 @@ describe('createEmailPlatformStatusSnapshot', () => {
       defaultFromConfigured: false,
       lifecycleState: 'failed',
       ownsTransportResources: false,
-      queueWorkerJobName: 'konekti.email.notification',
+      queueWorkerJobName: 'fluo.email.notification',
       transportKind: 'custom-instance',
       verifiedOnModuleInit: false,
     });

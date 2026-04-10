@@ -22,7 +22,7 @@ export interface RefreshTokenService {
 /**
  * Identifies the active refresh-token service implementation in dependency injection.
  */
-export const REFRESH_TOKEN_SERVICE = Symbol.for('konekti.passport.refresh-token-service');
+export const REFRESH_TOKEN_SERVICE = Symbol.for('fluo.passport.refresh-token-service');
 
 /**
  * Represents the refresh-token payload accepted by refresh endpoints.

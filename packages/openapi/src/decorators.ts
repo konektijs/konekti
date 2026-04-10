@@ -100,14 +100,14 @@ export interface MethodApiMetadata {
   excludeEndpoint?: boolean;
 }
 
-const openApiControllerTagsKey = Symbol.for('konekti.openapi.controller-tags');
-const openApiMethodOperationKey = Symbol.for('konekti.openapi.method-operation');
-const openApiMethodResponsesKey = Symbol.for('konekti.openapi.method-responses');
-const openApiMethodParametersKey = Symbol.for('konekti.openapi.method-parameters');
-const openApiMethodRequestBodyKey = Symbol.for('konekti.openapi.method-request-body');
-const openApiMethodSecurityKey = Symbol.for('konekti.openapi.method-security');
-const openApiMethodSecurityRequirementsKey = Symbol.for('konekti.openapi.method-security-requirements');
-const openApiMethodExcludeEndpointKey = Symbol.for('konekti.openapi.method-exclude-endpoint');
+const openApiControllerTagsKey = Symbol.for('fluo.openapi.controller-tags');
+const openApiMethodOperationKey = Symbol.for('fluo.openapi.method-operation');
+const openApiMethodResponsesKey = Symbol.for('fluo.openapi.method-responses');
+const openApiMethodParametersKey = Symbol.for('fluo.openapi.method-parameters');
+const openApiMethodRequestBodyKey = Symbol.for('fluo.openapi.method-request-body');
+const openApiMethodSecurityKey = Symbol.for('fluo.openapi.method-security');
+const openApiMethodSecurityRequirementsKey = Symbol.for('fluo.openapi.method-security-requirements');
+const openApiMethodExcludeEndpointKey = Symbol.for('fluo.openapi.method-exclude-endpoint');
 
 type MetadataBag = Record<PropertyKey, unknown>;
 

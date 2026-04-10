@@ -687,7 +687,7 @@ describe('DefaultValidator', () => {
     const validator = new DefaultValidator();
 
     await expect(
-      validator.validate(Object.assign(new CreateUserDto(), { email: 'hello@konekti.dev' }), CreateUserDto),
+      validator.validate(Object.assign(new CreateUserDto(), { email: 'hello@fluo.dev' }), CreateUserDto),
     ).resolves.toBeUndefined();
   });
 
@@ -725,7 +725,7 @@ describe('DefaultValidator', () => {
     const validator = new DefaultValidator();
 
     await expect(
-      validator.validate(Object.assign(new CreateUserDto(), { email: 'hello@konekti.dev' }), CreateUserDto),
+      validator.validate(Object.assign(new CreateUserDto(), { email: 'hello@fluo.dev' }), CreateUserDto),
     ).resolves.toBeUndefined();
   });
 
@@ -744,7 +744,7 @@ describe('DefaultValidator', () => {
     const validator = new DefaultValidator();
 
     await expect(
-      validator.validate(Object.assign(new CreateUserDto(), { email: 'hello@konekti.dev' }), CreateUserDto),
+      validator.validate(Object.assign(new CreateUserDto(), { email: 'hello@fluo.dev' }), CreateUserDto),
     ).rejects.toMatchObject({
       issues: [{ code: 'INVALID_SCHEMA_RESULT', message: 'Standard Schema validator returned malformed issues.' }],
     });

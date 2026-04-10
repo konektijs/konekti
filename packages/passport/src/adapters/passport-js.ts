@@ -14,7 +14,18 @@ interface PassportJsActionBindings {
   success?: (user: unknown, info?: unknown) => void;
 }
 
+/**
+ * Represents a Passport.js strategy-like object that implements
+ * the `authenticate` method.
+ */
 export interface PassportJsStrategyLike {
+  /**
+   * Performs authentication for the given request and options.
+   *
+   * @param request - The raw request object from the underlying framework.
+   * @param options - Strategy-specific authentication options.
+   * @returns An execution result or a promise resolving to one.
+   */
   authenticate(request: unknown, options?: unknown): unknown;
 }
 
@@ -29,21 +40,41 @@ interface PassportJsRequestState {
   settled: boolean;
 }
 
+/**
+ * Input for the principal mapper that converts Passport.js user data
+ * into a fluo {@link Principal}.
+ */
 export interface PassportJsPrincipalMapperInput {
+  /** The guard context for the current request. */
   context: GuardContext;
+  /** Optional information returned by the Passport strategy. */
   info?: unknown;
+  /** The user object returned by the Passport strategy. */
   user: unknown;
 }
 
+/**
+ * A function type that maps Passport.js user data to a fluo {@link Principal}.
+ */
 export type PassportJsPrincipalMapper = (input: PassportJsPrincipalMapperInput) => Principal;
 
+/**
+ * Configuration options for the Passport.js authentication strategy.
+ */
 export interface PassportJsAuthStrategyOptions {
+  /** Optional options to pass to the Passport strategy's `authenticate` method. */
   authenticateOptions?: Readonly<Record<string, unknown>>;
+  /** Optional custom mapper for converting user data to a principal. */
   mapPrincipal?: PassportJsPrincipalMapper;
 }
 
+/**
+ * Bridge interface containing DI providers and strategy registration for Passport.js.
+ */
 export interface PassportJsStrategyBridge {
+  /** DI providers required for the adapter and its configuration. */
   providers: Provider[];
+  /** Canonical strategy registration for the fluo auth guard. */
   strategy: AuthStrategyRegistration;
 }
 
@@ -136,6 +167,10 @@ function cloneStrategyStateValue(value: unknown): unknown {
   return value;
 }
 
+/**
+ * A bridge strategy that allows using Passport.js strategies within the fluo
+ * authentication framework.
+ */
 export class PassportJsAuthStrategy implements AuthStrategy {
   private readonly requestState = new WeakMap<PassportJsExecutableStrategy, PassportJsRequestState>();
 
@@ -253,13 +288,21 @@ export class PassportJsAuthStrategy implements AuthStrategy {
   }
 }
 
+/**
+ * Creates a DI-aware bridge for a Passport.js strategy.
+ *
+ * @param name Unique name for the strategy.
+ * @param strategyToken Token representing the Passport.js strategy implementation.
+ * @param options Configuration for principal mapping and authentication options.
+ * @returns A bridge object containing providers and the strategy registration.
+ */
 export function createPassportJsStrategyBridge(
   name: string,
   strategyToken: Token<PassportJsStrategyLike>,
   options: PassportJsAuthStrategyOptions = {},
 ): PassportJsStrategyBridge {
-  const adapterToken = Symbol.for(`konekti.passport.passport-js.adapter.${name}`);
-  const optionsToken = Symbol.for(`konekti.passport.passport-js.options.${name}`);
+  const adapterToken = Symbol.for(`fluo.passport.passport-js.adapter.${name}`);
+  const optionsToken = Symbol.for(`fluo.passport.passport-js.options.${name}`);
 
   return {
     providers: [

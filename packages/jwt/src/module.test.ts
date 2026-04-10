@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Inject, Module, type Constructor, type Token } from '@fluojs/core';
 import { getModuleMetadata } from '@fluojs/core/internal';
 import { Container, type Provider } from '@fluojs/di';
-import { KonektiFactory } from '@fluojs/runtime';
+import { FluoFactory } from '@fluojs/runtime';
 
 import { JwtModule } from './module.js';
 import { type RefreshTokenRecord, type RefreshTokenStore, RefreshTokenService } from './refresh/refresh-token.js';
@@ -68,7 +68,7 @@ async function createJwtApplicationContext(jwtModule: Constructor) {
   @Module({ imports: [jwtModule] })
   class AppModule {}
 
-  return KonektiFactory.createApplicationContext(AppModule);
+  return FluoFactory.createApplicationContext(AppModule);
 }
 
 describe('JwtModule', () => {

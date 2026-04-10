@@ -5,6 +5,14 @@ import { transformAsync } from '@babel/core';
 
 const babelConfigFileCache = new Map<string, string>();
 
+/**
+ * Resolves the nearest `babel.config.cjs` file starting from the given file path
+ * and searching upwards through the directory hierarchy.
+ *
+ * @param filePath - The path to the file whose nearest Babel configuration should be found.
+ * @returns The absolute path to the nearest `babel.config.cjs` file.
+ * @throws Error if no configuration file can be located.
+ */
 export function resolveNearestBabelConfigFile(filePath: string): string {
   let currentDirectory = dirname(filePath);
 
@@ -32,11 +40,18 @@ export function resolveNearestBabelConfigFile(filePath: string): string {
   }
 }
 
-export function createKonektiBabelDecoratorsPlugin(
+/**
+ * Creates a Babel transformation plugin that handles fluo decorator syntax
+ * during the testing process.
+ *
+ * @param resolveConfigFile - A function that resolves the Babel configuration file path for a given file.
+ * @returns A transformation plugin compatible with testing tools like Vitest.
+ */
+export function createFluoBabelDecoratorsPlugin(
   resolveConfigFile: (filePath: string) => string,
 ){
   return {
-    name: 'konekti-babel-decorators',
+    name: 'fluo-babel-decorators',
     async transform(code: string, id: string) {
       if (!id.endsWith('.ts') || id.includes('/node_modules/')) {
         return null;
@@ -61,4 +76,7 @@ export function createKonektiBabelDecoratorsPlugin(
   };
 }
 
-export type KonektiBabelDecoratorsPlugin = ReturnType<typeof createKonektiBabelDecoratorsPlugin>;
+/**
+ * Re-export type for the fluo Babel decorators plugin.
+ */
+export type FluoBabelDecoratorsPlugin = ReturnType<typeof createFluoBabelDecoratorsPlugin>;

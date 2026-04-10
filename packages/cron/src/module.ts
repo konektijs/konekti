@@ -14,7 +14,7 @@ function normalizeDistributedOptions(distributed: CronModuleOptions['distributed
   if (distributed === undefined || distributed === false) {
     return {
       enabled: false,
-      keyPrefix: 'konekti:cron:lock',
+      keyPrefix: 'fluo:cron:lock',
       lockTtlMs: 30_000,
       ownerId: randomId(),
     };
@@ -23,7 +23,7 @@ function normalizeDistributedOptions(distributed: CronModuleOptions['distributed
   if (distributed === true) {
     return {
       enabled: true,
-      keyPrefix: 'konekti:cron:lock',
+      keyPrefix: 'fluo:cron:lock',
       lockTtlMs: 30_000,
       ownerId: randomId(),
     };
@@ -31,7 +31,7 @@ function normalizeDistributedOptions(distributed: CronModuleOptions['distributed
 
   return {
     enabled: distributed.enabled ?? true,
-    keyPrefix: distributed.keyPrefix ?? 'konekti:cron:lock',
+    keyPrefix: distributed.keyPrefix ?? 'fluo:cron:lock',
     lockTtlMs: distributed.lockTtlMs ?? 30_000,
     ownerId: distributed.ownerId ?? randomId(),
   };

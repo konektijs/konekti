@@ -7,7 +7,7 @@ type StandardMetadataBag = Record<PropertyKey, unknown>;
 
 void ensureSymbolMetadataPolyfill();
 
-const standardMicroserviceMetadataKey = Symbol.for('konekti.microservices.standard.handler');
+const standardMicroserviceMetadataKey = Symbol.for('fluo.microservices.standard.handler');
 const handlerMetadataStore = new WeakMap<object, Map<MetadataPropertyKey, HandlerMetadata[]>>();
 
 function cloneHandlerMetadata(metadata: HandlerMetadata): HandlerMetadata {

@@ -53,7 +53,7 @@ function delay(ms: number): Promise<void> {
  * Redis Streams transport for durable request-response messages and event fan-out.
  *
  * The adapter uses consumer groups and a per-consumer response stream so callers can combine
- * at-least-once delivery with request timeouts while preserving Konekti's transport abstraction.
+ * at-least-once delivery with request timeouts while preserving Fluo's transport abstraction.
  */
 export class RedisStreamsMicroserviceTransport implements MicroserviceTransport {
   private closing = false;
@@ -76,8 +76,8 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
    */
   constructor(private readonly options: RedisStreamsMicroserviceTransportOptions) {
     this.consumerId = crypto.randomUUID();
-    this.namespace = options.namespace ?? 'konekti:streams';
-    this.consumerGroup = options.consumerGroup ?? 'konekti-handlers';
+    this.namespace = options.namespace ?? 'fluo:streams';
+    this.consumerGroup = options.consumerGroup ?? 'fluo-handlers';
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
     this.pollBlockMs = options.pollBlockMs ?? 500;
   }
@@ -435,7 +435,7 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
   }
 
   private logEventHandlerFailure(error: unknown): void {
-    console.error('[konekti][RedisStreamsMicroserviceTransport] event handler failed:', error);
+    console.error('[fluo][RedisStreamsMicroserviceTransport] event handler failed:', error);
   }
 
   private get messageStream(): string {

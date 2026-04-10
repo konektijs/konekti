@@ -13,7 +13,7 @@ import { TerminusHealthService } from './health-check.js';
 import { TERMINUS_HEALTH_INDICATORS, TERMINUS_INDICATOR_PROVIDER_TOKENS } from './tokens.js';
 import type { HealthIndicator, TerminusModuleOptions } from './types.js';
 
-const TERMINUS_OPTIONS = Symbol.for('konekti.terminus.options');
+const TERMINUS_OPTIONS = Symbol.for('fluo.terminus.options');
 
 type ReadinessManagedModule = ReturnType<typeof createHealthModule> & {
   addReadinessCheck(fn: () => boolean | Promise<boolean>): void;
@@ -130,7 +130,7 @@ function createTerminusRuntimeModule(options: TerminusModuleOptions = {}): Modul
     healthModule.addReadinessCheck(check);
   }
 
-  const TERMINUS_READINESS_REGISTRAR = Symbol('konekti.terminus.readiness-registrar');
+  const TERMINUS_READINESS_REGISTRAR = Symbol('fluo.terminus.readiness-registrar');
 
   class TerminusRuntimeModule {}
 

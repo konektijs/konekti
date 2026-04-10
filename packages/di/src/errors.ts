@@ -1,4 +1,4 @@
-import { KonektiCodeError, formatTokenName } from '@fluojs/core';
+import { FluoCodeError, formatTokenName } from '@fluojs/core';
 
 /**
  * Structured context attached to DI errors so logs and tests can inspect the failing contract.
@@ -48,7 +48,7 @@ function formatDiContext(ctx?: DiErrorContext): string {
  * This usually points to malformed provider objects, missing `@Inject(...)` tokens, or `null`/
  * `undefined` references that were evaluated before a `forwardRef()` indirection could be applied.
  */
-export class InvalidProviderError extends KonektiCodeError {
+export class InvalidProviderError extends FluoCodeError {
   constructor(message: string, context?: DiErrorContext) {
     super(
       message + formatDiContext(context),
@@ -64,7 +64,7 @@ export class InvalidProviderError extends KonektiCodeError {
  * @remarks
  * Use the attached context to inspect the token, module, scope, or dependency chain involved in the failed operation.
  */
-export class ContainerResolutionError extends KonektiCodeError {
+export class ContainerResolutionError extends FluoCodeError {
   constructor(message: string, context?: DiErrorContext) {
     super(
       message + formatDiContext(context),
@@ -80,7 +80,7 @@ export class ContainerResolutionError extends KonektiCodeError {
  * @remarks
  * This protects the documented lifecycle guarantee that request-scoped providers are isolated per child scope.
  */
-export class RequestScopeResolutionError extends KonektiCodeError {
+export class RequestScopeResolutionError extends FluoCodeError {
   constructor(message: string, context?: DiErrorContext) {
     super(
       message + formatDiContext(context),
@@ -93,7 +93,7 @@ export class RequestScopeResolutionError extends KonektiCodeError {
 /**
  * Raised when a provider scope is registered or consumed from an incompatible container scope.
  */
-export class ScopeMismatchError extends KonektiCodeError {
+export class ScopeMismatchError extends FluoCodeError {
   constructor(message: string, context?: DiErrorContext) {
     super(
       message + formatDiContext(context),
@@ -110,7 +110,7 @@ export class ScopeMismatchError extends KonektiCodeError {
  * The formatted message includes the full dependency path plus a first-party hint that points callers toward
  * extracting shared logic or using `forwardRef()` for intentional cycle deferral.
  */
-export class CircularDependencyError extends KonektiCodeError {
+export class CircularDependencyError extends FluoCodeError {
   constructor(chain: readonly unknown[], detail?: string) {
     const path = chain.map((token) => formatTokenName(token)).join(' -> ');
     const hint = 'Break the cycle by extracting shared logic into a separate provider, or use forwardRef() to defer one side of the dependency.';
@@ -127,7 +127,7 @@ export class CircularDependencyError extends KonektiCodeError {
 /**
  * Raised when the same token is registered twice without going through `container.override(...)`.
  */
-export class DuplicateProviderError extends KonektiCodeError {
+export class DuplicateProviderError extends FluoCodeError {
   constructor(token: unknown) {
     const name = formatTokenName(token);
     const hint = 'Use container.override() for intentional overrides, or check for accidental double-registration in your module providers array.';

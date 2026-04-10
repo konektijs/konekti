@@ -32,7 +32,7 @@ export interface RabbitMqMicroserviceTransportOptions {
  * RabbitMQ transport for queue-backed request-response and event delivery.
  *
  * The adapter uses dedicated event, message, and response queues so applications can keep
- * a queue-oriented topology while still consuming the generic Konekti transport API.
+ * a queue-oriented topology while still consuming the generic Fluo transport API.
  */
 export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
   private handler: TransportHandler | undefined;
@@ -55,9 +55,9 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @param options Queue names and timeout settings for request-response traffic.
    */
   constructor(private readonly options: RabbitMqMicroserviceTransportOptions) {
-    this.eventQueue = options.eventQueue ?? 'konekti.microservices.events';
-    this.messageQueue = options.messageQueue ?? 'konekti.microservices.messages';
-    this.responseQueue = options.responseQueue ?? 'konekti.microservices.responses';
+    this.eventQueue = options.eventQueue ?? 'fluo.microservices.events';
+    this.messageQueue = options.messageQueue ?? 'fluo.microservices.messages';
+    this.responseQueue = options.responseQueue ?? 'fluo.microservices.responses';
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
   }
 

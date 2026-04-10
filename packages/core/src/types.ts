@@ -11,7 +11,7 @@
 export type Constructor<T = unknown> = new (...args: any[]) => T;
 
 /**
- * Public dependency token accepted by Konekti containers, decorators, and module metadata.
+ * Public dependency token accepted by Fluo containers, decorators, and module metadata.
  *
  * Class constructors act as self-describing tokens, while strings and symbols support
  * interface-like or cross-package registrations where no concrete class should leak.
@@ -37,7 +37,7 @@ export interface AsyncModuleOptions<T> {
 }
 
 /**
- * Metadata property name supported by Konekti's shared metadata stores.
+ * Metadata property name supported by Fluo's shared metadata stores.
  */
 export type MetadataPropertyKey = string | symbol;
 

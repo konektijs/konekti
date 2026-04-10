@@ -8,7 +8,7 @@ import type {
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 
 const symbolWithMetadata = Symbol as typeof Symbol & { metadata?: symbol };
-const metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('konekti.symbol.metadata');
+const metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('fluo.symbol.metadata');
 
 if (!symbolWithMetadata.metadata) {
   Object.defineProperty(Symbol, 'metadata', {
@@ -17,8 +17,8 @@ if (!symbolWithMetadata.metadata) {
   });
 }
 
-const standardWebSocketGatewayMetadataKey = Symbol.for('konekti.websocket.standard.gateway');
-const standardWebSocketHandlerMetadataKey = Symbol.for('konekti.websocket.standard.handler');
+const standardWebSocketGatewayMetadataKey = Symbol.for('fluo.websocket.standard.gateway');
+const standardWebSocketHandlerMetadataKey = Symbol.for('fluo.websocket.standard.handler');
 
 const gatewayMetadataStore = new WeakMap<object, WebSocketGatewayMetadata>();
 const handlerMetadataStore = new WeakMap<object, Map<MetadataPropertyKey, WebSocketGatewayHandlerMetadata>>();

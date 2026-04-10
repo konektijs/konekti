@@ -8,7 +8,7 @@ import type { AuthStrategy, AuthStrategyResult } from '../types.js';
 /**
  * Provides cookie-auth strategy options through dependency injection.
  */
-export const COOKIE_AUTH_OPTIONS = Symbol.for('konekti.passport.cookie-auth-options');
+export const COOKIE_AUTH_OPTIONS = Symbol.for('fluo.passport.cookie-auth-options');
 
 /**
  * Configures cookie names and fallback behavior for cookie-based authentication.

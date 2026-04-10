@@ -11,7 +11,7 @@ import type { JwtAlgorithm, JwtClaims, JwtKeyEntry, JwtPrincipal, JwtVerifierOpt
 /**
  * Provides the resolved JWT verifier options through dependency injection.
  */
-export const JWT_OPTIONS = Symbol.for('konekti.jwt.options');
+export const JWT_OPTIONS = Symbol.for('fluo.jwt.options');
 
 /**
  * Maps supported HMAC JWT algorithms to their Node.js hash names.

@@ -49,7 +49,7 @@ interface PendingRequest {
 /**
  * NATS transport for request-response messages and fire-and-forget event delivery.
  *
- * The adapter maps Konekti message traffic onto separate event and request subjects while
+ * The adapter maps Fluo message traffic onto separate event and request subjects while
  * preserving JSON framing and NATS request timeout behavior.
  */
 export class NatsMicroserviceTransport implements MicroserviceTransport {
@@ -63,7 +63,7 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
   private subscriptions: NatsSubscriptionLike[] = [];
 
   private logEventHandlerFailure(error: unknown): void {
-    console.error('[konekti][NatsMicroserviceTransport] event handler failed:', error);
+    console.error('[fluo][NatsMicroserviceTransport] event handler failed:', error);
   }
 
   private handleEventMessageSafely(message: NatsMessageLike): void {
@@ -78,8 +78,8 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
    * @param options Subject names, codec, client, and request-timeout settings.
    */
   constructor(private readonly options: NatsMicroserviceTransportOptions) {
-    this.eventSubject = options.eventSubject ?? 'konekti.microservices.events';
-    this.messageSubject = options.messageSubject ?? 'konekti.microservices.messages';
+    this.eventSubject = options.eventSubject ?? 'fluo.microservices.events';
+    this.messageSubject = options.messageSubject ?? 'fluo.microservices.messages';
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
   }
 

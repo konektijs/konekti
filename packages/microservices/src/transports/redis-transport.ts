@@ -38,7 +38,7 @@ export class RedisPubSubMicroserviceTransport implements MicroserviceTransport {
   private readonly namespace: string;
 
   private logEventHandlerFailure(error: unknown): void {
-    console.error('[konekti][RedisPubSubMicroserviceTransport] event handler failed:', error);
+    console.error('[fluo][RedisPubSubMicroserviceTransport] event handler failed:', error);
   }
 
   /**
@@ -47,7 +47,7 @@ export class RedisPubSubMicroserviceTransport implements MicroserviceTransport {
    * @param options Namespace and Redis client settings for the transport.
    */
   constructor(private readonly options: RedisPubSubMicroserviceTransportOptions) {
-    this.namespace = options.namespace ?? 'konekti:microservices';
+    this.namespace = options.namespace ?? 'fluo:microservices';
   }
 
   /**

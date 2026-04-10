@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createTestApp, createTestingModule } from '@fluojs/testing';
-import { KonektiFactory } from '@fluojs/runtime';
+import { FluoFactory } from '@fluojs/runtime';
 import type { FrameworkRequest, FrameworkResponse } from '@fluojs/http';
 
 import { AppModule } from './app';
@@ -84,7 +84,7 @@ describe('BearerJwtStrategy', () => {
 
 describe('AppModule integration', () => {
   it('dispatches /health and /ready', async () => {
-    const app = await KonektiFactory.create(AppModule, {});
+    const app = await FluoFactory.create(AppModule, {});
     const healthRes = createResponse();
     const readyRes = createResponse();
 
@@ -98,7 +98,7 @@ describe('AppModule integration', () => {
   });
 
   it('issues a token and serves a protected profile route', async () => {
-    const app = await KonektiFactory.create(AppModule, {});
+    const app = await FluoFactory.create(AppModule, {});
 
     const loginRes = createResponse();
     await app.dispatch(createRequest('POST', '/auth/token', { username: 'ada' }), loginRes);

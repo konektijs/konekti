@@ -55,7 +55,7 @@ async function closeFromSignal(app: Application, logger: ApplicationLogger, sign
   }
 
   const forceExitTimer = setTimeout(() => {
-    logger.error(`Forced exit after ${String(forceExitTimeoutMs)}ms shutdown timeout.`, undefined, 'KonektiFactory');
+    logger.error(`Forced exit after ${String(forceExitTimeoutMs)}ms shutdown timeout.`, undefined, 'FluoFactory');
     process.exit(1);
   }, forceExitTimeoutMs);
 
@@ -69,7 +69,7 @@ async function closeFromSignal(app: Application, logger: ApplicationLogger, sign
     process.exitCode = 0;
   } catch (error: unknown) {
     clearTimeout(forceExitTimer);
-    logger.error('Failed to shut down the application cleanly.', error, 'KonektiFactory');
+    logger.error('Failed to shut down the application cleanly.', error, 'FluoFactory');
     process.exitCode = 1;
   }
 }

@@ -19,7 +19,7 @@ type ResolvedDrizzleModuleOptions<
   strictTransactions: boolean;
 };
 
-const DRIZZLE_NORMALIZED_OPTIONS = Symbol('konekti.drizzle.normalized-options');
+const DRIZZLE_NORMALIZED_OPTIONS = Symbol('fluo.drizzle.normalized-options');
 const DRIZZLE_MODULE_EXPORTS = [DrizzleDatabase, DrizzleTransactionInterceptor];
 
 function normalizeDrizzleModuleOptions<
@@ -160,7 +160,7 @@ function buildDrizzleModuleAsync<
 }
 
 /**
- * Module entrypoint for wiring a Drizzle database into the Konekti runtime lifecycle.
+ * Module entrypoint for wiring a Drizzle database into the Fluo runtime lifecycle.
  */
 export class DrizzleModule {
   /** Creates a module definition from static Drizzle options. */

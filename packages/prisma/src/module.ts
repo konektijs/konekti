@@ -21,7 +21,7 @@ interface NormalizedPrismaModuleOptions<
   strictTransactions: boolean;
 }
 
-const PRISMA_NORMALIZED_OPTIONS = Symbol('konekti.prisma.normalized-options');
+const PRISMA_NORMALIZED_OPTIONS = Symbol('fluo.prisma.normalized-options');
 const PRISMA_MODULE_EXPORTS = [PrismaService, PrismaTransactionInterceptor];
 
 function normalizePrismaModuleOptions<

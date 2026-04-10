@@ -10,10 +10,10 @@ const symbolWithMetadata = Symbol as typeof Symbol & { metadata?: symbol };
 /**
  * Active symbol key used to read and write standard metadata bags.
  */
-export let metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('konekti.symbol.metadata');
+export let metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('fluo.symbol.metadata');
 
 /**
- * Ensures `Symbol.metadata` exists and returns the symbol used by Konekti metadata helpers.
+ * Ensures `Symbol.metadata` exists and returns the symbol used by Fluo metadata helpers.
  *
  * @returns The resolved metadata symbol.
  */
@@ -61,26 +61,26 @@ export function cloneMutableValue<T>(value: T): T {
  * Canonical symbol keys for metadata emitted through the standard decorator metadata bag.
  */
 export const standardMetadataKeys = {
-  classValidation: Symbol.for('konekti.standard.class-validation'),
-  controller: Symbol.for('konekti.standard.controller'),
-  dtoFieldBinding: Symbol.for('konekti.standard.dto-binding'),
-  dtoFieldValidation: Symbol.for('konekti.standard.dto-validation'),
-  injection: Symbol.for('konekti.standard.injection'),
-  route: Symbol.for('konekti.standard.route'),
+  classValidation: Symbol.for('fluo.standard.class-validation'),
+  controller: Symbol.for('fluo.standard.controller'),
+  dtoFieldBinding: Symbol.for('fluo.standard.dto-binding'),
+  dtoFieldValidation: Symbol.for('fluo.standard.dto-validation'),
+  injection: Symbol.for('fluo.standard.injection'),
+  route: Symbol.for('fluo.standard.route'),
 } as const;
 
 /**
- * Canonical symbol keys for Konekti-owned metadata stores.
+ * Canonical symbol keys for Fluo-owned metadata stores.
  */
 export const metadataKeys = {
-  module: Symbol.for('konekti.metadata.module'),
-  controller: Symbol.for('konekti.metadata.controller'),
-  route: Symbol.for('konekti.metadata.route'),
-  dtoFieldBinding: Symbol.for('konekti.metadata.dto-field-binding'),
-  dtoFieldValidation: Symbol.for('konekti.metadata.dto-field-validation'),
-  injection: Symbol.for('konekti.metadata.injection'),
-  classDi: Symbol.for('konekti.metadata.class-di'),
-  classValidation: Symbol.for('konekti.metadata.class-validation'),
+  module: Symbol.for('fluo.metadata.module'),
+  controller: Symbol.for('fluo.metadata.controller'),
+  route: Symbol.for('fluo.metadata.route'),
+  dtoFieldBinding: Symbol.for('fluo.metadata.dto-field-binding'),
+  dtoFieldValidation: Symbol.for('fluo.metadata.dto-field-validation'),
+  injection: Symbol.for('fluo.metadata.injection'),
+  classDi: Symbol.for('fluo.metadata.class-di'),
+  classValidation: Symbol.for('fluo.metadata.class-validation'),
 } as const;
 
 /**
@@ -195,7 +195,7 @@ export function getStandardConstructorMetadataMap<T>(target: object, key: symbol
 /**
  * Merges stored and standard metadata property keys while preserving first-seen order.
  *
- * @param stored Property keys from the explicit Konekti store.
+ * @param stored Property keys from the explicit Fluo store.
  * @param standard Property keys from the standard metadata bag.
  * @returns A deduplicated ordered list of metadata property keys.
  */

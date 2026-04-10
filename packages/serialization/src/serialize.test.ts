@@ -49,7 +49,7 @@ describe('serialize', () => {
       }
     }
 
-    expect(serialize(new UserView('konekti'))).toEqual({ displayName: 'KONEKTI' });
+    expect(serialize(new UserView('fluo'))).toEqual({ displayName: 'FLUO' });
   });
 
   it('serializes nested metadata-bearing objects and arrays recursively', () => {

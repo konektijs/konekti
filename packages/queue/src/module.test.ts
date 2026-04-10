@@ -520,7 +520,7 @@ describe('@fluojs/queue', () => {
     });
     expect(bullmqState.workers.get('failing-job')?.failures).toBe(2);
 
-    const deadLetters = redis.deadLetters.get('konekti:queue:dead-letter:failing-job') ?? [];
+    const deadLetters = redis.deadLetters.get('fluo:queue:dead-letter:failing-job') ?? [];
 
     expect(deadLetters).toHaveLength(1);
     expect(JSON.parse(deadLetters[0]!)).toMatchObject({
@@ -566,7 +566,7 @@ describe('@fluojs/queue', () => {
 
     await queue.enqueue(new MutableFailingJob({ role: 'original' }));
 
-    const deadLetters = redis.deadLetters.get('konekti:queue:dead-letter:mutable-failing-job') ?? [];
+    const deadLetters = redis.deadLetters.get('fluo:queue:dead-letter:mutable-failing-job') ?? [];
     expect(deadLetters).toHaveLength(1);
     expect(JSON.parse(deadLetters[0]!)).toMatchObject({
       payload: {
@@ -674,7 +674,7 @@ describe('@fluojs/queue', () => {
     await enqueuePromise;
     await closePromise;
 
-    const deadLetters = redis.deadLetters.get('konekti:queue:dead-letter:shutdown-failing-job') ?? [];
+    const deadLetters = redis.deadLetters.get('fluo:queue:dead-letter:shutdown-failing-job') ?? [];
     expect(deadLetters).toHaveLength(1);
   });
 

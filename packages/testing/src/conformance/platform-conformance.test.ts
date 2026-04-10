@@ -79,7 +79,7 @@ class TestPlatformComponent implements PlatformComponent {
           : { critical: true, status: 'ready' },
       state: this.currentState,
       telemetry: {
-        namespace: `konekti.${this.kind}`,
+        namespace: `fluo.${this.kind}`,
         tags: {},
       },
     };

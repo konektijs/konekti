@@ -12,7 +12,7 @@ import {
 import { createExpressAdapter } from '@fluojs/platform-express';
 import { createFastifyAdapter } from '@fluojs/platform-fastify';
 import { createNodejsAdapter } from '@fluojs/platform-nodejs';
-import { bootstrapApplication, defineModule, KonektiFactory, type Application, type ApplicationLogger, type ModuleType } from '@fluojs/runtime';
+import { bootstrapApplication, defineModule, FluoFactory, type Application, type ApplicationLogger, type ModuleType } from '@fluojs/runtime';
 import { bootstrapNodeApplication } from '@fluojs/runtime/node';
 import { OnConnect, OnDisconnect, OnMessage, WebSocketGateway } from '@fluojs/websockets';
 import { io as createClient, type Socket as ClientSocket } from 'socket.io-client';
@@ -278,7 +278,7 @@ async function createSocketIoAdapterFirstApplication(
   scenario: SupportedSocketIoAdapterScenario,
   options: { port: number; shutdownTimeoutMs?: number },
 ): Promise<Application> {
-  return KonektiFactory.create(rootModule, {
+  return FluoFactory.create(rootModule, {
     adapter: scenario.createAdapter(options),
   });
 }

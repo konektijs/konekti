@@ -10,7 +10,7 @@ import type { NormalizedCacheModuleOptions } from './types.js';
 
 const cacheOptions: NormalizedCacheModuleOptions = {
   isGlobal: false,
-  keyPrefix: 'konekti:cache:',
+  keyPrefix: 'fluo:cache:',
   store: 'memory',
   ttl: 0,
   httpKeyStrategy: 'route',

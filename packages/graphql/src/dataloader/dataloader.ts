@@ -48,7 +48,7 @@ export function createRequestScopedDataLoaderFactory<TLoader>(
  * `DataLoader.Options` with an optional `key` used to deduplicate loader
  * instances inside the per-operation request-scoped cache.
  */
-export interface KonektiDataLoaderOptions<K, V, C = K> extends DataLoader.Options<K, V, C> {
+export interface FluoDataLoaderOptions<K, V, C = K> extends DataLoader.Options<K, V, C> {
   /**
    * Cache key used to store/retrieve this loader in the per-operation
    * request-scoped cache.  When omitted a unique `Symbol` is generated
@@ -71,7 +71,7 @@ export type RequestScopedDataLoaderAccessor<K, V> = (context: GraphQLContext) =>
  * Create a request-scoped `DataLoader` accessor.
  *
  * This is the recommended first-party entry point for DataLoader usage in
- * `@fluojs/graphql`.  It combines the `dataloader` package with Konekti's
+ * `@fluojs/graphql`.  It combines the `dataloader` package with Fluo's
  * per-operation request-scoped cache so that:
  *
  * - Each GraphQL operation gets its own `DataLoader` instance (cache isolation).
@@ -93,15 +93,15 @@ export type RequestScopedDataLoaderAccessor<K, V> = (context: GraphQLContext) =>
  * ```
  *
  * @param batchFn DataLoader batch function that maps requested keys to ordered values.
- * @param options Optional DataLoader options plus an optional stable Konekti cache key.
+ * @param options Optional DataLoader options plus an optional stable Fluo cache key.
  * @returns A request-scoped accessor that resolves a `DataLoader` for the current operation.
  */
 export function createDataLoader<K, V, C = K>(
   batchFn: DataLoader.BatchLoadFn<K, V>,
-  options?: KonektiDataLoaderOptions<K, V, C>,
+  options?: FluoDataLoaderOptions<K, V, C>,
 ): RequestScopedDataLoaderAccessor<K, V> {
-  const { key: userKey, ...dataloaderOptions } = options ?? ({} as KonektiDataLoaderOptions<K, V, C>);
-  const cacheKey: string | symbol = userKey ?? Symbol('konekti.dataloader');
+  const { key: userKey, ...dataloaderOptions } = options ?? ({} as FluoDataLoaderOptions<K, V, C>);
+  const cacheKey: string | symbol = userKey ?? Symbol('fluo.dataloader');
 
   return createRequestScopedDataLoaderFactory<DataLoader<K, V>>(
     cacheKey,
@@ -175,7 +175,7 @@ export function createDataLoaderMap<TMap extends DataLoaderMap>(
   for (const [name, def] of Object.entries(definitions)) {
     accessors.set(
       name,
-      createDataLoader(def.batch, { ...def.options, key: Symbol(`konekti.dataloader.map.${name}`) }),
+      createDataLoader(def.batch, { ...def.options, key: Symbol(`fluo.dataloader.map.${name}`) }),
     );
   }
 

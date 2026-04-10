@@ -64,7 +64,7 @@ describe('KafkaMicroserviceTransport', () => {
     const received: string[] = [];
     const { published, transport } = createTransport(bus, {
       requestTimeoutMs: 1_000,
-      responseTopic: 'konekti.microservices.responses.client-a',
+      responseTopic: 'fluo.microservices.responses.client-a',
     });
 
     await transport.listen(async (packet) => {
@@ -97,8 +97,8 @@ describe('KafkaMicroserviceTransport', () => {
       }))
       .find((entry) => entry.payload.kind === 'message');
 
-    expect(requestFrame?.topic).toBe('konekti.microservices.messages');
-    expect(requestFrame?.payload.replyTopic).toBe('konekti.microservices.responses.client-a');
+    expect(requestFrame?.topic).toBe('fluo.microservices.messages');
+    expect(requestFrame?.payload.replyTopic).toBe('fluo.microservices.responses.client-a');
     expect(typeof requestFrame?.payload.requestId).toBe('string');
 
     await transport.close();

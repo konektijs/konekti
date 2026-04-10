@@ -15,8 +15,8 @@ export interface SerializationFieldMetadata {
   transforms?: TransformFunction[];
 }
 
-const standardSerializationClassMetadataKey = Symbol.for('konekti.standard.serialization.class');
-const standardSerializationFieldMetadataKey = Symbol.for('konekti.standard.serialization.field');
+const standardSerializationClassMetadataKey = Symbol.for('fluo.standard.serialization.class');
+const standardSerializationFieldMetadataKey = Symbol.for('fluo.standard.serialization.field');
 
 function getStandardMetadataBag(metadata: unknown): StandardMetadataBag {
   if (metadata === null || metadata === undefined) {

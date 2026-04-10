@@ -6,7 +6,7 @@ type StandardMetadataBag = Record<PropertyKey, unknown>;
 
 void ensureSymbolMetadataPolyfill();
 
-const standardQueueWorkerMetadataKey = Symbol.for('konekti.queue.standard.worker');
+const standardQueueWorkerMetadataKey = Symbol.for('fluo.queue.standard.worker');
 const queueWorkerMetadataStore = new WeakMap<Function, QueueWorkerMetadata>();
 
 function cloneQueueWorkerMetadata(metadata: QueueWorkerMetadata): QueueWorkerMetadata {

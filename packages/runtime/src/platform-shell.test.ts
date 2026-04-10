@@ -53,7 +53,7 @@ class StubPlatformComponent implements PlatformComponent {
       readiness: this.readinessReport,
       state: this.currentState,
       telemetry: {
-        namespace: `konekti.${this.kind}`,
+        namespace: `fluo.${this.kind}`,
         tags: {},
       },
     };

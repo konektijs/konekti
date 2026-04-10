@@ -5,7 +5,7 @@ export interface RedisStoreOptions {
   scanCount?: number;
 }
 
-const DEFAULT_KEY_PREFIX = 'konekti:cache:';
+const DEFAULT_KEY_PREFIX = 'fluo:cache:';
 const DEFAULT_SCAN_COUNT = 100;
 
 interface RedisCacheEntry<T = unknown> {

@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-import { KonektiError } from '@fluojs/core';
+import { FluoError } from '@fluojs/core';
 
 import type { ContextKey, RequestContext } from '../types.js';
 
@@ -30,13 +30,13 @@ export function getCurrentRequestContext(): RequestContext | undefined {
  * Returns the current request context or throws when no request scope is active.
  *
  * @returns The active request context bound to the current async execution scope.
- * @throws {KonektiError} When called outside a request scope managed by `runWithRequestContext(...)`.
+ * @throws {FluoError} When called outside a request scope managed by `runWithRequestContext(...)`.
  */
 export function assertRequestContext(): RequestContext {
   const context = getCurrentRequestContext();
 
   if (!context) {
-    throw new KonektiError('RequestContext is not available in the current async scope.', {
+    throw new FluoError('RequestContext is not available in the current async scope.', {
       code: 'REQUEST_CONTEXT_MISSING',
     });
   }

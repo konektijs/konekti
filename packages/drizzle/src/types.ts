@@ -8,7 +8,7 @@ type DrizzleTransactionRunner<TTransactionDatabase, TTransactionOptions> = <T>(
 ) => Promise<T>;
 
 /**
- * Minimal Drizzle seam that exposes the optional transaction callback boundary used by the Konekti wrapper.
+ * Minimal Drizzle seam that exposes the optional transaction callback boundary used by the Fluo wrapper.
  *
  * @typeParam TTransactionDatabase Transaction handle shape passed into `database.transaction(...)` callbacks.
  * @typeParam TTransactionOptions Options forwarded to the underlying Drizzle transaction runner.
