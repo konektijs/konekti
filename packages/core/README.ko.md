@@ -46,7 +46,7 @@ class CoreModule {}
 })
 class AppModule {}
 
-@Inject([DatabaseService])
+@Inject(DatabaseService)
 @Scope('singleton')
 class UserService {
   constructor(private readonly db: DatabaseService) {}
@@ -61,16 +61,18 @@ Konekti는 TC39 표준 데코레이터를 사용하므로 `experimentalDecorator
 
 ### 명시적인 의존성 메타데이터
 
-`@Inject([...])`는 리플렉션 기반 추론 대신 코드 안에서 의존성 토큰을 직접 드러냅니다.
+`@Inject(...)`는 리플렉션 기반 추론 대신 코드 안에서 의존성 토큰을 직접 드러냅니다. 상속된 constructor 토큰을 명시적으로 비우려면 `@Inject()`를 사용하면 됩니다.
 
 ```ts
 const CONFIG_TOKEN = Symbol('CONFIG_TOKEN');
 
-@Inject([CONFIG_TOKEN])
+@Inject(CONFIG_TOKEN)
 class UsesConfigValue {
   constructor(private readonly config: Config) {}
 }
 ```
+
+레거시 배열 형식(`@Inject([A, B])`)은 단계적 마이그레이션 동안 계속 허용되지만, 이제 공개 API의 canonical form은 variadic 호출입니다.
 
 ### 형제 패키지를 위한 공용 메타데이터 헬퍼
 

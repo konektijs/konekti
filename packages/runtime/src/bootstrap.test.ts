@@ -471,8 +471,8 @@ describe('bootstrapModule duplicate provider detection', () => {
 });
 
 describe('bootstrapModule requiredConstructorParameters fix', () => {
-  it('does not throw for a class decorated with @Inject([]) (explicit empty inject list)', () => {
-    @Inject([])
+  it('does not throw for a class decorated with @Inject() (explicit empty inject list)', () => {
+    @Inject()
     class ZeroDependencyService {}
 
     class AppModule {}
@@ -483,10 +483,10 @@ describe('bootstrapModule requiredConstructorParameters fix', () => {
     expect(() => bootstrapModule(AppModule)).not.toThrow();
   });
 
-  it('does not throw for a class decorated with @Inject([Token]) that also has a default parameter', () => {
+  it('does not throw for a class decorated with @Inject(Token) that also has a default parameter', () => {
     class Logger {}
 
-    @Inject([Logger])
+    @Inject(Logger)
     class AppService {
       constructor(
         readonly logger: Logger,
@@ -497,6 +497,22 @@ describe('bootstrapModule requiredConstructorParameters fix', () => {
     class AppModule {}
     defineModuleMetadata(AppModule, {
       providers: [Logger, AppService],
+    });
+
+    expect(() => bootstrapModule(AppModule)).not.toThrow();
+  });
+
+  it('keeps supporting the legacy array syntax during the staged migration', () => {
+    class Logger {}
+
+    @Inject([Logger])
+    class LegacyAppService {
+      constructor(readonly logger: Logger) {}
+    }
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [Logger, LegacyAppService],
     });
 
     expect(() => bootstrapModule(AppModule)).not.toThrow();
@@ -948,10 +964,10 @@ describe('Recovery-oriented error context (runtime)', () => {
       } catch (error) {
         const meta = (error as ModuleVisibilityError & { meta?: Record<string, unknown> }).meta;
         expect(meta).toBeDefined();
-        expect(meta!['module']).toBe('BillingModule');
-        expect(meta!['phase']).toBe('provider visibility validation');
-        expect(meta!['hint']).toBeDefined();
-        expect(meta!['token']).toBeDefined();
+        expect(meta!.module).toBe('BillingModule');
+        expect(meta!.phase).toBe('provider visibility validation');
+        expect(meta!.hint).toBeDefined();
+        expect(meta!.token).toBeDefined();
       }
     });
   });
@@ -997,8 +1013,8 @@ describe('Recovery-oriented error context (runtime)', () => {
       } catch (error) {
         const meta = (error as ModuleGraphError & { meta?: Record<string, unknown> }).meta;
         expect(meta).toBeDefined();
-        expect(meta!['phase']).toBe('module graph compilation');
-        expect(meta!['hint']).toBeDefined();
+        expect(meta!.phase).toBe('module graph compilation');
+        expect(meta!.hint).toBeDefined();
       }
     });
   });
@@ -1047,9 +1063,9 @@ describe('Recovery-oriented error context (runtime)', () => {
       } catch (error) {
         const meta = (error as ModuleInjectionMetadataError & { meta?: Record<string, unknown> }).meta;
         expect(meta).toBeDefined();
-        expect(meta!['module']).toContain('BillingModule');
-        expect(meta!['phase']).toBe('injection metadata validation');
-        expect(meta!['hint']).toBeDefined();
+        expect(meta!.module).toContain('BillingModule');
+        expect(meta!.phase).toBe('injection metadata validation');
+        expect(meta!.hint).toBeDefined();
       }
     });
   });
@@ -1115,10 +1131,10 @@ describe('Recovery-oriented error context (runtime)', () => {
       } catch (error) {
         const meta = (error as DuplicateProviderError & { meta?: Record<string, unknown> }).meta;
         expect(meta).toBeDefined();
-        expect(meta!['module']).toBeDefined();
-        expect(meta!['token']).toBeDefined();
-        expect(meta!['phase']).toBe('provider registration');
-        expect(meta!['hint']).toBeDefined();
+        expect(meta!.module).toBeDefined();
+        expect(meta!.token).toBeDefined();
+        expect(meta!.phase).toBe('provider registration');
+        expect(meta!.hint).toBeDefined();
       }
     });
   });

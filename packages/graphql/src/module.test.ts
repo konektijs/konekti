@@ -165,7 +165,7 @@ async function readGraphqlWebSocketMessages(socket: WebSocket, count: number): P
   });
 }
 
-@Inject([])
+@Inject()
 class ResolverState {
   mutableValue = 'init';
 }
@@ -232,7 +232,7 @@ const OperationResultUnionType = new GraphQLUnionType({
   types: [UnionSuccessPayloadType, UnionErrorPayloadType],
 });
 
-@Inject([ResolverState])
+@Inject(ResolverState)
 @Resolver('RootResolver')
 class GraphqlResolver {
   constructor(private readonly state: ResolverState) {}
@@ -264,7 +264,7 @@ class GraphqlResolver {
   }
 }
 
-@Inject([])
+@Inject()
 @Resolver('ObjectOutputResolver')
 class ObjectOutputResolver {
   @Query({ outputType: OperationPayloadType })
@@ -292,7 +292,7 @@ class ObjectOutputResolver {
   }
 }
 
-@Inject([])
+@Inject()
 @Resolver('ListOutputResolver')
 class ListOutputResolver {
   @Query({ input: ValuesInput, argTypes: { values: listOf('string') }, outputType: listOf('string') })
@@ -317,7 +317,7 @@ class ListOutputResolver {
   }
 }
 
-@Inject([])
+@Inject()
 @Resolver('UnionOutputResolver')
 class UnionOutputResolver {
   @Query({ outputType: OperationResultUnionType })
@@ -900,7 +900,7 @@ describe('@konekti/graphql', () => {
       },
     };
 
-    @Inject([])
+    @Inject()
     @Resolver('ReservedContextResolver')
     class ReservedContextResolver {
       @Query()
@@ -944,13 +944,13 @@ describe('@konekti/graphql — provider scopes', () => {
   it('isolates request-scoped resolver instances across concurrent operations', async () => {
     let issued = 0;
 
-    @Inject([])
+    @Inject()
     @Scope('request')
     class RequestIdentity {
       readonly id = `req-${String(++issued)}`;
     }
 
-    @Inject([RequestIdentity])
+    @Inject(RequestIdentity)
     @Scope('request')
     @Resolver('ConcurrentRequestResolver')
     class ConcurrentRequestResolver {
@@ -989,13 +989,13 @@ describe('@konekti/graphql — provider scopes', () => {
   });
 
   it('request-scoped resolver receives a fresh instance per operation', async () => {
-    @Inject([])
+    @Inject()
     @Scope('request')
     class RequestCounter {
       count = 0;
     }
 
-    @Inject([RequestCounter])
+    @Inject(RequestCounter)
     @Scope('request')
     @Resolver('ScopedResolver')
     class RequestScopedResolver {
@@ -1028,13 +1028,13 @@ describe('@konekti/graphql — provider scopes', () => {
   });
 
   it('reuses one request scope across all resolver fields in the same operation', async () => {
-    @Inject([])
+    @Inject()
     @Scope('request')
     class OperationCounter {
       count = 0;
     }
 
-    @Inject([OperationCounter])
+    @Inject(OperationCounter)
     @Scope('request')
     @Resolver('OperationScopedResolver')
     class OperationScopedResolver {
@@ -1075,13 +1075,13 @@ describe('@konekti/graphql — provider scopes', () => {
   it('isolates request-scoped subscription resolvers per websocket operation', async () => {
     let issued = 0;
 
-    @Inject([])
+    @Inject()
     @Scope('request')
     class SubscriptionRequestIdentity {
       readonly id = `subscription-${String(++issued)}`;
     }
 
-    @Inject([SubscriptionRequestIdentity])
+    @Inject(SubscriptionRequestIdentity)
     @Scope('request')
     @Resolver('ScopedSubscriptionResolver')
     class ScopedSubscriptionResolver {
@@ -1149,13 +1149,13 @@ describe('@konekti/graphql — provider scopes', () => {
   });
 
   it('transient resolver receives a fresh instance per operation', async () => {
-    @Inject([])
+    @Inject()
     @Scope('transient')
     class TransientCounter {
       count = 0;
     }
 
-    @Inject([TransientCounter])
+    @Inject(TransientCounter)
     @Scope('transient')
     @Resolver('TransientResolver')
     class TransientScopedResolver {
@@ -1188,12 +1188,12 @@ describe('@konekti/graphql — provider scopes', () => {
   });
 
   it('singleton resolver shares state across operations', async () => {
-    @Inject([])
+    @Inject()
     class SingletonCounter {
       count = 0;
     }
 
-    @Inject([SingletonCounter])
+    @Inject(SingletonCounter)
     @Resolver('SingletonResolver')
     class SingletonScopedResolver {
       constructor(private readonly counter: SingletonCounter) {}
@@ -1289,13 +1289,13 @@ describe('@konekti/graphql — provider scopes', () => {
   });
 
   it('inherits request scope from useFactory resolverClass metadata', async () => {
-    @Inject([])
+    @Inject()
     @Scope('request')
     class FactoryRequestCounter {
       count = 0;
     }
 
-    @Inject([FactoryRequestCounter])
+    @Inject(FactoryRequestCounter)
     @Scope('request')
     @Resolver('FactoryRequestScopedResolver')
     class FactoryRequestScopedResolver {

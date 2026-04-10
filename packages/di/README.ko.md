@@ -41,7 +41,7 @@ class Logger {
   }
 }
 
-@Inject([Logger])
+@Inject(Logger)
 @Scope('singleton')
 class UserService {
   constructor(private readonly logger: Logger) {}

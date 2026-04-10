@@ -48,7 +48,7 @@ class CoreModule {}
 })
 class AppModule {}
 
-@Inject([DatabaseService])
+@Inject(DatabaseService)
 @Scope('singleton')
 class UserService {
   constructor(private readonly db: DatabaseService) {}
@@ -63,16 +63,18 @@ Konekti uses TC39 standard decorators. You do not need `experimentalDecorators: 
 
 ### Explicit dependency metadata
 
-`@Inject([...])` keeps dependency wiring visible in code instead of relying on emitted reflection metadata.
+`@Inject(...)` keeps dependency wiring visible in code instead of relying on emitted reflection metadata. Call `@Inject()` when you want to record an explicit empty override for inherited constructor tokens.
 
 ```ts
 const CONFIG_TOKEN = Symbol('CONFIG_TOKEN');
 
-@Inject([CONFIG_TOKEN])
+@Inject(CONFIG_TOKEN)
 class UsesConfigValue {
   constructor(private readonly config: Config) {}
 }
 ```
+
+The legacy array form (`@Inject([A, B])`) is still accepted during the staged migration window, but variadic calls are now the canonical public API.
 
 ### Shared metadata helpers for sibling packages
 

@@ -40,7 +40,7 @@ class Logger {
   log(msg: string) { console.log(msg); }
 }
 
-@Inject([Logger])
+@Inject(Logger)
 @Scope('singleton')
 class UserService {
   constructor(private logger: Logger) {}
@@ -100,4 +100,3 @@ const scopedService = await requestContainer.resolve(RequestScopedService);
 - `packages/di/src/container.ts`
 - `packages/di/src/container.test.ts`
 - `examples/minimal/src/app.ts`
-
