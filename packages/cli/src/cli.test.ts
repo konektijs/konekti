@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe('CLI command runner', () => {
-  it('publishes fluo as the canonical bin and keeps konekti as a compatibility alias', () => {
+  it('publishes fluo as the canonical bin', () => {
     const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
     const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')) as {
       bin: Record<string, string>;
@@ -32,13 +32,12 @@ describe('CLI command runner', () => {
 
     expect(manifest.bin).toEqual({
       fluo: './bin/fluo.mjs',
-      konekti: './bin/konekti.mjs',
     });
     expect(readFileSync(join(packageRoot, 'README.md'), 'utf8')).toContain('The canonical CLI for fluo');
   });
 
   it('uses the default target directory from a single-app workspace root', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     writeFileSync(
@@ -65,7 +64,7 @@ describe('CLI command runner', () => {
   });
 
   it('fails fast from a multi-app workspace root unless --target-directory is explicit', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     writeFileSync(
@@ -96,7 +95,7 @@ describe('CLI command runner', () => {
   });
 
   it('auto-detects the package manager from the calling context when no flag is provided', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stdoutBuffer: string[] = [];
 
@@ -114,7 +113,7 @@ describe('CLI command runner', () => {
   });
 
   it('falls back to pnpm when package manager detection has no signal', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stdoutBuffer: string[] = [];
 
@@ -131,7 +130,7 @@ describe('CLI command runner', () => {
   });
 
   it('honors explicit yarn selection without changing the stable scaffold shape', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stdoutBuffer: string[] = [];
 
@@ -148,7 +147,7 @@ describe('CLI command runner', () => {
   });
 
   it('scaffolds a local .env file while ignoring it from git by default', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     const exitCode = await runCli(['new', 'starter-app'], {
@@ -166,7 +165,7 @@ describe('CLI command runner', () => {
   });
 
   it('keeps Babel test-file ignore rules in babel.config.cjs instead of shell-quoted build args', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     const exitCode = await runCli(['new', 'starter-app'], {
@@ -188,7 +187,7 @@ describe('CLI command runner', () => {
   });
 
   it('keeps explicit --target-directory when it appears before positional project name', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stdoutBuffer: string[] = [];
 
@@ -206,7 +205,7 @@ describe('CLI command runner', () => {
   });
 
   it('keeps explicit --target-directory when it appears after positional project name', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stdoutBuffer: string[] = [];
 
@@ -238,7 +237,7 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).toContain('| new      | create');
     expect(stdoutBuffer.join('')).toContain('| generate | g');
     expect(stdoutBuffer.join('')).toContain("Run 'fluo help <command>'");
-    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md');
+    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md');
   });
 
   it('prints `new` usage for `new --help`', async () => {
@@ -258,7 +257,7 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).toContain('Next steps:');
     expect(stdoutBuffer.join('')).toContain('cd <app-name>');
     expect(stdoutBuffer.join('')).toContain('pnpm dev');
-    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md');
+    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md');
   });
 
   it('prints `new` usage for `create --help`', async () => {
@@ -297,7 +296,7 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).not.toContain('Usage: fluo new|create');
     expect(stdoutBuffer.join('')).toContain('Next steps:');
     expect(stdoutBuffer.join('')).toContain("Run 'pnpm typecheck'");
-    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/generator-workflow.md');
+    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/generator-workflow.md');
   });
 
   it('prints inspect usage for `help inspect`', async () => {
@@ -313,7 +312,7 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).toContain('Usage: fluo inspect <module-path> [options]');
     expect(stdoutBuffer.join('')).toContain('--mermaid');
     expect(stdoutBuffer.join('')).toContain('--timing');
-    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md');
+    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md');
   });
 
   it('emits platform snapshot JSON for inspect by default', async () => {
@@ -410,7 +409,7 @@ describe('CLI command runner', () => {
   });
 
   it('places generated files under a domain subdirectory and auto-creates the module', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -436,7 +435,7 @@ describe('CLI command runner', () => {
   });
 
   it('accepts `repo` as the repository generator kind', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -457,7 +456,7 @@ describe('CLI command runner', () => {
   });
 
   it('accepts `repository` as the repository schematic name', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -478,7 +477,7 @@ describe('CLI command runner', () => {
   });
 
   it('accepts `request-dto` as a request DTO schematic', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -498,7 +497,7 @@ describe('CLI command runner', () => {
   });
 
   it('accepts `response-dto` as a response DTO schematic', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -518,7 +517,7 @@ describe('CLI command runner', () => {
   });
 
   it('accepts `co` as a controller alias', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -539,7 +538,7 @@ describe('CLI command runner', () => {
   });
 
   it('accepts `mo` as a module alias', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -559,7 +558,7 @@ describe('CLI command runner', () => {
   });
 
   it('accepts `s` as a service alias', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -580,7 +579,7 @@ describe('CLI command runner', () => {
   });
 
   it('registers controller into existing module when present', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     const domainDir = join(workspaceDirectory, 'src', 'orders');
@@ -607,7 +606,7 @@ describe('CLI command runner', () => {
   });
 
   it('creates a new starter project scaffold through the CLI while keeping scaffold contract assertions', async () => {
-    const targetDirectory = mkdtempSync(join(tmpdir(), 'konekti-new-'));
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-new-'));
     createdDirectories.push(targetDirectory);
     const stdoutBuffer: string[] = [];
 
@@ -667,9 +666,9 @@ describe('CLI command runner', () => {
   it('keeps the local sandbox outside the repo workspace', () => {
     const repoRoot = dirname(dirname(dirname(dirname(fileURLToPath(import.meta.url)))));
     const scriptPath = join(repoRoot, 'packages', 'cli', 'scripts', 'local-test-env.mjs');
-    const fallbackRoot = join(tmpdir(), 'konekti-cli-sandbox');
+    const fallbackRoot = join(tmpdir(), 'fluo-cli-sandbox');
     const internalOverrideRoot = join(repoRoot, '.sandbox-internal-test');
-    const externalOverrideRoot = join(tmpdir(), `konekti-cli-external-${process.pid}`);
+    const externalOverrideRoot = join(tmpdir(), `fluo-cli-external-${process.pid}`);
     const fallbackProjectName = `workspace-fallback-${process.pid}`;
     const externalProjectName = `workspace-external-${process.pid}`;
 
@@ -678,13 +677,13 @@ describe('CLI command runner', () => {
       encoding: 'utf8',
       env: {
         ...process.env,
-        KONEKTI_CLI_SANDBOX_ROOT: internalOverrideRoot,
+        FLUO_CLI_SANDBOX_ROOT: internalOverrideRoot,
       },
       stdio: 'pipe',
     });
 
     expect(fallbackResult.status).toBe(0);
-    expect(fallbackResult.stdout).toContain(`Ignoring KONEKTI_CLI_SANDBOX_ROOT=${internalOverrideRoot}`);
+    expect(fallbackResult.stdout).toContain(`Ignoring FLUO_CLI_SANDBOX_ROOT=${internalOverrideRoot}`);
     expect(fallbackResult.stdout).toContain(`Using sandbox root ${fallbackRoot}`);
     expect(fallbackResult.stdout).toContain(`Removed ${fallbackRoot}`);
 
@@ -693,13 +692,13 @@ describe('CLI command runner', () => {
       encoding: 'utf8',
       env: {
         ...process.env,
-        KONEKTI_CLI_SANDBOX_ROOT: externalOverrideRoot,
+        FLUO_CLI_SANDBOX_ROOT: externalOverrideRoot,
       },
       stdio: 'pipe',
     });
 
     expect(preservedResult.status).toBe(0);
-    expect(preservedResult.stdout).not.toContain('Ignoring KONEKTI_CLI_SANDBOX_ROOT=');
+    expect(preservedResult.stdout).not.toContain('Ignoring FLUO_CLI_SANDBOX_ROOT=');
     expect(preservedResult.stdout).toContain(`Using sandbox root ${externalOverrideRoot}`);
     expect(preservedResult.stdout).toContain(`Removed ${externalOverrideRoot}`);
   });
@@ -792,7 +791,7 @@ describe('CLI command runner', () => {
   });
 
   it('rejects unknown options for `new` before scaffolding side effects', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stderrBuffer: string[] = [];
 
@@ -808,7 +807,7 @@ describe('CLI command runner', () => {
   });
 
   it('rejects `new --package-manager` when the value is missing', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stderrBuffer: string[] = [];
 
@@ -824,7 +823,7 @@ describe('CLI command runner', () => {
   });
 
   it('rejects unsupported package-manager values for `new`', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stderrBuffer: string[] = [];
 
@@ -840,7 +839,7 @@ describe('CLI command runner', () => {
   });
 
   it('accepts bun as a supported package manager for `new`', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     const exitCode = await runCli(['new', 'starter-app', '--package-manager', 'bun'], {
@@ -855,7 +854,7 @@ describe('CLI command runner', () => {
   });
 
   it('rejects traversal-style project names for `new` before scaffolding side effects', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stderrBuffer: string[] = [];
 
@@ -871,7 +870,7 @@ describe('CLI command runner', () => {
   });
 
   it('rejects traversal-style project names provided through `--name`', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     const stderrBuffer: string[] = [];
 
@@ -887,7 +886,7 @@ describe('CLI command runner', () => {
   });
 
   it('escapes generated TypeScript string literals for special project names', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     const exitCode = await runCli(['new', "starter'app"], {
@@ -982,7 +981,7 @@ describe('CLI command runner', () => {
   });
 
   it('resolves mi alias to middleware', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -1002,7 +1001,7 @@ describe('CLI command runner', () => {
   });
 
   it('resolves gu alias to guard', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -1022,7 +1021,7 @@ describe('CLI command runner', () => {
   });
 
   it('resolves `in` alias to interceptor', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -1042,7 +1041,7 @@ describe('CLI command runner', () => {
   });
 
   it('resolves `req` alias to request-dto', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -1061,7 +1060,7 @@ describe('CLI command runner', () => {
   });
 
   it('resolves `res` alias to response-dto', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -1094,7 +1093,7 @@ describe('CLI command runner', () => {
   });
 
   it('generate output includes CREATE prefix, wiring status, and next-step hint for auto-registered kinds', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -1120,7 +1119,7 @@ describe('CLI command runner', () => {
   });
 
   it('generate output shows files-only wiring and manual hint for non-registered kinds', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -1179,11 +1178,11 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).toContain('--only <comma-list>');
     expect(stdoutBuffer.join('')).toContain('Next steps:');
     expect(stdoutBuffer.join('')).toContain('--apply');
-    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/migrate-from-nestjs.md');
+    expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/migrate-from-nestjs.md');
   });
 
   it('runs migrate in dry-run by default and only writes with --apply', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -1218,7 +1217,7 @@ void bootstrap();
     });
 
     expect(applyExitCode).toBe(0);
-    expect(readFileSync(join(workspaceDirectory, 'src', 'main.ts'), 'utf8')).toContain('KonektiFactory.create');
+    expect(readFileSync(join(workspaceDirectory, 'src', 'main.ts'), 'utf8')).toContain('FluoFactory.create');
     expect(readFileSync(join(workspaceDirectory, 'src', 'main.ts'), 'utf8')).toContain('await app.listen();');
   });
 });

@@ -83,7 +83,7 @@ export type RunNestJsMigrationOptions = {
 
 const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
 
-const NEST_COMMON_TO_KONEKTI: Record<string, '@fluojs/core' | '@fluojs/http'> = {
+const NEST_COMMON_TO_FLUO: Record<string, '@fluojs/core' | '@fluojs/http'> = {
   Body: '@fluojs/http',
   ConflictException: '@fluojs/http',
   Controller: '@fluojs/http',
@@ -313,7 +313,7 @@ function rewriteImports(source: string, filePath: string): { changed: boolean; s
     const remaining: ImportBinding[] = [];
 
     for (const binding of getImportBindings(statement)) {
-      const targetModule = NEST_COMMON_TO_KONEKTI[binding.imported];
+      const targetModule = NEST_COMMON_TO_FLUO[binding.imported];
       if (!targetModule) {
         remaining.push(binding);
         continue;
@@ -442,7 +442,7 @@ function rewriteInjectableAndScope(
   const warnings: MigrationWarning[] = [];
   let hasStructuralChange = false;
   let addedScopeDecorator = false;
-  const scopeDecoratorName = hasConflictingScopeImport(sourceFile) ? 'KonektiScope' : 'Scope';
+  const scopeDecoratorName = hasConflictingScopeImport(sourceFile) ? 'FluoScope' : 'Scope';
 
   const transformer = <T extends ts.Node>(context: ts.TransformationContext) => {
     const visit = (node: ts.Node): ts.Node => {
@@ -679,7 +679,7 @@ function rewriteBootstrap(source: string, filePath: string): { changed: boolean;
 
               if (!portFoldedApps.has(appVariable)) {
                 warnings.push(
-                  buildWarning(filePath, sourceFile, node, 'bootstrap-port', 'Unable to move listen() port argument into KonektiFactory.create options. Review bootstrap manually.'),
+                  buildWarning(filePath, sourceFile, node, 'bootstrap-port', 'Unable to move listen() port argument into FluoFactory.create options. Review bootstrap manually.'),
                 );
               }
             }
@@ -689,7 +689,7 @@ function rewriteBootstrap(source: string, filePath: string): { changed: boolean;
 
           return ts.factory.updateCallExpression(
             node,
-            ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('KonektiFactory'), ts.factory.createIdentifier('create')),
+            ts.factory.createPropertyAccessExpression(ts.factory.createIdentifier('FluoFactory'), ts.factory.createIdentifier('create')),
             undefined,
             nextArgs,
           );
@@ -725,7 +725,7 @@ function rewriteBootstrap(source: string, filePath: string): { changed: boolean;
   nextSource = removed.source;
 
   const nextSourceFile = parseSource(nextSource, filePath);
-  const withRuntimeImport = printSourceFile(nextSourceFile, mergeNamedImport([...nextSourceFile.statements], '@fluojs/runtime', [{ imported: 'KonektiFactory', local: 'KonektiFactory' }]));
+  const withRuntimeImport = printSourceFile(nextSourceFile, mergeNamedImport([...nextSourceFile.statements], '@fluojs/runtime', [{ imported: 'FluoFactory', local: 'FluoFactory' }]));
 
   return {
     changed: withRuntimeImport !== source,
@@ -914,8 +914,8 @@ function rewriteTesting(source: string, filePath: string): { changed: boolean; s
     mergeNamedImport([...nextSourceFile.statements], '@fluojs/testing', [{ imported: 'createTestingModule', local: 'createTestingModule' }]),
   );
 
-  const withKonektiImportSourceFile = parseSource(nextSource, filePath);
-  if (!hasNestTestCreateCall(withKonektiImportSourceFile)) {
+  const withFluoImportSourceFile = parseSource(nextSource, filePath);
+  if (!hasNestTestCreateCall(withFluoImportSourceFile)) {
     const removedTest = removeImportBinding(nextSource, filePath, '@nestjs/testing', 'Test');
     nextSource = removedTest.source;
   }

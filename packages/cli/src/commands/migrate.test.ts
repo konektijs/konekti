@@ -40,7 +40,7 @@ describe('runMigrateCommand', () => {
   });
 
   it('returns changed file summary in dry-run mode', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-command-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-command-'));
     tempDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -71,7 +71,7 @@ void bootstrap();
   });
 
   it('outputs "Automated rewrites:" section header for changed files', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-command-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-command-'));
     tempDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -102,7 +102,7 @@ void bootstrap();
   });
 
   it('groups manual follow-up warnings by category with label headers', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-command-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-command-'));
     tempDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -134,12 +134,12 @@ export class UsersController {
     expect(exitCode).toBe(0);
     expect(output).toContain('Manual follow-up required:');
     expect(output).toMatch(/\[DI token migration \(@Inject\)\]/);
-    expect(output).toContain('Docs: https://github.com/konektijs/konekti');
+    expect(output).toContain('Docs: https://github.com/fluojs/fluo');
     expect(output).toContain('post-codemod checklist');
   });
 
   it('outputs clean-run message when no warnings are produced', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-command-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-command-'));
     tempDirectories.push(workspaceDirectory);
 
     writeFileSync(
@@ -170,7 +170,7 @@ export class UsersController {
   });
 
   it('outputs docs link when warnings are present', async () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-command-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-command-'));
     tempDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -194,7 +194,7 @@ export class AppController {
 
     const output = stdoutBuffer.join('');
     expect(exitCode).toBe(0);
-    expect(output).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/migrate-from-nestjs.md');
+    expect(output).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/migrate-from-nestjs.md');
     expect(output).toContain('Use the post-codemod checklist in the migration guide to address each warning category.');
   });
 });

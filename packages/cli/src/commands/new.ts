@@ -159,7 +159,7 @@ export function newUsage(): string {
     '  cd <app-name>',
     '  pnpm dev  # or npm run dev / yarn dev / bun run dev',
     '',
-    'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md',
+    'Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md',
   ].join('\n');
 }
 

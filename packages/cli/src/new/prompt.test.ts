@@ -20,7 +20,7 @@ describe('detectPackageManager', () => {
   });
 
   it('detects bun from bun lockfiles in parent directories', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-prompt-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-prompt-'));
     const nestedDirectory = join(workspaceDirectory, 'apps', 'starter-app');
     createdDirectories.push(workspaceDirectory);
 
@@ -32,7 +32,7 @@ describe('detectPackageManager', () => {
 
 describe('resolveBootstrapAnswers', () => {
   it('uses the detected bun package manager when none is provided explicitly', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-cli-prompt-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-prompt-'));
     createdDirectories.push(workspaceDirectory);
 
     writeFileSync(

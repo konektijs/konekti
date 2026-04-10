@@ -127,7 +127,7 @@ function generateUsage(): string {
     '  Run \'pnpm typecheck\' to verify the generated module wiring.',
     '  Run \'pnpm test\' to execute the generated test templates.',
     '',
-    'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/generator-workflow.md',
+    'Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/generator-workflow.md',
   ].join('\n');
 }
 
@@ -143,7 +143,7 @@ function usage(): string {
     ]),
     '',
     "Run 'fluo help <command>' for more information on a command.",
-    'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md',
+    'Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md',
   ].join('\n');
 }
 
