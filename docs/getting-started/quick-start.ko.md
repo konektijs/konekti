@@ -18,7 +18,7 @@ pnpm add -g @fluojs/cli
 새로운 애플리케이션을 초기화합니다. 기본적으로 Node.js 환경에서 고성능 **Fastify** 어댑터가 구성됩니다.
 
 ```sh
-fluo new my-fluo-app
+konekti new my-fluo-app
 cd my-fluo-app
 ```
 

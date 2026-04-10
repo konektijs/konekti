@@ -11,7 +11,7 @@ fluo CLI를 사용하여 반복적인 코드를 줄이고 일관된 프로젝트
 **모듈(Module)**은 fluo에서 조직화의 기본 단위입니다. 한 번의 명령으로 모듈 진입점을 만들고, 필요한 구성 요소를 뒤이어 세분화해 추가할 수 있습니다.
 
 ```sh
-fluo g module catalog
+konekti g module catalog
 ```
 
 **어떤 일이 일어나나요?**
@@ -20,23 +20,23 @@ CLI는 `src/catalog/` 디렉토리를 만들고 `catalog.module.ts` 진입점을
 ### 2. 정밀한 컴포넌트 생성
 기존 기능에 단일 구성 요소를 추가해야 하나요? 세분화된 제너레이터를 사용하세요.
 
-- **`fluo g controller name`**: HTTP 컨트롤러를 스캐폴딩합니다.
-- **`fluo g service name`**: 비즈니스 로직 서비스를 스캐폴딩합니다.
-- **`fluo g repo name`**: 데이터 레포지토리 패턴을 스캐폴딩합니다.
-- **`fluo g module name`**: 깨끗한 모듈 정의를 스캐폴딩합니다.
+- **`konekti g controller name`**: HTTP 컨트롤러를 스캐폴딩합니다.
+- **`konekti g service name`**: 비즈니스 로직 서비스를 스캐폴딩합니다.
+- **`konekti g repo name`**: 데이터 레포지토리 패턴을 스캐폴딩합니다.
+- **`konekti g module name`**: 깨끗한 모듈 정의를 스캐폴딩합니다.
 
 ### 3. 유연한 출력 경로
 기본적으로 CLI는 `src/`를 타겟으로 합니다. 프로젝트의 디렉토리 구조에 맞게 `--target-directory` (또는 `-o`) 플래그를 사용할 수 있습니다.
 
 ```sh
-fluo g module auth --target-directory src/shared
+konekti g module auth --target-directory src/shared
 ```
 
 ### 4. 드라이 런을 통한 안전한 실행
 변경 사항을 실제로 적용하기 전에 어떤 파일이 수정되거나 생성될지 미리 확인해 보세요.
 
 ```sh
-fluo g module shop --dry-run
+konekti g module shop --dry-run
 ```
 
 ### 왜 CLI를 사용해야 하나요?

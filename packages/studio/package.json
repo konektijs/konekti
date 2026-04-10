@@ -39,7 +39,7 @@
     "@fluojs/runtime": "workspace:*"
   },
   "devDependencies": {
-    "@fluojs-internal/tooling-vite": "workspace:*",
+    "@konekti-internal/tooling-vite": "workspace:*",
     "vitest": "^3.2.4"
   }
 }

@@ -90,7 +90,7 @@ describe('officialTransportDocsPackages', () => {
       getOfficialTransportDocsPackages: () => string[];
     };
 
-    expect(governanceModule.getOfficialTransportDocsPackages()).toContain('@konekti/socket.io');
+    expect(governanceModule.getOfficialTransportDocsPackages()).toContain('@fluojs/socket.io');
   });
 });
 
@@ -101,17 +101,17 @@ describe('parsePackageNamesFromFamilyTable', () => {
       '',
       '| family | description | packages |',
       '| --- | --- | --- |',
-      '| **HTTP** | Web API execution and routing. | `@konekti/http`, `@konekti/graphql` |',
-      '| **Auth** | Authentication and authorization. | `@konekti/jwt`, `@konekti/passport` |',
+      '| **HTTP** | Web API execution and routing. | `@fluojs/http`, `@fluojs/graphql` |',
+      '| **Auth** | Authentication and authorization. | `@fluojs/jwt`, `@fluojs/passport` |',
       '',
       '## next section',
     ].join('\n');
 
     expect(parsePackageNamesFromFamilyTable(markdown, 'public package families')).toEqual([
-      '@konekti/graphql',
-      '@konekti/http',
-      '@konekti/jwt',
-      '@konekti/passport',
+      '@fluojs/graphql',
+      '@fluojs/http',
+      '@fluojs/jwt',
+      '@fluojs/passport',
     ]);
   });
 
@@ -121,15 +121,15 @@ describe('parsePackageNamesFromFamilyTable', () => {
       '',
       '| family | description | packages |',
       '| --- | --- | --- |',
-      '| **Patterns** | Messaging and architecture. | `@konekti/notifications`, `@konekti/email` |',
+      '| **Patterns** | Messaging and architecture. | `@fluojs/notifications`, `@fluojs/email` |',
       '',
       '## package responsibilities',
-      '- `@konekti/email/node`: Node-only subpath',
+      '- `@fluojs/email/node`: Node-only subpath',
     ].join('\n');
 
     expect(parsePackageNamesFromFamilyTable(markdown, 'public package families')).toEqual([
-      '@konekti/email',
-      '@konekti/notifications',
+      '@fluojs/email',
+      '@fluojs/notifications',
     ]);
   });
 });

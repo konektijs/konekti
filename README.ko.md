@@ -49,7 +49,7 @@ CLI를 사용하는 것이 fluo를 경험하는 가장 빠른 방법입니다.
 pnpm add -g @fluojs/cli
 
 # 프로젝트 생성
-fluo new my-backend
+konekti new my-backend
 cd my-backend
 
 # 엔진 가동

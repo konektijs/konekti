@@ -171,7 +171,7 @@ function upsertReleaseCandidateDraft() {
     '- Breaking changes:',
     '  - _Describe public contract changes and include migration notes._',
     '- New features by package:',
-    '  - _List package-level additions (for example `@konekti/http`, `@konekti/cli`)._',
+    '  - _List package-level additions (for example `@fluojs/http`, `@fluojs/cli`)._',
     '- Bug fixes:',
     '  - _List notable fixes by package._',
     '- Deprecations:',
@@ -243,8 +243,8 @@ const officialFetchAdapterDocs = [
 assertCheck(
   checks,
   'Canonical bootstrap docs',
-  quickStart.includes('pnpm dlx @konekti/cli new starter-app') && quickStart.includes('canonical public bootstrap flow'),
-  'The quick start guide documents the public `pnpm add -g @konekti/cli` + `konekti new` path.',
+  quickStart.includes('pnpm dlx @fluojs/cli new starter-app') && quickStart.includes('canonical public bootstrap flow'),
+  'The quick start guide documents the public `pnpm add -g @fluojs/cli` + `konekti new` path.',
 );
 assertCheck(
   checks,
@@ -270,9 +270,9 @@ assertCheck(
   'Generic-first bootstrap contract',
   !quickStart.includes('ORM') &&
     !quickStart.includes('Database') &&
-    !scaffoldSource.includes('@konekti/prisma') &&
-    !scaffoldSource.includes('@konekti/drizzle') &&
-    !scaffoldSource.includes('@konekti/mongoose') &&
+    !scaffoldSource.includes('@fluojs/prisma') &&
+    !scaffoldSource.includes('@fluojs/drizzle') &&
+    !scaffoldSource.includes('@fluojs/mongoose') &&
     !scaffoldSource.includes('createTierNote'),
   'Bootstrap docs and scaffold source no longer encode ORM/DB prompts, support tiers, or starter-time ORM adapter injection.',
 );

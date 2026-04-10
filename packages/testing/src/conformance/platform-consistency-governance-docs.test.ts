@@ -157,8 +157,8 @@ describe('platform consistency governance docs', () => {
     expect(koreanPackageSurface.length).toBeGreaterThan(0);
     expect(englishPackageSurface).toEqual(intendedPublishSurface);
     expect(koreanPackageSurface).toEqual(englishPackageSurface);
-    expect(englishPackageSurface).toEqual(expect.arrayContaining(['@konekti/notifications', '@konekti/email', '@konekti/slack', '@konekti/discord']));
-    expect(englishPackageSurface).not.toContain('@konekti/email/node');
+    expect(englishPackageSurface).toEqual(expect.arrayContaining(['@fluojs/notifications', '@fluojs/email', '@fluojs/slack', '@fluojs/discord']));
+    expect(englishPackageSurface).not.toContain('@fluojs/email/node');
   });
 
   it('keeps the node-only email subpath discoverable outside the top-level package inventory', () => {
@@ -167,10 +167,10 @@ describe('platform consistency governance docs', () => {
     const packageChooser = readFileSync(resolve(repoRoot, 'docs/reference/package-chooser.md'), 'utf8');
     const packageChooserKo = readFileSync(resolve(repoRoot, 'docs/reference/package-chooser.ko.md'), 'utf8');
 
-    expect(docsReadme).toContain('@konekti/email/node');
-    expect(docsReadmeKo).toContain('@konekti/email/node');
-    expect(packageChooser).toContain('@konekti/email/node');
-    expect(packageChooserKo).toContain('@konekti/email/node');
+    expect(docsReadme).toContain('@fluojs/email/node');
+    expect(docsReadmeKo).toContain('@fluojs/email/node');
+    expect(packageChooser).toContain('@fluojs/email/node');
+    expect(packageChooserKo).toContain('@fluojs/email/node');
   });
 
   it('keeps PR CI governance-gated while reserving release-readiness for main pushes', () => {

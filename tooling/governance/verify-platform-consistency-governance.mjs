@@ -41,12 +41,12 @@ const removedRuntimeModuleFactoryNames = [
 ];
 
 const officialTransportDocsPackages = [
-  '@konekti/platform-fastify',
-  '@konekti/platform-express',
-  '@konekti/socket.io',
-  '@konekti/platform-bun',
-  '@konekti/platform-deno',
-  '@konekti/platform-cloudflare-workers',
+  '@fluojs/platform-fastify',
+  '@fluojs/platform-express',
+  '@fluojs/socket.io',
+  '@fluojs/platform-bun',
+  '@fluojs/platform-deno',
+  '@fluojs/platform-cloudflare-workers',
 ];
 
 export function getOfficialTransportDocsPackages() {

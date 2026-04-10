@@ -25,7 +25,7 @@
 | 예정 챕터 | 주요 실습 앵커 | 이 파일이 중요한 이유 |
 | --- | --- | --- |
 | Bootstrap and AppModule | `[ex:minimal/src/main.ts]` | Smallest explicit runtime bootstrap with a platform adapter |
-| Starter scaffold anatomy | `[ex:minimal/README.md]` | Explains the minimal project structure and how it maps to `fluo new` |
+| Starter scaffold anatomy | `[ex:minimal/README.md]` | Explains the minimal project structure and how it maps to `konekti new` |
 | First feature slice | `[repo:docs/getting-started/first-feature-path.md]` | The cleanest official progression from starter to first domain feature |
 
 ### 파트 3. DI, 모듈, HTTP 런타임
