@@ -49,7 +49,7 @@ The fastest way to experience fluo is through the official CLI.
 pnpm add -g @fluojs/cli
 
 # Spin up a project
-konekti new my-backend
+fluo new my-backend
 cd my-backend
 
 # Start the engine

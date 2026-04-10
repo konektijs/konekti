@@ -39,7 +39,7 @@ pnpm dlx @fluojs/cli new my-app
 몇 초 만에 완전한 스타터 애플리케이션을 스캐폴딩합니다.
 
 ```bash
-konekti new my-app
+fluo new my-app
 cd my-app
 pnpm dev
 ```
@@ -48,9 +48,9 @@ pnpm dev
 컨트롤러와 서비스가 포함된 새 리소스를 추가하고, 모듈에 자동으로 연결합니다.
 
 ```bash
-konekti generate module users
-konekti generate controller users
-konekti generate service users
+fluo generate module users
+fluo generate controller users
+fluo generate service users
 ```
 
 ## 주요 패턴

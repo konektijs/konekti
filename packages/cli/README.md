@@ -39,7 +39,7 @@ pnpm dlx @fluojs/cli new my-app
 Scaffold a complete starter application in seconds.
 
 ```bash
-konekti new my-app
+fluo new my-app
 cd my-app
 pnpm dev
 ```
@@ -48,9 +48,9 @@ pnpm dev
 Add a new resource with a controller and service, automatically wired into the module.
 
 ```bash
-konekti generate module users
-konekti generate controller users
-konekti generate service users
+fluo generate module users
+fluo generate controller users
+fluo generate service users
 ```
 
 ## Common Patterns

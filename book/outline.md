@@ -24,7 +24,7 @@
 ## 파트 2. 첫 접촉: 0에서 실행까지
 
 12. Installing the CLI
-13. What `konekti new` gives you
+13. What `fluo new` gives you
 14. `pnpm dev` and the first request path
 15. Starter scaffold anatomy
 16. Why the minimal example matters

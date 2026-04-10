@@ -238,7 +238,7 @@ describe('CLI command runner', () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(stdoutBuffer.join('')).toContain('Usage: konekti new|create [project-name] [options]');
+    expect(stdoutBuffer.join('')).toContain('Usage: fluo new|create [project-name] [options]');
     expect(stdoutBuffer.join('')).toMatch(/\| Option\s+\| Aliases \| Description\s+\|/);
     expect(stdoutBuffer.join('')).toContain('--package-manager <pnpm|npm|yarn|bun>');
     expect(stdoutBuffer.join('')).not.toContain('Schematics');
@@ -258,7 +258,7 @@ describe('CLI command runner', () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(stdoutBuffer.join('')).toContain('Usage: konekti new|create [project-name] [options]');
+    expect(stdoutBuffer.join('')).toContain('Usage: fluo new|create [project-name] [options]');
   });
 
   it('prints generate usage for `help g`', async () => {
@@ -281,7 +281,7 @@ describe('CLI command runner', () => {
     }
 
     expect(stdoutBuffer.join('')).toContain('| Option                    | Aliases | Description');
-    expect(stdoutBuffer.join('')).not.toContain('Usage: konekti new|create');
+    expect(stdoutBuffer.join('')).not.toContain('Usage: fluo new|create');
     expect(stdoutBuffer.join('')).toContain('Next steps:');
     expect(stdoutBuffer.join('')).toContain("Run 'pnpm typecheck'");
     expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/generator-workflow.md');

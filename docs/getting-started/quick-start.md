@@ -18,7 +18,7 @@ pnpm add -g @fluojs/cli
 Initialize a fresh application. By default, this bootstraps a high-performance **Fastify** adapter on Node.js.
 
 ```sh
-konekti new my-fluo-app
+fluo new my-fluo-app
 cd my-fluo-app
 ```
 
