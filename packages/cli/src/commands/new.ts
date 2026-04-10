@@ -37,13 +37,13 @@ const NEW_OPTION_HELP: NewOptionHelpEntry[] = [
   },
   {
     aliases: [],
-    description: 'Select the scaffold shape explicitly (currently only application for the HTTP starter path).',
-    option: '--shape <application>',
+    description: 'Select the scaffold shape explicitly (application for HTTP, microservice for the transport-driven starter path).',
+    option: '--shape <application|microservice>',
   },
   {
     aliases: [],
-    description: 'Select the transport path explicitly (currently only http).',
-    option: '--transport <http>',
+    description: 'Select the transport path explicitly (http for applications, tcp for the runnable microservice starter, plus validated microservice transport families).',
+    option: '--transport <http|tcp|redis|redis-streams|nats|kafka|rabbitmq|mqtt|grpc>',
   },
   {
     aliases: [],
@@ -52,8 +52,8 @@ const NEW_OPTION_HELP: NewOptionHelpEntry[] = [
   },
   {
     aliases: [],
-    description: 'Select the platform adapter explicitly (currently only fastify for the HTTP starter path).',
-    option: '--platform <fastify>',
+    description: 'Select the platform adapter explicitly (fastify for HTTP, none for microservices).',
+    option: '--platform <fastify|none>',
   },
   {
     aliases: [],
@@ -88,10 +88,20 @@ const NEW_OPTION_HELP: NewOptionHelpEntry[] = [
 ];
 
 const SUPPORTED_PACKAGE_MANAGERS = new Set<BootstrapAnswers['packageManager']>(['bun', 'npm', 'pnpm', 'yarn']);
-const SUPPORTED_SHAPES = new Set<BootstrapAnswers['shape']>(['application']);
-const SUPPORTED_TRANSPORTS = new Set<BootstrapAnswers['transport']>(['http']);
+const SUPPORTED_SHAPES = new Set<BootstrapAnswers['shape']>(['application', 'microservice']);
+const SUPPORTED_TRANSPORTS = new Set<BootstrapAnswers['transport']>([
+  'http',
+  'tcp',
+  'redis',
+  'redis-streams',
+  'nats',
+  'kafka',
+  'rabbitmq',
+  'mqtt',
+  'grpc',
+]);
 const SUPPORTED_RUNTIMES = new Set<BootstrapAnswers['runtime']>(['node']);
-const SUPPORTED_PLATFORMS = new Set<BootstrapAnswers['platform']>(['fastify']);
+const SUPPORTED_PLATFORMS = new Set<BootstrapAnswers['platform']>(['fastify', 'none']);
 const SUPPORTED_TOOLING_PRESETS = new Set<BootstrapAnswers['tooling']>(['standard']);
 const SUPPORTED_TOPOLOGY_MODES = new Set<BootstrapAnswers['topology']['mode']>(['single-package']);
 
@@ -154,7 +164,7 @@ function parseArgs(argv: string[]): Partial<BootstrapAnswers> & { force?: boolea
 
         parsed.shape = readOptionValue(argv, index, '--shape') as BootstrapAnswers['shape'];
         if (!SUPPORTED_SHAPES.has(parsed.shape)) {
-          throw new Error(`Invalid --shape value "${parsed.shape}". Use: application.`);
+          throw new Error('Invalid --shape value "' + parsed.shape + '". Use one of: application, microservice.');
         }
         index += 1;
         break;
@@ -165,7 +175,10 @@ function parseArgs(argv: string[]): Partial<BootstrapAnswers> & { force?: boolea
 
         parsed.transport = readOptionValue(argv, index, '--transport') as BootstrapAnswers['transport'];
         if (!SUPPORTED_TRANSPORTS.has(parsed.transport)) {
-          throw new Error(`Invalid --transport value "${parsed.transport}". Use: http.`);
+          throw new Error(
+            'Invalid --transport value "' + parsed.transport + '". Use one of: '
+            + 'http, tcp, redis, redis-streams, nats, kafka, rabbitmq, mqtt, grpc.',
+          );
         }
         index += 1;
         break;
@@ -187,7 +200,7 @@ function parseArgs(argv: string[]): Partial<BootstrapAnswers> & { force?: boolea
 
         parsed.platform = readOptionValue(argv, index, '--platform') as BootstrapAnswers['platform'];
         if (!SUPPORTED_PLATFORMS.has(parsed.platform)) {
-          throw new Error(`Invalid --platform value "${parsed.platform}". Use: fastify.`);
+          throw new Error(`Invalid --platform value "${parsed.platform}". Use one of: fastify, none.`);
         }
         index += 1;
         break;
