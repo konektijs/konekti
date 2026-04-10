@@ -172,7 +172,7 @@ describe('MqttMicroserviceTransport', () => {
     const eventPublish = client.published.find((entry) => JSON.parse(entry.message).kind === 'event');
     const responsePublish = client.published.find((entry) => JSON.parse(entry.message).kind === 'response');
 
-    expect((JSON.parse(messagePublish?.message ?? '{}') as { replyTopic?: string }).replyTopic).toMatch(/^konekti\.microservices\.responses\./);
+    expect((JSON.parse(messagePublish?.message ?? '{}') as { replyTopic?: string }).replyTopic).toMatch(/^fluo\.microservices\.responses\./);
     expect(messagePublish?.options).toEqual({ qos: 1, retain: false });
     expect(eventPublish?.options).toEqual({ qos: 0, retain: false });
     expect(responsePublish?.options).toEqual({ qos: 1, retain: false });

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Inject, Scope } from '@fluojs/core';
 import { defineControllerMetadata, defineModuleMetadata } from '@fluojs/core/internal';
-import { bootstrapApplication, KonektiFactory } from '@fluojs/runtime';
+import { bootstrapApplication, FluoFactory } from '@fluojs/runtime';
 
 import { BidiStreamPattern, ClientStreamPattern, EventPattern, MessagePattern, ServerStreamPattern } from './decorators.js';
 import { KafkaMicroserviceTransport } from './transports/kafka-transport.js';
@@ -214,7 +214,7 @@ describe('@fluojs/microservices', () => {
       providers: [Store, UserHandlers],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule, {
+    const microservice = await FluoFactory.createMicroservice(AppModule, {
     });
 
     await microservice.listen();
@@ -292,7 +292,7 @@ describe('@fluojs/microservices', () => {
         },
       },
       requestTimeoutMs: 1_000,
-      responseTopic: 'konekti.microservices.responses.test-module',
+      responseTopic: 'fluo.microservices.responses.test-module',
     });
 
     class Store {
@@ -320,7 +320,7 @@ describe('@fluojs/microservices', () => {
       providers: [Store, Handler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
 
     await microservice.listen();
 
@@ -361,7 +361,7 @@ describe('@fluojs/microservices', () => {
       providers: [Store, Handler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
 
     await microservice.listen();
 
@@ -404,7 +404,7 @@ describe('@fluojs/microservices', () => {
       providers: [Store],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule, {
+    const microservice = await FluoFactory.createMicroservice(AppModule, {
     });
 
     await microservice.listen();
@@ -453,7 +453,7 @@ describe('@fluojs/microservices', () => {
       providers: [Store, FirstHandler, SecondHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule, {
+    const microservice = await FluoFactory.createMicroservice(AppModule, {
     });
     const payload = { meta: { role: 'original' } };
 
@@ -491,7 +491,7 @@ describe('@fluojs/microservices', () => {
       providers: [SharedState, HybridHandlers],
     });
 
-    const app = await KonektiFactory.create(AppModule, {
+    const app = await FluoFactory.create(AppModule, {
       adapter: {
         async close() {},
         async listen() {},
@@ -537,7 +537,7 @@ describe('@fluojs/microservices', () => {
       providers: [Handler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
 
     await Promise.all([microservice.listen(), microservice.listen()]);
 
@@ -569,7 +569,7 @@ describe('@fluojs/microservices', () => {
       providers: [ExactHandler, RegexHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await expect(microservice.send('user.lookup', {})).rejects.toThrow('Multiple message handlers matched pattern "user.lookup"');
@@ -604,7 +604,7 @@ describe('@fluojs/microservices', () => {
       providers: [RequestState, RequestScopedHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     const [first, second] = await Promise.all([
@@ -650,7 +650,7 @@ describe('@fluojs/microservices', () => {
       providers: [RequestState, RequestScopedHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await expect(microservice.send('scope.dispose', {})).resolves.toBe(1);
@@ -690,7 +690,7 @@ describe('@fluojs/microservices', () => {
       providers: [RequestState, RequestScopedHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await expect(microservice.send('scope.error', {})).rejects.toThrow('request handler failed');
@@ -721,7 +721,7 @@ describe('@fluojs/microservices', () => {
       providers: [BrokenHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await expect(microservice.send('broken.handler', {})).rejects.toThrow(/must be a callable function/i);
@@ -761,7 +761,7 @@ describe('@fluojs/microservices', () => {
       providers: [EventContext, RequestScopedEventHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await microservice.emit('scope.event', { id: 1 });
@@ -812,7 +812,7 @@ describe('@fluojs/microservices', () => {
       providers: [SharedScope, FirstEventHandler, SecondEventHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await microservice.emit('fanout.event', {});
@@ -855,7 +855,7 @@ describe('@fluojs/microservices', () => {
       providers: [DisposableContext, DisposableHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await microservice.emit('dispose.event', {});
@@ -900,7 +900,7 @@ describe('@fluojs/microservices', () => {
       providers: [DisposableContext, FailingHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await microservice.emit('fail.event', {});
@@ -932,7 +932,7 @@ describe('@fluojs/microservices', () => {
       providers: [TransientHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await microservice.emit('transient.event', {});
@@ -977,7 +977,7 @@ describe('@fluojs/microservices', () => {
       providers: [StreamContext, StreamHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     const written: unknown[] = [];
@@ -1026,7 +1026,7 @@ describe('@fluojs/microservices', () => {
       providers: [StreamContext, FailingStreamHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     let receivedError: Error | undefined;
@@ -1072,7 +1072,7 @@ describe('@fluojs/microservices', () => {
       providers: [StreamState, ScopedStreamHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     const firstWritten: unknown[] = [];
@@ -1160,7 +1160,7 @@ describe('@fluojs/microservices', () => {
       ],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     await expect(transport.dispatchClientStream('stream.client', [{ value: 1 }, { value: 2 }]))
@@ -1232,7 +1232,7 @@ describe('@fluojs/microservices', () => {
       providers: [BidiStreamContext, BidiHandler, FailingBidiContext, FailingBidiHandler],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule);
+    const microservice = await FluoFactory.createMicroservice(AppModule);
     await microservice.listen();
 
     const firstWritten: unknown[] = [];

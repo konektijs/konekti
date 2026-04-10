@@ -27,13 +27,39 @@ type AppLike = {
   listen(): Promise<void>;
 };
 
+/**
+ * Options for configuring the HTTP adapter portability harness.
+ *
+ * @template TBootstrapOptions - Type for bootstrap-specific options.
+ * @template TRunOptions - Type for run-specific options.
+ * @template TApp - Type for the application instance.
+ */
 export interface HttpAdapterPortabilityHarnessOptions<
   TBootstrapOptions extends object,
   TRunOptions extends object,
   TApp extends AppLike = AppLike,
 > {
+  /**
+   * Function to bootstrap the application with the given root module and options.
+   *
+   * @param rootModule - The root module of the application.
+   * @param options - The bootstrap options.
+   * @returns A promise that resolves to the application instance.
+   */
   bootstrap: (rootModule: ModuleType, options: TBootstrapOptions) => Promise<TApp>;
+
+  /**
+   * The name of the adapter being tested.
+   */
   name: string;
+
+  /**
+   * Function to run the application with the given root module and options.
+   *
+   * @param rootModule - The root module of the application.
+   * @param options - The run options.
+   * @returns A promise that resolves to the application instance.
+   */
   run: (rootModule: ModuleType, options: TRunOptions) => Promise<TApp>;
 }
 
@@ -90,13 +116,30 @@ async function closeSilently(app: AppLike): Promise<void> {
   } catch {}
 }
 
+/**
+ * A portability harness for testing HTTP adapters to ensure they behave
+ * consistently across different environments.
+ *
+ * @template TBootstrapOptions - Type for bootstrap-specific options.
+ * @template TRunOptions - Type for run-specific options.
+ * @template TApp - Type for the application instance.
+ */
 export class HttpAdapterPortabilityHarness<
   TBootstrapOptions extends object,
   TRunOptions extends object,
   TApp extends AppLike = AppLike,
 > {
+  /**
+   * Creates a new instance of the {@link HttpAdapterPortabilityHarness}.
+   *
+   * @param options - Configuration options for the harness.
+   */
   constructor(private readonly options: HttpAdapterPortabilityHarnessOptions<TBootstrapOptions, TRunOptions, TApp>) {}
 
+  /**
+   * Asserts that the adapter preserves malformed cookie values without crashing
+   * or incorrectly normalizing them.
+   */
   async assertPreservesMalformedCookieValues(): Promise<void> {
     @Controller('/cookies')
     class CookieController {
@@ -348,7 +391,7 @@ export class HttpAdapterPortabilityHarness<
         throw new Error(`${this.options.name} adapter changed host-bound response payload.`);
       }
 
-      const expectedLog = `log:KonektiFactory:Listening on http://127.0.0.1:${String(port)}`;
+      const expectedLog = `log:FluoFactory:Listening on http://127.0.0.1:${String(port)}`;
       if (!loggerEvents.includes(expectedLog)) {
         throw new Error(`${this.options.name} adapter changed startup host logging.`);
       }
@@ -403,7 +446,7 @@ export class HttpAdapterPortabilityHarness<
         throw new Error(`${this.options.name} adapter changed HTTPS response payload semantics.`);
       }
 
-      const expectedLog = `log:KonektiFactory:Listening on https://127.0.0.1:${String(port)}`;
+      const expectedLog = `log:FluoFactory:Listening on https://127.0.0.1:${String(port)}`;
       if (!loggerEvents.includes(expectedLog)) {
         throw new Error(`${this.options.name} adapter changed HTTPS startup logging.`);
       }
@@ -457,6 +500,15 @@ export class HttpAdapterPortabilityHarness<
   }
 }
 
+/**
+ * Creates a new {@link HttpAdapterPortabilityHarness} instance with the provided options.
+ *
+ * @template TBootstrapOptions - Type for bootstrap-specific options.
+ * @template TRunOptions - Type for run-specific options.
+ * @template TApp - Type for the application instance.
+ * @param options - Configuration options for the harness.
+ * @returns A new portability harness instance.
+ */
 export function createHttpAdapterPortabilityHarness<
   TBootstrapOptions extends object,
   TRunOptions extends object,

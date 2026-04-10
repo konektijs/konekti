@@ -4,7 +4,7 @@ import { ensureMetadataSymbol } from './metadata.js';
 
 const metadataSymbol =
   (Symbol as typeof Symbol & { metadata?: symbol }).metadata ??
-  Symbol.for('konekti.test.metadata');
+  Symbol.for('fluo.test.metadata');
 
 Object.defineProperty(Symbol, 'metadata', {
   configurable: true,

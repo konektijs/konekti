@@ -9,7 +9,7 @@ describe('@fluojs/core public API surface', () => {
     expect(corePublicApi).toHaveProperty('Global');
     expect(corePublicApi).toHaveProperty('Inject');
     expect(corePublicApi).toHaveProperty('Scope');
-    expect(corePublicApi).toHaveProperty('KonektiError');
+    expect(corePublicApi).toHaveProperty('FluoError');
     expect(corePublicApi).toHaveProperty('InvariantError');
     expect(corePublicApi).toHaveProperty('ensureMetadataSymbol');
   });

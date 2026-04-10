@@ -75,7 +75,7 @@ export interface DiscordTransport {
    *
    * @param message Normalized message with resolved defaults and one target webhook/thread route.
    * @param context Optional abort context propagated from the caller.
-   * @returns Provider-specific receipt details normalized for the Konekti Discord contract.
+   * @returns Provider-specific receipt details normalized for the Fluo Discord contract.
    */
   send(message: NormalizedDiscordMessage, context: DiscordTransportContext): Promise<DiscordTransportReceipt>;
 

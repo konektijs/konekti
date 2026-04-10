@@ -2,7 +2,7 @@ import type { FSWatcher } from 'node:fs';
 import { existsSync, readFileSync, watch } from 'node:fs';
 import { join } from 'node:path';
 
-import { KonektiError } from '@fluojs/core';
+import { FluoError } from '@fluojs/core';
 import { parse as dotenvParse } from 'dotenv';
 import { expand as dotenvExpand } from 'dotenv-expand';
 
@@ -116,7 +116,7 @@ function validateConfig(options: NormalizedLoadOptions, merged: ConfigDictionary
   try {
     return options.validate ? options.validate(merged) : merged;
   } catch (error: unknown) {
-    throw new KonektiError('Invalid configuration.', {
+    throw new FluoError('Invalid configuration.', {
       code: 'INVALID_CONFIG',
       cause: error,
     });
@@ -222,7 +222,7 @@ function closeReloader(
  *
  * @param options Configuration loading options, including optional watch mode and validation hooks.
  * @returns A reloader that exposes the current snapshot, manual reload, subscriptions, and cleanup.
- * @throws {KonektiError} When the initial config load or validation fails.
+ * @throws {FluoError} When the initial config load or validation fails.
  *
  * @example
  * ```ts
@@ -274,7 +274,7 @@ export function createConfigReloader(options: ConfigLoadOptions): ConfigReloader
  *
  * @param options Configuration loading options for source precedence, parsing, and validation.
  * @returns A detached normalized configuration dictionary for the current load.
- * @throws {KonektiError} When validation throws or the config cannot be normalized.
+ * @throws {FluoError} When validation throws or the config cannot be normalized.
  */
 export function loadConfig(options: ConfigLoadOptions): ConfigDictionary {
   return cloneConfigDictionary(resolveConfig(normalizeLoadOptions(options)));

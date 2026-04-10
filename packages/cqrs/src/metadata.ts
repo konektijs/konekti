@@ -18,10 +18,10 @@ const queryHandlerMetadataStore = new WeakMap<Function, QueryHandlerMetadata>();
 const eventHandlerMetadataStore = new WeakMap<Function, EventHandlerMetadata>();
 const sagaMetadataStore = new WeakMap<Function, SagaMetadata>();
 
-const standardCommandHandlerMetadataKey = Symbol.for('konekti.cqrs.standard.command-handler');
-const standardQueryHandlerMetadataKey = Symbol.for('konekti.cqrs.standard.query-handler');
-const standardEventHandlerMetadataKey = Symbol.for('konekti.cqrs.standard.event-handler');
-const standardSagaMetadataKey = Symbol.for('konekti.cqrs.standard.saga');
+const standardCommandHandlerMetadataKey = Symbol.for('fluo.cqrs.standard.command-handler');
+const standardQueryHandlerMetadataKey = Symbol.for('fluo.cqrs.standard.query-handler');
+const standardEventHandlerMetadataKey = Symbol.for('fluo.cqrs.standard.event-handler');
+const standardSagaMetadataKey = Symbol.for('fluo.cqrs.standard.saga');
 
 function isObjectRecord(value: unknown): value is Record<PropertyKey, unknown> {
   return typeof value === 'object' && value !== null;

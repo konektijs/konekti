@@ -86,7 +86,7 @@ export interface MqttMicroserviceTransportOptions {
  * MQTT transport for topic-based request-response messages and event delivery.
  *
  * The adapter can either own its MQTT client or reuse one supplied by the application while
- * keeping Konekti's message, event, and response channels isolated by topic.
+ * keeping Fluo's message, event, and response channels isolated by topic.
  */
 export class MqttMicroserviceTransport implements MicroserviceTransport {
   private client: MqttClientLike | undefined;
@@ -117,7 +117,7 @@ export class MqttMicroserviceTransport implements MicroserviceTransport {
    * @param options MQTT client/module wiring and topic behavior for the transport.
    */
   constructor(private readonly options: MqttMicroserviceTransportOptions) {
-    const namespace = options.namespace ?? 'konekti.microservices';
+    const namespace = options.namespace ?? 'fluo.microservices';
 
     this.eventTopic = options.eventTopic ?? `${namespace}.events`;
     this.messageTopic = options.messageTopic ?? `${namespace}.messages`;
@@ -571,7 +571,7 @@ export class MqttMicroserviceTransport implements MicroserviceTransport {
   }
 
   private logEventHandlerFailure(error: unknown): void {
-    console.error('[konekti][MqttMicroserviceTransport] event handler failed:', error);
+    console.error('[fluo][MqttMicroserviceTransport] event handler failed:', error);
   }
 }
 

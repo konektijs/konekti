@@ -269,7 +269,7 @@ describe('@fluojs/platform-bun', () => {
 
       expect(response?.status).toBe(200);
       await expect(response?.json()).resolves.toEqual({ ok: true });
-      expect(loggerEvents).toContain('log:KonektiFactory:Listening on http://127.0.0.1:4312');
+      expect(loggerEvents).toContain('log:FluoFactory:Listening on http://127.0.0.1:4312');
       expect(process.listeners(signal).length).toBe(listenersBefore + 1);
     } finally {
       await app.close();

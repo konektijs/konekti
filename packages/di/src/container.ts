@@ -115,7 +115,7 @@ function normalizeProvider(provider: Provider): NormalizedProvider {
 }
 
 /**
- * Scope-aware dependency injection container for Konekti providers.
+ * Scope-aware dependency injection container for Fluo providers.
  */
 export class Container {
   private readonly registrations = new Map<Token, NormalizedProvider>();

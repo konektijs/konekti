@@ -51,7 +51,7 @@ async function executeSessionTransaction<T>(session: MongooseSessionLike, fn: ()
 }
 
 /**
- * Session-aware Mongoose wrapper that integrates request scoping and shutdown handling with the Konekti runtime.
+ * Session-aware Mongoose wrapper that integrates request scoping and shutdown handling with the Fluo runtime.
  *
  * @typeParam TConnection Root Mongoose connection shape registered in the module.
  */

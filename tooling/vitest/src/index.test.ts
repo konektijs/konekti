@@ -21,7 +21,7 @@ function writePackage(root: string, directoryName: string, packageName: string, 
 
 describe('collectWorkspaceAliases', () => {
   it('uses manifest package names instead of package directory names', () => {
-    const repoRoot = mkdtempSync(join(tmpdir(), 'konekti-vitest-alias-'));
+    const repoRoot = mkdtempSync(join(tmpdir(), 'fluo-vitest-alias-'));
 
     writePackage(repoRoot, 'websocket', '@fluojs/websockets', {
       'index.ts': 'export {}\n',

@@ -20,9 +20,9 @@ type MethodDecoratorLike = StandardMethodDecoratorFn;
 type ClassOrMethodDecoratorLike = StandardClassDecoratorFn & StandardMethodDecoratorFn;
 type FieldDecoratorLike = StandardFieldDecoratorFn;
 
-const standardControllerMetadataKey = Symbol.for('konekti.standard.controller');
-const standardRouteMetadataKey = Symbol.for('konekti.standard.route');
-const standardDtoBindingMetadataKey = Symbol.for('konekti.standard.dto-binding');
+const standardControllerMetadataKey = Symbol.for('fluo.standard.controller');
+const standardRouteMetadataKey = Symbol.for('fluo.standard.route');
+const standardDtoBindingMetadataKey = Symbol.for('fluo.standard.dto-binding');
 
 interface StandardRouteMetadataRecord {
   guards?: GuardLike[];

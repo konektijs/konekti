@@ -35,7 +35,7 @@ describe('JwtService', () => {
         role: 'reader',
       },
       {
-        audience: 'konekti-users',
+        audience: 'fluo-users',
         expiresIn: '60s',
         issuer: 'jwt-service-tests',
         subject: 'service-overrides-user',
@@ -44,11 +44,11 @@ describe('JwtService', () => {
 
     await expect(
       service.verify<{ aud?: string; role?: string; sub?: string }>(token, {
-        audience: 'konekti-users',
+        audience: 'fluo-users',
         issuer: 'jwt-service-tests',
       }),
     ).resolves.toMatchObject({
-      aud: 'konekti-users',
+      aud: 'fluo-users',
       role: 'reader',
       sub: 'service-overrides-user',
     });

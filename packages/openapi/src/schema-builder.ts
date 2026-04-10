@@ -1172,7 +1172,7 @@ function registerExtraModels(
  * @returns A generated OpenAPI document ready to serialize or serve.
  */
 /**
- * Build an OpenAPI 3.1 document from discovered Konekti HTTP handler descriptors.
+ * Build an OpenAPI 3.1 document from discovered Fluo HTTP handler descriptors.
  *
  * @param options Document assembly options, descriptors, and optional schema transforms.
  * @returns A fully normalized OpenAPI document ready to serve or snapshot in tests.

@@ -1,9 +1,15 @@
 import {
-  createKonektiBabelDecoratorsPlugin,
-  type KonektiBabelDecoratorsPlugin,
+  createFluoBabelDecoratorsPlugin,
+  type FluoBabelDecoratorsPlugin,
   resolveNearestBabelConfigFile,
 } from './babel-decorators-plugin.js';
 
-export function konektiBabelDecoratorsPlugin(): KonektiBabelDecoratorsPlugin {
-  return createKonektiBabelDecoratorsPlugin(resolveNearestBabelConfigFile);
+/**
+ * Creates a Vitest-compatible Babel plugin that enables fluo decorator support
+ * using the nearest configuration file.
+ *
+ * @returns A {@link FluoBabelDecoratorsPlugin} instance.
+ */
+export function fluoBabelDecoratorsPlugin(): FluoBabelDecoratorsPlugin {
+  return createFluoBabelDecoratorsPlugin(resolveNearestBabelConfigFile);
 }

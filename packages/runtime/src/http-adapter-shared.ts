@@ -18,32 +18,60 @@ import { bootstrapApplication } from './bootstrap.js';
 import { createConsoleApplicationLogger } from './logging/logger.js';
 import type { Application, ApplicationLogger, CreateApplicationOptions, ModuleType } from './types.js';
 
+/**
+ * Input type for configuring CORS in an HTTP adapter.
+ */
 export type HttpAdapterCorsInput = false | string | string[] | CorsOptions;
 
+/**
+ * Resolved target for an HTTP server listener.
+ */
 export interface HttpAdapterListenTarget {
+  /** The local address or host the server is bound to. */
   bindTarget: string;
+  /** The public URL of the running server. */
   url: string;
 }
 
+/**
+ * Common middleware options for HTTP adapters.
+ */
 export interface HttpAdapterMiddlewareOptions {
+  /** CORS configuration for the adapter. */
   cors?: HttpAdapterCorsInput;
+  /** Global prefix applied to all routes. */
   globalPrefix?: string;
+  /** List of route patterns to exclude from the global prefix. */
   globalPrefixExclude?: readonly string[];
+  /** Custom middleware to inject into the adapter pipeline. */
   middleware?: MiddlewareLike[];
+  /** Security header configuration. */
   securityHeaders?: false | SecurityHeadersOptions;
 }
 
+/**
+ * Options for bootstrapping an HTTP adapter application.
+ */
 export interface BootstrapHttpAdapterApplicationOptions
   extends Omit<CreateApplicationOptions, 'adapter' | 'logger' | 'middleware'>,
     HttpAdapterMiddlewareOptions {
+  /** Optional custom application logger. */
   logger?: ApplicationLogger;
 }
 
+/**
+ * Options for running an HTTP adapter application with shutdown management.
+ */
 export interface RunHttpAdapterApplicationOptions extends BootstrapHttpAdapterApplicationOptions {
+  /** Timeout for forced exit during shutdown in milliseconds. */
   forceExitTimeoutMs?: number;
+  /** Custom shutdown registration logic. */
   shutdownRegistration?: HttpAdapterShutdownRegistration;
 }
 
+/**
+ * Function type for registering custom application shutdown logic.
+ */
 export type HttpAdapterShutdownRegistration = (
   app: Application,
   logger: ApplicationLogger,
@@ -54,6 +82,14 @@ type ManagedHttpApplicationAdapter = HttpApplicationAdapter & {
   getListenTarget(): HttpAdapterListenTarget;
 };
 
+/**
+ * Bootstraps an HTTP application with the provided adapter and options.
+ *
+ * @param rootModule The root application module class.
+ * @param options Bootstrap configuration for middleware and logging.
+ * @param adapter The HTTP platform adapter to use.
+ * @returns A promise that resolves to the initialized application instance.
+ */
 export async function bootstrapHttpAdapterApplication(
   rootModule: ModuleType,
   options: BootstrapHttpAdapterApplicationOptions,
@@ -68,6 +104,12 @@ export async function bootstrapHttpAdapterApplication(
   });
 }
 
+/**
+ * Resolves the final middleware chain for an HTTP adapter based on options.
+ *
+ * @param options Middleware configuration including CORS and prefix settings.
+ * @returns An array of middleware instances to be registered in the adapter.
+ */
 export function createHttpAdapterMiddleware(options: HttpAdapterMiddlewareOptions): MiddlewareLike[] {
   const middleware = [...(options.middleware ?? [])];
 
@@ -88,12 +130,27 @@ export function createHttpAdapterMiddleware(options: HttpAdapterMiddlewareOption
   return middleware;
 }
 
+/**
+ * Formats a log message indicating that the HTTP adapter is listening on a specific target.
+ *
+ * @param target - The listen target containing the URL and bind target.
+ * @returns A formatted string message.
+ */
 export function formatHttpAdapterListenMessage(target: HttpAdapterListenTarget): string {
   return target.url.endsWith(target.bindTarget)
     ? `Listening on ${target.url}`
     : `Listening on ${target.url} (bound to ${target.bindTarget})`;
 }
 
+/**
+ * Boots and runs an HTTP application using the provided adapter and options,
+ * including setup for shutdown management and logging.
+ *
+ * @param rootModule - The root application module class.
+ * @param options - Run configuration including shutdown and logging settings.
+ * @param adapter - The managed HTTP platform adapter to use.
+ * @returns A promise that resolves to the running application instance.
+ */
 export async function runHttpAdapterApplication(
   rootModule: ModuleType,
   options: RunHttpAdapterApplicationOptions,
@@ -110,15 +167,15 @@ export async function runHttpAdapterApplication(
 
   try {
     await app.listen();
-    logger.log(formatHttpAdapterListenMessage(adapter.getListenTarget()), 'KonektiFactory');
+    logger.log(formatHttpAdapterListenMessage(adapter.getListenTarget()), 'FluoFactory');
   } catch (error: unknown) {
-    logger.error('Failed to start application.', error, 'KonektiFactory');
+    logger.error('Failed to start application.', error, 'FluoFactory');
 
     if (app.state !== 'closed') {
       try {
         await app.close('bootstrap-failed');
       } catch (closeError) {
-        logger.error('Failed to close application after startup failure.', closeError, 'KonektiFactory');
+        logger.error('Failed to close application after startup failure.', closeError, 'FluoFactory');
       }
     }
 

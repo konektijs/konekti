@@ -66,9 +66,9 @@ describe('MetricsModule', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toContain('text/plain');
-    expect(response.body).toEqual(expect.stringContaining('konekti_metrics_registry_mode{mode="isolated"} 1'));
-    expect(response.body).toEqual(expect.stringContaining('konekti_component_ready{component_id="runtime.shell",component_kind="runtime",operation="readiness",result="ready",env="unknown",instance="local"} 1'));
-    expect(response.body).toEqual(expect.stringContaining('konekti_component_health{component_id="runtime.shell",component_kind="runtime",operation="health",result="healthy",env="unknown",instance="local"} 1'));
+    expect(response.body).toEqual(expect.stringContaining('fluo_metrics_registry_mode{mode="isolated"} 1'));
+    expect(response.body).toEqual(expect.stringContaining('fluo_component_ready{component_id="runtime.shell",component_kind="runtime",operation="readiness",result="ready",env="unknown",instance="local"} 1'));
+    expect(response.body).toEqual(expect.stringContaining('fluo_component_health{component_id="runtime.shell",component_kind="runtime",operation="health",result="healthy",env="unknown",instance="local"} 1'));
     expect(response.body).toEqual(expect.stringContaining('process_cpu_seconds_total'));
     expect(response.body).toEqual(expect.stringContaining('nodejs_heap_size_total_bytes'));
 
@@ -99,10 +99,10 @@ describe('MetricsModule', () => {
 
     expect(response.statusCode).toBe(200);
     expect(String(response.body)).toContain(
-      'konekti_component_ready{component_id="runtime.shell",component_kind="runtime",operation="readiness",result="ready",env="production",instance="api-1"} 1',
+      'fluo_component_ready{component_id="runtime.shell",component_kind="runtime",operation="readiness",result="ready",env="production",instance="api-1"} 1',
     );
     expect(String(response.body)).toContain(
-      'konekti_component_health{component_id="runtime.shell",component_kind="runtime",operation="health",result="healthy",env="production",instance="api-1"} 1',
+      'fluo_component_health{component_id="runtime.shell",component_kind="runtime",operation="health",result="healthy",env="production",instance="api-1"} 1',
     );
 
     await app.close();
@@ -297,7 +297,7 @@ describe('MetricsModule', () => {
 
     expect(response.statusCode).toBe(200);
     expect(String(response.body)).toContain('app_custom_requests_total{endpoint="/api"} 1');
-    expect(String(response.body)).toContain('konekti_metrics_registry_mode{mode="shared"} 1');
+    expect(String(response.body)).toContain('fluo_metrics_registry_mode{mode="shared"} 1');
 
     await app.close();
   });
@@ -351,8 +351,8 @@ describe('MetricsModule', () => {
 
     const metricsText = String(response.body);
     expect(response.statusCode).toBe(200);
-    expect(metricsText).toContain('konekti_component_ready{component_id="cache.default",component_kind="cache",operation="readiness",result="degraded"');
-    expect(metricsText).toContain('konekti_component_health{component_id="cache.default",component_kind="cache",operation="health",result="degraded"');
+    expect(metricsText).toContain('fluo_component_ready{component_id="cache.default",component_kind="cache",operation="readiness",result="degraded"');
+    expect(metricsText).toContain('fluo_component_health{component_id="cache.default",component_kind="cache",operation="health",result="degraded"');
 
     await app.close();
   });

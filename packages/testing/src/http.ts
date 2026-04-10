@@ -295,7 +295,7 @@ function buildFrameworkResponse(): { response: MutableFrameworkResponse; result:
 }
 
 /**
- * Dispatches one synthetic request through a Konekti dispatcher and captures the serialized response.
+ * Dispatches one synthetic request through a Fluo dispatcher and captures the serialized response.
  *
  * @param dispatcher Dispatcher that should handle the request.
  * @param req Normalized synthetic request payload.

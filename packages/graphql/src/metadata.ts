@@ -5,7 +5,7 @@ import type { ArgFieldMetadata, ResolverHandlerMetadata, ResolverMetadata } from
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 
 const symbolWithMetadata = Symbol as typeof Symbol & { metadata?: symbol };
-const metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('konekti.symbol.metadata');
+const metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('fluo.symbol.metadata');
 
 if (!symbolWithMetadata.metadata) {
   Object.defineProperty(Symbol, 'metadata', {
@@ -14,9 +14,9 @@ if (!symbolWithMetadata.metadata) {
   });
 }
 
-const standardResolverMetadataKey = Symbol.for('konekti.graphql.standard.resolver');
-const standardHandlerMetadataKey = Symbol.for('konekti.graphql.standard.handler');
-const standardArgFieldMetadataKey = Symbol.for('konekti.graphql.standard.arg-field');
+const standardResolverMetadataKey = Symbol.for('fluo.graphql.standard.resolver');
+const standardHandlerMetadataKey = Symbol.for('fluo.graphql.standard.handler');
+const standardArgFieldMetadataKey = Symbol.for('fluo.graphql.standard.arg-field');
 
 const resolverMetadataStore = new WeakMap<object, ResolverMetadata>();
 const handlerMetadataStore = new WeakMap<object, Map<MetadataPropertyKey, ResolverHandlerMetadata>>();

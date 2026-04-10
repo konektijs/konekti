@@ -9,7 +9,7 @@ import type { GraphQLObjectType, GraphQLSchema, GraphQLUnionType } from 'graphql
  * Resolvers can use this symbol indirectly through framework helpers when they
  * need request-scoped provider resolution inside one GraphQL operation.
  */
-export const GRAPHQL_OPERATION_CONTAINER = Symbol.for('konekti.graphql.operation.container');
+export const GRAPHQL_OPERATION_CONTAINER = Symbol.for('fluo.graphql.operation.container');
 
 /**
  * GraphQL context key that stores the per-operation DataLoader cache.
@@ -17,7 +17,7 @@ export const GRAPHQL_OPERATION_CONTAINER = Symbol.for('konekti.graphql.operation
  * `createDataLoader(...)` and related helpers use this cache so singleton
  * resolvers still get loader isolation per GraphQL operation.
  */
-export const GRAPHQL_REQUEST_SCOPED_LOADER_CACHE = Symbol.for('konekti.graphql.request_scoped_loader_cache');
+export const GRAPHQL_REQUEST_SCOPED_LOADER_CACHE = Symbol.for('fluo.graphql.request_scoped_loader_cache');
 
 /**
  * Minimal request information exposed to GraphQL context factories.
@@ -33,7 +33,7 @@ export interface GraphqlRequestContext {
  * Mutable GraphQL execution context shared across resolvers for one operation.
  *
  * @remarks
- * This context always includes the underlying Konekti request and may carry the
+ * This context always includes the underlying Fluo request and may carry the
  * operation DI container, request-scoped DataLoader cache, subscription socket,
  * and user-defined values returned from `GraphqlModule.forRoot({ context })`.
  */

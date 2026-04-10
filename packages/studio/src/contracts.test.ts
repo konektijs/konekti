@@ -25,7 +25,7 @@ const snapshotFixture: PlatformShellSnapshot = {
       },
       state: 'ready',
       telemetry: {
-        namespace: 'konekti.redis',
+        namespace: 'fluo.redis',
         tags: {
           env: 'test',
         },
@@ -53,7 +53,7 @@ const snapshotFixture: PlatformShellSnapshot = {
       },
       state: 'degraded',
       telemetry: {
-        namespace: 'konekti.queue',
+        namespace: 'fluo.queue',
         tags: {
           env: 'test',
         },

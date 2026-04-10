@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createTestApp } from '@fluojs/testing';
-import { KonektiFactory } from '@fluojs/runtime';
+import { FluoFactory } from '@fluojs/runtime';
 import type { FrameworkRequest, FrameworkResponse } from '@fluojs/http';
 
 import { AppModule } from './app';
@@ -64,7 +64,7 @@ function createResponse(): FrameworkResponse & { body?: unknown } {
 
 describe('AppModule integration', () => {
   it('dispatches /health and /ready', async () => {
-    const app = await KonektiFactory.create(AppModule, {});
+    const app = await FluoFactory.create(AppModule, {});
     const healthRes = createResponse();
     const readyRes = createResponse();
 
@@ -78,7 +78,7 @@ describe('AppModule integration', () => {
   });
 
   it('dispatches /hello/', async () => {
-    const app = await KonektiFactory.create(AppModule, {});
+    const app = await FluoFactory.create(AppModule, {});
     const res = createResponse();
 
     await app.dispatch(createRequest('/hello/'), res);

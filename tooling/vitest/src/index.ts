@@ -3,7 +3,7 @@ import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, mergeConfig, type UserConfig } from 'vitest/config';
 
-import { konektiBabelDecoratorsPlugin } from '../../vite/src';
+import { fluoBabelDecoratorsPlugin } from '../../vite/src';
 
 function collectWorkspaceAliasesFromRoot(repoRoot: string): Record<string, string> {
   const packagesRoot = join(repoRoot, 'packages');
@@ -52,10 +52,10 @@ export function collectWorkspaceAliases(repoRootUrl: string | URL): Record<strin
   return collectWorkspaceAliasesFromRoot(fileURLToPath(repoRootUrl));
 }
 
-export function createKonektiVitestWorkspaceConfig(repoRootUrl: string | URL, overrides: UserConfig = {}) {
+export function createFluoVitestWorkspaceConfig(repoRootUrl: string | URL, overrides: UserConfig = {}) {
   return mergeConfig(
     defineConfig({
-      plugins: [konektiBabelDecoratorsPlugin()],
+      plugins: [fluoBabelDecoratorsPlugin()],
       resolve: {
         alias: collectWorkspaceAliases(repoRootUrl),
       },
@@ -67,6 +67,6 @@ export function createKonektiVitestWorkspaceConfig(repoRootUrl: string | URL, ov
   );
 }
 
-export function defineKonektiVitestConfig() {
-  return createKonektiVitestWorkspaceConfig(new URL('../../../', import.meta.url));
+export function defineFluoVitestConfig() {
+  return createFluoVitestWorkspaceConfig(new URL('../../../', import.meta.url));
 }

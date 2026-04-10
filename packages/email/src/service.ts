@@ -143,7 +143,7 @@ export class EmailService implements Email, OnModuleInit, OnApplicationShutdown 
    *   from: 'noreply@example.com',
    *   to: ['user@example.com'],
    *   subject: 'Welcome',
-   *   text: 'Hello from Konekti',
+   *   text: 'Hello from Fluo',
    * });
    * ```
    */

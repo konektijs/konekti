@@ -11,7 +11,7 @@ import { CacheService } from './service.js';
 import { CacheModule } from './module.js';
 import type { RedisCompatibleClient } from './types.js';
 
-const REDIS_CLIENT_TOKEN = Symbol.for('konekti.redis.client');
+const REDIS_CLIENT_TOKEN = Symbol.for('fluo.redis.client');
 
 class MockRedisClient implements RedisCompatibleClient {
   readonly storage = new Map<string, string>();

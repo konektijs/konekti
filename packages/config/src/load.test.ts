@@ -28,7 +28,7 @@ async function delay(ms: number): Promise<void> {
 
 describe('loadConfig', () => {
   it('merges defaults, env file, process env, and runtime overrides in order', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\nNAME=from-file\n');
@@ -48,27 +48,27 @@ describe('loadConfig', () => {
   });
 
   it('does not read live process.env unless it is passed explicitly', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-live-process-env-'));
-    const previousValue = process.env.KONEKTI_CONFIG_TEST_ONLY;
-    process.env.KONEKTI_CONFIG_TEST_ONLY = 'from-live-process-env';
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-live-process-env-'));
+    const previousValue = process.env.FLUO_CONFIG_TEST_ONLY;
+    process.env.FLUO_CONFIG_TEST_ONLY = 'from-live-process-env';
 
     try {
       const implicit = loadConfig({ cwd });
       const explicit = loadConfig({ cwd, processEnv: process.env });
 
-      expect(implicit['KONEKTI_CONFIG_TEST_ONLY']).toBeUndefined();
-      expect(explicit['KONEKTI_CONFIG_TEST_ONLY']).toBe('from-live-process-env');
+      expect(implicit['FLUO_CONFIG_TEST_ONLY']).toBeUndefined();
+      expect(explicit['FLUO_CONFIG_TEST_ONLY']).toBe('from-live-process-env');
     } finally {
       if (previousValue === undefined) {
-        delete process.env.KONEKTI_CONFIG_TEST_ONLY;
+        delete process.env.FLUO_CONFIG_TEST_ONLY;
       } else {
-        process.env.KONEKTI_CONFIG_TEST_ONLY = previousValue;
+        process.env.FLUO_CONFIG_TEST_ONLY = previousValue;
       }
     }
   });
 
   it('supports envFilePath as alias for envFile', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-envpath-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-envpath-'));
     const envPath = join(cwd, '.env.custom');
 
     writeFileSync(envPath, 'API_KEY=test-key-123\n');
@@ -83,7 +83,7 @@ describe('loadConfig', () => {
   });
 
   it('prefers envFilePath over envFile when both provided', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-envpath-pref-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-envpath-pref-'));
     const envFilePrimary = join(cwd, '.env.primary');
     const envFileAlias = join(cwd, '.env.alias');
 
@@ -101,7 +101,7 @@ describe('loadConfig', () => {
   });
 
   it('does not let undefined process env values overwrite file/default values', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-undefined-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-undefined-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\n');
@@ -162,7 +162,7 @@ describe('loadConfig', () => {
   });
 
   it('parses multiline values from env files using dotenv', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-multiline-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-multiline-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\\nMIIEowIBAAKCAQ\\n-----END RSA PRIVATE KEY-----"\n');
@@ -174,7 +174,7 @@ describe('loadConfig', () => {
   });
 
   it('expands variable interpolation in env files', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-expand-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-expand-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'DB_HOST=localhost\nDB_PORT=5432\nDATABASE_URL=${DB_HOST}:${DB_PORT}/mydb\n');
@@ -185,7 +185,7 @@ describe('loadConfig', () => {
   });
 
   it('uses a custom parse function when provided', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-custom-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-custom-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'KEY: value\n');
@@ -210,7 +210,7 @@ describe('loadConfig', () => {
   });
 
   it('emits reload notifications through explicit subscriptions', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-reload-subscribe-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-reload-subscribe-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\n');
@@ -247,7 +247,7 @@ describe('loadConfig', () => {
   });
 
   it('isolates manual reload snapshots across listeners', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-reload-isolation-manual-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-reload-isolation-manual-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\n');
@@ -282,7 +282,7 @@ describe('loadConfig', () => {
   });
 
   it('updates current() before notifying manual reload listeners', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-reload-current-visibility-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-reload-current-visibility-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\n');
@@ -319,7 +319,7 @@ describe('loadConfig', () => {
   });
 
   it('keeps last valid snapshot and reports validation failures in watch mode', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-watch-validation-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-watch-validation-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\n');
@@ -380,7 +380,7 @@ describe('loadConfig', () => {
   });
 
   it('keeps the previous snapshot when manual reload listeners throw', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-reload-ordering-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-reload-ordering-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\n');
@@ -408,7 +408,7 @@ describe('loadConfig', () => {
   });
 
   it('stops watch notifications after close', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-watch-close-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-watch-close-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\n');
@@ -441,7 +441,7 @@ describe('loadConfig', () => {
   });
 
   it('isolates watch reload snapshots across listeners', async () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'konekti-config-reload-isolation-watch-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-reload-isolation-watch-'));
     const envPath = join(cwd, '.env.dev');
 
     writeFileSync(envPath, 'PORT=4000\n');

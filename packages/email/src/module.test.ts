@@ -238,7 +238,7 @@ describe('EmailModule', () => {
 
     const result = await service.send({
       subject: 'Welcome',
-      text: 'Hello from Konekti',
+      text: 'Hello from Fluo',
       to: ['user@example.com'],
     });
 
@@ -250,7 +250,7 @@ describe('EmailModule', () => {
     expect(transportState.sent[0]).toMatchObject({
       from: { address: 'noreply@example.com' },
       subject: 'Welcome',
-      text: 'Hello from Konekti',
+      text: 'Hello from Fluo',
     });
 
     await service.onApplicationShutdown();

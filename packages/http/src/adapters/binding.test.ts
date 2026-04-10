@@ -366,7 +366,7 @@ describe('HttpDtoValidationAdapter', () => {
     await expect(
       validator.validate(
         Object.assign(new SearchRequest(), {
-          query: 'konekti',
+          query: 'fluo',
           unboundHint: '',
         }),
         SearchRequest,

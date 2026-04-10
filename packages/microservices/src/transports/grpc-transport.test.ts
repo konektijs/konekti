@@ -555,7 +555,7 @@ function createGrpcTransport(): { runtime: FakeGrpcRuntime; transport: GrpcMicro
   };
 
   const packageDefinition = {
-    konekti: {
+    fluo: {
       microservices: {
         MathService: mathService,
       },
@@ -565,7 +565,7 @@ function createGrpcTransport(): { runtime: FakeGrpcRuntime; transport: GrpcMicro
   const runtime = new FakeGrpcRuntime(packageDefinition);
   const transport = new GrpcMicroserviceTransport({
     grpc: runtime,
-    packageName: 'konekti.microservices',
+    packageName: 'fluo.microservices',
     protoLoader: {
       loadSync() {
         return {};
@@ -714,7 +714,7 @@ describe('GrpcMicroserviceTransport', () => {
       moduleLoader: async () => {
         throw new Error('module not found');
       },
-      packageName: 'konekti.microservices',
+      packageName: 'fluo.microservices',
       protoPath: '/virtual/microservices.proto',
       url: '127.0.0.1:50051',
     });
@@ -732,7 +732,7 @@ describe('GrpcMicroserviceTransport', () => {
     };
 
     const runtime = new FakeGrpcRuntime({
-      konekti: {
+      fluo: {
         microservices: {
           MathService: mathService,
         },
@@ -742,7 +742,7 @@ describe('GrpcMicroserviceTransport', () => {
     server.bindError = new Error('bind failed');
     const transport = new GrpcMicroserviceTransport({
       grpc: runtime,
-      packageName: 'konekti.microservices',
+      packageName: 'fluo.microservices',
       protoLoader: {
         loadSync() {
           return {};

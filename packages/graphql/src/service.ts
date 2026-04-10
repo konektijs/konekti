@@ -44,7 +44,7 @@ import type {
   ResolverDescriptor,
 } from './types.js';
 
-const GRAPHQL_CONTEXT_OVERRIDE = Symbol('konekti.graphql.context.override');
+const GRAPHQL_CONTEXT_OVERRIDE = Symbol('fluo.graphql.context.override');
 
 type YogaLike = {
   fetch(request: Request): Promise<Response>;

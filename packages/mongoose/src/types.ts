@@ -4,7 +4,7 @@ import type { MaybePromise } from '@fluojs/core';
  * Minimal Mongoose connection seam that optionally supports session creation.
  *
  * @remarks
- * Konekti only requires `startSession()` to expose transaction helpers; plain connection usage still works without it.
+ * Fluo only requires `startSession()` to expose transaction helpers; plain connection usage still works without it.
  */
 export interface MongooseConnectionLike {
   startSession?(): Promise<MongooseSessionLike>;

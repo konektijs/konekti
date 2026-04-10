@@ -12,7 +12,7 @@ import type { RefreshTokenService } from './refresh-token.js';
 /**
  * Provides refresh-token module options through dependency injection.
  */
-export const REFRESH_TOKEN_MODULE_OPTIONS = Symbol.for('konekti.passport.refresh-token-module-options');
+export const REFRESH_TOKEN_MODULE_OPTIONS = Symbol.for('fluo.passport.refresh-token-module-options');
 
 /**
  * Configures refresh-token storage, rotation, and secret material.

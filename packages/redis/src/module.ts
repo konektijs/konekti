@@ -8,7 +8,7 @@ import { REDIS_CLIENT } from './tokens.js';
 import type { RedisModuleOptions } from './types.js';
 
 /**
- * Creates the providers that back Konekti's shared Redis integration.
+ * Creates the providers that back Fluo's shared Redis integration.
  *
  * @param options Redis constructor options forwarded to `ioredis` with `lazyConnect` forced on.
  * @returns Providers for the raw client token, the JSON-aware facade, and lifecycle hooks.
@@ -31,7 +31,7 @@ export function createRedisProviders(options: RedisModuleOptions): Provider[] {
 /** Runtime module entrypoint for the shared Redis client integration. */
 export class RedisModule {
   /**
-   * Registers a global Redis client and exports the facade used across Konekti packages.
+   * Registers a global Redis client and exports the facade used across Fluo packages.
    *
    * @param options Redis client options used to construct the shared connection.
    * @returns A module definition that exports {@link REDIS_CLIENT} and {@link RedisService}.

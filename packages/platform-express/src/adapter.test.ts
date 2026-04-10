@@ -366,7 +366,7 @@ describe('@fluojs/platform-express', () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
-    expect(loggerEvents).toContain(`log:KonektiFactory:Listening on http://127.0.0.1:${String(port)}`);
+    expect(loggerEvents).toContain(`log:FluoFactory:Listening on http://127.0.0.1:${String(port)}`);
 
     await app.close();
   });
@@ -576,7 +576,7 @@ describe('@fluojs/platform-express', () => {
 
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body)).toEqual({ ok: true });
-    expect(loggerEvents).toContain(`log:KonektiFactory:Listening on https://127.0.0.1:${String(port)}`);
+    expect(loggerEvents).toContain(`log:FluoFactory:Listening on https://127.0.0.1:${String(port)}`);
 
     await app.close();
   });
@@ -731,7 +731,7 @@ describe('@fluojs/platform-express', () => {
       await vi.advanceTimersByTimeAsync(26);
 
       expect(exitSpy).toHaveBeenCalledWith(1);
-      expect(loggerEvents).toContain('error:KonektiFactory:Forced exit after 25ms shutdown timeout.:none');
+      expect(loggerEvents).toContain('error:FluoFactory:Forced exit after 25ms shutdown timeout.:none');
     } finally {
       app.close = originalClose;
       await app.close();

@@ -333,7 +333,7 @@ describe('makeRequest', () => {
         expect(request.body).toEqual({ name: 'Ada' });
 
         response.setStatus(201);
-        response.setHeader('x-powered-by', 'konekti');
+        response.setHeader('x-powered-by', 'fluo');
         await response.send({ ok: true });
       },
     };
@@ -348,7 +348,7 @@ describe('makeRequest', () => {
 
     expect(result).toEqual({
       status: 201,
-      headers: { 'x-powered-by': 'konekti' },
+      headers: { 'x-powered-by': 'fluo' },
       body: { ok: true },
     });
   });

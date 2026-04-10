@@ -204,8 +204,8 @@ describe('RedisStreamsMicroserviceTransport', () => {
 
     const requestFrame = published.find((entry) => entry.fields.kind === 'message');
 
-    expect(requestFrame?.stream).toBe('konekti:streams:messages');
-    expect(requestFrame?.fields.replyStream).toMatch(/^konekti:streams:responses:/);
+    expect(requestFrame?.stream).toBe('fluo:streams:messages');
+    expect(requestFrame?.fields.replyStream).toMatch(/^fluo:streams:responses:/);
     expect(typeof requestFrame?.fields.requestId).toBe('string');
 
     await transport.close();

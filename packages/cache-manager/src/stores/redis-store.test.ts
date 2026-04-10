@@ -80,22 +80,22 @@ describe('RedisStore', () => {
 
   it('uses scoped scan+del reset instead of flush-all behavior', async () => {
     const client = new MockRedisClient();
-    const store = new RedisStore(client, { keyPrefix: 'konekti:cache:' });
+    const store = new RedisStore(client, { keyPrefix: 'fluo:cache:' });
 
-    client.storage.set('konekti:cache:users:1', '{"expiresAt":999999,"value":1}');
-    client.storage.set('konekti:cache:users:2', '{"expiresAt":999999,"value":2}');
-    client.storage.set('konekti:cache:orders:1', '{"expiresAt":999999,"value":3}');
+    client.storage.set('fluo:cache:users:1', '{"expiresAt":999999,"value":1}');
+    client.storage.set('fluo:cache:users:2', '{"expiresAt":999999,"value":2}');
+    client.storage.set('fluo:cache:orders:1', '{"expiresAt":999999,"value":3}');
     client.storage.set('another-prefix:noop', '{"expiresAt":999999,"value":4}');
 
     await store.reset();
 
     expect(client.scanCalls[0]).toEqual({
       cursor: '0',
-      pattern: 'konekti:cache:*',
+      pattern: 'fluo:cache:*',
     });
-    expect(client.storage.has('konekti:cache:users:1')).toBe(false);
-    expect(client.storage.has('konekti:cache:users:2')).toBe(false);
-    expect(client.storage.has('konekti:cache:orders:1')).toBe(false);
+    expect(client.storage.has('fluo:cache:users:1')).toBe(false);
+    expect(client.storage.has('fluo:cache:users:2')).toBe(false);
+    expect(client.storage.has('fluo:cache:orders:1')).toBe(false);
     expect(client.storage.has('another-prefix:noop')).toBe(true);
   });
 

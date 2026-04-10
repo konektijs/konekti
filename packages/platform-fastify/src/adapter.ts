@@ -120,7 +120,7 @@ type FastifyMultipartLikeError = Error & {
 /**
  * Fastify-backed `HttpApplicationAdapter` implementation used by the runtime.
  *
- * It preserves the shared Konekti dispatcher contract while exposing Fastify's
+ * It preserves the shared Fluo dispatcher contract while exposing Fastify's
  * server-backed realtime capability and multipart/raw-body integrations.
  */
 export class FastifyHttpApplicationAdapter implements HttpApplicationAdapter {
@@ -273,11 +273,11 @@ function createFastifyRequestResponseFactory(
 }
 
 /**
- * Create the recommended Fastify adapter for `KonektiFactory.create(...)`.
+ * Create the recommended Fastify adapter for `FluoFactory.create(...)`.
  *
  * @example
  * ```ts
- * const app = await KonektiFactory.create(AppModule, {
+ * const app = await FluoFactory.create(AppModule, {
  *   adapter: createFastifyAdapter({ port: 3000 }),
  * });
  * ```
@@ -306,7 +306,7 @@ export function createFastifyAdapter(
 /**
  * Bootstrap a Fastify-backed application without implicitly calling `listen()`.
  *
- * @param rootModule Root application module compiled by the Konekti runtime.
+ * @param rootModule Root application module compiled by the Fluo runtime.
  * @param options Runtime, middleware, and Fastify adapter settings.
  * @returns An initialized application shell that can be listened to later.
  */
@@ -327,7 +327,7 @@ export async function bootstrapFastifyApplication(
  * This helper mirrors the README quick-start path: create the adapter, wire the
  * runtime, and attach signal handling so callers only need to invoke `listen()`.
  *
- * @param rootModule Root application module compiled by the Konekti runtime.
+ * @param rootModule Root application module compiled by the Fluo runtime.
  * @param options Runtime, adapter, and shutdown registration settings.
  * @returns A bootstrapped application shell ready to listen.
  */
@@ -790,7 +790,7 @@ async function closeFromSignal(
   }
 
   const forceExitTimer = setTimeout(() => {
-    logger.error(`Forced exit after ${String(forceExitTimeoutMs)}ms shutdown timeout.`, undefined, 'KonektiFactory');
+    logger.error(`Forced exit after ${String(forceExitTimeoutMs)}ms shutdown timeout.`, undefined, 'FluoFactory');
     process.exit(1);
   }, forceExitTimeoutMs);
 
@@ -801,11 +801,11 @@ async function closeFromSignal(
   try {
     await app.close(signal);
     clearTimeout(forceExitTimer);
-    logger.log(`Application closed after receiving ${signal}.`, 'KonektiFactory');
+    logger.log(`Application closed after receiving ${signal}.`, 'FluoFactory');
     process.exitCode = 0;
   } catch (error: unknown) {
     clearTimeout(forceExitTimer);
-    logger.error('Failed to shut down the application cleanly.', error, 'KonektiFactory');
+    logger.error('Failed to shut down the application cleanly.', error, 'FluoFactory');
     process.exitCode = 1;
   }
 }

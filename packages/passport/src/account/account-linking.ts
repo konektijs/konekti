@@ -1,7 +1,7 @@
-import { KonektiError, type MaybePromise } from '@fluojs/core';
+import { FluoError, type MaybePromise } from '@fluojs/core';
 
 /** DI token for registering an account-linking policy implementation. */
-export const ACCOUNT_LINKING_POLICY = Symbol.for('konekti.passport.account-linking-policy');
+export const ACCOUNT_LINKING_POLICY = Symbol.for('fluo.passport.account-linking-policy');
 
 /** Identity payload from an external authentication provider. */
 export interface AccountIdentity {
@@ -80,7 +80,7 @@ export type AccountLinkingResolution =
     };
 
 /** Error raised when linking requires user confirmation among candidates. */
-export class AccountLinkConflictError extends KonektiError {
+export class AccountLinkConflictError extends FluoError {
   readonly candidateAccountIds: string[];
 
   constructor(
@@ -99,7 +99,7 @@ export class AccountLinkConflictError extends KonektiError {
 }
 
 /** Error raised when an account-linking attempt is rejected by policy. */
-export class AccountLinkRejectedError extends KonektiError {
+export class AccountLinkRejectedError extends FluoError {
   constructor(message = 'Account-linking attempt was rejected.', code = 'ACCOUNT_LINK_REJECTED') {
     super(message, { code });
   }

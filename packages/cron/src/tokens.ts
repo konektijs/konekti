@@ -3,6 +3,6 @@ import type { Token } from '@fluojs/core';
 import type { NormalizedCronModuleOptions, SchedulingRegistry } from './types.js';
 
 /** Injection token for normalized cron module options used by {@link CronLifecycleService}. */
-export const CRON_OPTIONS: Token<NormalizedCronModuleOptions> = Symbol.for('konekti.cron.options');
+export const CRON_OPTIONS: Token<NormalizedCronModuleOptions> = Symbol.for('fluo.cron.options');
 /** Injection token for the runtime scheduling registry exposed to application code. */
-export const SCHEDULING_REGISTRY: Token<SchedulingRegistry> = Symbol.for('konekti.cron.scheduling-registry');
+export const SCHEDULING_REGISTRY: Token<SchedulingRegistry> = Symbol.for('fluo.cron.scheduling-registry');

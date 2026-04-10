@@ -1,9 +1,16 @@
-import { KonektiError, formatTokenName } from '@fluojs/core';
+import { FluoError, formatTokenName } from '@fluojs/core';
 
+/**
+ * Structured context for runtime-level errors.
+ */
 export interface RuntimeErrorContext {
+  /** Name of the module where the error occurred. */
   readonly module?: string;
+  /** DI token associated with the failure. */
   readonly token?: unknown;
+  /** Application bootstrap or lifecycle phase. */
   readonly phase?: string;
+  /** Actionable hint for resolving the error. */
   readonly hint?: string;
 }
 
@@ -44,7 +51,10 @@ function buildRuntimeMeta(context: RuntimeErrorContext): Record<string, unknown>
   return meta;
 }
 
-export class ModuleGraphError extends KonektiError {
+/**
+ * Error thrown when a failure occurs during module graph compilation or resolution.
+ */
+export class ModuleGraphError extends FluoError {
   constructor(message: string, context?: RuntimeErrorContext) {
     super(
       message + formatRuntimeContext(context),
@@ -56,7 +66,10 @@ export class ModuleGraphError extends KonektiError {
   }
 }
 
-export class ModuleVisibilityError extends KonektiError {
+/**
+ * Error thrown when a provider is requested from a module that does not have visibility to it.
+ */
+export class ModuleVisibilityError extends FluoError {
   constructor(message: string, context?: RuntimeErrorContext) {
     super(
       message + formatRuntimeContext(context),
@@ -68,7 +81,10 @@ export class ModuleVisibilityError extends KonektiError {
   }
 }
 
-export class ModuleInjectionMetadataError extends KonektiError {
+/**
+ * Error thrown when module injection metadata is missing or invalid.
+ */
+export class ModuleInjectionMetadataError extends FluoError {
   constructor(message: string, context?: RuntimeErrorContext) {
     super(
       message + formatRuntimeContext(context),
@@ -80,7 +96,10 @@ export class ModuleInjectionMetadataError extends KonektiError {
   }
 }
 
-export class DuplicateProviderError extends KonektiError {
+/**
+ * Error thrown when multiple providers are registered for the same token within a module.
+ */
+export class DuplicateProviderError extends FluoError {
   constructor(message: string, context?: RuntimeErrorContext) {
     super(
       message + formatRuntimeContext(context),

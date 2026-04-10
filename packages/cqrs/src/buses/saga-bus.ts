@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 
-import { Inject, InvariantError, KonektiError, type Token } from '@fluojs/core';
+import { Inject, InvariantError, FluoError, type Token } from '@fluojs/core';
 import type { OnApplicationBootstrap, OnApplicationShutdown } from '@fluojs/runtime';
 import { APPLICATION_LOGGER, COMPILED_MODULES, RUNTIME_CONTAINER } from '@fluojs/runtime/internal';
 
@@ -158,7 +158,7 @@ export class CqrsSagaLifecycleService extends CqrsBusBase implements OnApplicati
     try {
       await instance.handle(createIsolatedEvent(descriptor.eventType as CqrsEventType<TEvent>, event));
     } catch (error) {
-      if (error instanceof KonektiError) {
+      if (error instanceof FluoError) {
         throw error;
       }
 

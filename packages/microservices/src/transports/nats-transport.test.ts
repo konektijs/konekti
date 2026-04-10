@@ -160,7 +160,7 @@ describe('NatsMicroserviceTransport', () => {
     const transport = new NatsMicroserviceTransport({ client: nats, codec });
     await transport.listen(async () => undefined);
 
-    nats.publish('konekti.microservices.events', new TextEncoder().encode('{not-json'));
+    nats.publish('fluo.microservices.events', new TextEncoder().encode('{not-json'));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(logger).toHaveBeenCalled();

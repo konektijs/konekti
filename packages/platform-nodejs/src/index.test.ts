@@ -3,7 +3,7 @@ import { createServer } from 'node:net';
 import { describe, expect, it } from 'vitest';
 
 import { Controller, Get } from '@fluojs/http';
-import { KonektiFactory, defineModule } from '@fluojs/runtime';
+import { FluoFactory, defineModule } from '@fluojs/runtime';
 import {
   bootstrapNodeApplication,
   runNodeApplication,
@@ -67,7 +67,7 @@ describe('@fluojs/platform-nodejs', () => {
     defineModule(AppModule, { controllers: [HealthController] });
 
     const port = await findAvailablePort();
-    const app = await KonektiFactory.create(AppModule, {
+    const app = await FluoFactory.create(AppModule, {
       adapter: createNodejsAdapter({ port }),
     });
 

@@ -271,7 +271,7 @@ function renderApp(message?: string): void {
   root.innerHTML = `
     <main>
       <header>
-        <h1>Konekti Studio Platform Snapshot Viewer</h1>
+        <h1>Fluo Studio Platform Snapshot Viewer</h1>
         <p>Load JSON exported by <code>fluo inspect --json</code> (shared platform snapshot/diagnostic schema) and optionally timing JSON from <code>--timing</code>.</p>
       </header>
 
@@ -433,7 +433,7 @@ function renderApp(message?: string): void {
     if (!state.rawJson) {
       return;
     }
-    downloadTextFile('konekti-diagnostics.json', state.rawJson);
+    downloadTextFile('fluo-diagnostics.json', state.rawJson);
     renderApp('Loaded JSON downloaded.');
   });
 

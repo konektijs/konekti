@@ -19,13 +19,13 @@ describe('DefaultJwtSigner', () => {
     const signer = new DefaultJwtSigner({
       accessTokenTtlSeconds: 120,
       algorithms: ['HS256'],
-      audience: 'konekti',
+      audience: 'fluo',
       issuer: 'tests',
       secret: 'secret',
     });
     const verifier = new DefaultJwtVerifier({
       algorithms: ['HS256'],
-      audience: 'konekti',
+      audience: 'fluo',
       issuer: 'tests',
       secret: 'secret',
     });
@@ -148,13 +148,13 @@ describe('DefaultJwtSigner', () => {
     const signer = new DefaultJwtSigner({
       accessTokenTtlSeconds: 120,
       algorithms: ['RS256'],
-      audience: 'konekti',
+      audience: 'fluo',
       issuer: 'tests',
       privateKey,
     });
     const verifier = new DefaultJwtVerifier({
       algorithms: ['RS256'],
-      audience: 'konekti',
+      audience: 'fluo',
       issuer: 'tests',
       publicKey,
     });
@@ -173,13 +173,13 @@ describe('DefaultJwtSigner', () => {
     const signer = new DefaultJwtSigner({
       accessTokenTtlSeconds: 120,
       algorithms: ['ES256'],
-      audience: 'konekti',
+      audience: 'fluo',
       issuer: 'tests',
       privateKey,
     });
     const verifier = new DefaultJwtVerifier({
       algorithms: ['ES256'],
-      audience: 'konekti',
+      audience: 'fluo',
       issuer: 'tests',
       publicKey,
     });

@@ -164,7 +164,7 @@ export function parsePackageNamesFromFamilyTable(markdown, sectionTitle) {
       break;
     }
 
-    for (const match of line.matchAll(/`(@(?:fluojs|konekti)\/[^`]+)`/g)) {
+    for (const match of line.matchAll(/`(@(?:fluojs|fluo)\/[^`]+)`/g)) {
       packages.add(match[1]);
     }
   }

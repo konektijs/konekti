@@ -64,7 +64,7 @@ export interface SlackTransport {
    *
    * @param message Normalized message with resolved defaults and one target channel.
    * @param context Optional abort context propagated from the caller.
-   * @returns Provider-specific receipt details normalized for the Konekti Slack contract.
+   * @returns Provider-specific receipt details normalized for the Fluo Slack contract.
    */
   send(message: NormalizedSlackMessage, context: SlackTransportContext): Promise<SlackTransportReceipt>;
 

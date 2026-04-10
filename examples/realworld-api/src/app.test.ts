@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createTestApp } from '@fluojs/testing';
-import { KonektiFactory } from '@fluojs/runtime';
+import { FluoFactory } from '@fluojs/runtime';
 import type { FrameworkRequest, FrameworkResponse } from '@fluojs/http';
 
 import { AppModule } from './app';
@@ -73,7 +73,7 @@ function createResponse(): FrameworkResponse & { body?: unknown } {
 
 describe('AppModule integration', () => {
   it('dispatches /health and /ready', async () => {
-    const app = await KonektiFactory.create(AppModule, {});
+    const app = await FluoFactory.create(AppModule, {});
 
     const healthRes = createResponse();
     await app.dispatch(createRequest('GET', '/health'), healthRes);
@@ -87,7 +87,7 @@ describe('AppModule integration', () => {
   });
 
   it('dispatches POST /users/ then GET /users/', async () => {
-    const app = await KonektiFactory.create(AppModule, {});
+    const app = await FluoFactory.create(AppModule, {});
 
     const postRes = createResponse();
     await app.dispatch(createRequest('POST', '/users/', { name: 'Ada', email: 'ada@example.com' }), postRes);

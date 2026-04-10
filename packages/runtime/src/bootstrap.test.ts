@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Global, Inject, Module } from '@fluojs/core';
 import { defineModuleMetadata } from '@fluojs/core/internal';
 
-import { bootstrapModule, KonektiFactory } from './bootstrap.js';
+import { bootstrapModule, FluoFactory } from './bootstrap.js';
 import { DuplicateProviderError, ModuleGraphError, ModuleInjectionMetadataError, ModuleVisibilityError } from './errors.js';
 import type { PlatformComponent, PlatformState } from './platform-contract.js';
 import { HTTP_APPLICATION_ADAPTER, PLATFORM_SHELL } from './tokens.js';
@@ -519,7 +519,7 @@ describe('bootstrapModule requiredConstructorParameters fix', () => {
   });
 });
 
-describe('KonektiFactory.createApplicationContext', () => {
+describe('FluoFactory.createApplicationContext', () => {
   it('boots providers without creating the HTTP application adapter', async () => {
     class AppService {
       readonly marker = 'ok';
@@ -530,7 +530,7 @@ describe('KonektiFactory.createApplicationContext', () => {
       providers: [AppService],
     });
 
-    const context = await KonektiFactory.createApplicationContext(AppModule, {
+    const context = await FluoFactory.createApplicationContext(AppModule, {
     });
 
     await expect(context.get(AppService)).resolves.toBeInstanceOf(AppService);
@@ -566,7 +566,7 @@ describe('KonektiFactory.createApplicationContext', () => {
       providers: [AppService],
     });
 
-    const context = await KonektiFactory.createApplicationContext(AppModule, {
+    const context = await FluoFactory.createApplicationContext(AppModule, {
     });
 
     expect(events).toEqual(['module:init', 'app:bootstrap']);
@@ -585,7 +585,7 @@ describe('KonektiFactory.createApplicationContext', () => {
     class AppModule {}
     defineModuleMetadata(AppModule, {});
 
-    const context = await KonektiFactory.createApplicationContext(AppModule);
+    const context = await FluoFactory.createApplicationContext(AppModule);
 
     expect(context.bootstrapTiming).toBeUndefined();
 
@@ -596,7 +596,7 @@ describe('KonektiFactory.createApplicationContext', () => {
     class AppModule {}
     defineModuleMetadata(AppModule, {});
 
-    const context = await KonektiFactory.createApplicationContext(AppModule, {
+    const context = await FluoFactory.createApplicationContext(AppModule, {
       diagnostics: {
         timing: true,
       },
@@ -621,7 +621,7 @@ describe('KonektiFactory.createApplicationContext', () => {
       providers: [AppService],
     });
 
-    const context = await KonektiFactory.createApplicationContext(AppModule, {
+    const context = await FluoFactory.createApplicationContext(AppModule, {
     });
 
     await expect(context.close('SIGTERM')).rejects.toThrow('context shutdown failed');
@@ -667,7 +667,7 @@ describe('runtime platform shell enforcement', () => {
           },
           state: currentState,
           telemetry: {
-            namespace: 'konekti.test',
+            namespace: 'fluo.test',
             tags: {},
           },
         };
@@ -701,7 +701,7 @@ describe('runtime platform shell enforcement', () => {
     class AppModule {}
     defineModuleMetadata(AppModule, {});
 
-    const app = await KonektiFactory.create(AppModule, {
+    const app = await FluoFactory.create(AppModule, {
       platform: {
         components: [
           { component: queue, dependencies: ['redis.default'] },
@@ -730,7 +730,7 @@ describe('runtime platform shell enforcement', () => {
     defineModuleMetadata(AppModule, {});
 
     await expect(
-      KonektiFactory.create(AppModule, {
+      FluoFactory.create(AppModule, {
         platform: {
           components: [{ component: queue, dependencies: ['redis.default'] }],
         },
@@ -749,7 +749,7 @@ describe('runtime platform shell enforcement', () => {
     class AppModule {}
     defineModuleMetadata(AppModule, {});
 
-    const app = await KonektiFactory.create(AppModule, {
+    const app = await FluoFactory.create(AppModule, {
       adapter,
       platform: {
         components: [{ component: unavailable, dependencies: [] }],
@@ -761,10 +761,10 @@ describe('runtime platform shell enforcement', () => {
   });
 });
 
-describe('KonektiFactory.createMicroservice', () => {
+describe('FluoFactory.createMicroservice', () => {
   it('resolves microservice runtime token and starts listen()', async () => {
     const events: string[] = [];
-    const MICROSERVICE_TOKEN = Symbol.for('konekti.microservices.service');
+    const MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service');
 
     class StubMicroserviceRuntime implements MicroserviceRuntime {
       async listen(): Promise<void> {
@@ -782,7 +782,7 @@ describe('KonektiFactory.createMicroservice', () => {
       ],
     });
 
-    const microservice = await KonektiFactory.createMicroservice(AppModule, {
+    const microservice = await FluoFactory.createMicroservice(AppModule, {
     });
 
     await microservice.listen();
@@ -792,7 +792,7 @@ describe('KonektiFactory.createMicroservice', () => {
   });
 
   it('throws if resolved token does not implement listen()', async () => {
-    const MICROSERVICE_TOKEN = Symbol.for('konekti.microservices.service');
+    const MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service');
 
     class AppModule {}
     defineModuleMetadata(AppModule, {
@@ -806,14 +806,14 @@ describe('KonektiFactory.createMicroservice', () => {
       ],
     });
 
-    await expect(KonektiFactory.createMicroservice(AppModule)).rejects.toThrow(
+    await expect(FluoFactory.createMicroservice(AppModule)).rejects.toThrow(
       'Resolved microservice token does not implement listen().',
     );
   });
 
-  it('supports hybrid composition with KonektiFactory.create()', async () => {
+  it('supports hybrid composition with FluoFactory.create()', async () => {
     const events: string[] = [];
-    const MICROSERVICE_TOKEN = Symbol.for('konekti.microservices.service');
+    const MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service');
 
     class StubMicroserviceRuntime implements MicroserviceRuntime {
       async listen(): Promise<void> {
@@ -831,7 +831,7 @@ describe('KonektiFactory.createMicroservice', () => {
       ],
     });
 
-    const app = await KonektiFactory.create(AppModule, {
+    const app = await FluoFactory.create(AppModule, {
       adapter: {
         async close() {},
         async listen() {},
@@ -848,7 +848,7 @@ describe('KonektiFactory.createMicroservice', () => {
 
   it('provides connectMicroservice() and startAllMicroservices() on the application shell', async () => {
     const events: string[] = [];
-    const MICROSERVICE_TOKEN = Symbol.for('konekti.microservices.service');
+    const MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service');
 
     class StubMicroserviceRuntime implements MicroserviceRuntime {
       async listen(): Promise<void> {
@@ -866,7 +866,7 @@ describe('KonektiFactory.createMicroservice', () => {
       ],
     });
 
-    const app = await KonektiFactory.create(AppModule);
+    const app = await FluoFactory.create(AppModule);
     const microservice = await app.connectMicroservice();
 
     await app.startAllMicroservices();

@@ -3,7 +3,7 @@ import type { Provider } from '@fluojs/di';
 import { createDownResult, createUpResult, resolveIndicatorKey, throwHealthCheckError, withIndicatorTimeout } from './utils.js';
 import type { HealthIndicator, HealthIndicatorResult } from '../types.js';
 
-const REDIS_CLIENT = Symbol.for('konekti.redis.client');
+const REDIS_CLIENT = Symbol.for('fluo.redis.client');
 
 interface RedisClientLike {
   ping?: () => Promise<unknown>;

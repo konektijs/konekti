@@ -6,8 +6,8 @@ import type { AuthRequirement } from './types.js';
 
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 
-const standardClassRequirementKey = Symbol.for('konekti.passport.standard.class-auth');
-const standardMethodRequirementKey = Symbol.for('konekti.passport.standard.method-auth');
+const standardClassRequirementKey = Symbol.for('fluo.passport.standard.class-auth');
+const standardMethodRequirementKey = Symbol.for('fluo.passport.standard.method-auth');
 
 const classRequirementStore = new WeakMap<Function, AuthRequirement>();
 const methodRequirementStore = new WeakMap<object, Map<MetadataPropertyKey, AuthRequirement>>();

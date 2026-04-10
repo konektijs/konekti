@@ -11,8 +11,8 @@ type StandardMethodDecoratorFn = (value: Function, context: ClassMethodDecorator
 type ClassOrMethodDecoratorLike = StandardClassDecoratorFn & StandardMethodDecoratorFn;
 type RequirementPatch = AuthRequirement;
 
-const standardClassRequirementKey = Symbol.for('konekti.passport.standard.class-auth');
-const standardMethodRequirementKey = Symbol.for('konekti.passport.standard.method-auth');
+const standardClassRequirementKey = Symbol.for('fluo.passport.standard.class-auth');
+const standardMethodRequirementKey = Symbol.for('fluo.passport.standard.method-auth');
 
 function isStandardClassContext(context: unknown): context is ClassDecoratorContext {
   return typeof context === 'object' && context !== null && 'kind' in context && context.kind === 'class';

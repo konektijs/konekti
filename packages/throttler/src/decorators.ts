@@ -2,11 +2,11 @@ import type { ThrottlerHandlerOptions } from './types.js';
 import { validateThrottleOptions } from './validation.js';
 
 /** Shared controller metadata key used to store per-route throttling metadata records. */
-export const throttleRouteMetadataKey = Symbol.for('konekti.standard.route');
-const throttleKey = Symbol.for('konekti.throttler.throttle');
-const skipThrottleKey = Symbol.for('konekti.throttler.skip');
-const classThrottleKey = Symbol.for('konekti.throttler.class-throttle');
-const classSkipThrottleKey = Symbol.for('konekti.throttler.class-skip');
+export const throttleRouteMetadataKey = Symbol.for('fluo.standard.route');
+const throttleKey = Symbol.for('fluo.throttler.throttle');
+const skipThrottleKey = Symbol.for('fluo.throttler.skip');
+const classThrottleKey = Symbol.for('fluo.throttler.class-throttle');
+const classSkipThrottleKey = Symbol.for('fluo.throttler.class-skip');
 
 type StandardMetadataBag = Record<PropertyKey, unknown>;
 type StandardMethodDecoratorFn = (value: Function, context: ClassMethodDecoratorContext) => void;

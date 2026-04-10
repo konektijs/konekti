@@ -40,7 +40,7 @@ type DrizzleRuntimeOptions = {
 };
 
 /**
- * Transaction-aware Drizzle wrapper that integrates request scoping and shutdown handling with the Konekti runtime.
+ * Transaction-aware Drizzle wrapper that integrates request scoping and shutdown handling with the Fluo runtime.
  *
  * @typeParam TDatabase Root Drizzle database handle registered in the module.
  * @typeParam TTransactionDatabase Transaction-scoped database handle resolved inside `database.transaction(...)` callbacks.

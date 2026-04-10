@@ -73,7 +73,7 @@ export interface EmailTransport {
    *
    * @param message Normalized message with resolved addresses and defaults.
    * @param context Optional abort context propagated from the caller.
-   * @returns Provider-specific receipt details normalized for the Konekti email contract.
+   * @returns Provider-specific receipt details normalized for the Fluo email contract.
    */
   send(message: NormalizedEmailMessage, context: EmailTransportContext): Promise<EmailTransportReceipt>;
 

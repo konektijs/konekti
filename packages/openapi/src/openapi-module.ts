@@ -160,8 +160,8 @@ export class OpenApiModule {
   }
 
   private static createModule(optionsProvider: OpenApiOptionsProvider): ModuleType {
-    const openApiModuleOptionsToken = Symbol('konekti.openapi.module-options');
-    const openApiDocumentToken = Symbol('konekti.openapi.document');
+    const openApiModuleOptionsToken = Symbol('fluo.openapi.module-options');
+    const openApiDocumentToken = Symbol('fluo.openapi.document');
 
     @Controller('')
     @Inject(openApiDocumentToken, openApiModuleOptionsToken)

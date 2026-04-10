@@ -9,12 +9,12 @@ import { CacheService } from './service.js';
 import { CACHE_OPTIONS, CACHE_STORE } from './tokens.js';
 import type { CacheModuleOptions, NormalizedCacheModuleOptions, RedisCompatibleClient } from './types.js';
 
-const REDIS_CLIENT_TOKEN = Symbol.for('konekti.redis.client');
+const REDIS_CLIENT_TOKEN = Symbol.for('fluo.redis.client');
 
 function normalizeCacheModuleOptions(options: CacheModuleOptions = {}): NormalizedCacheModuleOptions {
   return {
     isGlobal: options.isGlobal ?? false,
-    keyPrefix: options.keyPrefix ?? 'konekti:cache:',
+    keyPrefix: options.keyPrefix ?? 'fluo:cache:',
     redis: options.redis,
     store: options.store ?? 'memory',
     ttl: options.ttl ?? 0,

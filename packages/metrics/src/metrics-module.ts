@@ -162,17 +162,17 @@ class RuntimePlatformTelemetry {
     this.readinessGauge = getOrCreateGauge(registry, {
       help: 'Runtime platform component readiness from shared platform snapshot semantics.',
       labelNames: PLATFORM_COMPONENT_LABELS,
-      name: 'konekti_component_ready',
+      name: 'fluo_component_ready',
     });
     this.healthGauge = getOrCreateGauge(registry, {
       help: 'Runtime platform component health from shared platform snapshot semantics.',
       labelNames: PLATFORM_COMPONENT_LABELS,
-      name: 'konekti_component_health',
+      name: 'fluo_component_health',
     });
     this.registryModeGauge = getOrCreateGauge(registry, {
       help: 'Metrics module registry mode: isolated or shared.',
       labelNames: REGISTRY_MODE_LABELS,
-      name: 'konekti_metrics_registry_mode',
+      name: 'fluo_metrics_registry_mode',
     });
   }
 

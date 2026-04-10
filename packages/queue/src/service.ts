@@ -110,7 +110,7 @@ function toBullBackoff(backoff: QueueBackoffOptions | undefined): JobsOptions['b
 }
 
 function deadLetterKey(jobName: string): string {
-  return `konekti:queue:dead-letter:${jobName}`;
+  return `fluo:queue:dead-letter:${jobName}`;
 }
 
 async function closeConnection(connection: QueueOwnedConnection): Promise<void> {
