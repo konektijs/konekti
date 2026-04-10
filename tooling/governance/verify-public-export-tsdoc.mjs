@@ -330,39 +330,13 @@ function hasChangedPublicExportDeclarations(_relativePath, currentSource, previo
   return JSON.stringify(currentDeclarations) !== JSON.stringify(previousDeclarations);
 }
 
-function diffShowsChangedPublicExportDeclaration(diffText) {
-  return diffText
-    .split('\n')
-    .filter((line) => line.startsWith('+') || line.startsWith('-'))
-    .filter((line) => !line.startsWith('+++') && !line.startsWith('---'))
-    .some((line) => /^[-+]\s*export\s+(?:default\s+)?(?:async\s+)?(?:function|class|interface|type|enum|const|let|var|\{)/.test(line));
-}
-
-function fileHasChangedPublicExportDeclarationFromGit(relativePath, gitRef = preferredBaseRefFromGit()) {
-  if (!gitRef) {
-    return true;
-  }
-
-  const diffResult = run('git', ['diff', '--no-color', '-U0', gitRef, '--', relativePath], { allowFailure: true });
-  if (diffResult.status !== 0) {
-    return true;
-  }
-
-  return diffShowsChangedPublicExportDeclaration(diffResult.stdout);
-}
-
 export function changedPublicExportSourcePathsFromGit(
   relativePaths = changedFilesFromGit().filter((path) => isGovernedPublicExportSourcePath(path)),
   readSource = read,
   gitRef = preferredBaseRefFromGit(),
   readSourceAtRef = readAtGitRef,
-  hasChangedDeclaration = fileHasChangedPublicExportDeclarationFromGit,
 ) {
   return relativePaths.filter((relativePath) => {
-    if (!hasChangedDeclaration(relativePath, gitRef)) {
-      return false;
-    }
-
     const currentSource = readSource(relativePath);
     const previousSource = readSourceAtRef(gitRef, relativePath);
     return hasChangedPublicExportDeclarations(relativePath, currentSource, previousSource);
