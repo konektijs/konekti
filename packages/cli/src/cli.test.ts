@@ -146,6 +146,45 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).toContain('yarn dev');
   });
 
+  it('accepts explicit HTTP shape flags while preserving the default starter result', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli([
+      'new',
+      '--shape',
+      'application',
+      '--transport',
+      'http',
+      '--runtime',
+      'node',
+      '--platform',
+      'fastify',
+      '--tooling',
+      'standard',
+      '--topology',
+      'single-package',
+      'starter-app',
+    ], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const projectDirectory = join(workspaceDirectory, 'starter-app');
+    const packageJson = readFileSync(join(projectDirectory, 'package.json'), 'utf8');
+    const mainFile = readFileSync(join(projectDirectory, 'src', 'main.ts'), 'utf8');
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Installing dependencies with pnpm');
+    expect(stdoutBuffer.join('')).toContain('cd ./starter-app');
+    expect(packageJson).toContain('@fluojs/platform-fastify');
+    expect(packageJson).toContain('@fluojs/runtime');
+    expect(mainFile).toContain("createFastifyAdapter({ port })");
+  });
+
   it('scaffolds a local .env file while ignoring it from git by default', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
@@ -252,6 +291,12 @@ describe('CLI command runner', () => {
     expect(exitCode).toBe(0);
     expect(stdoutBuffer.join('')).toContain('Usage: fluo new|create [project-name] [options]');
     expect(stdoutBuffer.join('')).toMatch(/\| Option\s+\| Aliases \| Description\s+\|/);
+    expect(stdoutBuffer.join('')).toContain('--shape <application>');
+    expect(stdoutBuffer.join('')).toContain('--transport <http>');
+    expect(stdoutBuffer.join('')).toContain('--runtime <node>');
+    expect(stdoutBuffer.join('')).toContain('--platform <fastify>');
+    expect(stdoutBuffer.join('')).toContain('--tooling <standard>');
+    expect(stdoutBuffer.join('')).toContain('--topology <single-package>');
     expect(stdoutBuffer.join('')).toContain('--package-manager <pnpm|npm|yarn|bun>');
     expect(stdoutBuffer.join('')).not.toContain('Schematics');
     expect(stdoutBuffer.join('')).toContain('Next steps:');

@@ -37,6 +37,36 @@ const NEW_OPTION_HELP: NewOptionHelpEntry[] = [
   },
   {
     aliases: [],
+    description: 'Select the scaffold shape explicitly (currently only application for the HTTP starter path).',
+    option: '--shape <application>',
+  },
+  {
+    aliases: [],
+    description: 'Select the transport path explicitly (currently only http).',
+    option: '--transport <http>',
+  },
+  {
+    aliases: [],
+    description: 'Select the runtime explicitly (currently only node for the HTTP starter path).',
+    option: '--runtime <node>',
+  },
+  {
+    aliases: [],
+    description: 'Select the platform adapter explicitly (currently only fastify for the HTTP starter path).',
+    option: '--platform <fastify>',
+  },
+  {
+    aliases: [],
+    description: 'Select the starter tooling preset explicitly (currently only standard).',
+    option: '--tooling <standard>',
+  },
+  {
+    aliases: [],
+    description: 'Select the starter topology mode explicitly (currently only single-package).',
+    option: '--topology <single-package>',
+  },
+  {
+    aliases: [],
     description: 'Choose which package manager installs the starter dependencies.',
     option: '--package-manager <pnpm|npm|yarn|bun>',
   },
@@ -58,8 +88,27 @@ const NEW_OPTION_HELP: NewOptionHelpEntry[] = [
 ];
 
 const SUPPORTED_PACKAGE_MANAGERS = new Set<BootstrapAnswers['packageManager']>(['bun', 'npm', 'pnpm', 'yarn']);
+const SUPPORTED_SHAPES = new Set<BootstrapAnswers['shape']>(['application']);
+const SUPPORTED_TRANSPORTS = new Set<BootstrapAnswers['transport']>(['http']);
+const SUPPORTED_RUNTIMES = new Set<BootstrapAnswers['runtime']>(['node']);
+const SUPPORTED_PLATFORMS = new Set<BootstrapAnswers['platform']>(['fastify']);
+const SUPPORTED_TOOLING_PRESETS = new Set<BootstrapAnswers['tooling']>(['standard']);
+const SUPPORTED_TOPOLOGY_MODES = new Set<BootstrapAnswers['topology']['mode']>(['single-package']);
 
-function readOptionValue(argv: string[], index: number, option: '--name' | '--package-manager' | '--target-directory'): string {
+function readOptionValue(
+  argv: string[],
+  index: number,
+  option:
+    | '--name'
+    | '--package-manager'
+    | '--platform'
+    | '--runtime'
+    | '--shape'
+    | '--target-directory'
+    | '--tooling'
+    | '--topology'
+    | '--transport',
+): string {
   const value = argv[index + 1];
 
   if (!value || value.startsWith('-')) {
@@ -98,6 +147,79 @@ function parseArgs(argv: string[]): Partial<BootstrapAnswers> & { force?: boolea
         }
         index += 1;
         break;
+      case '--shape':
+        if (parsed.shape) {
+          throw new Error('Duplicate --shape option.');
+        }
+
+        parsed.shape = readOptionValue(argv, index, '--shape') as BootstrapAnswers['shape'];
+        if (!SUPPORTED_SHAPES.has(parsed.shape)) {
+          throw new Error(`Invalid --shape value "${parsed.shape}". Use: application.`);
+        }
+        index += 1;
+        break;
+      case '--transport':
+        if (parsed.transport) {
+          throw new Error('Duplicate --transport option.');
+        }
+
+        parsed.transport = readOptionValue(argv, index, '--transport') as BootstrapAnswers['transport'];
+        if (!SUPPORTED_TRANSPORTS.has(parsed.transport)) {
+          throw new Error(`Invalid --transport value "${parsed.transport}". Use: http.`);
+        }
+        index += 1;
+        break;
+      case '--runtime':
+        if (parsed.runtime) {
+          throw new Error('Duplicate --runtime option.');
+        }
+
+        parsed.runtime = readOptionValue(argv, index, '--runtime') as BootstrapAnswers['runtime'];
+        if (!SUPPORTED_RUNTIMES.has(parsed.runtime)) {
+          throw new Error(`Invalid --runtime value "${parsed.runtime}". Use: node.`);
+        }
+        index += 1;
+        break;
+      case '--platform':
+        if (parsed.platform) {
+          throw new Error('Duplicate --platform option.');
+        }
+
+        parsed.platform = readOptionValue(argv, index, '--platform') as BootstrapAnswers['platform'];
+        if (!SUPPORTED_PLATFORMS.has(parsed.platform)) {
+          throw new Error(`Invalid --platform value "${parsed.platform}". Use: fastify.`);
+        }
+        index += 1;
+        break;
+      case '--tooling':
+        if (parsed.tooling) {
+          throw new Error('Duplicate --tooling option.');
+        }
+
+        parsed.tooling = readOptionValue(argv, index, '--tooling') as BootstrapAnswers['tooling'];
+        if (!SUPPORTED_TOOLING_PRESETS.has(parsed.tooling)) {
+          throw new Error(`Invalid --tooling value "${parsed.tooling}". Use: standard.`);
+        }
+        index += 1;
+        break;
+      case '--topology': {
+        const topologyMode = readOptionValue(argv, index, '--topology') as BootstrapAnswers['topology']['mode'];
+
+        if (parsed.topology) {
+          throw new Error('Duplicate --topology option.');
+        }
+
+        if (!SUPPORTED_TOPOLOGY_MODES.has(topologyMode)) {
+          throw new Error(`Invalid --topology value "${topologyMode}". Use: single-package.`);
+        }
+
+        parsed.topology = {
+          deferred: true,
+          mode: topologyMode,
+        };
+        index += 1;
+        break;
+      }
       case '--target-directory':
         if (hasExplicitTargetDirectory) {
           throw new Error('Duplicate --target-directory option.');
