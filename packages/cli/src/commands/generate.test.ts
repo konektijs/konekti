@@ -16,21 +16,21 @@ afterEach(() => {
 
 describe('runGenerateCommand', () => {
   it('rejects empty resource names', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     expect(() => runGenerateCommand('service', '   ', workspaceDirectory)).toThrow('name must not be empty');
   });
 
   it('rejects traversal-style resource names', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     expect(() => runGenerateCommand('service', '../User', workspaceDirectory)).toThrow('path separators or traversal sequences');
   });
 
   it('updates existing module metadata and imports without duplication', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     const sourceDirectory = join(workspaceDirectory, 'src');
@@ -54,7 +54,7 @@ describe('runGenerateCommand', () => {
   });
 
   it('does not write generated files when module rewrite preflight fails', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     const sourceDirectory = join(workspaceDirectory, 'src');
@@ -79,7 +79,7 @@ export { PostModule };
   });
 
   it('omits sibling imports when generating standalone controller and service files', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     const sourceDirectory = join(workspaceDirectory, 'src');
@@ -103,7 +103,7 @@ export { PostModule };
   });
 
   it('reuses sibling imports when matching service or repo files already exist', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     const sourceDirectory = join(workspaceDirectory, 'src');
@@ -128,7 +128,7 @@ export { PostModule };
   });
 
   it('skips rewriting module files when generated content is unchanged', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     const sourceDirectory = join(workspaceDirectory, 'src');
@@ -151,7 +151,7 @@ export { PostModule };
   });
 
   it('returns GenerateResult with structured wiring metadata for auto-registered kinds', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     const sourceDirectory = join(workspaceDirectory, 'src');
@@ -165,7 +165,7 @@ export { PostModule };
   });
 
   it('returns GenerateResult with files-only wiring metadata for non-registered kinds', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     const sourceDirectory = join(workspaceDirectory, 'src');
@@ -179,7 +179,7 @@ export { PostModule };
   });
 
   it('returns GenerateResult with module wiring hint for standalone module kind', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-generate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
 
     const sourceDirectory = join(workspaceDirectory, 'src');

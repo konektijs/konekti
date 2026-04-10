@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
 import {
-  KonektiFactory,
+  FluoFactory,
   type BootstrapTimingDiagnostics,
   type ModuleType,
   type PlatformShellSnapshot,
@@ -15,9 +15,15 @@ type CliStream = {
   write(message: string): unknown;
 };
 
+/**
+ * Runtime options for the inspect command when used programmatically.
+ */
 export interface InspectCommandRuntimeOptions {
+  /** Current working directory for module resolution. */
   cwd?: string;
+  /** Custom stream for error output. */
   stderr?: CliStream;
+  /** Custom stream for standard output. */
   stdout?: CliStream;
 }
 
@@ -67,6 +73,11 @@ function isHelpFlag(value: string | undefined): boolean {
   return value === '--help' || value === '-h';
 }
 
+/**
+ * Returns the usage information string for the inspect command.
+ *
+ * @returns Formatted help text including usage and options.
+ */
 export function inspectUsage(): string {
   return [
     'Usage: fluo inspect <module-path> [options]',
@@ -78,7 +89,7 @@ export function inspectUsage(): string {
       { header: 'Description', render: (entry) => entry.description },
     ]),
     '',
-    'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/quick-start.md',
+    'Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md',
   ].join('\n');
 }
 
@@ -222,6 +233,13 @@ function renderPlatformSnapshotMermaid(snapshot: PlatformShellSnapshot): string 
   return lines.join('\n');
 }
 
+/**
+ * Executes the inspect command to visualize the application module graph.
+ *
+ * @param argv Command line arguments.
+ * @param runtime Optional custom runtime configuration for output streams and working directory.
+ * @returns Exit code (0 for success, 1 for failure).
+ */
 export async function runInspectCommand(argv: string[], runtime: InspectCommandRuntimeOptions = {}): Promise<number> {
   const stdout = runtime.stdout ?? process.stdout;
   const stderr = runtime.stderr ?? process.stderr;
@@ -239,7 +257,7 @@ export async function runInspectCommand(argv: string[], runtime: InspectCommandR
     const rootModule = resolveRootModule(importedModule[parsed.exportName], parsed.exportName);
 
     if (parsed.timing) {
-      const context = await KonektiFactory.createApplicationContext(rootModule, {
+      const context = await FluoFactory.createApplicationContext(rootModule, {
         diagnostics: { timing: true },
         logger: {
           debug() {},
@@ -258,7 +276,7 @@ export async function runInspectCommand(argv: string[], runtime: InspectCommandR
       return 0;
     }
 
-    const context = await KonektiFactory.createApplicationContext(rootModule, {
+    const context = await FluoFactory.createApplicationContext(rootModule, {
       logger: {
         debug() {},
         error() {},

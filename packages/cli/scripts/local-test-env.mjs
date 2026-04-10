@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const defaultSandboxRoot = resolve(join(tmpdir(), 'konekti-cli-sandbox'));
-const sandboxMetadataFileName = '.konekti-cli-sandbox.json';
+const defaultSandboxRoot = resolve(join(tmpdir(), 'fluo-cli-sandbox'));
+const sandboxMetadataFileName = '.fluo-cli-sandbox.json';
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(scriptDirectory, '..');
 const repoRoot = resolve(packageRoot, '..', '..');
@@ -17,12 +17,12 @@ function isPathInsideDirectory(parentDirectory, candidatePath) {
 }
 
 function resolveSandboxRoot(env) {
-  const requestedSandboxRoot = env.KONEKTI_CLI_SANDBOX_ROOT ? resolve(env.KONEKTI_CLI_SANDBOX_ROOT) : undefined;
+  const requestedSandboxRoot = env.FLUO_CLI_SANDBOX_ROOT ? resolve(env.FLUO_CLI_SANDBOX_ROOT) : undefined;
 
   if (requestedSandboxRoot && isPathInsideDirectory(repoRoot, requestedSandboxRoot)) {
     return {
       sandboxRoot: defaultSandboxRoot,
-      warning: `Ignoring KONEKTI_CLI_SANDBOX_ROOT=${requestedSandboxRoot} because sandbox projects must live outside the repo workspace.`,
+      warning: `Ignoring FLUO_CLI_SANDBOX_ROOT=${requestedSandboxRoot} because sandbox projects must live outside the repo workspace.`,
     };
   }
 
@@ -96,7 +96,7 @@ function assertSafeToResetSandbox(projectDirectory) {
   }
 
   throw new Error(
-    `Refusing to reset a non-sandbox directory at ${resolvedProjectDirectory}. Choose an empty path or a dedicated KONEKTI_CLI_SANDBOX_ROOT.`,
+    `Refusing to reset a non-sandbox directory at ${resolvedProjectDirectory}. Choose an empty path or a dedicated FLUO_CLI_SANDBOX_ROOT.`,
   );
 }
 
@@ -210,12 +210,8 @@ function verifySandboxProject(projectName) {
     throw new Error('Expected the installed CLI to expose node_modules/.bin/fluo.');
   }
 
-  if (!existsSync(join(projectDirectory, 'node_modules', '.bin', 'konekti'))) {
-    throw new Error('Expected the installed CLI to keep node_modules/.bin/konekti as a compatibility alias.');
-  }
-
   run('pnpm', ['exec', 'fluo', 'g', 'repo', 'User'], projectDirectory);
-  run('pnpm', ['exec', 'konekti', '--help'], projectDirectory);
+  run('pnpm', ['exec', 'fluo', '--help'], projectDirectory);
 
   if (!existsSync(join(projectDirectory, 'src', 'users', 'user.repo.ts'))) {
     throw new Error('Expected the installed `fluo` command to generate src/users/user.repo.ts.');
@@ -237,7 +233,7 @@ function printUsage() {
     [
       'Usage: node ./scripts/local-test-env.mjs <create|verify|test|clean> [project-name]',
       'Defaults project-name to starter-app and uses the sandbox root itself as the generated app directory.',
-      'Set KONEKTI_CLI_SANDBOX_ROOT to override the sandbox root outside the repo workspace.',
+      'Set FLUO_CLI_SANDBOX_ROOT to override the sandbox root outside the repo workspace.',
     ].join('\n') + '\n',
   );
 }

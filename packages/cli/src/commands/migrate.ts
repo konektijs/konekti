@@ -14,9 +14,15 @@ type CliStream = {
   write(message: string): unknown;
 };
 
+/**
+ * Runtime configuration for the migrate command.
+ */
 export interface MigrateCommandRuntimeOptions {
+  /** Current working directory for path resolution. */
   cwd?: string;
+  /** Custom stream for error output. */
   stderr?: CliStream;
+  /** Custom stream for standard output. */
   stdout?: CliStream;
 }
 
@@ -143,6 +149,11 @@ function parseArgs(argv: string[]): ParsedMigrateArgs {
   };
 }
 
+/**
+ * Returns usage information for the migrate command.
+ *
+ * @returns Formatted help text including usage and options.
+ */
 export function migrateUsage(): string {
   return [
     'Usage: fluo migrate <path> [options]',
@@ -157,10 +168,17 @@ export function migrateUsage(): string {
     'Next steps:',
     '  Review warnings in the output, then run again with --apply to write changes.',
     '',
-    'Docs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/migrate-from-nestjs.md',
+    'Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/migrate-from-nestjs.md',
   ].join('\n');
 }
 
+/**
+ * Executes the migrate command to transform NestJS projects into fluo.
+ *
+ * @param argv Command line arguments.
+ * @param runtime Optional custom runtime configuration for output streams and working directory.
+ * @returns Exit code (0 for success, 1 for failure).
+ */
 export async function runMigrateCommand(argv: string[], runtime: MigrateCommandRuntimeOptions = {}): Promise<number> {
   const stdout = runtime.stdout ?? process.stdout;
   const stderr = runtime.stderr ?? process.stderr;
@@ -218,7 +236,7 @@ export async function runMigrateCommand(argv: string[], runtime: MigrateCommandR
     }
 
     if (report.warningCount > 0) {
-      stdout.write('\nDocs: https://github.com/konektijs/konekti/tree/main/docs/getting-started/migrate-from-nestjs.md\n');
+      stdout.write('\nDocs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/migrate-from-nestjs.md\n');
       stdout.write('Use the post-codemod checklist in the migration guide to address each warning category.\n');
     }
 

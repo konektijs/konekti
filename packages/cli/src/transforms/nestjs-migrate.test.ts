@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 function createMigrationFixture(): string {
-  const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-'));
+  const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-'));
   temporaryDirectories.push(workspaceDirectory);
 
   mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -135,7 +135,7 @@ describe('runNestJsMigration', () => {
 
     expect(firstReport.changedFiles).toBeGreaterThan(0);
     expect(mainContent).toContain("from \"@fluojs/runtime\"");
-    expect(mainContent).toMatch(/KonektiFactory\.create\(AppModule, \{[\s\S]*port:\s*3000[\s\S]*\}\)/);
+    expect(mainContent).toMatch(/FluoFactory\.create\(AppModule, \{[\s\S]*port:\s*3000[\s\S]*\}\)/);
     expect(mainContent).toContain('await app.listen();');
     expect(serviceContent).toMatch(/@Scope\(("|')request\1\)/);
     expect(serviceContent).not.toContain('@Injectable');
@@ -172,7 +172,7 @@ describe('runNestJsMigration', () => {
   });
 
   it('preserves listen(port) when port cannot be folded into create options', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-'));
     temporaryDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -198,14 +198,14 @@ void bootstrap();
 
     const mainContent = readFileSync(join(workspaceDirectory, 'src', 'main.ts'), 'utf8');
 
-    expect(mainContent).toContain('KonektiFactory.create(AppModule, { port: 4000 })');
+    expect(mainContent).toContain('FluoFactory.create(AppModule, { port: 4000 })');
     expect(mainContent).toContain('await app.listen(3000);');
     expect(report.warningCount).toBeGreaterThan(0);
     expect(report.fileResults.flatMap((result) => result.warnings).some((warning) => warning.message.includes('Unable to move listen() port argument'))).toBe(true);
   });
 
   it('skips bootstrap rewrite for unsupported NestFactory.create type arguments and adapter arguments', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-'));
     temporaryDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -235,13 +235,13 @@ void bootstrap();
 
     expect(mainContent).toContain('NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter())');
     expect(mainContent).toContain('await app.listen(3000);');
-    expect(mainContent).not.toContain('KonektiFactory.create');
+    expect(mainContent).not.toContain('FluoFactory.create');
     expect(report.warningCount).toBeGreaterThan(0);
     expect(report.fileResults.flatMap((result) => result.warnings).some((warning) => warning.message.includes('Unsupported NestFactory.create type-argument usage'))).toBe(true);
   });
 
   it('keeps unsupported Nest testing metadata unchanged and reports manual follow-up warning', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-'));
     temporaryDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -277,7 +277,7 @@ describe('users', () => {
   });
 
   it('skips testing rewrite for unsupported builder chains and reports warning', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-'));
     temporaryDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -327,9 +327,9 @@ describe('users', () => {
 
     expect(report.changedFiles).toBeGreaterThan(0);
     expect(serviceContent).toContain('@Injectable({ scope: Scope.REQUEST })');
-    expect(serviceContent).toMatch(/@KonektiScope\(("|')request\1\)/);
+    expect(serviceContent).toMatch(/@FluoScope\(("|')request\1\)/);
     expect(serviceContent).toContain("import { Injectable");
-    expect(serviceContent).toContain('import { Scope as KonektiScope } from "@fluojs/core";');
+    expect(serviceContent).toContain('import { Scope as FluoScope } from "@fluojs/core";');
 
     const secondReport = runNestJsMigration({
       apply: true,
@@ -365,7 +365,7 @@ describe('users', () => {
   });
 
   it('attaches bootstrap-unsupported category to unsupported NestFactory.create variants', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-'));
     temporaryDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -397,7 +397,7 @@ void bootstrap();
   });
 
   it('attaches bootstrap-port category when listen port cannot be folded', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-'));
     temporaryDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
@@ -427,7 +427,7 @@ void bootstrap();
   });
 
   it('attaches testing-unsupported category to unsupported testing patterns', () => {
-    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'konekti-migrate-'));
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-migrate-'));
     temporaryDirectories.push(workspaceDirectory);
 
     mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });

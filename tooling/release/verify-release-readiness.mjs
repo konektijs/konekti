@@ -236,7 +236,7 @@ assertCheck(
   'Starter shape and runtime ownership',
   scaffoldSource.includes('const RuntimeHealthModule = createHealthModule();') &&
     scaffoldSource.includes('@Controller(\'/health-info\')') &&
-    scaffoldSource.includes('const app = await KonektiFactory.create(AppModule, {') &&
+    scaffoldSource.includes('const app = await FluoFactory.create(AppModule, {') &&
     scaffoldSource.includes('adapter: createFastifyAdapter({ port })') &&
     scaffoldSource.includes('await app.listen();') &&
     scaffoldSource.includes('createHealthModule') &&
@@ -279,7 +279,7 @@ assertCheck(
   checks,
   'Dist-based package entrypoints',
   cliPackage.bin.fluo === './bin/fluo.mjs' &&
-    cliPackage.bin.konekti === './bin/konekti.mjs' &&
+    cliPackage.bin.fluo === './bin/fluo.mjs' &&
     cliPackage.main === './dist/index.js' &&
     cliReadme.includes('canonical CLI'),
   'CLI manifest and bin prove a dist-backed public `fluo` entrypoint with a subordinate compatibility alias.',

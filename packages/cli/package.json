@@ -1,8 +1,8 @@
 {
   "name": "@fluojs/cli",
-  "description": "The Konekti CLI — bootstrap, generate, migrate, and inspect commands for application development.",
+  "description": "The Fluo CLI — bootstrap, generate, migrate, and inspect commands for application development.",
   "keywords": [
-    "konekti",
+    "fluo",
     "cli",
     "scaffold",
     "generator",
@@ -14,7 +14,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/konektijs/konekti.git",
+    "url": "https://github.com/fluojs/fluo.git",
     "directory": "packages/cli"
   },
   "engines": {
@@ -25,8 +25,7 @@
   },
   "type": "module",
   "bin": {
-    "fluo": "./bin/fluo.mjs",
-    "konekti": "./bin/konekti.mjs"
+    "fluo": "./bin/fluo.mjs"
   },
   "exports": {
     ".": {
