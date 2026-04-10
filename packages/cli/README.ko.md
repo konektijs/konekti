@@ -24,11 +24,11 @@ pnpm add -g @fluojs/cli
 
 ```bash
 pnpm dlx @fluojs/cli new my-app
+```
 
 정식 실행 명령어는 `fluo`입니다. 기존 `konekti` 명령은 임시 호환용 alias로만 유지되며 문서상의 기본값이 아닙니다.
 
 모노레포 내부 smoke 검증은 prerelease를 배포하는 대신 `pnpm --dir packages/cli run sandbox:test`로 실행하세요.
-```
 
 ## 사용 시점
 

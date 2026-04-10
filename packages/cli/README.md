@@ -24,11 +24,11 @@ Or run directly without installation:
 
 ```bash
 pnpm dlx @fluojs/cli new my-app
+```
 
 The canonical executable is `fluo`. The legacy `konekti` command remains as a temporary compatibility alias and is not the documented default.
 
 For repo-local smoke verification, run `pnpm --dir packages/cli run sandbox:test` instead of publishing prereleases.
-```
 
 ## When to Use
 
