@@ -1,11 +1,17 @@
 import type { Provider } from '@konekti/di';
-import { type Token } from '@konekti/core';
+import type { Token } from '@konekti/core';
 import { getClassDiMetadata, getModuleMetadata, getOwnClassDiMetadata } from '@konekti/core/internal';
 import type { MiddlewareLike } from '@konekti/http';
 
 import { ModuleGraphError, ModuleInjectionMetadataError, ModuleVisibilityError } from './errors.js';
 import type { BootstrapModuleOptions, CompiledModule, ModuleDefinition, ModuleType } from './types.js';
 
+/**
+ * Returns the public token represented by a provider declaration.
+ *
+ * @param provider Provider declaration or class provider shortcut.
+ * @returns The token that should be registered and resolved for the provider.
+ */
 export function providerToken(provider: Provider): Token {
   if (typeof provider === 'function') {
     return provider;
@@ -69,6 +75,12 @@ function controllerDependencies(controller: ModuleType): InjectionToken[] {
   return [...(getEffectiveClassDiMetadata(controller)?.inject ?? [])];
 }
 
+/**
+ * Collects runtime provider tokens into a set for visibility and validation checks.
+ *
+ * @param providers Runtime providers supplied through bootstrap options.
+ * @returns A set containing each provider token exactly once.
+ */
 export function createRuntimeTokenSet(providers: Provider[] = []): Set<Token> {
   return new Set(providers.map((provider) => providerToken(provider)));
 }
@@ -111,20 +123,20 @@ function validateClassInjectionMetadata(
     {
       module: scope,
       phase: 'injection metadata validation',
-      hint: `Ensure ${subject} has a matching @Inject([...]) decorator or provider.inject array that covers all ${required} constructor parameters.`,
+      hint: `Ensure ${subject} has a matching @Inject(...) decorator or provider.inject array that covers all ${required} constructor parameters. Use @Inject() for an explicit empty override.`,
     },
   );
 }
 
 function validateProviderInjectionMetadata(provider: Provider, scope: string): void {
   if (typeof provider === 'function') {
-      validateClassInjectionMetadata(
-        `Provider ${provider.name || '<anonymous>'}`,
-        provider,
-        getEffectiveClassDiMetadata(provider)?.inject ?? [],
-        scope,
-        '@Inject([...]) metadata',
-      );
+       validateClassInjectionMetadata(
+         `Provider ${provider.name || '<anonymous>'}`,
+         provider,
+         getEffectiveClassDiMetadata(provider)?.inject ?? [],
+         scope,
+         '@Inject(...) metadata',
+       );
     return;
   }
 
@@ -140,7 +152,7 @@ function validateProviderInjectionMetadata(provider: Provider, scope: string): v
         provider.useClass,
         provider.inject ?? getEffectiveClassDiMetadata(provider.useClass)?.inject ?? [],
         scope,
-        provider.inject ? 'provider.inject entries' : '@Inject([...]) metadata or provider.inject entries',
+        provider.inject ? 'provider.inject entries' : '@Inject(...) metadata or provider.inject entries',
       );
   }
 }
@@ -151,7 +163,7 @@ function validateControllerInjectionMetadata(controller: ModuleType, scope: stri
     controller,
     getEffectiveClassDiMetadata(controller)?.inject ?? [],
     scope,
-    '@Inject([...]) metadata',
+    '@Inject(...) metadata',
   );
 }
 
@@ -384,6 +396,13 @@ function validateCompiledModules(
   }
 }
 
+/**
+ * Compiles and validates the reachable module graph for a bootstrap entry module.
+ *
+ * @param rootModule Root application module used as the graph entrypoint.
+ * @param options Bootstrap options that contribute runtime providers and validation tokens.
+ * @returns Compiled modules in dependency order after visibility and injection validation succeed.
+ */
 export function compileModuleGraph(rootModule: ModuleType, options: BootstrapModuleOptions = {}): CompiledModule[] {
   const ordered: CompiledModule[] = [];
   const runtimeProviders = options.providers ?? [];
