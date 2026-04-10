@@ -978,7 +978,7 @@ function detectManualFollowUps(source: string, filePath: string): MigrationWarni
         if (!hasInjectParameterWarning && decoratorName === 'Inject') {
           hasInjectParameterWarning = true;
           warnings.push(
-            buildWarning(filePath, sourceFile, modifier, 'inject-token', 'Constructor @Inject(TOKEN) parameter decorators need manual migration to class-level @Inject([...]).'),
+            buildWarning(filePath, sourceFile, modifier, 'inject-token', 'Constructor @Inject(TOKEN) parameter decorators need manual migration to class-level @Inject(TOKEN, ...) syntax.'),
           );
         }
 

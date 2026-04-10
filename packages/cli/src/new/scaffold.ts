@@ -336,7 +336,7 @@ import type { HealthResponseDto } from './health.response.dto';
 
 import { HealthRepo } from './health.repo';
 
-@Inject([HealthRepo])
+@Inject(HealthRepo)
 export class HealthService {
   constructor(private readonly repo: HealthRepo) {}
 
@@ -375,7 +375,7 @@ import { Controller, Get } from '@konekti/http';
 import { HealthService } from './health.service';
 import { HealthResponseDto } from './health.response.dto';
 
-@Inject([HealthService])
+@Inject(HealthService)
 @Controller('/health-info')
 export class HealthController {
   constructor(private readonly service: HealthService) {}
