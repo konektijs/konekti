@@ -1,14 +1,22 @@
-# fluo
+<div align="center">
+  <img src="./src/fluo.png" alt="fluo framework logo" width="140" />
+  
+  <h1>fluo</h1>
+  
+  <p>
+    <b>Standard-First TypeScript Backend Framework</b>
+  </p>
 
-<p align="center">
-  <strong>Standard-First TypeScript Backend Framework</strong>
-</p>
+  <p>
+    <a href="./README.md">English</a>
+    &nbsp;&middot;&nbsp;
+    <a href="./README.ko.md">한국어</a>
+  </p>
+</div>
 
-<p align="center">
-  <a href="./README.md">English</a> | <a href="./README.ko.md">한국어</a>
-</p>
+<br/>
 
-fluo is a modern TypeScript backend framework built from the ground up on **TC39 standard decorators**. It provides a high-performance, explicit, and metadata-free alternative to legacy decorator-based frameworks. 
+> **fluo** is a modern TypeScript backend framework built from the ground up on **TC39 standard decorators**. It provides a high-performance, explicit, and metadata-free alternative to legacy decorator-based frameworks. 
 
 ## Why fluo?
 

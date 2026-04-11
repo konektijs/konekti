@@ -1,14 +1,22 @@
-# fluo
+<div align="center">
+  <img src="./src/fluo.png" alt="fluo framework logo" width="140" />
+  
+  <h1>fluo</h1>
+  
+  <p>
+    <b>표준 우선(Standard-First) TypeScript 백엔드 프레임워크</b>
+  </p>
 
-<p align="center">
-  <strong>표준 우선(Standard-First) TypeScript 백엔드 프레임워크</strong>
-</p>
+  <p>
+    <a href="./README.md">English</a>
+    &nbsp;&middot;&nbsp;
+    <a href="./README.ko.md">한국어</a>
+  </p>
+</div>
 
-<p align="center">
-  <a href="./README.md">English</a> | <strong>한국어</strong>
-</p>
+<br/>
 
-fluo는 **TC39 표준 데코레이터**를 기반으로 처음부터 다시 설계된 현대적인 TypeScript 백엔드 프레임워크입니다. 레거시 데코레이터 기반 프레임워크에 대한 고성능, 명시적, 그리고 메타데이터가 필요 없는 대안을 제공합니다.
+> **fluo**는 **TC39 표준 데코레이터**를 기반으로 처음부터 다시 설계된 현대적인 TypeScript 백엔드 프레임워크입니다. 레거시 데코레이터 기반 프레임워크에 대한 고성능, 명시적, 그리고 메타데이터가 필요 없는 대안을 제공합니다.
 
 ## 왜 fluo인가요?
 
