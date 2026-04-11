@@ -124,6 +124,40 @@ describe('collectBootstrapAnswers', () => {
     });
   });
 
+  it('maps non-node application runtimes to their native platform branches automatically', async () => {
+    const prompt = createPrompt({
+      confirm: async (_message, defaultValue) => defaultValue,
+      select: async <T extends string>(message: string, _choices: readonly { label: string; value: T }[], defaultValue?: T) => {
+        if (message === 'Starter shape') {
+          return 'application' as T;
+        }
+
+        if (message === 'Runtime') {
+          return 'cloudflare-workers' as T;
+        }
+
+        return (defaultValue ?? 'pnpm') as T;
+      },
+    });
+
+    await expect(collectBootstrapAnswers({}, process.cwd(), undefined, { interactive: true, prompt })).resolves.toEqual({
+      initializeGit: false,
+      installDependencies: true,
+      packageManager: 'pnpm',
+      platform: 'cloudflare-workers',
+      runtime: 'cloudflare-workers',
+      shape: 'application',
+      tooling: 'standard',
+      topology: {
+        deferred: true,
+        mode: 'single-package',
+      },
+      transport: 'http',
+      projectName: 'starter-app',
+      targetDirectory: './starter-app',
+    });
+  });
+
   it('branches through the microservice transport wizard path', async () => {
     const prompt = createPrompt({
       confirm: async (_message, defaultValue) => defaultValue,

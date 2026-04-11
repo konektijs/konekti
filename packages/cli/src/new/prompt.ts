@@ -121,6 +121,7 @@ function shouldPromptForAnswers(
   partial: Partial<BootstrapAnswers>,
   interactive: boolean,
 ): boolean {
+  const selectedRuntime = partial.runtime;
   return interactive && (
     !hasOwnValue(partial, 'projectName')
     || !hasOwnValue(partial, 'shape')
@@ -129,7 +130,7 @@ function shouldPromptForAnswers(
     || !hasOwnValue(partial, 'installDependencies')
     || !hasOwnValue(partial, 'initializeGit')
     || (partial.shape === 'application' && !hasOwnValue(partial, 'runtime'))
-    || (partial.shape === 'application' && !hasOwnValue(partial, 'platform'))
+    || (partial.shape === 'application' && selectedRuntime === 'node' && !hasOwnValue(partial, 'platform'))
     || (partial.shape === 'microservice' && !hasOwnValue(partial, 'transport'))
   );
 }
@@ -158,16 +159,23 @@ async function resolveInteractiveBootstrapAnswers(
 
   if (answers.shape === 'application' && !answers.runtime) {
     answers.runtime = await prompt.select('Runtime', [
+      { label: 'Bun', value: 'bun' },
+      { label: 'Cloudflare Workers', value: 'cloudflare-workers' },
+      { label: 'Deno', value: 'deno' },
       { label: 'Node.js', value: 'node' },
     ] as const, 'node');
   }
 
   if (answers.shape === 'application' && !answers.platform) {
-    const applicationProfiles = getApplicationStarterProfiles();
-    answers.platform = await prompt.select('HTTP platform', applicationProfiles.map((profile) => ({
-      label: profile.platformPromptLabel ?? profile.schema.platform,
-      value: profile.schema.platform,
-    })), 'fastify');
+    if (answers.runtime === 'node') {
+      const applicationProfiles = getApplicationStarterProfiles('node');
+      answers.platform = await prompt.select('HTTP platform', applicationProfiles.map((profile) => ({
+        label: profile.platformPromptLabel ?? profile.schema.platform,
+        value: profile.schema.platform,
+      })), 'fastify');
+    } else if (answers.runtime === 'bun' || answers.runtime === 'deno' || answers.runtime === 'cloudflare-workers') {
+      answers.platform = answers.runtime;
+    }
   }
 
   if (answers.shape === 'microservice' && !answers.transport) {

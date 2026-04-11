@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_BOOTSTRAP_SCHEMA, resolveBootstrapPlan, resolveBootstrapSchema } from './resolver.js';
 import { STARTER_PROFILE_REGISTRY } from './starter-profiles.js';
 
+function profileById(id: (typeof STARTER_PROFILE_REGISTRY)[number]['id']) {
+  return STARTER_PROFILE_REGISTRY.find((profile) => profile.id === id)!;
+}
+
 describe('resolveBootstrapSchema', () => {
   it('returns the shape-first compatibility baseline when no explicit schema is provided', () => {
     expect(resolveBootstrapSchema()).toEqual(DEFAULT_BOOTSTRAP_SCHEMA);
@@ -38,11 +42,53 @@ describe('resolveBootstrapSchema', () => {
 });
 
 describe('resolveBootstrapPlan', () => {
-  it('locks the shipped starter registry to the current five supported matrix profiles', () => {
+  it('locks the shipped starter registry to the current eight supported matrix profiles', () => {
     expect(STARTER_PROFILE_REGISTRY.map((profile) => ({
       id: profile.id,
       schema: profile.schema,
     }))).toEqual([
+      {
+        id: 'application-bun-bun-http',
+        schema: {
+          platform: 'bun',
+          runtime: 'bun',
+          shape: 'application',
+          tooling: 'standard',
+          topology: {
+            deferred: true,
+            mode: 'single-package',
+          },
+          transport: 'http',
+        },
+      },
+      {
+        id: 'application-deno-deno-http',
+        schema: {
+          platform: 'deno',
+          runtime: 'deno',
+          shape: 'application',
+          tooling: 'standard',
+          topology: {
+            deferred: true,
+            mode: 'single-package',
+          },
+          transport: 'http',
+        },
+      },
+      {
+        id: 'application-cloudflare-workers-cloudflare-workers-http',
+        schema: {
+          platform: 'cloudflare-workers',
+          runtime: 'cloudflare-workers',
+          shape: 'application',
+          tooling: 'standard',
+          topology: {
+            deferred: true,
+            mode: 'single-package',
+          },
+          transport: 'http',
+        },
+      },
       {
         id: 'application-node-fastify-http',
         schema: {
@@ -140,8 +186,135 @@ describe('resolveBootstrapPlan', () => {
         transport: 'http',
         type: 'http',
       },
-      profile: STARTER_PROFILE_REGISTRY[0],
+      profile: profileById('application-node-fastify-http'),
       schema: DEFAULT_BOOTSTRAP_SCHEMA,
+    });
+  });
+
+  it('resolves the Bun application starter as a first-class HTTP path', () => {
+    expect(resolveBootstrapPlan({
+      packageManager: 'pnpm' as const,
+      runtime: 'bun',
+      shape: 'application',
+    })).toEqual({
+      dependencies: {
+        dependencies: [
+          '@fluojs/config',
+          '@fluojs/core',
+          '@fluojs/validation',
+          '@fluojs/di',
+          '@fluojs/http',
+          '@fluojs/platform-bun',
+          '@fluojs/runtime',
+        ],
+        devDependencies: [
+          '@fluojs/cli',
+          '@fluojs/testing',
+        ],
+      },
+      emitter: {
+        platform: 'bun',
+        preset: 'standard',
+        runtime: 'bun',
+        transport: 'http',
+        type: 'http',
+      },
+      profile: profileById('application-bun-bun-http'),
+      schema: {
+        platform: 'bun',
+        runtime: 'bun',
+        shape: 'application',
+        tooling: 'standard',
+        topology: {
+          deferred: true,
+          mode: 'single-package',
+        },
+        transport: 'http',
+      },
+    });
+  });
+
+  it('resolves the Deno application starter as a first-class HTTP path', () => {
+    expect(resolveBootstrapPlan({
+      packageManager: 'pnpm' as const,
+      runtime: 'deno',
+      shape: 'application',
+    })).toEqual({
+      dependencies: {
+        dependencies: [
+          '@fluojs/config',
+          '@fluojs/core',
+          '@fluojs/validation',
+          '@fluojs/di',
+          '@fluojs/http',
+          '@fluojs/platform-deno',
+          '@fluojs/runtime',
+        ],
+        devDependencies: [
+          '@fluojs/cli',
+        ],
+      },
+      emitter: {
+        platform: 'deno',
+        preset: 'standard',
+        runtime: 'deno',
+        transport: 'http',
+        type: 'http',
+      },
+      profile: profileById('application-deno-deno-http'),
+      schema: {
+        platform: 'deno',
+        runtime: 'deno',
+        shape: 'application',
+        tooling: 'standard',
+        topology: {
+          deferred: true,
+          mode: 'single-package',
+        },
+        transport: 'http',
+      },
+    });
+  });
+
+  it('resolves the Cloudflare Workers application starter as a first-class HTTP path', () => {
+    expect(resolveBootstrapPlan({
+      packageManager: 'pnpm' as const,
+      runtime: 'cloudflare-workers',
+      shape: 'application',
+    })).toEqual({
+      dependencies: {
+        dependencies: [
+          '@fluojs/core',
+          '@fluojs/validation',
+          '@fluojs/di',
+          '@fluojs/http',
+          '@fluojs/platform-cloudflare-workers',
+          '@fluojs/runtime',
+        ],
+        devDependencies: [
+          '@fluojs/cli',
+          '@fluojs/testing',
+        ],
+      },
+      emitter: {
+        platform: 'cloudflare-workers',
+        preset: 'standard',
+        runtime: 'cloudflare-workers',
+        transport: 'http',
+        type: 'http',
+      },
+      profile: profileById('application-cloudflare-workers-cloudflare-workers-http'),
+      schema: {
+        platform: 'cloudflare-workers',
+        runtime: 'cloudflare-workers',
+        shape: 'application',
+        tooling: 'standard',
+        topology: {
+          deferred: true,
+          mode: 'single-package',
+        },
+        transport: 'http',
+      },
     });
   });
 
@@ -188,7 +361,7 @@ describe('resolveBootstrapPlan', () => {
         transport: 'http',
         type: 'http',
       },
-      profile: STARTER_PROFILE_REGISTRY[1],
+      profile: profileById('application-node-express-http'),
       schema: {
         platform: 'express',
         runtime: 'node',
@@ -231,7 +404,7 @@ describe('resolveBootstrapPlan', () => {
         transport: 'http',
         type: 'http',
       },
-      profile: STARTER_PROFILE_REGISTRY[2],
+      profile: profileById('application-node-nodejs-http'),
       schema: {
         platform: 'nodejs',
         runtime: 'node',
@@ -280,7 +453,7 @@ describe('resolveBootstrapPlan', () => {
         transport: 'tcp',
         type: 'microservice',
       },
-      profile: STARTER_PROFILE_REGISTRY[3],
+      profile: profileById('microservice-node-none-tcp'),
       schema: {
         platform: 'none',
         runtime: 'node',
@@ -323,7 +496,7 @@ describe('resolveBootstrapPlan', () => {
         transport: 'tcp',
         type: 'mixed',
       },
-      profile: STARTER_PROFILE_REGISTRY[4],
+      profile: profileById('mixed-node-fastify-tcp'),
       schema: {
         platform: 'fastify',
         runtime: 'node',
@@ -368,7 +541,7 @@ describe('resolveBootstrapPlan', () => {
       },
       transport: 'tcp',
     })).toThrow(
-      'Unsupported bootstrap schema "application/node/tcp/fastify/standard/single-package". Application starters currently require the HTTP transport across the Fastify, Express, and raw Node.js starter profiles.',
+      'Unsupported bootstrap schema "application/node/tcp/fastify/standard/single-package". Application starters currently require the HTTP transport across the Fastify, Express, raw Node.js, Bun, Deno, and Cloudflare Workers starter profiles.',
     );
   });
 
@@ -419,7 +592,7 @@ describe('resolveBootstrapPlan', () => {
       transport: 'http',
       platform: 'fastify',
     })).toThrow(
-      'Unsupported bootstrap schema "application/node/http/fastify/standard/single-package". The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, the TCP microservice starter, and the mixed single-package starter.',
+      'Unsupported bootstrap schema "application/node/http/fastify/standard/single-package". The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the TCP microservice starter, and the mixed single-package starter.',
     );
   });
 
@@ -436,7 +609,7 @@ describe('resolveBootstrapPlan', () => {
       },
       transport: 'tcp',
     })).toThrow(
-      'Unsupported bootstrap schema "mixed/node/tcp/fastify/standard/single-package". The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, the TCP microservice starter, and the mixed single-package starter.',
+      'Unsupported bootstrap schema "mixed/node/tcp/fastify/standard/single-package". The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the TCP microservice starter, and the mixed single-package starter.',
     );
   });
 });
