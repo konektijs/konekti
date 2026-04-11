@@ -375,10 +375,133 @@ describe('scaffoldBootstrapApp', () => {
     expect(packageJson.dependencies).not.toHaveProperty('@fluojs/http');
     expect(packageJson.dependencies).not.toHaveProperty('@fluojs/platform-fastify');
     expect(readme).toContain('Shape: `microservice`');
+    expect(readme).toContain('Transport: `tcp` is the generated runnable starter contract for this project');
     expect(envFile).toContain('MICROSERVICE_PORT=4000');
     expect(appFile).toContain('new TcpMicroserviceTransport({ host, port })');
     expect(mainFile).toContain('FluoFactory.createMicroservice(AppModule)');
     expect(appTestFile).toContain('InMemoryLoopbackTransport');
+  });
+
+  it('generates a runnable Redis Streams microservice starter scaffold', async () => {
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-microservice-redis-streams-'));
+    temporaryDirectories.push(targetDirectory);
+
+    await scaffoldBootstrapApp({
+      packageManager: 'pnpm',
+      platform: 'none',
+      projectName: 'starter-microservice-redis-streams',
+      runtime: 'node',
+      shape: 'microservice',
+      skipInstall: true,
+      targetDirectory,
+      tooling: 'standard',
+      topology: {
+        deferred: true,
+        mode: 'single-package',
+      },
+      transport: 'redis-streams',
+    });
+
+    const packageJson = JSON.parse(readFileSync(join(targetDirectory, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const envFile = readFileSync(join(targetDirectory, '.env'), 'utf8');
+    const appFile = readFileSync(join(targetDirectory, 'src', 'app.ts'), 'utf8');
+
+    expect(packageJson.dependencies).toMatchObject({
+      '@fluojs/microservices': expect.any(String),
+      ioredis: '^5.0.0',
+    });
+    expect(readme).toContain('Transport: `redis-streams` is the generated runnable starter contract for this project');
+    expect(readme).toContain('REDIS_URL');
+    expect(envFile).toContain('REDIS_URL=redis://127.0.0.1:6379');
+    expect(envFile).toContain('REDIS_STREAMS_NAMESPACE=fluo:streams');
+    expect(appFile).toContain("import Redis from 'ioredis';");
+    expect(appFile).toContain('new RedisStreamsMicroserviceTransport({');
+    expect(appFile).toContain('readerClient');
+  });
+
+  it('generates a runnable MQTT microservice starter scaffold', async () => {
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-microservice-mqtt-'));
+    temporaryDirectories.push(targetDirectory);
+
+    await scaffoldBootstrapApp({
+      packageManager: 'pnpm',
+      platform: 'none',
+      projectName: 'starter-microservice-mqtt',
+      runtime: 'node',
+      shape: 'microservice',
+      skipInstall: true,
+      targetDirectory,
+      tooling: 'standard',
+      topology: {
+        deferred: true,
+        mode: 'single-package',
+      },
+      transport: 'mqtt',
+    });
+
+    const packageJson = JSON.parse(readFileSync(join(targetDirectory, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const envFile = readFileSync(join(targetDirectory, '.env'), 'utf8');
+    const appFile = readFileSync(join(targetDirectory, 'src', 'app.ts'), 'utf8');
+
+    expect(packageJson.dependencies).toMatchObject({
+      '@fluojs/microservices': expect.any(String),
+      mqtt: '^5.0.0',
+    });
+    expect(readme).toContain('Transport: `mqtt` is the generated runnable starter contract for this project');
+    expect(envFile).toContain('MQTT_URL=mqtt://127.0.0.1:1883');
+    expect(envFile).toContain('MQTT_NAMESPACE=fluo.microservices');
+    expect(appFile).toContain('new MqttMicroserviceTransport({');
+    expect(appFile).toContain('requestTimeoutMs: 3_000');
+  });
+
+  it('generates a runnable gRPC microservice starter scaffold', async () => {
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-microservice-grpc-'));
+    temporaryDirectories.push(targetDirectory);
+
+    await scaffoldBootstrapApp({
+      packageManager: 'pnpm',
+      platform: 'none',
+      projectName: 'starter-microservice-grpc',
+      runtime: 'node',
+      shape: 'microservice',
+      skipInstall: true,
+      targetDirectory,
+      tooling: 'standard',
+      topology: {
+        deferred: true,
+        mode: 'single-package',
+      },
+      transport: 'grpc',
+    });
+
+    const packageJson = JSON.parse(readFileSync(join(targetDirectory, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+    const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const envFile = readFileSync(join(targetDirectory, '.env'), 'utf8');
+    const appFile = readFileSync(join(targetDirectory, 'src', 'app.ts'), 'utf8');
+    const mathHandlerFile = readFileSync(join(targetDirectory, 'src', 'math', 'math.handler.ts'), 'utf8');
+    const protoFile = readFileSync(join(targetDirectory, 'proto', 'math.proto'), 'utf8');
+
+    expect(packageJson.dependencies).toMatchObject({
+      '@fluojs/microservices': expect.any(String),
+      '@grpc/grpc-js': '^1.0.0',
+      '@grpc/proto-loader': '^0.8.0',
+    });
+    expect(readme).toContain('Transport: `grpc` is the generated runnable starter contract for this project');
+    expect(readme).toContain('proto/math.proto');
+    expect(envFile).toContain('GRPC_URL=127.0.0.1:50051');
+    expect(appFile).toContain('new GrpcMicroserviceTransport({');
+    expect(appFile).toContain("packageName: 'fluo.microservices'");
+    expect(mathHandlerFile).toContain('MathService.Sum');
+    expect(protoFile).toContain('service MathService');
+    expect(protoFile).toContain('rpc Sum (SumRequest) returns (SumResponse);');
   });
 
   it('generates a mixed single-package scaffold with an attached TCP microservice', async () => {

@@ -41,6 +41,13 @@ const PUBLISHED_DEV_DEPENDENCIES = {
   vitest: '^3.0.8',
 } as const;
 
+const PUBLISHED_RUNTIME_DEPENDENCIES = {
+  '@grpc/grpc-js': '^1.0.0',
+  '@grpc/proto-loader': '^0.8.0',
+  ioredis: '^5.0.0',
+  mqtt: '^5.0.0',
+} as const;
+
 type LocalPackageName = keyof typeof PACKAGE_DIRECTORY_BY_NAME;
 
 const ALL_LOCAL_PACKAGE_NAMES: readonly LocalPackageName[] = [
@@ -162,7 +169,9 @@ function createDependencySpec(
   releaseVersion: string,
   packageSpecs: Record<string, string>,
 ): string {
-  return packageSpecs[packageName] ?? `^${releaseVersion}`;
+  return packageSpecs[packageName]
+    ?? PUBLISHED_RUNTIME_DEPENDENCIES[packageName as keyof typeof PUBLISHED_RUNTIME_DEPENDENCIES]
+    ?? `^${releaseVersion}`;
 }
 
 function createRunCommand(packageManager: PackageManager, command: string): string {
@@ -436,17 +445,105 @@ ${testingSection}
 `;
 }
 
+type MicroserviceStarterDescriptor = {
+  configLines: readonly string[];
+  entrypointNote: string;
+  extraFiles?: readonly string[];
+  generatedProjectVerification: string;
+  packageManagerNote: string;
+  pattern: string;
+  readmeTransportLabel: string;
+  runtimeDependencyNote: string;
+  starterNote: string;
+  testNote: string;
+};
+
+function describeMicroserviceStarter(options: Pick<BootstrapOptions, 'transport'>): MicroserviceStarterDescriptor {
+  switch (options.transport) {
+    case 'redis-streams':
+      return {
+        configLines: [
+          '- Redis Streams broker: configure `REDIS_URL` in `.env` before you start the service',
+          '- Optional stream tuning: `REDIS_STREAMS_NAMESPACE` and `REDIS_STREAMS_CONSUMER_GROUP` let you align stream names and the consumer group with your broker contract',
+        ],
+        entrypointNote: '`src/app.ts` wires `RedisStreamsMicroserviceTransport` with dedicated reader/writer `ioredis` clients configured for lazy connection startup',
+        generatedProjectVerification: 'The generated-project verification path typechecks, builds, and tests the scaffold while asserting the Redis Streams starter keeps the `ioredis` dependency, `.env` contract, and transport entrypoint wiring intact.',
+        packageManagerNote: 'runtime choice stays explicit and independent from the package manager you picked; the generated manifest adds the `ioredis` dependency because Redis Streams transport support lives outside the base fluo packages',
+        pattern: 'math.sum',
+        readmeTransportLabel: 'redis-streams',
+        runtimeDependencyNote: 'runtime dependency set: `@fluojs/microservices` plus `ioredis` for the broker client pair used by `RedisStreamsMicroserviceTransport`',
+        starterNote: 'the Redis Streams starter keeps TCP as the default microservice path when you omit `--transport`, but this scaffold becomes runnable as soon as `REDIS_URL` points at a broker',
+        testNote: '`src/app.test.ts` preserves a broker-free integration template via an in-memory transport, while generated-project verification still checks the Redis Streams entrypoint/build contract.',
+      };
+    case 'mqtt':
+      return {
+        configLines: [
+          '- MQTT broker: configure `MQTT_URL` in `.env` before you start the service',
+          '- Topic namespace: adjust `MQTT_NAMESPACE` when you need transport-owned topics to coexist with other services on the same broker',
+        ],
+        entrypointNote: '`src/app.ts` wires `MqttMicroserviceTransport` with the generated broker URL and namespace settings so the starter can own its MQTT client at runtime',
+        generatedProjectVerification: 'The generated-project verification path typechecks, builds, and tests the scaffold while asserting the MQTT starter keeps the `mqtt` dependency, `.env` contract, and transport entrypoint wiring intact.',
+        packageManagerNote: 'runtime choice stays explicit and independent from the package manager you picked; the generated manifest adds the `mqtt` dependency because MQTT transport support lives outside the base fluo packages',
+        pattern: 'math.sum',
+        readmeTransportLabel: 'mqtt',
+        runtimeDependencyNote: 'runtime dependency set: `@fluojs/microservices` plus `mqtt` for the broker client that `MqttMicroserviceTransport` loads at runtime',
+        starterNote: 'the MQTT starter keeps TCP as the default microservice path when you omit `--transport`, but this scaffold becomes runnable as soon as `MQTT_URL` points at a broker',
+        testNote: '`src/app.test.ts` preserves a broker-free integration template via an in-memory transport, while generated-project verification still checks the MQTT entrypoint/build contract.',
+      };
+    case 'grpc':
+      return {
+        configLines: [
+          '- gRPC listener: configure `GRPC_URL` in `.env` before you start the service',
+          '- Protobuf contract: `proto/math.proto` stays in the generated project root and `src/app.ts` resolves it from `process.cwd()` so builds and runtime launches share the same schema path',
+        ],
+        entrypointNote: '`src/app.ts` wires `GrpcMicroserviceTransport` against `proto/math.proto`, the `fluo.microservices` package, and the generated `MathService` RPC contract',
+        extraFiles: ['- `proto/math.proto` — protobuf contract for the generated `MathService.Sum` RPC'],
+        generatedProjectVerification: 'The generated-project verification path typechecks, builds, and tests the scaffold while asserting the gRPC starter keeps the protobuf file, gRPC peer dependencies, `.env` contract, and transport entrypoint wiring intact.',
+        packageManagerNote: 'runtime choice stays explicit and independent from the package manager you picked; the generated manifest adds `@grpc/grpc-js` and `@grpc/proto-loader` because gRPC transport support lives outside the base fluo packages',
+        pattern: 'MathService.Sum',
+        readmeTransportLabel: 'grpc',
+        runtimeDependencyNote: 'runtime dependency set: `@fluojs/microservices` plus `@grpc/grpc-js` and `@grpc/proto-loader` for the generated protobuf-backed RPC listener',
+        starterNote: 'the gRPC starter keeps TCP as the default microservice path when you omit `--transport`, but this scaffold becomes runnable as soon as `GRPC_URL` is reachable for the generated protobuf contract',
+        testNote: '`src/app.test.ts` preserves a broker-free integration template via an in-memory transport, while generated-project verification still checks the gRPC entrypoint/build contract and the generated `proto/math.proto` file.',
+      };
+    default:
+      return {
+        configLines: ['- Local TCP listener: configure `MICROSERVICE_HOST` and `MICROSERVICE_PORT` in `.env`'],
+        entrypointNote: '`src/app.ts` wires `TcpMicroserviceTransport` directly with the generated host/port environment settings',
+        generatedProjectVerification: 'The generated-project verification path typechecks, builds, and tests the scaffold while asserting the TCP starter keeps the default `.env` contract and transport entrypoint wiring intact.',
+        packageManagerNote: 'transport choice stays explicit and is independent from the package manager you picked',
+        pattern: 'math.sum',
+        readmeTransportLabel: 'tcp',
+        runtimeDependencyNote: 'runtime dependency set: `@fluojs/microservices` with no extra transport peer dependencies beyond the base fluo packages',
+        starterNote: 'TCP remains the simplest default microservice path when you omit `--transport`.',
+        testNote: '`src/app.test.ts` preserves a broker-free integration template via an in-memory transport that matches the generated message pattern contract.',
+      };
+  }
+}
+
+function createMicroserviceResponseExpectation(options: Pick<BootstrapOptions, 'transport'>): string {
+  return options.transport === 'grpc' ? '{ result: 42 }' : '42';
+}
+
 function createMicroserviceProjectReadme(options: BootstrapOptions): string {
+  const starter = describeMicroserviceStarter(options);
+  const extraFilesSection = starter.extraFiles?.length
+    ? `${starter.extraFiles.join('\n')}\n`
+    : '';
+
   return `# ${options.projectName}
 
 Generated by @fluojs/cli.
 
 - Shape: \`microservice\`
-- Transport: \`tcp\` is the runnable first-class starter today; the CLI validates the documented microservice transport families separately from package-manager choice
+- Transport: \`${starter.readmeTransportLabel}\` is the generated runnable starter contract for this project
 - Runtime: \`node\`
 - Platform: \`none\` because the microservice starter boots through \`@fluojs/microservices\`, not an HTTP adapter
-- Package manager: install/run commands can use ${options.packageManager}; transport choice stays explicit and is independent from the package manager you picked
-- Messaging contract: \`src/math/math.handler.ts\` exposes a \`math.sum\` message pattern and the generated tests verify it through an in-memory transport so the starter stays testable without external brokers
+- Package manager: install/run commands can use ${options.packageManager}; ${starter.packageManagerNote}
+- Messaging contract: \`src/math/math.handler.ts\` exposes a \`${starter.pattern}\` message pattern and the generated tests verify it through an in-memory transport so the starter stays testable without external brokers
+- Entrypoint contract: ${starter.entrypointNote}
+- Starter contract note: ${starter.starterNote}
+- ${starter.runtimeDependencyNote}
 
 ## Commands
 
@@ -457,20 +554,31 @@ Generated by @fluojs/cli.
 
 ## Starter transport notes
 
-- Local TCP listener: configure \`MICROSERVICE_HOST\` and \`MICROSERVICE_PORT\` in \`.env\`
-- Validation-only families already recognized by the CLI contract: \`redis\`, \`redis-streams\`, \`nats\`, \`kafka\`, \`rabbitmq\`, \`mqtt\`, \`grpc\`
+${starter.configLines.join('\n')}
+- Default transport behavior: omitting \`--transport\` still resolves to the TCP starter path
+- Additional documented-but-not-yet-generated families stay validation-only in this release: \`redis\`, \`nats\`, \`kafka\`, \`rabbitmq\`
 
 ## Official generated testing templates
 
 - \`src/math/math.handler.test.ts\` — unit template for the starter-owned message handler.
 - \`src/app.test.ts\` — integration-style microservice test via an in-memory transport implementation.
 
-Use the unit template for handler logic and the integration template when you need runtime wiring confidence.
+## Generated files that define the starter contract
+
+- \`src/app.ts\` — transport registration and environment-driven runtime wiring.
+- \`src/main.ts\` — microservice bootstrap entrypoint.
+- \`src/math/*\` — starter-owned message handler slice proving the generated transport contract.
+${extraFilesSection}
+## Generated-project verification
+
+- ${starter.generatedProjectVerification}
+
+Use the unit template for handler logic and the integration template when you need runtime wiring confidence. ${starter.testNote}
 `;
 }
 
 function createProjectReadme(options: BootstrapOptions, bootstrapPlan: ResolvedBootstrapPlan): string {
-  if (bootstrapPlan.profile.id === 'microservice-node-none-tcp') {
+  if (bootstrapPlan.profile.emitter.type === 'microservice') {
     return createMicroserviceProjectReadme(options);
   }
 
@@ -717,8 +825,104 @@ await app.listen();
 `;
 }
 
-function createMicroserviceAppFile(): string {
-  return `import { Module } from '@fluojs/core';
+function createMicroserviceAppFile(options: Pick<BootstrapOptions, 'transport'>): string {
+  switch (options.transport) {
+    case 'redis-streams':
+      return `import Redis from 'ioredis';
+import { Module } from '@fluojs/core';
+import { ConfigModule } from '@fluojs/config';
+import { MicroservicesModule, RedisStreamsMicroserviceTransport } from '@fluojs/microservices';
+
+import { MathHandler } from './math/math.handler';
+
+type RedisStreamsTransportOptions = ConstructorParameters<typeof RedisStreamsMicroserviceTransport>[0];
+
+const redisUrl = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
+const namespace = process.env.REDIS_STREAMS_NAMESPACE ?? 'fluo:streams';
+const consumerGroup = process.env.REDIS_STREAMS_CONSUMER_GROUP ?? 'fluo-handlers';
+const readerClient = new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 1 }) as unknown as RedisStreamsTransportOptions['readerClient'];
+const writerClient = new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 1 }) as unknown as RedisStreamsTransportOptions['writerClient'];
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFile: '.env',
+      processEnv: process.env,
+    }),
+    MicroservicesModule.forRoot({
+      transport: new RedisStreamsMicroserviceTransport({
+        consumerGroup,
+        namespace,
+        readerClient,
+        writerClient,
+      }),
+    }),
+  ],
+  providers: [MathHandler],
+})
+export class AppModule {}
+`;
+    case 'mqtt':
+      return `import { Module } from '@fluojs/core';
+import { ConfigModule } from '@fluojs/config';
+import { MicroservicesModule, MqttMicroserviceTransport } from '@fluojs/microservices';
+
+import { MathHandler } from './math/math.handler';
+
+const url = process.env.MQTT_URL ?? 'mqtt://127.0.0.1:1883';
+const namespace = process.env.MQTT_NAMESPACE ?? 'fluo.microservices';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFile: '.env',
+      processEnv: process.env,
+    }),
+    MicroservicesModule.forRoot({
+      transport: new MqttMicroserviceTransport({
+        namespace,
+        requestTimeoutMs: 3_000,
+        url,
+      }),
+    }),
+  ],
+  providers: [MathHandler],
+})
+export class AppModule {}
+`;
+    case 'grpc':
+      return `import { resolve } from 'node:path';
+
+import { Module } from '@fluojs/core';
+import { ConfigModule } from '@fluojs/config';
+import { GrpcMicroserviceTransport, MicroservicesModule } from '@fluojs/microservices';
+
+import { MathHandler } from './math/math.handler';
+
+const url = process.env.GRPC_URL ?? '127.0.0.1:50051';
+const protoPath = resolve(process.cwd(), 'proto', 'math.proto');
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      envFile: '.env',
+      processEnv: process.env,
+    }),
+    MicroservicesModule.forRoot({
+      transport: new GrpcMicroserviceTransport({
+        packageName: 'fluo.microservices',
+        protoPath,
+        services: ['MathService'],
+        url,
+      }),
+    }),
+  ],
+  providers: [MathHandler],
+})
+export class AppModule {}
+`;
+    default:
+      return `import { Module } from '@fluojs/core';
 import { ConfigModule } from '@fluojs/config';
 import { MicroservicesModule, TcpMicroserviceTransport } from '@fluojs/microservices';
 
@@ -742,6 +946,7 @@ const host = process.env.MICROSERVICE_HOST ?? '127.0.0.1';
 })
 export class AppModule {}
 `;
+  }
 }
 
 function createMicroserviceMainFile(): string {
@@ -754,7 +959,30 @@ await microservice.listen();
 `;
 }
 
-function createMathHandlerFile(): string {
+function createMathHandlerFile(options: Pick<BootstrapOptions, 'transport'>): string {
+  const pattern = describeMicroserviceStarter(options).pattern;
+
+  if (options.transport === 'grpc') {
+    return `import { MessagePattern } from '@fluojs/microservices';
+
+type SumInput = {
+  a: number;
+  b: number;
+};
+
+type SumResponse = {
+  result: number;
+};
+
+export class MathHandler {
+  @MessagePattern(${JSON.stringify(pattern)})
+  sum(input: SumInput): SumResponse {
+    return { result: input.a + input.b };
+  }
+}
+`;
+  }
+
   return `import { MessagePattern } from '@fluojs/microservices';
 
 type SumInput = {
@@ -763,7 +991,7 @@ type SumInput = {
 };
 
 export class MathHandler {
-  @MessagePattern('math.sum')
+  @MessagePattern(${JSON.stringify(pattern)})
   sum(input: SumInput): number {
     return input.a + input.b;
   }
@@ -771,7 +999,9 @@ export class MathHandler {
 `;
 }
 
-function createMathHandlerTestFile(): string {
+function createMathHandlerTestFile(options: Pick<BootstrapOptions, 'transport'>): string {
+  const expectation = createMicroserviceResponseExpectation(options);
+
   return `import { describe, expect, it } from 'vitest';
 
 import { MathHandler } from './math.handler';
@@ -780,13 +1010,16 @@ describe('MathHandler', () => {
   it('sums message payload values', () => {
     const handler = new MathHandler();
 
-    expect(handler.sum({ a: 20, b: 22 })).toBe(42);
+    expect(handler.sum({ a: 20, b: 22 })).toEqual(${expectation});
   });
 });
 `;
 }
 
-function createMicroserviceAppTestFile(): string {
+function createMicroserviceAppTestFile(options: Pick<BootstrapOptions, 'transport'>): string {
+  const pattern = describeMicroserviceStarter(options).pattern;
+  const expectation = createMicroserviceResponseExpectation(options);
+
   return `import { describe, expect, it } from 'vitest';
 
 import { Module } from '@fluojs/core';
@@ -841,11 +1074,31 @@ describe('AppModule microservice starter', () => {
     const microservice = await FluoFactory.createMicroservice(TestAppModule);
     await microservice.listen();
 
-    await expect(transport.send('math.sum', { a: 19, b: 23 })).resolves.toBe(42);
+    await expect(transport.send(${JSON.stringify(pattern)}, { a: 19, b: 23 })).resolves.toEqual(${expectation});
 
     await microservice.close();
   });
 });
+`;
+}
+
+function createGrpcProtoFile(): string {
+  return `syntax = "proto3";
+
+package fluo.microservices;
+
+service MathService {
+  rpc Sum (SumRequest) returns (SumResponse);
+}
+
+message SumRequest {
+  int32 a = 1;
+  int32 b = 2;
+}
+
+message SumResponse {
+  int32 result = 1;
+}
 `;
 }
 
@@ -1247,6 +1500,27 @@ PORT=3000
 `;
   }
 
+  if (bootstrapPlan.profile.id === 'microservice-node-none-redis-streams') {
+    return `REDIS_URL=redis://127.0.0.1:6379
+REDIS_STREAMS_NAMESPACE=fluo:streams
+REDIS_STREAMS_CONSUMER_GROUP=fluo-handlers
+PORT=3000
+`;
+  }
+
+  if (bootstrapPlan.profile.id === 'microservice-node-none-mqtt') {
+    return `MQTT_URL=mqtt://127.0.0.1:1883
+MQTT_NAMESPACE=fluo.microservices
+PORT=3000
+`;
+  }
+
+  if (bootstrapPlan.profile.id === 'microservice-node-none-grpc') {
+    return `GRPC_URL=127.0.0.1:50051
+PORT=3000
+`;
+  }
+
   return `PORT=3000
 `;
 }
@@ -1342,14 +1616,32 @@ function emitScaffoldFilesForRecipe(options: BootstrapOptions, recipeId: Starter
     return emitApplicationScaffoldFiles(options);
   }
 
-  if (recipeId === 'microservice-node-none-tcp') {
-    return [
-      { content: createMicroserviceAppFile(), path: 'src/app.ts' },
+  if (
+    recipeId === 'microservice-node-none-tcp'
+    || recipeId === 'microservice-node-none-redis-streams'
+    || recipeId === 'microservice-node-none-mqtt'
+    || recipeId === 'microservice-node-none-grpc'
+  ) {
+    const transport = recipeId === 'microservice-node-none-redis-streams'
+      ? 'redis-streams'
+      : recipeId === 'microservice-node-none-mqtt'
+        ? 'mqtt'
+        : recipeId === 'microservice-node-none-grpc'
+          ? 'grpc'
+          : 'tcp';
+    const files: ScaffoldFile[] = [
+      { content: createMicroserviceAppFile({ transport }), path: 'src/app.ts' },
       { content: createMicroserviceMainFile(), path: 'src/main.ts' },
-      { content: createMathHandlerFile(), path: 'src/math/math.handler.ts' },
-      { content: createMathHandlerTestFile(), path: 'src/math/math.handler.test.ts' },
-      { content: createMicroserviceAppTestFile(), path: 'src/app.test.ts' },
+      { content: createMathHandlerFile({ transport }), path: 'src/math/math.handler.ts' },
+      { content: createMathHandlerTestFile({ transport }), path: 'src/math/math.handler.test.ts' },
+      { content: createMicroserviceAppTestFile({ transport }), path: 'src/app.test.ts' },
     ];
+
+    if (recipeId === 'microservice-node-none-grpc') {
+      files.push({ content: createGrpcProtoFile(), path: 'proto/math.proto' });
+    }
+
+    return files;
   }
 
   if (recipeId === 'mixed-node-fastify-tcp') {
@@ -1364,8 +1656,8 @@ function emitScaffoldFilesForRecipe(options: BootstrapOptions, recipeId: Starter
       { content: createHealthControllerFile(), path: 'src/health/health.controller.ts' },
       { content: createHealthControllerTestFile(), path: 'src/health/health.controller.test.ts' },
       { content: createHealthModuleFile(), path: 'src/health/health.module.ts' },
-      { content: createMathHandlerFile(), path: 'src/math/math.handler.ts' },
-      { content: createMathHandlerTestFile(), path: 'src/math/math.handler.test.ts' },
+      { content: createMathHandlerFile({ transport: 'tcp' }), path: 'src/math/math.handler.ts' },
+      { content: createMathHandlerTestFile({ transport: 'tcp' }), path: 'src/math/math.handler.test.ts' },
       { content: createMixedAppTestFile(), path: 'src/app.test.ts' },
     ];
   }
