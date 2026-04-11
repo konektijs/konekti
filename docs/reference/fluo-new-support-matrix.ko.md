@@ -8,16 +8,16 @@
 
 | 표면 | 현재 상태 | `fluo new`에 실제로 연결된 항목 | 다음 단계 |
 | --- | --- | --- | --- |
-| **애플리케이션 스타터** | **지금 스캐폴딩됨** | `--shape application --transport http --runtime node --platform fastify|express|nodejs`로 생성되는 Node.js + HTTP | `--platform`을 생략하면 Fastify가 기본 스타터 기준선으로 유지되며, Express와 raw Node.js도 이제 first-class 스타터로 제공됩니다. |
+| **애플리케이션 스타터** | **지금 스캐폴딩됨** | `--shape application --transport http --runtime node --platform fastify|express|nodejs`로 생성되는 Node.js + HTTP, `--runtime bun --platform bun`으로 생성되는 Bun, `--runtime deno --platform deno`로 생성되는 Deno, `--runtime cloudflare-workers --platform cloudflare-workers`로 생성되는 Cloudflare Workers | `--platform`을 생략하면 Fastify가 기본 스타터 기준선으로 유지되며, Express, raw Node.js, Bun, Deno, Cloudflare Workers가 모두 first-class 애플리케이션 스타터가 되었습니다. |
 | **마이크로서비스 스타터** | **지금 스캐폴딩됨** | `--shape microservice --transport tcp --runtime node --platform none`으로 생성되는 Node.js + 비HTTP 플랫폼 + TCP | 추가 transport 계열은 별도 문서에 있지만, `new`가 실제로 생성하는 runnable starter는 현재 TCP입니다. |
 | **mixed 스타터** | **지금 스캐폴딩됨** | `--shape mixed --transport tcp --runtime node --platform fastify`로 생성되는 Node.js + Fastify HTTP 앱 + 연결된 TCP microservice | 이것이 현재 공개된 유일한 mixed starter 변형입니다. |
-| **더 넓은 어댑터/런타임 생태계** | **일부는 스캐폴딩됨, 일부는 문서 전용** | `@fluojs/platform-bun`, `@fluojs/platform-deno`, `@fluojs/platform-cloudflare-workers`는 현재 `fluo new` 스타터 매트릭스 밖의 문서화된 런타임 경로로 남아 있습니다. 반면 `@fluojs/platform-express`와 `@fluojs/platform-nodejs`는 이제 first-class 애플리케이션 스타터 선택지입니다. | 남아 있는 문서 전용 어댑터는 스캐폴딩 이후나 수동 구성에서 아래 런타임/패키지 문서를 사용해 채택하세요. |
+| **더 넓은 어댑터/런타임 생태계** | **일부는 스캐폴딩됨, 일부는 문서 전용** | `@fluojs/platform-fastify`, `@fluojs/platform-express`, `@fluojs/platform-nodejs`, `@fluojs/platform-bun`, `@fluojs/platform-deno`, `@fluojs/platform-cloudflare-workers`는 모두 이제 first-class 애플리케이션 스타터 경로를 가집니다. 그 외 런타임/패키지 조합은 여전히 더 넓은 생태계 문서 범주에 남습니다. | 남아 있는 문서 전용 어댑터는 스캐폴딩 이후나 수동 구성에서 아래 런타임/패키지 문서를 사용해 채택하세요. |
 
 ## 다른 문서를 읽는 방법
 
 - `fluo new` 문서는 스타터 계약으로 읽고, 문서화된 모든 어댑터가 이미 스타터 프리셋을 가진다고 해석하지 마세요.
 - 런타임/패키지 참조 문서는 현재 스타터 매트릭스 밖에서 채택 가능한 어댑터, 플랫폼, 배포 대상을 설명하는 더 넓은 생태계 지도입니다.
-- 어떤 페이지가 Bun, Deno, Cloudflare Workers를 언급하더라도, 위의 세 스타터 행으로 명시적으로 되돌아오지 않는 한 이는 생태계 지원을 뜻합니다. Express와 raw Node.js는 이제 애플리케이션 스타터 행과 더 넓은 패키지 생태계에 모두 속합니다.
+- 어떤 페이지가 Bun, Deno, Cloudflare Workers를 언급할 때 명시적인 `fluo new --shape application --transport http --runtime ... --platform ...` 명령이 함께 있다면 그것이 runnable starter 계약입니다. 그 밖의 어댑터 언급은 여전히 더 넓은 패키지 생태계를 설명합니다.
 
 ## 기준 출처
 

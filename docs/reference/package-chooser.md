@@ -16,7 +16,7 @@ Use this guide to select the correct fluo packages for your specific task. This 
 | **HTTP Routing** | `@fluojs/http` |
 | **GraphQL API** | `@fluojs/graphql` |
 | **Fastify (Recommended)** | `@fluojs/platform-fastify` |
-| **Express Compatibility** | `@fluojs/platform-express` *(documented ecosystem support; not a current `fluo new` starter preset)* |
+| **Express Compatibility** | `@fluojs/platform-express` *(also available as a first-class `fluo new` application starter on Node.js)* |
 | **Input Validation** | `@fluojs/validation` |
 | **Configuration** | `@fluojs/config` |
 
@@ -30,7 +30,7 @@ Use this guide to select the correct fluo packages for your specific task. This 
 | **Deno** | `@fluojs/platform-deno` |
 | **Cloudflare Workers** | `@fluojs/platform-cloudflare-workers` |
 
-These adapter rows describe supported package paths after scaffolding or in hand-authored setups. They do **not** mean that Bun, Deno, or Cloudflare are currently chooser branches inside `fluo new`.
+These adapter rows describe supported package paths and now map directly to first-class `fluo new` application starters when you use the matching runtime/platform flags.
 
 ## add persistence & data access
 

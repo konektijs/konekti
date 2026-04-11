@@ -52,6 +52,14 @@ fluo new my-express-app --shape application --transport http --runtime node --pl
 fluo new my-node-app --shape application --transport http --runtime node --platform nodejs
 ```
 
+The application matrix now also includes runtime-native Bun, Deno, and Cloudflare Workers starters with runtime-specific entrypoints, scripts, and dependency sets:
+
+```bash
+fluo new my-bun-app --shape application --transport http --runtime bun --platform bun
+fluo new my-deno-app --shape application --transport http --runtime deno --platform deno
+fluo new my-worker-app --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
+```
+
 `fluo new` also exposes a first-class microservice starter path. The runnable starter currently emits the TCP transport while the CLI validates the documented microservice transport families separately from package-manager choice:
 
 ```bash
@@ -66,7 +74,7 @@ fluo new my-mixed-app --shape mixed --transport tcp --runtime node --platform fa
 
 When `fluo new` runs in an interactive TTY, the v2 wizard now layers on top of the same flags/config model instead of replacing it. The wizard asks for the project name, shape-first branch (`application` -> runtime + HTTP platform, `microservice` -> transport), the maintained tooling preset, package-manager choice, whether to install dependencies immediately, and whether to initialize a git repository. Non-interactive flags and programmatic `runNewCommand(...)` calls still stay first-class paths with the same resolved defaults.
 
-For a docs-level table that separates the shipped Fastify/Express/raw Node.js starters from the broader Bun/Deno/Cloudflare adapter ecosystem, see the [fluo new support matrix](../../docs/reference/fluo-new-support-matrix.md).
+For a docs-level table that separates the shipped application/microservice starter matrix from the remaining broader adapter ecosystem, see the [fluo new support matrix](../../docs/reference/fluo-new-support-matrix.md).
 
 ### 2. Generate a feature
 Add a new resource with a controller and service, automatically wired into the module.

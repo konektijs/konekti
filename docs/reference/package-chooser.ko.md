@@ -16,7 +16,7 @@
 | **HTTP 라우팅** | `@fluojs/http` |
 | **GraphQL API** | `@fluojs/graphql` |
 | **Fastify (권장)** | `@fluojs/platform-fastify` |
-| **Express 호환** | `@fluojs/platform-express` *(문서화된 생태계 지원이며, 현재 `fluo new` 스타터 프리셋은 아님)* |
+| **Express 호환** | `@fluojs/platform-express` *(이제 Node.js에서 first-class `fluo new` 애플리케이션 스타터로도 제공됨)* |
 | **입력 유효성 검사** | `@fluojs/validation` |
 | **설정** | `@fluojs/config` |
 
@@ -30,7 +30,7 @@
 | **Deno** | `@fluojs/platform-deno` |
 | **Cloudflare Workers** | `@fluojs/platform-cloudflare-workers` |
 
-이 어댑터 행들은 스캐폴딩 이후 또는 수동 구성에서 사용할 수 있는 지원 패키지 경로를 설명합니다. Bun, Deno, Cloudflare가 현재 `fluo new` 내부 chooser 분기라는 뜻은 아닙니다.
+이 어댑터 행들은 지원 패키지 경로를 설명하며, 이제 일치하는 runtime/platform 플래그를 사용하면 first-class `fluo new` 애플리케이션 스타터와도 직접 연결됩니다.
 
 ## 영속성 및 데이터 접근 추가
 
