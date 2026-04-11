@@ -110,6 +110,35 @@ describe('scaffoldBootstrapApp', () => {
     expect(readDirectorySnapshot(explicitTargetDirectory)).toEqual(readDirectorySnapshot(defaultTargetDirectory));
   });
 
+  it('describes only the wired application starter path in generated HTTP starter output', async () => {
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-http-wording-'));
+    temporaryDirectories.push(targetDirectory);
+
+    await scaffoldBootstrapApp({
+      ...DEFAULT_BOOTSTRAP_SCHEMA,
+      packageManager: 'pnpm',
+      projectName: 'starter-app',
+      skipInstall: true,
+      targetDirectory,
+    });
+
+    const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const mainFile = readFileSync(join(targetDirectory, 'src', 'main.ts'), 'utf8');
+
+    expect(readme).toContain('Starter contract: `src/main.ts` wires the maintained application starter that `fluo new` generates today: Node.js runtime + Fastify HTTP via `createFastifyAdapter(...)`');
+    expect(readme).toContain('Broader runtime/adapter package coverage is documented in the fluo docs and package READMEs; this generated starter intentionally describes only the wired starter path above');
+    expect(readme).not.toContain('Bun');
+    expect(readme).not.toContain('Deno');
+    expect(readme).not.toContain('Cloudflare');
+    expect(readme).not.toContain('@fluojs/platform-nodejs');
+    expect(mainFile).toContain('// The generated starter wires the maintained fluo new application path today:');
+    expect(mainFile).toContain('// Node.js runtime + Fastify HTTP via createFastifyAdapter(...).');
+    expect(mainFile).not.toContain('Bun');
+    expect(mainFile).not.toContain('Deno');
+    expect(mainFile).not.toContain('Cloudflare');
+    expect(mainFile).not.toContain('@fluojs/platform-nodejs');
+  });
+
   it('generates a runnable TCP microservice starter scaffold', async () => {
     const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-microservice-'));
     temporaryDirectories.push(targetDirectory);
