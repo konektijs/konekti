@@ -4,11 +4,11 @@
 
 This directory contains the official runnable example applications for fluo. Each example has its own README and is meant to be read alongside the docs hub rather than in isolation.
 
-These examples intentionally stay on the default Node.js + Fastify starter path so the generated scaffold and the runnable examples keep matching. Official Bun, Deno, and Cloudflare Workers runtime guidance lives in the corresponding `@fluojs/platform-*` package READMEs.
+These examples intentionally stay on the HTTP side of the published `fluo new` v2 matrix so the generated scaffold and the runnable examples keep matching. The other first-class starter contracts are the runnable TCP microservice path and the mixed single-package path (Fastify HTTP app + attached TCP microservice). Official Bun, Deno, and Cloudflare Workers runtime guidance lives in the corresponding `@fluojs/platform-*` package READMEs.
 
 ## current official examples
 
-- `./minimal/` — the smallest runnable fluo app, matching the canonical starter path
+- `./minimal/` — the smallest runnable fluo app, matching the default and explicit HTTP starter path
 - `./realworld-api/` — a more realistic multi-module HTTP API with config, DTO validation, explicit DI, and CRUD
 - `./auth-jwt-passport/` — bearer-token auth example with JWT issuance and protected routes via passport core
 - `./ops-metrics-terminus/` — operations example centered on `/metrics`, `/health`, and `/ready`
@@ -26,10 +26,15 @@ If you are new to the repo, follow this order:
 
 ## how these examples fit the docs
 
-- `minimal` proves the canonical starter shape from `fluo new` on the default Node.js + Fastify path
-- `realworld-api` proves the first practical module/DTO/test path beyond the starter
+- `minimal` proves the canonical `fluo new` HTTP starter shape on both the default and explicit flags-first path
+- `realworld-api` proves the first practical module/DTO/test path beyond that HTTP starter baseline
 - `auth-jwt-passport` proves the current official bearer-token auth path
 - `ops-metrics-terminus` proves the current markdown-first observability/health path
+
+For the other v2 starter contracts, use the CLI docs and scaffold tests as the source of truth:
+
+- `../packages/cli/README.md` — command examples for HTTP, microservice, mixed, and interactive wizard flows
+- `../docs/reference/toolchain-contract-matrix.md` — published starter contract matrix
 
 These examples are intentionally small enough to read in one sitting. They are not meant to replace package READMEs.
 
