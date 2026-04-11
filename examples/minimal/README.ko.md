@@ -2,7 +2,7 @@
 
 <p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
-가장 작은 실행 가능한 fluo 애플리케이션입니다. 이 예제는 `fluo new`가 생성하는 것과 동일한 시작 경로를 따르되, 필수 요소만 남겼습니다.
+가장 작은 실행 가능한 fluo 애플리케이션입니다. 이 예제는 `fluo new`의 기본/명시적 HTTP v2 스타터가 생성하는 것과 동일한 시작 경로를 따르되, 필수 요소만 남겼습니다.
 
 ## 이 예제가 보여주는 것
 
@@ -41,12 +41,15 @@ examples/minimal/
 
 ## 스타터 스캐폴드와의 관계
 
-이 예제는 `fluo new` 출력의 의도적인 부분 집합입니다. config, health 모듈, 생성된 테스트, 빌드 도구가 포함된 전체 스타터 경험을 원한다면:
+이 예제는 `fluo new` HTTP 스타터 출력의 의도적인 부분 집합입니다. config, health 모듈, 생성된 테스트, 빌드 도구가 포함된 전체 스타터 경험을 원한다면 기본 명령 또는 명시적 v2 HTTP 계약을 사용하세요.
 
 ```sh
 pnpm add -g @fluojs/cli
 fluo new my-app
+fluo new my-app --shape application --transport http --runtime node --platform fastify
 ```
+
+이 예제는 TCP microservice 스타터나 mixed single-package 스타터까지 다루지는 않습니다. 해당 계약은 `../../packages/cli/README.ko.md` 및 `../../docs/reference/toolchain-contract-matrix.ko.md`를 기준으로 확인하세요.
 
 ## 관련 문서
 

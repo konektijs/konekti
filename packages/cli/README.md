@@ -56,6 +56,12 @@ fluo new my-app --shape application --transport http --runtime node --platform f
 fluo new my-microservice --shape microservice --transport tcp --runtime node --platform none
 ```
 
+The v2 matrix also includes a mixed single-package starter: one Fastify HTTP app with an attached TCP microservice in the same generated project.
+
+```bash
+fluo new my-mixed-app --shape mixed --transport tcp --runtime node --platform fastify
+```
+
 When `fluo new` runs in an interactive TTY, the v2 wizard now layers on top of the same flags/config model instead of replacing it. The wizard asks for the project name, shape-first branch (`application` -> runtime, `microservice` -> transport), the maintained tooling preset, package-manager choice, whether to install dependencies immediately, and whether to initialize a git repository. Non-interactive flags and programmatic `runNewCommand(...)` calls still stay first-class paths with the same resolved defaults.
 
 ### 2. Generate a feature

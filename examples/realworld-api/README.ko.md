@@ -2,7 +2,7 @@
 
 <p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
-최소 스타터를 넘어 표준 앱 경로를 보여주는 보다 현실적인 fluo 애플리케이션입니다. 동일한 스타터 정렬 adapter-first 부트스트랩 위에 모듈 조합, DTO 검증, config 로딩, 도메인 CRUD 슬라이스를 추가합니다.
+최소 스타터를 넘어 표준 앱 경로를 보여주는 보다 현실적인 fluo 애플리케이션입니다. 동일한 HTTP v2 스타터 정렬 adapter-first 부트스트랩 위에 모듈 조합, DTO 검증, config 로딩, 도메인 CRUD 슬라이스를 추가합니다.
 
 ## 이 예제가 보여주는 것
 
@@ -47,7 +47,9 @@ examples/realworld-api/
 
 ## 스타터 스캐폴드와의 관계
 
-이 예제는 `fluo new` 패턴에 실제 도메인 모듈을 추가하여 확장합니다. 스타터에 포함된 동일한 패키지(core, runtime, http, config, validation, testing, platform-fastify)와 표준 모듈 조합 패턴을 사용합니다. 스타터 스캐폴드 이상의 추가 패키지는 필요하지 않습니다.
+이 예제는 `fluo new` HTTP 패턴에 실제 도메인 모듈을 추가하여 확장합니다. HTTP 스타터에 포함된 동일한 패키지(core, runtime, http, config, validation, testing, platform-fastify)와 표준 모듈 조합 패턴을 사용합니다. 스타터 스캐폴드 이상의 추가 패키지는 필요하지 않습니다.
+
+의도적으로 microservice 또는 mixed-topology 예제는 아닙니다. 해당 `fluo new` v2 계약 경로는 CLI README와 toolchain contract matrix를 공개 기준으로 삼으세요.
 
 ## 권장 읽기 순서
 

@@ -56,6 +56,12 @@ fluo new my-app --shape application --transport http --runtime node --platform f
 fluo new my-microservice --shape microservice --transport tcp --runtime node --platform none
 ```
 
+v2 매트릭스에는 mixed single-package starter도 포함됩니다. 하나의 Fastify HTTP 앱과 attached TCP microservice를 같은 생성 프로젝트 안에 함께 배치합니다.
+
+```bash
+fluo new my-mixed-app --shape mixed --transport tcp --runtime node --platform fastify
+```
+
 `fluo new`가 interactive TTY에서 실행되면, 이제 v2 wizard가 기존 flags/config 모델 위에 그대로 얹혀 동작합니다. wizard는 프로젝트 이름, shape-first 분기(`application` -> runtime, `microservice` -> transport), 유지보수 가능한 tooling preset, package manager, 즉시 dependency를 설치할지 여부, git 저장소를 초기화할지 여부를 묻습니다. 반면 non-interactive 플래그 경로와 프로그래밍 방식의 `runNewCommand(...)` 호출은 동일한 resolved defaults를 유지하는 first-class path로 계속 동작합니다.
 
 ### 2. 기능 추가
