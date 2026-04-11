@@ -177,6 +177,43 @@ describe('scaffoldBootstrapApp', () => {
     expect(mainFile).toContain('adapter: createExpressAdapter({ port })');
   });
 
+  it('generates the Bun application starter scaffold', async () => {
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-bun-'));
+    temporaryDirectories.push(targetDirectory);
+
+    await scaffoldBootstrapApp({
+      packageManager: 'pnpm',
+      platform: 'bun',
+      projectName: 'starter-bun',
+      runtime: 'bun',
+      shape: 'application',
+      skipInstall: true,
+      targetDirectory,
+      tooling: 'standard',
+      topology: {
+        deferred: true,
+        mode: 'single-package',
+      },
+      transport: 'http',
+    });
+
+    const packageJson = JSON.parse(readFileSync(join(targetDirectory, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+      scripts?: Record<string, string>;
+    };
+    const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const mainFile = readFileSync(join(targetDirectory, 'src', 'main.ts'), 'utf8');
+
+    expect(packageJson.dependencies).toMatchObject({
+      '@fluojs/platform-bun': expect.any(String),
+      '@fluojs/runtime': expect.any(String),
+    });
+    expect(packageJson.scripts?.dev).toBe('bun --watch src/main.ts');
+    expect(readme).toContain('Bun runtime + Bun native HTTP via `createBunAdapter(...)`');
+    expect(mainFile).toContain("import { createBunAdapter } from '@fluojs/platform-bun';");
+    expect(mainFile).toContain("Bun.env.PORT ?? '3000'");
+  });
+
   it('generates the raw Node.js application starter scaffold', async () => {
     const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-nodejs-'));
     temporaryDirectories.push(targetDirectory);
@@ -212,6 +249,93 @@ describe('scaffoldBootstrapApp', () => {
     expect(readme).toContain('Node.js runtime + raw Node.js HTTP via `createNodejsAdapter(...)`');
     expect(mainFile).toContain("import { createNodejsAdapter } from '@fluojs/platform-nodejs';");
     expect(mainFile).toContain('adapter: createNodejsAdapter({ port })');
+  });
+
+  it('generates the Deno application starter scaffold', async () => {
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-deno-'));
+    temporaryDirectories.push(targetDirectory);
+
+    await scaffoldBootstrapApp({
+      packageManager: 'pnpm',
+      platform: 'deno',
+      projectName: 'starter-deno',
+      runtime: 'deno',
+      shape: 'application',
+      skipInstall: true,
+      targetDirectory,
+      tooling: 'standard',
+      topology: {
+        deferred: true,
+        mode: 'single-package',
+      },
+      transport: 'http',
+    });
+
+    const packageJson = JSON.parse(readFileSync(join(targetDirectory, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+      scripts?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const appFile = readFileSync(join(targetDirectory, 'src', 'app.ts'), 'utf8');
+    const mainFile = readFileSync(join(targetDirectory, 'src', 'main.ts'), 'utf8');
+    const appTestFile = readFileSync(join(targetDirectory, 'src', 'app.test.ts'), 'utf8');
+
+    expect(packageJson.dependencies).toMatchObject({
+      '@fluojs/platform-deno': expect.any(String),
+      '@fluojs/runtime': expect.any(String),
+    });
+    expect(packageJson.scripts?.dev).toContain('deno run --allow-env --allow-net --watch src/main.ts');
+    expect(packageJson.devDependencies).not.toHaveProperty('vitest');
+    expect(readme).toContain('Deno runtime + Deno native HTTP via `runDenoApplication(...)`');
+    expect(appFile).toContain("Deno.env.toObject()");
+    expect(appFile).toContain("'./health/health.module.ts'");
+    expect(mainFile).toContain("import { AppModule } from './app.ts';");
+    expect(appTestFile).toContain('Deno.test');
+  });
+
+  it('generates the Cloudflare Workers application starter scaffold', async () => {
+    const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-workers-'));
+    temporaryDirectories.push(targetDirectory);
+
+    await scaffoldBootstrapApp({
+      packageManager: 'pnpm',
+      platform: 'cloudflare-workers',
+      projectName: 'starter-workers',
+      runtime: 'cloudflare-workers',
+      shape: 'application',
+      skipInstall: true,
+      targetDirectory,
+      tooling: 'standard',
+      topology: {
+        deferred: true,
+        mode: 'single-package',
+      },
+      transport: 'http',
+    });
+
+    const packageJson = JSON.parse(readFileSync(join(targetDirectory, 'package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+      scripts?: Record<string, string>;
+    };
+    const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const appFile = readFileSync(join(targetDirectory, 'src', 'app.ts'), 'utf8');
+    const workerFile = readFileSync(join(targetDirectory, 'src', 'worker.ts'), 'utf8');
+    const wranglerConfig = readFileSync(join(targetDirectory, 'wrangler.jsonc'), 'utf8');
+
+    expect(packageJson.dependencies).toMatchObject({
+      '@fluojs/platform-cloudflare-workers': expect.any(String),
+      '@fluojs/runtime': expect.any(String),
+    });
+    expect(packageJson.dependencies).not.toHaveProperty('@fluojs/config');
+    expect(packageJson.devDependencies).toHaveProperty('wrangler');
+    expect(packageJson.scripts?.dev).toBe('wrangler dev');
+    expect(readDirectorySnapshot(targetDirectory)).not.toHaveProperty('.env');
+    expect(readme).toContain('Cloudflare Workers runtime + Cloudflare Workers HTTP via `createCloudflareWorkerEntrypoint(...)`');
+    expect(appFile).not.toContain('ConfigModule.forRoot');
+    expect(workerFile).toContain('createCloudflareWorkerEntrypoint(AppModule)');
+    expect(wranglerConfig).toContain('src/worker.ts');
   });
 
   it('generates a runnable TCP microservice starter scaffold', async () => {

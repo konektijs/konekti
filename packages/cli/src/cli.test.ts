@@ -329,6 +329,117 @@ describe('CLI command runner', () => {
     expect(mainFile).toContain('createNodejsAdapter({ port })');
   });
 
+  it('scaffolds the Bun HTTP starter when the bun runtime is selected explicitly', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli([
+      'new',
+      '--shape',
+      'application',
+      '--transport',
+      'http',
+      '--runtime',
+      'bun',
+      '--platform',
+      'bun',
+      '--tooling',
+      'standard',
+      '--topology',
+      'single-package',
+      'starter-bun',
+    ], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const projectDirectory = join(workspaceDirectory, 'starter-bun');
+    const packageJson = readFileSync(join(projectDirectory, 'package.json'), 'utf8');
+    const mainFile = readFileSync(join(projectDirectory, 'src', 'main.ts'), 'utf8');
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Skipping dependency installation.');
+    expect(packageJson).toContain('@fluojs/platform-bun');
+    expect(mainFile).toContain('createBunAdapter({ port })');
+  });
+
+  it('scaffolds the Deno HTTP starter when the deno runtime is selected explicitly', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli([
+      'new',
+      '--shape',
+      'application',
+      '--transport',
+      'http',
+      '--runtime',
+      'deno',
+      '--platform',
+      'deno',
+      '--tooling',
+      'standard',
+      '--topology',
+      'single-package',
+      'starter-deno',
+    ], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const projectDirectory = join(workspaceDirectory, 'starter-deno');
+    const packageJson = readFileSync(join(projectDirectory, 'package.json'), 'utf8');
+    const mainFile = readFileSync(join(projectDirectory, 'src', 'main.ts'), 'utf8');
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Skipping dependency installation.');
+    expect(packageJson).toContain('@fluojs/platform-deno');
+    expect(mainFile).toContain('runDenoApplication(AppModule, { port })');
+  });
+
+  it('scaffolds the Cloudflare Workers HTTP starter when the cloudflare-workers runtime is selected explicitly', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli([
+      'new',
+      '--shape',
+      'application',
+      '--transport',
+      'http',
+      '--runtime',
+      'cloudflare-workers',
+      '--platform',
+      'cloudflare-workers',
+      '--tooling',
+      'standard',
+      '--topology',
+      'single-package',
+      'starter-workers',
+    ], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const projectDirectory = join(workspaceDirectory, 'starter-workers');
+    const packageJson = readFileSync(join(projectDirectory, 'package.json'), 'utf8');
+    const workerFile = readFileSync(join(projectDirectory, 'src', 'worker.ts'), 'utf8');
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Skipping dependency installation.');
+    expect(packageJson).toContain('@fluojs/platform-cloudflare-workers');
+    expect(workerFile).toContain('createCloudflareWorkerEntrypoint(AppModule)');
+  });
+
   it('scaffolds the TCP microservice starter when shape and transport are selected explicitly', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
@@ -534,8 +645,8 @@ describe('CLI command runner', () => {
     expect(stdoutBuffer.join('')).toMatch(/\| Option\s+\| Aliases \| Description\s+\|/);
     expect(stdoutBuffer.join('')).toContain('--shape <application|microservice|mixed>');
     expect(stdoutBuffer.join('')).toContain('--transport <http|tcp|redis|redis-streams|nats|kafka|rabbitmq|mqtt|grpc>');
-    expect(stdoutBuffer.join('')).toContain('--runtime <node>');
-    expect(stdoutBuffer.join('')).toContain('--platform <fastify|express|nodejs|none>');
+    expect(stdoutBuffer.join('')).toContain('--runtime <node|bun|deno|cloudflare-workers>');
+    expect(stdoutBuffer.join('')).toContain('--platform <fastify|express|nodejs|bun|deno|cloudflare-workers|none>');
     expect(stdoutBuffer.join('')).toContain('--tooling <standard>');
     expect(stdoutBuffer.join('')).toContain('--topology <single-package>');
     expect(stdoutBuffer.join('')).toContain('--package-manager <pnpm|npm|yarn|bun>');
