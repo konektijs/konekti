@@ -10,6 +10,9 @@ import type {
 
 export type StarterEmitterType = 'http' | 'microservice' | 'mixed';
 export type StarterScaffoldRecipeId =
+  | 'application-bun-bun-http'
+  | 'application-cloudflare-workers-cloudflare-workers-http'
+  | 'application-deno-deno-http'
   | 'application-node-express-http'
   | 'application-node-fastify-http'
   | 'application-node-nodejs-http'
@@ -77,6 +80,88 @@ export const DOCUMENTED_MICROSERVICE_TRANSPORTS: readonly BootstrapTransport[] =
 ];
 
 export const STARTER_PROFILE_REGISTRY: readonly StarterProfile[] = [
+  {
+    dependencies: {
+      dependencies: [
+        '@fluojs/config',
+        '@fluojs/core',
+        '@fluojs/validation',
+        '@fluojs/di',
+        '@fluojs/http',
+        '@fluojs/platform-bun',
+        '@fluojs/runtime',
+      ],
+      devDependencies: [
+        '@fluojs/cli',
+        '@fluojs/testing',
+      ],
+    },
+    emitter: {
+      platform: 'bun',
+      preset: 'standard',
+      runtime: 'bun',
+      transport: 'http',
+      type: 'http',
+    },
+    id: 'application-bun-bun-http',
+    platformPromptLabel: 'Bun native HTTP',
+    promptLabel: 'Application (HTTP starter)',
+    schema: createSchema('application', 'bun', 'bun', 'http'),
+  },
+  {
+    dependencies: {
+      dependencies: [
+        '@fluojs/config',
+        '@fluojs/core',
+        '@fluojs/validation',
+        '@fluojs/di',
+        '@fluojs/http',
+        '@fluojs/platform-deno',
+        '@fluojs/runtime',
+      ],
+      devDependencies: [
+        '@fluojs/cli',
+      ],
+    },
+    emitter: {
+      platform: 'deno',
+      preset: 'standard',
+      runtime: 'deno',
+      transport: 'http',
+      type: 'http',
+    },
+    id: 'application-deno-deno-http',
+    platformPromptLabel: 'Deno native HTTP',
+    promptLabel: 'Application (HTTP starter)',
+    schema: createSchema('application', 'deno', 'deno', 'http'),
+  },
+  {
+    dependencies: {
+      dependencies: [
+        '@fluojs/core',
+        '@fluojs/validation',
+        '@fluojs/di',
+        '@fluojs/http',
+        '@fluojs/platform-cloudflare-workers',
+        '@fluojs/runtime',
+      ],
+      devDependencies: [
+        '@fluojs/cli',
+        '@fluojs/testing',
+      ],
+    },
+    emitter: {
+      platform: 'cloudflare-workers',
+      preset: 'standard',
+      runtime: 'cloudflare-workers',
+      transport: 'http',
+      type: 'http',
+    },
+    id: 'application-cloudflare-workers-cloudflare-workers-http',
+    platformPromptLabel: 'Cloudflare Workers',
+    promptLabel: 'Application (HTTP starter)',
+    schema: createSchema('application', 'cloudflare-workers', 'cloudflare-workers', 'http'),
+  },
   {
     dependencies: {
       dependencies: [
@@ -217,24 +302,52 @@ export const STARTER_PROFILE_REGISTRY: readonly StarterProfile[] = [
 ] as const;
 
 export const SUPPORTED_BOOTSTRAP_SHAPES: readonly BootstrapShape[] = STARTER_PROFILE_REGISTRY.map((profile) => profile.schema.shape);
-export const SUPPORTED_BOOTSTRAP_RUNTIMES: readonly BootstrapRuntime[] = ['node'];
-export const SUPPORTED_BOOTSTRAP_PLATFORMS: readonly BootstrapPlatform[] = ['express', 'fastify', 'nodejs', 'none'];
+export const SUPPORTED_BOOTSTRAP_RUNTIMES: readonly BootstrapRuntime[] = ['bun', 'cloudflare-workers', 'deno', 'node'];
+export const SUPPORTED_BOOTSTRAP_PLATFORMS: readonly BootstrapPlatform[] = [
+  'bun',
+  'cloudflare-workers',
+  'deno',
+  'express',
+  'fastify',
+  'nodejs',
+  'none',
+];
 export const SUPPORTED_BOOTSTRAP_TRANSPORTS: readonly BootstrapTransport[] = ['http', ...DOCUMENTED_MICROSERVICE_TRANSPORTS];
 export const SUPPORTED_BOOTSTRAP_TOOLING_PRESETS: readonly BootstrapToolingPreset[] = ['standard'];
 export const SUPPORTED_BOOTSTRAP_TOPOLOGY_MODES: readonly BootstrapTopology['mode'][] = ['single-package'];
 
-export const DEFAULT_BOOTSTRAP_PROFILE = STARTER_PROFILE_REGISTRY[0]!;
+export const DEFAULT_BOOTSTRAP_PROFILE = STARTER_PROFILE_REGISTRY.find((profile) => profile.id === 'application-node-fastify-http')!;
 
-export function getStarterProfileForShape(shape: BootstrapShape): StarterProfile {
-  return STARTER_PROFILE_REGISTRY.find((profile) => profile.schema.shape === shape) ?? DEFAULT_BOOTSTRAP_PROFILE;
+export function getStarterProfileForShape(shape: BootstrapShape, runtime?: BootstrapRuntime): StarterProfile {
+  if (runtime !== undefined) {
+    return STARTER_PROFILE_REGISTRY.find((profile) => (
+      profile.schema.shape === shape && profile.schema.runtime === runtime
+    )) ?? DEFAULT_BOOTSTRAP_PROFILE;
+  }
+
+  if (shape === 'application') {
+    return DEFAULT_BOOTSTRAP_PROFILE;
+  }
+
+  if (shape === 'microservice') {
+    return STARTER_PROFILE_REGISTRY.find((profile) => profile.id === 'microservice-node-none-tcp') ?? DEFAULT_BOOTSTRAP_PROFILE;
+  }
+
+  if (shape === 'mixed') {
+    return STARTER_PROFILE_REGISTRY.find((profile) => profile.id === 'mixed-node-fastify-tcp') ?? DEFAULT_BOOTSTRAP_PROFILE;
+  }
+
+  return DEFAULT_BOOTSTRAP_PROFILE;
 }
 
-export function getApplicationStarterProfiles(): readonly StarterProfile[] {
-  return STARTER_PROFILE_REGISTRY.filter((profile) => profile.schema.shape === 'application');
+export function getApplicationStarterProfiles(runtime?: BootstrapRuntime): readonly StarterProfile[] {
+  return STARTER_PROFILE_REGISTRY.filter((profile) => (
+    profile.schema.shape === 'application' && (runtime === undefined || profile.schema.runtime === runtime)
+  ));
 }
 
-export function getDefaultBootstrapSchemaForShape(shape: BootstrapShape): BootstrapSchema {
-  return cloneBootstrapSchema(getStarterProfileForShape(shape).schema);
+export function getDefaultBootstrapSchemaForShape(shape: BootstrapShape, runtime?: BootstrapRuntime): BootstrapSchema {
+  return cloneBootstrapSchema(getStarterProfileForShape(shape, runtime).schema);
 }
 
 export function getDefaultBootstrapSchema(): BootstrapSchema {

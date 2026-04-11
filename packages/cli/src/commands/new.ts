@@ -58,13 +58,13 @@ const NEW_OPTION_HELP: NewOptionHelpEntry[] = [
   },
   {
     aliases: [],
-    description: 'Select the runtime explicitly (currently only node for the HTTP starter path).',
-    option: '--runtime <node>',
+    description: 'Select the runtime explicitly (node, bun, deno, or cloudflare-workers for application starters; node for microservice and mixed starters).',
+    option: '--runtime <node|bun|deno|cloudflare-workers>',
   },
   {
     aliases: [],
-    description: 'Select the platform adapter explicitly (fastify, express, or nodejs for HTTP applications; none for microservices).',
-    option: '--platform <fastify|express|nodejs|none>',
+    description: 'Select the platform adapter explicitly (fastify, express, or nodejs on node; bun/deno/cloudflare-workers on their native runtimes; none for microservices).',
+    option: '--platform <fastify|express|nodejs|bun|deno|cloudflare-workers|none>',
   },
   {
     aliases: [],
@@ -223,7 +223,7 @@ function parseArgs(argv: string[]): Partial<BootstrapAnswers> & { force?: boolea
 
         parsed.runtime = readOptionValue(argv, index, '--runtime') as BootstrapAnswers['runtime'];
         if (!SUPPORTED_RUNTIMES.has(parsed.runtime)) {
-          throw new Error(`Invalid --runtime value "${parsed.runtime}". Use: node.`);
+          throw new Error(`Invalid --runtime value "${parsed.runtime}". Use one of: bun, cloudflare-workers, deno, node.`);
         }
         index += 1;
         break;
@@ -234,7 +234,7 @@ function parseArgs(argv: string[]): Partial<BootstrapAnswers> & { force?: boolea
 
         parsed.platform = readOptionValue(argv, index, '--platform') as BootstrapAnswers['platform'];
         if (!SUPPORTED_PLATFORMS.has(parsed.platform)) {
-          throw new Error(`Invalid --platform value "${parsed.platform}". Use one of: fastify, express, nodejs, none.`);
+          throw new Error('Invalid --platform value "' + parsed.platform + '". Use one of: bun, cloudflare-workers, deno, fastify, express, nodejs, none.');
         }
         index += 1;
         break;

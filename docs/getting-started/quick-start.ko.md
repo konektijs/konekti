@@ -31,6 +31,15 @@ fluo new my-fluo-app --shape application --transport http --runtime node --platf
 같은 명령 계열로 다른 공개 v2 스타터 경로도 선택할 수 있습니다.
 
 ```sh
+# Bun 애플리케이션 스타터
+fluo new my-fluo-bun --shape application --transport http --runtime bun --platform bun
+
+# Deno 애플리케이션 스타터
+fluo new my-fluo-deno --shape application --transport http --runtime deno --platform deno
+
+# Cloudflare Workers 애플리케이션 스타터
+fluo new my-fluo-worker --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
+
 # 실행 가능한 TCP microservice 스타터
 fluo new my-fluo-microservice --shape microservice --transport tcp --runtime node --platform none
 
@@ -38,7 +47,7 @@ fluo new my-fluo-microservice --shape microservice --transport tcp --runtime nod
 fluo new my-fluo-mixed --shape mixed --transport tcp --runtime node --platform fastify
 ```
 
-이 공개 스타터 경로와 더 넓은 Express/Bun/Deno/Cloudflare 생태계를 문서 수준에서 구분해 보려면 [fluo new 지원 매트릭스](../reference/fluo-new-support-matrix.ko.md)를 확인하세요.
+이 공개 스타터 경로와 남아 있는 더 넓은 어댑터 생태계를 문서 수준에서 구분해 보려면 [fluo new 지원 매트릭스](../reference/fluo-new-support-matrix.ko.md)를 확인하세요.
 
 `fluo new`가 interactive terminal에서 실행되면, wizard도 이와 동일한 shape-first 모델로 수렴합니다. wizard는 프로젝트 이름, starter shape, 유지보수되는 tooling preset, package manager, dependency 설치 여부, git 초기화 여부를 묻습니다.
 

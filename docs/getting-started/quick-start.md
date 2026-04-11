@@ -31,6 +31,15 @@ fluo new my-fluo-app --shape application --transport http --runtime node --platf
 The same command family also exposes the other published v2 starter paths:
 
 ```sh
+# Bun application starter
+fluo new my-fluo-bun --shape application --transport http --runtime bun --platform bun
+
+# Deno application starter
+fluo new my-fluo-deno --shape application --transport http --runtime deno --platform deno
+
+# Cloudflare Workers application starter
+fluo new my-fluo-worker --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
+
 # Runnable TCP microservice starter
 fluo new my-fluo-microservice --shape microservice --transport tcp --runtime node --platform none
 
@@ -38,7 +47,7 @@ fluo new my-fluo-microservice --shape microservice --transport tcp --runtime nod
 fluo new my-fluo-mixed --shape mixed --transport tcp --runtime node --platform fastify
 ```
 
-For a docs-level split between these published starter paths and the broader Express/Bun/Deno/Cloudflare ecosystem, see the [fluo new support matrix](../reference/fluo-new-support-matrix.md).
+For a docs-level split between these published starter paths and the remaining broader adapter ecosystem, see the [fluo new support matrix](../reference/fluo-new-support-matrix.md).
 
 When `fluo new` runs in an interactive terminal, the wizard resolves onto this same shape-first model. It asks for the project name, starter shape, the maintained tooling preset, package manager, whether to install dependencies, and whether to initialize git.
 
