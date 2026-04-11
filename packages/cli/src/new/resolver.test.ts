@@ -42,7 +42,7 @@ describe('resolveBootstrapSchema', () => {
 });
 
 describe('resolveBootstrapPlan', () => {
-  it('locks the shipped starter registry to the current eight supported matrix profiles', () => {
+  it('locks the shipped starter registry to the current eleven supported matrix profiles', () => {
     expect(STARTER_PROFILE_REGISTRY.map((profile) => ({
       id: profile.id,
       schema: profile.schema,
@@ -143,6 +143,48 @@ describe('resolveBootstrapPlan', () => {
             mode: 'single-package',
           },
           transport: 'tcp',
+        },
+      },
+      {
+        id: 'microservice-node-none-redis-streams',
+        schema: {
+          platform: 'none',
+          runtime: 'node',
+          shape: 'microservice',
+          tooling: 'standard',
+          topology: {
+            deferred: true,
+            mode: 'single-package',
+          },
+          transport: 'redis-streams',
+        },
+      },
+      {
+        id: 'microservice-node-none-mqtt',
+        schema: {
+          platform: 'none',
+          runtime: 'node',
+          shape: 'microservice',
+          tooling: 'standard',
+          topology: {
+            deferred: true,
+            mode: 'single-package',
+          },
+          transport: 'mqtt',
+        },
+      },
+      {
+        id: 'microservice-node-none-grpc',
+        schema: {
+          platform: 'none',
+          runtime: 'node',
+          shape: 'microservice',
+          tooling: 'standard',
+          topology: {
+            deferred: true,
+            mode: 'single-package',
+          },
+          transport: 'grpc',
         },
       },
       {
@@ -468,6 +510,136 @@ describe('resolveBootstrapPlan', () => {
     });
   });
 
+  it('resolves the Redis Streams microservice starter as a first-class path', () => {
+    expect(resolveBootstrapPlan({
+      packageManager: 'pnpm' as const,
+      platform: 'none',
+      shape: 'microservice',
+      transport: 'redis-streams',
+    })).toEqual({
+      dependencies: {
+        dependencies: [
+          '@fluojs/config',
+          '@fluojs/core',
+          '@fluojs/di',
+          '@fluojs/microservices',
+          '@fluojs/runtime',
+          'ioredis',
+        ],
+        devDependencies: [
+          '@fluojs/cli',
+          '@fluojs/testing',
+        ],
+      },
+      emitter: {
+        platform: 'none',
+        preset: 'standard',
+        runtime: 'node',
+        transport: 'redis-streams',
+        type: 'microservice',
+      },
+      profile: profileById('microservice-node-none-redis-streams'),
+      schema: {
+        platform: 'none',
+        runtime: 'node',
+        shape: 'microservice',
+        tooling: 'standard',
+        topology: {
+          deferred: true,
+          mode: 'single-package',
+        },
+        transport: 'redis-streams',
+      },
+    });
+  });
+
+  it('resolves the MQTT microservice starter as a first-class path', () => {
+    expect(resolveBootstrapPlan({
+      packageManager: 'pnpm' as const,
+      platform: 'none',
+      shape: 'microservice',
+      transport: 'mqtt',
+    })).toEqual({
+      dependencies: {
+        dependencies: [
+          '@fluojs/config',
+          '@fluojs/core',
+          '@fluojs/di',
+          '@fluojs/microservices',
+          '@fluojs/runtime',
+          'mqtt',
+        ],
+        devDependencies: [
+          '@fluojs/cli',
+          '@fluojs/testing',
+        ],
+      },
+      emitter: {
+        platform: 'none',
+        preset: 'standard',
+        runtime: 'node',
+        transport: 'mqtt',
+        type: 'microservice',
+      },
+      profile: profileById('microservice-node-none-mqtt'),
+      schema: {
+        platform: 'none',
+        runtime: 'node',
+        shape: 'microservice',
+        tooling: 'standard',
+        topology: {
+          deferred: true,
+          mode: 'single-package',
+        },
+        transport: 'mqtt',
+      },
+    });
+  });
+
+  it('resolves the gRPC microservice starter as a first-class path', () => {
+    expect(resolveBootstrapPlan({
+      packageManager: 'pnpm' as const,
+      platform: 'none',
+      shape: 'microservice',
+      transport: 'grpc',
+    })).toEqual({
+      dependencies: {
+        dependencies: [
+          '@fluojs/config',
+          '@fluojs/core',
+          '@fluojs/di',
+          '@fluojs/microservices',
+          '@fluojs/runtime',
+          '@grpc/grpc-js',
+          '@grpc/proto-loader',
+        ],
+        devDependencies: [
+          '@fluojs/cli',
+          '@fluojs/testing',
+        ],
+      },
+      emitter: {
+        platform: 'none',
+        preset: 'standard',
+        runtime: 'node',
+        transport: 'grpc',
+        type: 'microservice',
+      },
+      profile: profileById('microservice-node-none-grpc'),
+      schema: {
+        platform: 'none',
+        runtime: 'node',
+        shape: 'microservice',
+        tooling: 'standard',
+        topology: {
+          deferred: true,
+          mode: 'single-package',
+        },
+        transport: 'grpc',
+      },
+    });
+  });
+
   it('resolves the mixed starter as one HTTP app with an attached TCP microservice', () => {
     expect(resolveBootstrapPlan({
       packageManager: 'pnpm' as const,
@@ -524,7 +696,7 @@ describe('resolveBootstrapPlan', () => {
       },
       transport: 'http',
     })).toThrow(
-      'Unsupported bootstrap schema "microservice/node/http/none/standard/single-package". Microservice starters require a transport-aware microservice transport such as tcp, redis, nats, kafka, rabbitmq, mqtt, or grpc.',
+      'Unsupported bootstrap schema "microservice/node/http/none/standard/single-package". Microservice starters require a transport-aware microservice transport such as tcp, redis-streams, mqtt, grpc, redis, nats, kafka, or rabbitmq.',
     );
   });
 
@@ -558,7 +730,7 @@ describe('resolveBootstrapPlan', () => {
       },
       transport: 'kafka',
     })).toThrow(
-      'Unsupported bootstrap schema "microservice/node/kafka/none/standard/single-package". The first-class microservice starter currently emits the runnable TCP starter, while transport validation recognizes the documented families: tcp, redis, redis-streams, nats, kafka, rabbitmq, mqtt, grpc.',
+      'Unsupported bootstrap schema "microservice/node/kafka/none/standard/single-package". The first-class microservice starters currently scaffold tcp, redis-streams, mqtt, and grpc, while transport validation also recognizes the remaining documented families: redis, nats, kafka, rabbitmq.',
     );
   });
 
@@ -592,7 +764,7 @@ describe('resolveBootstrapPlan', () => {
       transport: 'http',
       platform: 'fastify',
     })).toThrow(
-      'Unsupported bootstrap schema "application/node/http/fastify/standard/single-package". The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the TCP microservice starter, and the mixed single-package starter.',
+      'Unsupported bootstrap schema "application/node/http/fastify/standard/single-package". The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the tcp/redis-streams/mqtt/grpc microservice starters, and the mixed single-package starter.',
     );
   });
 
@@ -609,7 +781,7 @@ describe('resolveBootstrapPlan', () => {
       },
       transport: 'tcp',
     })).toThrow(
-      'Unsupported bootstrap schema "mixed/node/tcp/fastify/standard/single-package". The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the TCP microservice starter, and the mixed single-package starter.',
+      'Unsupported bootstrap schema "mixed/node/tcp/fastify/standard/single-package". The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the tcp/redis-streams/mqtt/grpc microservice starters, and the mixed single-package starter.',
     );
   });
 });
