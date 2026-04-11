@@ -16,6 +16,9 @@ export type StarterScaffoldRecipeId =
   | 'application-node-express-http'
   | 'application-node-fastify-http'
   | 'application-node-nodejs-http'
+  | 'microservice-node-none-grpc'
+  | 'microservice-node-none-mqtt'
+  | 'microservice-node-none-redis-streams'
   | 'microservice-node-none-tcp'
   | 'mixed-node-fastify-tcp';
 
@@ -270,6 +273,85 @@ export const STARTER_PROFILE_REGISTRY: readonly StarterProfile[] = [
     id: 'microservice-node-none-tcp',
     promptLabel: 'Microservice (transport-first starter)',
     schema: createSchema('microservice', 'node', 'none', 'tcp'),
+  },
+  {
+    dependencies: {
+      dependencies: [
+        '@fluojs/config',
+        '@fluojs/core',
+        '@fluojs/di',
+        '@fluojs/microservices',
+        '@fluojs/runtime',
+        'ioredis',
+      ],
+      devDependencies: [
+        '@fluojs/cli',
+        '@fluojs/testing',
+      ],
+    },
+    emitter: {
+      platform: 'none',
+      preset: 'standard',
+      runtime: 'node',
+      transport: 'redis-streams',
+      type: 'microservice',
+    },
+    id: 'microservice-node-none-redis-streams',
+    promptLabel: 'Microservice (Redis Streams starter)',
+    schema: createSchema('microservice', 'node', 'none', 'redis-streams'),
+  },
+  {
+    dependencies: {
+      dependencies: [
+        '@fluojs/config',
+        '@fluojs/core',
+        '@fluojs/di',
+        '@fluojs/microservices',
+        '@fluojs/runtime',
+        'mqtt',
+      ],
+      devDependencies: [
+        '@fluojs/cli',
+        '@fluojs/testing',
+      ],
+    },
+    emitter: {
+      platform: 'none',
+      preset: 'standard',
+      runtime: 'node',
+      transport: 'mqtt',
+      type: 'microservice',
+    },
+    id: 'microservice-node-none-mqtt',
+    promptLabel: 'Microservice (MQTT starter)',
+    schema: createSchema('microservice', 'node', 'none', 'mqtt'),
+  },
+  {
+    dependencies: {
+      dependencies: [
+        '@fluojs/config',
+        '@fluojs/core',
+        '@fluojs/di',
+        '@fluojs/microservices',
+        '@fluojs/runtime',
+        '@grpc/grpc-js',
+        '@grpc/proto-loader',
+      ],
+      devDependencies: [
+        '@fluojs/cli',
+        '@fluojs/testing',
+      ],
+    },
+    emitter: {
+      platform: 'none',
+      preset: 'standard',
+      runtime: 'node',
+      transport: 'grpc',
+      type: 'microservice',
+    },
+    id: 'microservice-node-none-grpc',
+    promptLabel: 'Microservice (gRPC starter)',
+    schema: createSchema('microservice', 'node', 'none', 'grpc'),
   },
   {
     dependencies: {

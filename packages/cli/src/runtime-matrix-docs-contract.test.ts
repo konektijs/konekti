@@ -42,6 +42,9 @@ describe('runtime matrix docs contract', () => {
       'Microservice starter',
       'Mixed starter',
       'Partially scaffolded, partially docs-only',
+      '--transport redis-streams',
+      '--transport mqtt',
+      '--transport grpc',
       '@fluojs/platform-express',
       '@fluojs/platform-nodejs',
       '@fluojs/platform-bun',
@@ -53,6 +56,9 @@ describe('runtime matrix docs contract', () => {
       '마이크로서비스 스타터',
       'mixed 스타터',
       '일부는 스캐폴딩됨, 일부는 문서 전용',
+      '--transport redis-streams',
+      '--transport mqtt',
+      '--transport grpc',
       '@fluojs/platform-express',
       '@fluojs/platform-nodejs',
       '@fluojs/platform-bun',
@@ -87,6 +93,9 @@ describe('runtime matrix docs contract', () => {
       '--shape application --transport http --runtime deno --platform deno',
       '--shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers',
       '--shape microservice --transport tcp --runtime node --platform none',
+      '--shape microservice --transport redis-streams --runtime node --platform none',
+      '--shape microservice --transport mqtt --runtime node --platform none',
+      '--shape microservice --transport grpc --runtime node --platform none',
       '--shape mixed --transport tcp --runtime node --platform fastify',
       'interactive TTY',
     ]);
@@ -98,6 +107,9 @@ describe('runtime matrix docs contract', () => {
       '--shape application --transport http --runtime deno --platform deno',
       '--shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers',
       '--shape microservice --transport tcp --runtime node --platform none',
+      '--shape microservice --transport redis-streams --runtime node --platform none',
+      '--shape microservice --transport mqtt --runtime node --platform none',
+      '--shape microservice --transport grpc --runtime node --platform none',
       '--shape mixed --transport tcp --runtime node --platform fastify',
       'interactive TTY',
     ]);
@@ -107,6 +119,9 @@ describe('runtime matrix docs contract', () => {
       '--shape application --transport http --runtime deno --platform deno',
       '--shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers',
       '--shape microservice --transport tcp --runtime node --platform none',
+      '--shape microservice --transport redis-streams --runtime node --platform none',
+      '--shape microservice --transport mqtt --runtime node --platform none',
+      '--shape microservice --transport grpc --runtime node --platform none',
       '--shape mixed --transport tcp --runtime node --platform fastify',
       'interactive terminal',
     ]);
@@ -116,6 +131,9 @@ describe('runtime matrix docs contract', () => {
       '--shape application --transport http --runtime deno --platform deno',
       '--shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers',
       '--shape microservice --transport tcp --runtime node --platform none',
+      '--shape microservice --transport redis-streams --runtime node --platform none',
+      '--shape microservice --transport mqtt --runtime node --platform none',
+      '--shape microservice --transport grpc --runtime node --platform none',
       '--shape mixed --transport tcp --runtime node --platform fastify',
       'interactive terminal',
     ]);
@@ -136,12 +154,12 @@ describe('runtime matrix docs contract', () => {
     ]);
     expectAll(read('examples/README.md'), [
       'HTTP side of the published `fluo new` v2 matrix',
-      'runnable TCP microservice path',
+      'plus Redis Streams, MQTT, and gRPC',
       'mixed single-package path',
     ]);
     expectAll(read('examples/README.ko.md'), [
       '공개된 `fluo new` v2 매트릭스의 HTTP 쪽 경로',
-      'TCP microservice 경로',
+      'Redis Streams, MQTT, gRPC',
       'mixed single-package 경로',
     ]);
     expectAll(read('examples/minimal/README.md'), [

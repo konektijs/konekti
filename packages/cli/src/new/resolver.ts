@@ -5,7 +5,6 @@ import type {
   BootstrapTopology,
 } from './types.js';
 import {
-  DOCUMENTED_MICROSERVICE_TRANSPORTS,
   getDefaultBootstrapSchema,
   getDefaultBootstrapSchemaForShape,
   getStarterProfileForShape,
@@ -107,7 +106,7 @@ export function resolveBootstrapPlan(options: BootstrapResolutionInput | Bootstr
   if (schema.shape === 'microservice' && schema.transport === 'http') {
     throw new Error(
       'Unsupported bootstrap schema "microservice/node/http/' + schema.platform + '/standard/single-package". '
-      + 'Microservice starters require a transport-aware microservice transport such as tcp, redis, nats, kafka, rabbitmq, mqtt, or grpc.',
+       + 'Microservice starters require a transport-aware microservice transport such as tcp, redis-streams, mqtt, grpc, redis, nats, kafka, or rabbitmq.',
     );
   }
 
@@ -128,8 +127,8 @@ export function resolveBootstrapPlan(options: BootstrapResolutionInput | Bootstr
   if (schema.shape === 'microservice' && isDocumentedMicroserviceTransport(schema.transport) && schema.transport !== defaultProfile.schema.transport) {
     throw new Error(
       'Unsupported bootstrap schema "microservice/node/' + schema.transport + '/' + schema.platform + '/standard/single-package". '
-      + 'The first-class microservice starter currently emits the runnable TCP starter, while transport validation recognizes the documented families: '
-      + DOCUMENTED_MICROSERVICE_TRANSPORTS.join(', ') + '.',
+      + 'The first-class microservice starters currently scaffold tcp, redis-streams, mqtt, and grpc, while transport validation also recognizes the remaining documented families: '
+      + 'redis, nats, kafka, rabbitmq.',
     );
   }
 
@@ -164,12 +163,12 @@ export function resolveBootstrapPlan(options: BootstrapResolutionInput | Bootstr
   if (schema.tooling !== 'standard' || schema.topology.deferred !== true) {
     throw new Error(
       `Unsupported bootstrap schema "${schema.shape}/${schema.runtime}/${schema.transport}/${schema.platform}/${schema.tooling}/${schema.topology.mode}". `
-       + 'The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the TCP microservice starter, and the mixed single-package starter.',
-    );
+       + 'The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the tcp/redis-streams/mqtt/grpc microservice starters, and the mixed single-package starter.',
+     );
   }
 
   throw new Error(
     `Unsupported bootstrap schema "${schema.shape}/${schema.runtime}/${schema.transport}/${schema.platform}/${schema.tooling}/${schema.topology.mode}". `
-    + 'The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the TCP microservice starter, and the mixed single-package starter.',
+    + 'The current compatibility baseline supports the standard single-package Node + Fastify/Express/raw Node.js HTTP starters, Bun/Deno/Cloudflare Workers HTTP starters, the tcp/redis-streams/mqtt/grpc microservice starters, and the mixed single-package starter.',
   );
 }

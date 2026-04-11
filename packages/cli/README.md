@@ -60,10 +60,13 @@ fluo new my-deno-app --shape application --transport http --runtime deno --platf
 fluo new my-worker-app --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
 ```
 
-`fluo new` also exposes a first-class microservice starter path. The runnable starter currently emits the TCP transport while the CLI validates the documented microservice transport families separately from package-manager choice:
+`fluo new` also exposes first-class microservice starter paths. TCP remains the simplest default when you omit `--transport`, and the microservice starter matrix now also includes runnable Redis Streams, MQTT, and gRPC variants with transport-specific dependencies, env templates, and entrypoints:
 
 ```bash
 fluo new my-microservice --shape microservice --transport tcp --runtime node --platform none
+fluo new my-redis-streams-service --shape microservice --transport redis-streams --runtime node --platform none
+fluo new my-mqtt-service --shape microservice --transport mqtt --runtime node --platform none
+fluo new my-grpc-service --shape microservice --transport grpc --runtime node --platform none
 ```
 
 The v2 matrix also includes a mixed single-package starter: one Fastify HTTP app with an attached TCP microservice in the same generated project.

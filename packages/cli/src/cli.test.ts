@@ -479,6 +479,120 @@ describe('CLI command runner', () => {
     expect(mainFile).toContain('FluoFactory.createMicroservice(AppModule)');
   });
 
+  it('scaffolds the Redis Streams microservice starter when the transport is selected explicitly', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli([
+      'new',
+      '--shape',
+      'microservice',
+      '--transport',
+      'redis-streams',
+      '--runtime',
+      'node',
+      '--platform',
+      'none',
+      '--tooling',
+      'standard',
+      '--topology',
+      'single-package',
+      'starter-microservice-redis-streams',
+    ], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const projectDirectory = join(workspaceDirectory, 'starter-microservice-redis-streams');
+    const packageJson = readFileSync(join(projectDirectory, 'package.json'), 'utf8');
+    const appFile = readFileSync(join(projectDirectory, 'src', 'app.ts'), 'utf8');
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('cd ./starter-microservice-redis-streams');
+    expect(packageJson).toContain('"ioredis": "^5.0.0"');
+    expect(appFile).toContain('new RedisStreamsMicroserviceTransport({');
+  });
+
+  it('scaffolds the MQTT microservice starter when the transport is selected explicitly', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli([
+      'new',
+      '--shape',
+      'microservice',
+      '--transport',
+      'mqtt',
+      '--runtime',
+      'node',
+      '--platform',
+      'none',
+      '--tooling',
+      'standard',
+      '--topology',
+      'single-package',
+      'starter-microservice-mqtt',
+    ], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const projectDirectory = join(workspaceDirectory, 'starter-microservice-mqtt');
+    const packageJson = readFileSync(join(projectDirectory, 'package.json'), 'utf8');
+    const appFile = readFileSync(join(projectDirectory, 'src', 'app.ts'), 'utf8');
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('cd ./starter-microservice-mqtt');
+    expect(packageJson).toContain('"mqtt": "^5.0.0"');
+    expect(appFile).toContain('new MqttMicroserviceTransport({');
+  });
+
+  it('scaffolds the gRPC microservice starter when the transport is selected explicitly', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli([
+      'new',
+      '--shape',
+      'microservice',
+      '--transport',
+      'grpc',
+      '--runtime',
+      'node',
+      '--platform',
+      'none',
+      '--tooling',
+      'standard',
+      '--topology',
+      'single-package',
+      'starter-microservice-grpc',
+    ], {
+      cwd: workspaceDirectory,
+      skipInstall: true,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const projectDirectory = join(workspaceDirectory, 'starter-microservice-grpc');
+    const packageJson = readFileSync(join(projectDirectory, 'package.json'), 'utf8');
+    const appFile = readFileSync(join(projectDirectory, 'src', 'app.ts'), 'utf8');
+    const protoFile = readFileSync(join(projectDirectory, 'proto', 'math.proto'), 'utf8');
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('cd ./starter-microservice-grpc');
+    expect(packageJson).toContain('"@grpc/grpc-js": "^1.0.0"');
+    expect(packageJson).toContain('"@grpc/proto-loader": "^0.8.0"');
+    expect(appFile).toContain('new GrpcMicroserviceTransport({');
+    expect(protoFile).toContain('service MathService');
+  });
+
   it('scaffolds the mixed starter when the mixed shape is selected explicitly', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
@@ -534,7 +648,7 @@ describe('CLI command runner', () => {
     });
 
     expect(exitCode).toBe(1);
-    expect(stderrBuffer.join('')).toContain('The first-class microservice starter currently emits the runnable TCP starter');
+    expect(stderrBuffer.join('')).toContain('The first-class microservice starters currently scaffold tcp, redis-streams, mqtt, and grpc');
   });
 
   it('scaffolds a local .env file while ignoring it from git by default', async () => {
