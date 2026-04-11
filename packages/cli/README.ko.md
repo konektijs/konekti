@@ -60,10 +60,13 @@ fluo new my-deno-app --shape application --transport http --runtime deno --platf
 fluo new my-worker-app --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
 ```
 
-`fluo new`는 이제 first-class microservice starter path도 제공합니다. 현재 실행 가능한 스타터는 TCP transport를 생성하며, CLI는 package manager 선택과 분리된 상태로 문서화된 microservice transport 계열도 검증합니다.
+`fluo new`는 이제 first-class microservice starter path도 제공합니다. `--transport`를 생략하면 여전히 TCP가 가장 단순한 기본 경로로 유지되며, 이제 microservice starter 매트릭스에는 transport별 dependency, env 템플릿, entrypoint를 갖춘 Redis Streams, MQTT, gRPC runnable 변형도 포함됩니다.
 
 ```bash
 fluo new my-microservice --shape microservice --transport tcp --runtime node --platform none
+fluo new my-redis-streams-service --shape microservice --transport redis-streams --runtime node --platform none
+fluo new my-mqtt-service --shape microservice --transport mqtt --runtime node --platform none
+fluo new my-grpc-service --shape microservice --transport grpc --runtime node --platform none
 ```
 
 v2 매트릭스에는 mixed single-package starter도 포함됩니다. 하나의 Fastify HTTP 앱과 attached TCP microservice를 같은 생성 프로젝트 안에 함께 배치합니다.

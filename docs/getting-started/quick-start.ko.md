@@ -40,8 +40,17 @@ fluo new my-fluo-deno --shape application --transport http --runtime deno --plat
 # Cloudflare Workers 애플리케이션 스타터
 fluo new my-fluo-worker --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
 
-# 실행 가능한 TCP microservice 스타터
+# 실행 가능한 TCP microservice 스타터 (--transport 생략 시 기본값)
 fluo new my-fluo-microservice --shape microservice --transport tcp --runtime node --platform none
+
+# 실행 가능한 Redis Streams microservice 스타터
+fluo new my-fluo-redis-streams --shape microservice --transport redis-streams --runtime node --platform none
+
+# 실행 가능한 MQTT microservice 스타터
+fluo new my-fluo-mqtt --shape microservice --transport mqtt --runtime node --platform none
+
+# 실행 가능한 gRPC microservice 스타터
+fluo new my-fluo-grpc --shape microservice --transport grpc --runtime node --platform none
 
 # Mixed single-package 스타터: Fastify HTTP 앱 + attached TCP microservice
 fluo new my-fluo-mixed --shape mixed --transport tcp --runtime node --platform fastify

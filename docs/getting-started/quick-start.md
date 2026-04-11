@@ -40,8 +40,17 @@ fluo new my-fluo-deno --shape application --transport http --runtime deno --plat
 # Cloudflare Workers application starter
 fluo new my-fluo-worker --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
 
-# Runnable TCP microservice starter
+# Runnable TCP microservice starter (default when you omit --transport)
 fluo new my-fluo-microservice --shape microservice --transport tcp --runtime node --platform none
+
+# Runnable Redis Streams microservice starter
+fluo new my-fluo-redis-streams --shape microservice --transport redis-streams --runtime node --platform none
+
+# Runnable MQTT microservice starter
+fluo new my-fluo-mqtt --shape microservice --transport mqtt --runtime node --platform none
+
+# Runnable gRPC microservice starter
+fluo new my-fluo-grpc --shape microservice --transport grpc --runtime node --platform none
 
 # Mixed single-package starter: Fastify HTTP app + attached TCP microservice
 fluo new my-fluo-mixed --shape mixed --transport tcp --runtime node --platform fastify
