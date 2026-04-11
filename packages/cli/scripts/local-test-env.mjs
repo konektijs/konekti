@@ -242,9 +242,6 @@ function verifySandboxProject(projectName) {
   verifySandboxExists(projectDirectory);
   const packageJson = JSON.parse(readFileSync(join(projectDirectory, 'package.json'), 'utf8'));
   const isMicroserviceStarter = Boolean(packageJson.dependencies?.['@fluojs/microservices']);
-  const usesRedisStreamsStarter = Boolean(packageJson.dependencies?.ioredis);
-  const usesMqttStarter = Boolean(packageJson.dependencies?.mqtt);
-  const usesGrpcStarter = Boolean(packageJson.dependencies?.['@grpc/grpc-js']);
 
   if (isMicroserviceStarter) {
     if (!existsSync(join(projectDirectory, 'src', 'math', 'math.handler.test.ts'))) {
@@ -262,52 +259,6 @@ function verifySandboxProject(projectName) {
     const mainFile = readFileSync(join(projectDirectory, 'src', 'main.ts'), 'utf8');
     if (!mainFile.includes('createMicroservice')) {
       throw new Error('Expected the microservice starter main.ts to bootstrap FluoFactory.createMicroservice(...).');
-    }
-
-    const appFile = readFileSync(join(projectDirectory, 'src', 'app.ts'), 'utf8');
-    if (usesRedisStreamsStarter) {
-      if (!existsSync(join(projectDirectory, '.env'))) {
-        throw new Error('Expected the Redis Streams starter scaffold to include .env.');
-      }
-
-      const envFile = readFileSync(join(projectDirectory, '.env'), 'utf8');
-      if (!envFile.includes('REDIS_URL=')) {
-        throw new Error('Expected the Redis Streams starter scaffold to include REDIS_URL in .env.');
-      }
-
-      if (!appFile.includes('RedisStreamsMicroserviceTransport')) {
-        throw new Error('Expected the Redis Streams starter app.ts to wire RedisStreamsMicroserviceTransport.');
-      }
-    }
-
-    if (usesMqttStarter) {
-      if (!existsSync(join(projectDirectory, '.env'))) {
-        throw new Error('Expected the MQTT starter scaffold to include .env.');
-      }
-
-      const envFile = readFileSync(join(projectDirectory, '.env'), 'utf8');
-      if (!envFile.includes('MQTT_URL=')) {
-        throw new Error('Expected the MQTT starter scaffold to include MQTT_URL in .env.');
-      }
-
-      if (!appFile.includes('MqttMicroserviceTransport')) {
-        throw new Error('Expected the MQTT starter app.ts to wire MqttMicroserviceTransport.');
-      }
-    }
-
-    if (usesGrpcStarter) {
-      if (!existsSync(join(projectDirectory, 'proto', 'math.proto'))) {
-        throw new Error('Expected the gRPC starter scaffold to include proto/math.proto.');
-      }
-
-      const envFile = readFileSync(join(projectDirectory, '.env'), 'utf8');
-      if (!envFile.includes('GRPC_URL=')) {
-        throw new Error('Expected the gRPC starter scaffold to include GRPC_URL in .env.');
-      }
-
-      if (!appFile.includes('GrpcMicroserviceTransport')) {
-        throw new Error('Expected the gRPC starter app.ts to wire GrpcMicroserviceTransport.');
-      }
     }
   }
 

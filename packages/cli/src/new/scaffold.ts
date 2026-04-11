@@ -831,17 +831,111 @@ function createMicroserviceAppFile(options: Pick<BootstrapOptions, 'transport'>)
       return `import Redis from 'ioredis';
 import { Module } from '@fluojs/core';
 import { ConfigModule } from '@fluojs/config';
-import { MicroservicesModule, RedisStreamsMicroserviceTransport } from '@fluojs/microservices';
+import { MicroservicesModule, RedisStreamsMicroserviceTransport, type RedisStreamClientLike } from '@fluojs/microservices';
 
 import { MathHandler } from './math/math.handler';
-
-type RedisStreamsTransportOptions = ConstructorParameters<typeof RedisStreamsMicroserviceTransport>[0];
 
 const redisUrl = process.env.REDIS_URL ?? 'redis://127.0.0.1:6379';
 const namespace = process.env.REDIS_STREAMS_NAMESPACE ?? 'fluo:streams';
 const consumerGroup = process.env.REDIS_STREAMS_CONSUMER_GROUP ?? 'fluo-handlers';
-const readerClient = new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 1 }) as unknown as RedisStreamsTransportOptions['readerClient'];
-const writerClient = new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 1 }) as unknown as RedisStreamsTransportOptions['writerClient'];
+const readerRedis = new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 1 });
+const writerRedis = new Redis(redisUrl, { lazyConnect: true, maxRetriesPerRequest: 1 });
+
+const readerClient: RedisStreamClientLike = {
+  async xack(stream, group, id) {
+    await readerRedis.xack(stream, group, id);
+  },
+  async xadd(stream, fields) {
+    return await readerRedis.xadd(stream, '*', ...Object.entries(fields).flatMap(([key, value]) => [key, value]));
+  },
+  async xgroupCreate(stream, group, startId, mkstream) {
+    if (mkstream) {
+      await readerRedis.xgroup('CREATE', stream, group, startId, 'MKSTREAM');
+      return;
+    }
+
+    await readerRedis.xgroup('CREATE', stream, group, startId);
+  },
+  async xgroupDestroy(stream, group) {
+    await readerRedis.xgroup('DESTROY', stream, group);
+  },
+  async xreadgroup(group, consumer, streams, options) {
+    const response = await readerRedis.xreadgroup(
+      'GROUP',
+      group,
+      consumer,
+      options?.count ? 'COUNT' : undefined,
+      options?.count ? String(options.count) : undefined,
+      options?.blockMs ? 'BLOCK' : undefined,
+      options?.blockMs ? String(options.blockMs) : undefined,
+      'STREAMS',
+      ...streams,
+      ...streams.map(() => '>'),
+    );
+
+    if (!response) {
+      return null;
+    }
+
+    return response.flatMap(([, entries]) => entries.map(([id, values]) => ({
+      fields: Object.fromEntries(values.reduce<string[][]>((pairs, value, index, source) => {
+        if (index % 2 === 0) {
+          pairs.push([value, source[index + 1] ?? '']);
+        }
+        return pairs;
+      }, [])),
+      id,
+    })));
+  },
+};
+
+const writerClient: RedisStreamClientLike = {
+  async xack(stream, group, id) {
+    await writerRedis.xack(stream, group, id);
+  },
+  async xadd(stream, fields) {
+    return await writerRedis.xadd(stream, '*', ...Object.entries(fields).flatMap(([key, value]) => [key, value]));
+  },
+  async xgroupCreate(stream, group, startId, mkstream) {
+    if (mkstream) {
+      await writerRedis.xgroup('CREATE', stream, group, startId, 'MKSTREAM');
+      return;
+    }
+
+    await writerRedis.xgroup('CREATE', stream, group, startId);
+  },
+  async xgroupDestroy(stream, group) {
+    await writerRedis.xgroup('DESTROY', stream, group);
+  },
+  async xreadgroup(group, consumer, streams, options) {
+    const response = await writerRedis.xreadgroup(
+      'GROUP',
+      group,
+      consumer,
+      options?.count ? 'COUNT' : undefined,
+      options?.count ? String(options.count) : undefined,
+      options?.blockMs ? 'BLOCK' : undefined,
+      options?.blockMs ? String(options.blockMs) : undefined,
+      'STREAMS',
+      ...streams,
+      ...streams.map(() => '>'),
+    );
+
+    if (!response) {
+      return null;
+    }
+
+    return response.flatMap(([, entries]) => entries.map(([id, values]) => ({
+      fields: Object.fromEntries(values.reduce<string[][]>((pairs, value, index, source) => {
+        if (index % 2 === 0) {
+          pairs.push([value, source[index + 1] ?? '']);
+        }
+        return pairs;
+      }, [])),
+      id,
+    })));
+  },
+};
 
 @Module({
   imports: [
@@ -1773,6 +1867,62 @@ function readLocalPackageVersion(repoRoot: string, packageName: LocalPackageName
   return packageJson.version;
 }
 
+function readLocalPackageManifest(
+  repoRoot: string,
+  packageName: LocalPackageName,
+): {
+  dependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+} {
+  const packageDirectory = PACKAGE_DIRECTORY_BY_NAME[packageName];
+  return JSON.parse(
+    readFileSync(join(repoRoot, 'packages', packageDirectory, 'package.json'), 'utf8'),
+  ) as {
+    dependencies?: Record<string, string>;
+    optionalDependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
+  };
+}
+
+function collectRequiredLocalPackages(
+  repoRoot: string,
+  bootstrapPlan: ResolvedBootstrapPlan,
+): readonly LocalPackageName[] {
+  const pending = [
+    ...bootstrapPlan.dependencies.dependencies,
+    ...bootstrapPlan.dependencies.devDependencies,
+  ].filter((packageName): packageName is LocalPackageName => packageName in PACKAGE_DIRECTORY_BY_NAME);
+  const selected = new Set<LocalPackageName>();
+
+  while (pending.length > 0) {
+    const packageName = pending.pop();
+
+    if (!packageName || selected.has(packageName)) {
+      continue;
+    }
+
+    selected.add(packageName);
+    const manifest = readLocalPackageManifest(repoRoot, packageName);
+
+    for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies'] as const) {
+      const dependencies = manifest[section];
+
+      if (!dependencies) {
+        continue;
+      }
+
+      for (const dependencyName of Object.keys(dependencies)) {
+        if (dependencyName in PACKAGE_DIRECTORY_BY_NAME) {
+          pending.push(dependencyName as LocalPackageName);
+        }
+      }
+    }
+  }
+
+  return Array.from(selected);
+}
+
 function collectLocalPackageVersions(repoRoot: string, packageNames: readonly LocalPackageName[]): Map<LocalPackageName, string> {
   const packageVersions = new Map<LocalPackageName, string>();
 
@@ -2096,9 +2246,7 @@ async function resolvePackageSpecs(
 
   void bootstrapPlan;
 
-  void bootstrapPlan;
-
-  const packageNames = ALL_LOCAL_PACKAGE_NAMES;
+  const packageNames = collectRequiredLocalPackages(repoRoot, bootstrapPlan);
   const packageVersions = collectLocalPackageVersions(repoRoot, packageNames);
   const expectedCacheStamp = computeLocalPackageCacheStamp(repoRoot, packageNames, packageVersions);
   const currentCacheStamp = readLocalPackageCacheStamp(cacheStampPath);
