@@ -6,6 +6,8 @@ interface MemoryCacheEntry<T = unknown> {
   value: T;
 }
 
+const DEFAULT_MAX_MEMORY_CACHE_ENTRIES = 1_000;
+
 function sweepExpiredEntries(entries: Map<string, MemoryCacheEntry>, now: number): number {
   let nextSweepAt = Number.POSITIVE_INFINITY;
 
@@ -23,6 +25,18 @@ function sweepExpiredEntries(entries: Map<string, MemoryCacheEntry>, now: number
   }
 
   return Number.isFinite(nextSweepAt) ? nextSweepAt : 0;
+}
+
+function enforceEntryLimit(entries: Map<string, MemoryCacheEntry>): void {
+  while (entries.size > DEFAULT_MAX_MEMORY_CACHE_ENTRIES) {
+    const oldestKey = entries.keys().next().value;
+
+    if (oldestKey === undefined) {
+      return;
+    }
+
+    entries.delete(oldestKey);
+  }
 }
 
 export class MemoryStore implements CacheStore {
@@ -67,7 +81,9 @@ export class MemoryStore implements CacheStore {
       entry.expiresAt = now + ttlMilliseconds;
     }
 
+    this.entries.delete(key);
     this.entries.set(key, entry);
+    enforceEntryLimit(this.entries);
 
     if (entry.expiresAt !== undefined) {
       this.nextSweepAt = this.nextSweepAt === 0 ? entry.expiresAt : Math.min(this.nextSweepAt, entry.expiresAt);
