@@ -10,13 +10,17 @@ import { CacheService } from './service.js';
 import { CACHE_OPTIONS, CACHE_STORE } from './tokens.js';
 import type { CacheModuleOptions, NormalizedCacheModuleOptions, RedisCompatibleClient } from './types.js';
 
+const DEFAULT_MEMORY_STORE_TTL_SECONDS = 300;
+
 function normalizeCacheModuleOptions(options: CacheModuleOptions = {}): NormalizedCacheModuleOptions {
+  const store = options.store ?? 'memory';
+
   return {
     isGlobal: options.isGlobal ?? false,
     keyPrefix: options.keyPrefix ?? 'fluo:cache:',
     redis: options.redis,
-    store: options.store ?? 'memory',
-    ttl: options.ttl ?? 0,
+    store,
+    ttl: options.ttl ?? (store === 'memory' ? DEFAULT_MEMORY_STORE_TTL_SECONDS : 0),
     httpKeyStrategy: options.httpKeyStrategy ?? 'route',
     principalScopeResolver: options.principalScopeResolver,
   };
