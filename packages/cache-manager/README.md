@@ -43,6 +43,8 @@ npm install @fluojs/cache-manager @fluojs/redis ioredis
 
 Register the `CacheModule` and use the `CacheInterceptor` on your controllers.
 
+The built-in memory path is intentionally bounded by default: when you omit `ttl`, fluo applies a 300-second default TTL and keeps at most 1,000 live memory-store entries before evicting the oldest keys.
+
 ```typescript
 import { Module } from '@fluojs/core';
 import { Controller, Get, UseInterceptors } from '@fluojs/http';
@@ -121,6 +123,14 @@ CacheModule.forRoot({
   httpKeyStrategy: 'route+query',
 })
 ```
+
+### Memory Store Operational Limits
+
+The built-in memory store is designed for single-process, bounded caching:
+
+- If you omit `ttl` on the default memory path, `CacheModule.forRoot()` uses a 300-second TTL.
+- `ttl: 0` is still supported for no-expiry entries, but the memory store keeps only the most recent 1,000 live keys.
+- High-cardinality or multi-instance deployments should use the Redis store instead of relying on process-local memory.
 
 ## Public API Overview
 
