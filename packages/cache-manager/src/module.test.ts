@@ -9,7 +9,8 @@ import { bootstrapApplication, defineModule } from '@fluojs/runtime';
 import { CacheEvict } from './decorators.js';
 import { CacheInterceptor } from './interceptor.js';
 import { CacheService } from './service.js';
-import { CacheModule } from './module.js';
+import { CacheModule, createCacheProviders } from './module.js';
+import { CACHE_OPTIONS } from './tokens.js';
 import type { RedisCompatibleClient } from './types.js';
 
 class MockRedisClient implements RedisCompatibleClient {
@@ -97,6 +98,23 @@ describe('CacheModule.forRoot', () => {
 
     expect(getModuleMetadata(localModule)?.global).toBe(false);
     expect(getModuleMetadata(globalModule)?.global).toBe(true);
+  });
+
+  it('uses a bounded TTL by default on the built-in memory store path', () => {
+    const optionsProvider = createCacheProviders().find(
+      (provider): provider is { provide: typeof CACHE_OPTIONS; useValue: { store: string; ttl: number } } =>
+        typeof provider === 'object' &&
+        provider !== null &&
+        'provide' in provider &&
+        provider.provide === CACHE_OPTIONS,
+    );
+
+    expect(optionsProvider).toMatchObject({
+      useValue: expect.objectContaining({
+        store: 'memory',
+        ttl: 300,
+      }),
+    });
   });
 
   it('supports memory store without redis module/client installed', async () => {

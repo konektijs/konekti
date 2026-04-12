@@ -43,6 +43,8 @@ npm install @fluojs/cache-manager @fluojs/redis ioredis
 
 `CacheModule`을 등록하고 컨트롤러에 `CacheInterceptor`를 사용합니다.
 
+내장 메모리 경로는 기본적으로 안전한 상한을 갖습니다. `ttl`을 생략하면 fluo는 기본 TTL 300초를 적용하고, 메모리 저장소의 live 엔트리가 1,000개를 넘으면 가장 오래된 키부터 제거합니다.
+
 ```typescript
 import { Module } from '@fluojs/core';
 import { Controller, Get, UseInterceptors } from '@fluojs/http';
@@ -121,6 +123,14 @@ CacheModule.forRoot({
   httpKeyStrategy: 'route+query',
 })
 ```
+
+### 메모리 저장소 운영 한계
+
+내장 메모리 저장소는 단일 프로세스의 bounded cache 용도로 설계되어 있습니다.
+
+- 기본 메모리 경로에서 `ttl`을 생략하면 `CacheModule.forRoot()`는 300초 TTL을 사용합니다.
+- `ttl: 0`은 만료 없는 엔트리로 계속 지원되지만, 메모리 저장소는 가장 최근의 live 키 1,000개만 유지합니다.
+- 키 종류가 매우 많거나 여러 인스턴스가 캐시를 공유해야 한다면 프로세스 로컬 메모리 대신 Redis 저장소를 사용하세요.
 
 ## 공개 API 개요
 

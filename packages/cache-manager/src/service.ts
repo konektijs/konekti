@@ -9,8 +9,24 @@ import type { CacheStore, NormalizedCacheModuleOptions } from './types.js';
 @Inject(CACHE_STORE, CACHE_OPTIONS)
 export class CacheService {
   private readonly inflight = new Map<string, Promise<unknown>>();
-  private readonly invalidationVersion = new Map<string, number>();
+  private readonly pendingLoads = new Map<string, number>();
+  private readonly invalidatedInflight = new Set<string>();
   private resetVersion = 0;
+
+  private beginPendingLoad(key: string): void {
+    this.pendingLoads.set(key, (this.pendingLoads.get(key) ?? 0) + 1);
+  }
+
+  private endPendingLoad(key: string): void {
+    const remaining = (this.pendingLoads.get(key) ?? 0) - 1;
+
+    if (remaining > 0) {
+      this.pendingLoads.set(key, remaining);
+      return;
+    }
+
+    this.pendingLoads.delete(key);
+  }
 
   constructor(
     private readonly store: CacheStore,
@@ -58,35 +74,44 @@ export class CacheService {
     loader: () => Promise<T>,
     ttlSeconds?: number,
   ): Promise<T> {
-    const keyVersion = this.invalidationVersion.get(key) ?? 0;
-    const resetVersion = this.resetVersion;
-    const cached = await this.get<T>(key);
+    this.beginPendingLoad(key);
 
-    if (cached !== undefined) {
-      return cached;
-    }
+    try {
+      const resetVersion = this.resetVersion;
+      const cached = await this.get<T>(key);
 
-    const existing = this.inflight.get(key) as Promise<T> | undefined;
-
-    if (existing) {
-      return existing;
-    }
-
-    const promise = loader().then(async (value) => {
-      const currentKeyVersion = this.invalidationVersion.get(key) ?? 0;
-
-      if (currentKeyVersion !== keyVersion || this.resetVersion !== resetVersion) {
-        return value;
+      if (cached !== undefined) {
+        return cached;
       }
 
-      await this.set(key, value, ttlSeconds);
-      return value;
-    }).finally(() => {
-      this.inflight.delete(key);
-    });
+      const existing = this.inflight.get(key) as Promise<T> | undefined;
 
-    this.inflight.set(key, promise);
-    return promise;
+      if (existing) {
+        return existing;
+      }
+
+      const promise = loader().then(async (value) => {
+        if (this.invalidatedInflight.has(key) || this.resetVersion !== resetVersion) {
+          return value;
+        }
+
+        await this.set(key, value, ttlSeconds);
+
+        if (this.invalidatedInflight.has(key) || this.resetVersion !== resetVersion) {
+          await this.store.del(key);
+        }
+
+        return value;
+      }).finally(() => {
+        this.inflight.delete(key);
+        this.invalidatedInflight.delete(key);
+      });
+
+      this.inflight.set(key, promise);
+      return promise;
+    } finally {
+      this.endPendingLoad(key);
+    }
   }
 
   /**
@@ -96,7 +121,10 @@ export class CacheService {
    * @returns A promise that resolves after the entry is removed.
    */
   async del(key: string): Promise<void> {
-    this.invalidationVersion.set(key, (this.invalidationVersion.get(key) ?? 0) + 1);
+    if (this.pendingLoads.has(key) || this.inflight.has(key)) {
+      this.invalidatedInflight.add(key);
+    }
+
     await this.store.del(key);
   }
 
@@ -107,7 +135,7 @@ export class CacheService {
    */
   async reset(): Promise<void> {
     this.resetVersion += 1;
-    this.invalidationVersion.clear();
+    this.invalidatedInflight.clear();
     await this.store.reset();
   }
 }

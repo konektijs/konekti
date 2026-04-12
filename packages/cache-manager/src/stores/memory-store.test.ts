@@ -63,6 +63,18 @@ describe('MemoryStore', () => {
     await expect(store.get('users:list')).resolves.toEqual({ count: 1 });
   });
 
+  it('evicts the oldest live entries when key churn exceeds the in-memory safety cap', async () => {
+    const store = new MemoryStore();
+
+    for (let index = 0; index < 1_001; index += 1) {
+      await store.set(`users:${index}`, { index }, 0);
+    }
+
+    await expect(store.get('users:0')).resolves.toBeUndefined();
+    await expect(store.get('users:1')).resolves.toEqual({ index: 1 });
+    await expect(store.get('users:1000')).resolves.toEqual({ index: 1000 });
+  });
+
   it('returns immutable snapshots instead of leaking internal object references', async () => {
     const store = new MemoryStore();
     const value = { nested: { count: 1 } };

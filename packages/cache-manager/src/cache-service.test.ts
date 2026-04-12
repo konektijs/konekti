@@ -197,6 +197,41 @@ describe('CacheService — general cache contract (outside HTTP interceptor)', (
       await expect(cache.get('key')).resolves.toBeUndefined();
     });
 
+    it('clears invalidation bookkeeping after churn across many deleted in-flight keys', async () => {
+      const cache = createCacheService(createStore());
+      const resolvers = new Map<string, (value: { computed: string }) => void>();
+
+      const pendingLoads = Array.from({ length: 50 }, (_, index) => {
+        const key = `key:${index}`;
+
+        const pending = cache.remember(
+          key,
+          () =>
+            new Promise<{ computed: string }>((resolve) => {
+              resolvers.set(key, resolve);
+            }),
+        );
+
+        return { key, pending };
+      });
+
+      await Promise.resolve();
+
+      await Promise.all(pendingLoads.map(async ({ key }) => {
+        await cache.del(key);
+      }));
+
+      for (const { key } of pendingLoads) {
+        resolvers.get(key)?.({ computed: key });
+      }
+
+      await Promise.all(pendingLoads.map(({ pending }) => pending));
+
+      const invalidatedInflight = Reflect.get(cache as object, 'invalidatedInflight');
+      expect(invalidatedInflight).toBeInstanceOf(Set);
+      expect((invalidatedInflight as Set<string>).size).toBe(0);
+    });
+
     it('set uses module default TTL when not specified', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-03-24T00:00:00.000Z'));
