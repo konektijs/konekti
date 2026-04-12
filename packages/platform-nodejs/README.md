@@ -54,6 +54,8 @@ const adapter = createNodejsAdapter({
 });
 ```
 
+`maxBodySize` is enforced while the raw Node request body is still streaming, and the same limit becomes the default total multipart payload cap unless you override `multipart.maxTotalSize` during bootstrap.
+
 ### Direct Application Execution
 You can use `runNodejsApplication` for a zero-boilerplate startup that includes graceful shutdown and logging.
 
@@ -84,4 +86,3 @@ await runNodejsApplication(AppModule, {
 
 - `packages/platform-nodejs/src/index.test.ts`
 - `examples/minimal/src/main.ts` (Fastify-based, but structurally similar)
-
