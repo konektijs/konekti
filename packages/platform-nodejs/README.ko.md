@@ -54,6 +54,8 @@ const adapter = createNodejsAdapter({
 });
 ```
 
+`maxBodySize`는 raw Node 요청 바디가 아직 스트리밍되는 동안 바로 강제되며, 부트스트랩 시 `multipart.maxTotalSize`를 따로 재정의하지 않으면 같은 값이 멀티파트 전체 페이로드 한도의 기본값으로도 사용됩니다.
+
 ### 직접 애플리케이션 실행
 `runNodejsApplication`을 사용하여 graceful shutdown 및 로깅이 포함된 보일러플레이트 없는 시작이 가능합니다.
 
@@ -84,4 +86,3 @@ await runNodejsApplication(AppModule, {
 
 - `packages/platform-nodejs/src/index.test.ts`
 - `examples/minimal/src/main.ts` (Fastify 기반이지만 구조적으로 유사함)
-
