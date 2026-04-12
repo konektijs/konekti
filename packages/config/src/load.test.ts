@@ -591,6 +591,50 @@ describe('ConfigService', () => {
 });
 
 describe('ConfigModule', () => {
+  it('uses the provided processEnv snapshot through ConfigService registration', () => {
+    const previousValue = process.env.FLUO_CONFIG_MODULE_TEST_ONLY;
+    process.env.FLUO_CONFIG_MODULE_TEST_ONLY = 'from-module-process-env';
+
+    try {
+      const moduleRef = ConfigModule.forRoot({ processEnv: process.env });
+      const providers = getModuleMetadata(moduleRef)?.providers as
+        | Array<{ provide?: unknown; useFactory?: () => unknown }>
+        | undefined;
+      const configProvider = providers?.find((provider) => provider.provide === ConfigService);
+      const service = configProvider?.useFactory?.() as ConfigService | undefined;
+
+      expect(service?.get('FLUO_CONFIG_MODULE_TEST_ONLY')).toBe('from-module-process-env');
+    } finally {
+      if (previousValue === undefined) {
+        delete process.env.FLUO_CONFIG_MODULE_TEST_ONLY;
+      } else {
+        process.env.FLUO_CONFIG_MODULE_TEST_ONLY = previousValue;
+      }
+    }
+  });
+
+  it('does not read live process.env when ConfigModule callers omit processEnv', () => {
+    const previousValue = process.env.FLUO_CONFIG_MODULE_TEST_ONLY;
+    process.env.FLUO_CONFIG_MODULE_TEST_ONLY = 'from-module-process-env';
+
+    try {
+      const moduleRef = ConfigModule.forRoot();
+      const providers = getModuleMetadata(moduleRef)?.providers as
+        | Array<{ provide?: unknown; useFactory?: () => unknown }>
+        | undefined;
+      const configProvider = providers?.find((provider) => provider.provide === ConfigService);
+      const service = configProvider?.useFactory?.() as ConfigService | undefined;
+
+      expect(service?.get('FLUO_CONFIG_MODULE_TEST_ONLY')).toBeUndefined();
+    } finally {
+      if (previousValue === undefined) {
+        delete process.env.FLUO_CONFIG_MODULE_TEST_ONLY;
+      } else {
+        process.env.FLUO_CONFIG_MODULE_TEST_ONLY = previousValue;
+      }
+    }
+  });
+
   it('registers as global by default', () => {
     const moduleRef = ConfigModule.forRoot();
 
