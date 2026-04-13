@@ -1,5 +1,6 @@
 import type { MiddlewareContext, Middleware } from '../types.js';
 import { TooManyRequestsException, createErrorResponse } from '../exceptions.js';
+import { resolveClientIdentity } from '../client-identity.js';
 
 export interface RateLimitStoreEntry {
   count: number;
@@ -21,8 +22,7 @@ export interface RateLimitOptions {
 }
 
 function defaultKeyResolver(ctx: MiddlewareContext): string {
-  const raw = ctx.request.raw as { socket?: { remoteAddress?: string } } | undefined;
-  return raw?.socket?.remoteAddress ?? 'unknown';
+  return resolveClientIdentity(ctx.request);
 }
 
 export function createMemoryRateLimitStore(): RateLimitStore {
