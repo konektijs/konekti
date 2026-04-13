@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parse, validate, GraphQLObjectType, GraphQLSchema, GraphQLString, type ValidationRule } from 'graphql';
+import { parse, validate, GraphQLObjectType, GraphQLSchema, GraphQLString, type ExecutionResult, type ValidationRule } from 'graphql';
 
 import { createGraphqlValidationPlugin, resolveGraphqlRequestLimits } from './guardrails.js';
 
@@ -48,6 +48,31 @@ function createValidationRules(options: { introspection: boolean; limits?: false
   return rules;
 }
 
+function executeWithGuardrails(options: {
+  introspection: boolean;
+  limits?: false | { maxComplexity?: number; maxCost?: number; maxDepth?: number };
+  operationName?: string;
+  query: string;
+}): ExecutionResult | undefined {
+  const plugin = createGraphqlValidationPlugin({
+    introspection: options.introspection,
+    limits: resolveGraphqlRequestLimits(options.limits),
+  });
+  let result: ExecutionResult | undefined;
+
+  plugin?.onExecute?.({
+    args: {
+      document: parse(options.query),
+      operationName: options.operationName,
+    },
+    setResultAndStopExecution(nextResult) {
+      result = nextResult;
+    },
+  });
+
+  return result;
+}
+
 describe('graphql guardrails', () => {
   it('enables conservative request limits by default', () => {
     expect(resolveGraphqlRequestLimits(undefined)).toEqual({
@@ -63,25 +88,25 @@ describe('graphql guardrails', () => {
     expect(errors[0]?.message).toContain('introspection');
   });
 
-  it('rejects documents that exceed configured depth, complexity, or cost', () => {
-    const depthErrors = validate(
-      schema,
-      parse('{ nested { child { value } } }'),
-      createValidationRules({ introspection: true, limits: { maxDepth: 2 } }),
-    );
-    const complexityErrors = validate(
-      schema,
-      parse('{ a: greeting b: greeting c: greeting }'),
-      createValidationRules({ introspection: true, limits: { maxComplexity: 2 } }),
-    );
-    const costErrors = validate(
-      schema,
-      parse('{ nested { child { value } } }'),
-      createValidationRules({ introspection: true, limits: { maxCost: 5 } }),
-    );
+  it('rejects selected operations that exceed configured depth, complexity, or cost', () => {
+    const depthErrors = executeWithGuardrails({
+      introspection: true,
+      limits: { maxDepth: 2 },
+      query: 'query DeepOp { nested { child { value } } }',
+    });
+    const complexityErrors = executeWithGuardrails({
+      introspection: true,
+      limits: { maxComplexity: 2 },
+      query: 'query WideOp { a: greeting b: greeting c: greeting }',
+    });
+    const costErrors = executeWithGuardrails({
+      introspection: true,
+      limits: { maxCost: 5 },
+      query: 'query CostlyOp { nested { child { value } } }',
+    });
 
-    expect(depthErrors[0]?.message).toBe('GraphQL query depth 3 exceeds the configured limit of 2.');
-    expect(complexityErrors[0]?.message).toBe('GraphQL query complexity 3 exceeds the configured limit of 2.');
-    expect(costErrors[0]?.message).toBe('GraphQL query cost 6 exceeds the configured limit of 5.');
+    expect(depthErrors?.errors?.[0]?.message).toBe('GraphQL query depth 3 exceeds the configured limit of 2.');
+    expect(complexityErrors?.errors?.[0]?.message).toBe('GraphQL query complexity 3 exceeds the configured limit of 2.');
+    expect(costErrors?.errors?.[0]?.message).toBe('GraphQL query cost 6 exceeds the configured limit of 5.');
   });
 });

@@ -1,11 +1,13 @@
 import {
   GraphQLError,
+  type ExecutionArgs,
   type FieldNode,
   Kind,
   type DocumentNode,
   type FragmentSpreadNode,
   type InlineFragmentNode,
   type FragmentDefinitionNode,
+  type OperationDefinitionNode,
   type SelectionSetNode,
   type ValidationContext,
   type ValidationRule,
@@ -24,7 +26,14 @@ interface GraphqlValidationPluginContext {
 }
 
 interface GraphqlValidationPlugin {
+  onExecute?(payload: GraphqlOperationHookPayload): void;
+  onSubscribe?(payload: GraphqlOperationHookPayload): void;
   onValidate?(context: GraphqlValidationPluginContext): void;
+}
+
+interface GraphqlOperationHookPayload {
+  args: Pick<ExecutionArgs, 'document' | 'operationName'>;
+  setResultAndStopExecution(result: { errors: GraphQLError[] }): void;
 }
 
 interface GraphqlDocumentMetrics {
@@ -33,6 +42,12 @@ interface GraphqlDocumentMetrics {
   maxDepth: number;
 }
 
+/**
+ * Resolve the effective GraphQL request budget configuration for one module instance.
+ *
+ * @param limits User-provided request limit overrides, or `false` to disable built-in budgets.
+ * @returns The normalized request limits, or `undefined` when guardrails are explicitly disabled.
+ */
 export function resolveGraphqlRequestLimits(
   limits: GraphqlRequestLimitsOptions | false | undefined,
 ): Required<GraphqlRequestLimitsOptions> | undefined {
@@ -47,6 +62,12 @@ export function resolveGraphqlRequestLimits(
   };
 }
 
+/**
+ * Create the GraphQL plugin that enforces introspection and request-budget guardrails.
+ *
+ * @param options Effective guardrail settings for introspection and per-request limits.
+ * @returns An Envelop-compatible plugin when at least one guardrail is enabled.
+ */
 export function createGraphqlValidationPlugin(options: {
   introspection: boolean;
   limits: Required<GraphqlRequestLimitsOptions> | undefined;
@@ -57,17 +78,27 @@ export function createGraphqlValidationPlugin(options: {
     validationRules.push(createDisableIntrospectionRule());
   }
 
-  if (options.limits) {
-    validationRules.push(createMaxDepthRule(options.limits.maxDepth));
-    validationRules.push(createMaxComplexityRule(options.limits.maxComplexity));
-    validationRules.push(createMaxCostRule(options.limits.maxCost));
-  }
-
-  if (validationRules.length === 0) {
+  if (validationRules.length === 0 && !options.limits) {
     return undefined;
   }
 
+  const enforceRequestLimits = options.limits
+    ? (payload: GraphqlOperationHookPayload) => {
+        const errors = evaluateGraphqlRequestLimits(payload.args.document, payload.args.operationName, options.limits!);
+
+        if (errors.length > 0) {
+          payload.setResultAndStopExecution({ errors });
+        }
+      }
+    : undefined;
+
   return {
+    ...(enforceRequestLimits
+      ? {
+          onExecute: enforceRequestLimits,
+          onSubscribe: enforceRequestLimits,
+        }
+      : {}),
     onValidate({ addValidationRule }) {
       for (const rule of validationRules) {
         addValidationRule(rule);
@@ -88,57 +119,60 @@ function createDisableIntrospectionRule(): ValidationRule {
   });
 }
 
-function createMaxDepthRule(maxDepth: number): ValidationRule {
-  return (context: ValidationContext) => {
-    const metrics = analyzeGraphqlDocument(context.getDocument());
+function evaluateGraphqlRequestLimits(
+  document: DocumentNode,
+  operationName: string | null | undefined,
+  limits: Required<GraphqlRequestLimitsOptions>,
+): GraphQLError[] {
+  const metrics = analyzeGraphqlOperation(document, operationName);
 
-    if (metrics.maxDepth > maxDepth) {
-      context.reportError(
-        new GraphQLError(`GraphQL query depth ${String(metrics.maxDepth)} exceeds the configured limit of ${String(maxDepth)}.`),
-      );
-    }
+  if (!metrics) {
+    return [];
+  }
 
-    return {};
-  };
+  const errors: GraphQLError[] = [];
+
+  if (metrics.maxDepth > limits.maxDepth) {
+    errors.push(new GraphQLError(`GraphQL query depth ${String(metrics.maxDepth)} exceeds the configured limit of ${String(limits.maxDepth)}.`));
+  }
+
+  if (metrics.complexity > limits.maxComplexity) {
+    errors.push(
+      new GraphQLError(
+        `GraphQL query complexity ${String(metrics.complexity)} exceeds the configured limit of ${String(limits.maxComplexity)}.`,
+      ),
+    );
+  }
+
+  if (metrics.cost > limits.maxCost) {
+    errors.push(new GraphQLError(`GraphQL query cost ${String(metrics.cost)} exceeds the configured limit of ${String(limits.maxCost)}.`));
+  }
+
+  return errors;
 }
 
-function createMaxComplexityRule(maxComplexity: number): ValidationRule {
-  return (context: ValidationContext) => {
-    const metrics = analyzeGraphqlDocument(context.getDocument());
-
-    if (metrics.complexity > maxComplexity) {
-      context.reportError(
-        new GraphQLError(
-          `GraphQL query complexity ${String(metrics.complexity)} exceeds the configured limit of ${String(maxComplexity)}.`,
-        ),
-      );
-    }
-
-    return {};
-  };
-}
-
-function createMaxCostRule(maxCost: number): ValidationRule {
-  return (context: ValidationContext) => {
-    const metrics = analyzeGraphqlDocument(context.getDocument());
-
-    if (metrics.cost > maxCost) {
-      context.reportError(
-        new GraphQLError(`GraphQL query cost ${String(metrics.cost)} exceeds the configured limit of ${String(maxCost)}.`),
-      );
-    }
-
-    return {};
-  };
-}
-
-function analyzeGraphqlDocument(document: DocumentNode): GraphqlDocumentMetrics {
+function analyzeGraphqlOperation(
+  document: DocumentNode,
+  operationName: string | null | undefined,
+): GraphqlDocumentMetrics | undefined {
   const fragments = new Map<string, FragmentDefinitionNode>();
+  const operations: OperationDefinitionNode[] = [];
 
   for (const definition of document.definitions) {
     if (definition.kind === Kind.FRAGMENT_DEFINITION) {
       fragments.set(definition.name.value, definition);
+      continue;
     }
+
+    if (definition.kind === Kind.OPERATION_DEFINITION) {
+      operations.push(definition);
+    }
+  }
+
+  const operation = resolveOperationDefinition(operations, operationName);
+
+  if (!operation) {
+    return undefined;
   }
 
   const metrics: GraphqlDocumentMetrics = {
@@ -197,11 +231,18 @@ function analyzeGraphqlDocument(document: DocumentNode): GraphqlDocumentMetrics 
     activeFragments.delete(fragmentName);
   };
 
-  for (const definition of document.definitions) {
-    if (definition.kind === Kind.OPERATION_DEFINITION) {
-      walkSelectionSet(definition.selectionSet, 0, new Set<string>());
-    }
-  }
+  walkSelectionSet(operation.selectionSet, 0, new Set<string>());
 
   return metrics;
+}
+
+function resolveOperationDefinition(
+  operations: readonly OperationDefinitionNode[],
+  operationName: string | null | undefined,
+): OperationDefinitionNode | undefined {
+  if (operationName) {
+    return operations.find((operation) => operation.name?.value === operationName);
+  }
+
+  return operations.length === 1 ? operations[0] : undefined;
 }
