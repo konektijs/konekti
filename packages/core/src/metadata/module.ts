@@ -44,7 +44,7 @@ export function defineModuleMetadata(target: Function, metadata: ModuleMetadata)
   moduleMetadataStore.update(target, (existing) => ({
     controllers: metadata.controllers ?? existing?.controllers,
     exports: metadata.exports ?? existing?.exports,
-    global: metadata.global ?? existing?.global,
+    global: metadata.global !== undefined ? metadata.global : existing?.global,
     imports: metadata.imports ?? existing?.imports,
     middleware: metadata.middleware ?? existing?.middleware,
     providers: metadata.providers ?? existing?.providers,

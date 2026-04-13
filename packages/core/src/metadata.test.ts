@@ -80,6 +80,27 @@ describe('metadata helpers', () => {
     });
   });
 
+  it('preserves explicit global false across partial module metadata writes', () => {
+    class ExampleModule {}
+
+    defineModuleMetadata(ExampleModule, {
+      global: true,
+      providers: ['LoggerProvider'],
+    });
+    defineModuleMetadata(ExampleModule, {
+      global: false,
+    });
+
+    expect(getModuleMetadata(ExampleModule)).toEqual({
+      controllers: undefined,
+      exports: undefined,
+      global: false,
+      imports: undefined,
+      middleware: undefined,
+      providers: ['LoggerProvider'],
+    });
+  });
+
   it('round-trips controller and route metadata', () => {
     class ExampleController {
       getUser() {
