@@ -316,4 +316,129 @@ describe('@fluojs/websockets/cloudflare-workers', () => {
 
     await app.close();
   });
+
+  it('rejects anonymous upgrade requests before the Worker websocket upgrade completes', async () => {
+    const adapter = new TestWorkerAdapter();
+
+    @WebSocketGateway({ path: '/guarded' })
+    class GuardedGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [CloudflareWorkersWebSocketModule.forRoot({
+        upgrade: {
+          guard(request) {
+            return request instanceof Request && request.headers.get('authorization') === 'Bearer workers'
+              ? true
+              : { body: 'Authentication required.', status: 401 };
+          },
+        },
+      })],
+      providers: [GuardedGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    await app.listen();
+
+    const response = await adapter.getServer()?.fetch(new Request('https://worker.test/guarded', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    expect(response?.status).toBe(401);
+    expect(await response?.text()).toBe('Authentication required.');
+
+    await app.close();
+  });
+
+  it('rejects Worker upgrades that exceed the configured connection limit', async () => {
+    const adapter = new TestWorkerAdapter();
+
+    @WebSocketGateway({ path: '/limited' })
+    class LimitedGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [CloudflareWorkersWebSocketModule.forRoot({
+        limits: {
+          maxConnections: 1,
+        },
+      })],
+      providers: [LimitedGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    await app.listen();
+
+    const server = adapter.getServer();
+    const firstUpgrade = await server?.fetch(new Request('https://worker.test/limited', {
+      headers: { upgrade: 'websocket' },
+    }));
+    const secondUpgrade = await server?.fetch(new Request('https://worker.test/limited', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    expect(firstUpgrade?.status).toBe(200);
+    expect(secondUpgrade?.status).toBe(429);
+
+    await app.close();
+  });
+
+  it('closes Worker sockets when inbound payloads exceed the configured limit', async () => {
+    const adapter = new TestWorkerAdapter();
+
+    class GatewayState {
+      messages: unknown[] = [];
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/payload' })
+    class PayloadGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnMessage('ping')
+      onPing(payload: unknown) {
+        this.state.messages.push(payload);
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [CloudflareWorkersWebSocketModule.forRoot({
+        limits: {
+          maxPayloadBytes: 4,
+        },
+      })],
+      providers: [GatewayState, PayloadGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve(GatewayState);
+    await app.listen();
+
+    const server = adapter.getServer();
+    await server?.fetch(new Request('https://worker.test/payload', {
+      headers: { upgrade: 'websocket' },
+    }));
+    await flushAsyncWork();
+
+    const socket = server?.lastSocket;
+
+    if (!socket) {
+      throw new Error('Expected Worker test socket to be available after websocket upgrade.');
+    }
+
+    socket.emitMessage('hello');
+    await flushAsyncWork();
+
+    expect(socket.readyState).toBe(WEBSOCKET_CLOSED_READY_STATE);
+    expect(state.messages).toEqual([]);
+
+    await app.close();
+  });
 });

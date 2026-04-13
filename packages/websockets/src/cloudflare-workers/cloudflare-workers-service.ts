@@ -15,7 +15,7 @@ import {
   type ResolvedGatewayInstance,
 } from '../internal/shared.js';
 import { WEBSOCKET_OPTIONS_INTERNAL } from '../options-token.internal.js';
-import type { WebSocketGatewayDescriptor, WebSocketRoomService } from '../types.js';
+import type { WebSocketGatewayDescriptor, WebSocketRoomService, WebSocketUpgradeRejection } from '../types.js';
 import type {
   CloudflareWorkerWebSocket,
   CloudflareWorkerWebSocketBinding,
@@ -46,6 +46,8 @@ interface ConnectionHandlerState {
 }
 
 const DEFAULT_MAX_PENDING_MESSAGES_PER_SOCKET = 256;
+const DEFAULT_MAX_WEBSOCKET_CONNECTIONS = 1_000;
+const DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES = 1_048_576;
 const LIFECYCLE_LOG_CONTEXT = 'WebSocketGatewayLifecycleService';
 const WEBSOCKET_OPEN_READY_STATE = 1;
 
@@ -108,6 +110,22 @@ function resolveSupportedFetchStyleRealtimeCapability(
 
 function isWebSocketUpgradeRequest(request: Request): boolean {
   return request.headers.get('upgrade')?.toLowerCase() === 'websocket';
+}
+
+function isHttpExceptionLike(error: unknown): error is { message: string; status: number } {
+  return typeof error === 'object' && error !== null && 'message' in error && 'status' in error;
+}
+
+function resolveMessageByteLength(message: CloudflareWorkerWebSocketMessage): number {
+  if (typeof message === 'string') {
+    return Buffer.byteLength(message);
+  }
+
+  if (message instanceof Blob) {
+    return message.size;
+  }
+
+  return message.byteLength;
 }
 
 /**
@@ -195,6 +213,15 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
           return new Response(null, { status: 404 });
         }
 
+        const rejection = await this.resolveUpgradeRejection(request, targetPath);
+
+        if (rejection) {
+          return new Response(rejection.body ?? null, {
+            headers: rejection.headers,
+            status: rejection.status,
+          });
+        }
+
         const { response, serverSocket } = host.upgrade(request);
         serverSocket.accept();
         void this.bindConnectionHandlers(serverSocket, request, matchedDescriptors).catch((error) => {
@@ -268,6 +295,10 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
     request: Request,
   ): void {
     socket.addEventListener('message', (event: MessageEvent<CloudflareWorkerWebSocketMessage>) => {
+      if (this.closeOversizedPayload(state.socketId, socket, event.data)) {
+        return;
+      }
+
       if (!state.handlersReady) {
         this.bufferIncomingMessage(state, socket, event.data);
         return;
@@ -557,6 +588,90 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
     }
 
     return '';
+  }
+
+  private async resolveUpgradeRejection(
+    request: Request,
+    path: string,
+  ): Promise<WebSocketUpgradeRejection | undefined> {
+    if (this.socketRegistry.size >= this.resolveMaxConnectionCount()) {
+      return {
+        body: 'WebSocket connection limit exceeded.',
+        status: 429,
+      };
+    }
+
+    const guard = this.moduleOptions.upgrade?.guard;
+
+    if (!guard) {
+      return undefined;
+    }
+
+    try {
+      const result = await guard(request, {
+        activeConnectionCount: this.socketRegistry.size,
+        path,
+      });
+
+      if (result === false) {
+        return {
+          body: 'WebSocket upgrade rejected.',
+          status: 403,
+        };
+      }
+
+      return typeof result === 'object' && result !== null && 'status' in result
+        ? result as WebSocketUpgradeRejection
+        : undefined;
+    } catch (error) {
+      if (isHttpExceptionLike(error)) {
+        return {
+          body: error.message,
+          status: error.status,
+        };
+      }
+
+      throw error;
+    }
+  }
+
+  private closeOversizedPayload(
+    socketId: string,
+    socket: CloudflareWorkerWebSocket,
+    message: CloudflareWorkerWebSocketMessage,
+  ): boolean {
+    const maxPayloadBytes = this.resolveMaxPayloadBytes();
+
+    if (resolveMessageByteLength(message) <= maxPayloadBytes) {
+      return false;
+    }
+
+    socket.close(1009, 'Payload too large');
+    this.logger.warn(
+      `WebSocket connection ${socketId} exceeded payload limit (${String(maxPayloadBytes)} bytes). Connection closed.`,
+      LIFECYCLE_LOG_CONTEXT,
+    );
+    return true;
+  }
+
+  private resolveMaxConnectionCount(): number {
+    const configured = this.moduleOptions.limits?.maxConnections;
+
+    if (!isFinitePositiveInteger(configured)) {
+      return DEFAULT_MAX_WEBSOCKET_CONNECTIONS;
+    }
+
+    return configured;
+  }
+
+  private resolveMaxPayloadBytes(): number {
+    const configured = this.moduleOptions.limits?.maxPayloadBytes;
+
+    if (!isFinitePositiveInteger(configured)) {
+      return DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES;
+    }
+
+    return configured;
   }
 
   private async shutdown(): Promise<void> {
