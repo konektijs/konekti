@@ -38,9 +38,12 @@ async function findAvailablePort(): Promise<number> {
   });
 }
 
-async function postGraphql(port: number, query: string): Promise<unknown> {
+async function postGraphql(port: number, query: string, options?: { operationName?: string }): Promise<unknown> {
   const response = await fetch(`http://127.0.0.1:${String(port)}/graphql`, {
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({
+      ...(options?.operationName ? { operationName: options.operationName } : {}),
+      query,
+    }),
     headers: {
       'content-type': 'application/json',
     },
@@ -589,6 +592,116 @@ describe('@fluojs/graphql', () => {
     };
 
     expect(result.errors?.[0]?.message).toBe('GraphQL query depth 3 exceeds the configured limit of 2.');
+
+    await app.close();
+  });
+
+  it('evaluates request budgets against the selected operation only', async () => {
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [
+        GraphqlModule.forRoot({
+          limits: {
+            maxDepth: 2,
+          },
+          schema: createGuardrailSchema(),
+        }),
+      ],
+    });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapNodeApplication(AppModule, {
+      cors: false,
+      port,
+    });
+
+    await app.listen();
+
+    await expect(
+      postGraphql(
+        port,
+        'query SmallOp { greeting } query HeavyOp { child { child { value } } }',
+        { operationName: 'SmallOp' },
+      ),
+    ).resolves.toEqual({
+      data: {
+        greeting: 'hello',
+      },
+    });
+
+    await app.close();
+  });
+
+  it('ignores heavy fragments that are unreachable from the selected operation', async () => {
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [
+        GraphqlModule.forRoot({
+          limits: {
+            maxDepth: 2,
+          },
+          schema: createGuardrailSchema(),
+        }),
+      ],
+    });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapNodeApplication(AppModule, {
+      cors: false,
+      port,
+    });
+
+    await app.listen();
+
+    await expect(
+      postGraphql(
+        port,
+        'query SmallOp { greeting } query HeavyOp { ...HeavyFields } fragment HeavyFields on Query { child { child { value } } }',
+        { operationName: 'SmallOp' },
+      ),
+    ).resolves.toEqual({
+      data: {
+        greeting: 'hello',
+      },
+    });
+
+    await app.close();
+  });
+
+  it('still rejects the selected operation when it alone exceeds depth, complexity, and cost', async () => {
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [
+        GraphqlModule.forRoot({
+          limits: {
+            maxComplexity: 2,
+            maxCost: 5,
+            maxDepth: 2,
+          },
+          schema: createGuardrailSchema(),
+        }),
+      ],
+    });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapNodeApplication(AppModule, {
+      cors: false,
+      port,
+    });
+
+    await app.listen();
+
+    const result = (await postGraphql(port, 'query HeavyOp { child { child { value } } }', {
+      operationName: 'HeavyOp',
+    })) as {
+      errors?: Array<{ message: string }>;
+    };
+
+    expect(result.errors?.map((error) => error.message)).toEqual([
+      'GraphQL query depth 3 exceeds the configured limit of 2.',
+      'GraphQL query complexity 3 exceeds the configured limit of 2.',
+      'GraphQL query cost 6 exceeds the configured limit of 5.',
+    ]);
 
     await app.close();
   });
