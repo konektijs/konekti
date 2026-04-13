@@ -23,6 +23,26 @@ type NodeFrameworkRequest = FrameworkRequest & {
   rawBody?: Uint8Array;
 };
 
+export class NodeRequestPayloadTooLargeException extends PayloadTooLargeException {
+  constructor(private readonly request: IncomingMessage) {
+    super('Request body exceeds the size limit.');
+  }
+
+  prepareResponse(response: ServerResponse): void {
+    response.setHeader('Connection', 'close');
+
+    const destroyRequest = () => {
+      if (!this.request.destroyed) {
+        this.request.destroy();
+      }
+    };
+
+    response.once('finish', destroyRequest);
+    response.once('close', destroyRequest);
+    this.request.pause();
+  }
+}
+
 /**
  * Creates a framework request from a raw Node incoming message.
  *
@@ -210,7 +230,7 @@ async function readRequestBody(
     totalSize += buf.byteLength;
 
     if (totalSize > maxBodySize) {
-      throw new PayloadTooLargeException('Request body exceeds the size limit.');
+      throw new NodeRequestPayloadTooLargeException(request);
     }
 
     chunks.push(buf);
