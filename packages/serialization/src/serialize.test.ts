@@ -200,6 +200,43 @@ describe('serialize', () => {
     expect(serialized.second).toBe(serialized.first);
   });
 
+  it('inherits base-class expose, exclude, and transform metadata on derived instances', () => {
+    @Expose({ excludeExtraneous: true })
+    class BaseView {
+      @Expose()
+      id: string;
+
+      @Expose()
+      @Transform((value) => String(value).toUpperCase())
+      name: string;
+
+      @Exclude()
+      internalToken: string;
+
+      constructor(id: string, name: string, internalToken: string) {
+        this.id = id;
+        this.name = name;
+        this.internalToken = internalToken;
+      }
+    }
+
+    class DerivedView extends BaseView {
+      @Expose()
+      role: string;
+
+      constructor(id: string, name: string, internalToken: string, role: string) {
+        super(id, name, internalToken);
+        this.role = role;
+      }
+    }
+
+    expect(serialize(new DerivedView('u-1', 'fluo', 'secret', 'admin'))).toEqual({
+      id: 'u-1',
+      name: 'FLUO',
+      role: 'admin',
+    });
+  });
+
   it('serializes enumerable symbol-keyed properties in plain objects', () => {
     const token = Symbol('token');
     const input: Record<string | symbol, unknown> = {
@@ -211,6 +248,33 @@ describe('serialize', () => {
 
     expect(serialized.regular).toBe('value');
     expect(serialized[token]).toEqual({ nested: true });
+  });
+
+  it('serializes null-prototype records without crashing', () => {
+    const input = Object.create(null) as Record<string, unknown>;
+    input.id = 'p-1';
+    input.nested = Object.create(null) as Record<string, unknown>;
+    (input.nested as Record<string, unknown>).ok = true;
+
+    expect(serialize(input)).toEqual({
+      id: 'p-1',
+      nested: { ok: true },
+    });
+  });
+
+  it('treats plain objects with unsafe constructor fields as plain records', () => {
+    const input = {
+      constructor: {
+        danger: true,
+      },
+      nested: {
+        constructor: 'still-data',
+        ok: true,
+      },
+      ok: true,
+    };
+
+    expect(serialize(input)).toEqual(input);
   });
 
   it('preserves non-JSON leaf values instead of coercing them implicitly', () => {
