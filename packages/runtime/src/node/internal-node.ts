@@ -1,4 +1,4 @@
-import { createServer as createHttpServer, type RequestListener } from 'node:http';
+import { createServer as createHttpServer, type RequestListener, type ServerResponse } from 'node:http';
 import { createServer as createHttpsServer, type ServerOptions as HttpsServerOptions } from 'node:https';
 import type { AddressInfo, Socket } from 'node:net';
 
@@ -21,6 +21,7 @@ import {
 } from './internal-node-compression.js';
 import {
   createFrameworkRequest,
+  NodeRequestPayloadTooLargeException,
   createRequestSignal,
   resolveRequestIdFromHeaders,
 } from './internal-node-request.js';
@@ -227,6 +228,10 @@ function createNodeRequestResponseFactory(
       return resolveRequestIdFromHeaders(request.headers);
     },
     async writeErrorResponse(error, response, requestId) {
+      if (error instanceof NodeRequestPayloadTooLargeException) {
+        error.prepareResponse((response as MutableFrameworkResponse & { raw: ServerResponse }).raw);
+      }
+
       await writeNodeAdapterErrorResponse(error, response, requestId);
     },
   };
