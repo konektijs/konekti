@@ -1,24 +1,35 @@
 import type { IncomingMessage } from 'node:http';
+import { EventEmitter } from 'node:events';
 
 import { describe, expect, it } from 'vitest';
 
 import { createFrameworkRequest } from './node-request.js';
+import { NodeRequestPayloadTooLargeException } from './internal-node-request.js';
 
 function createIncomingMessage(options: {
   body?: string | Uint8Array;
+  bodyChunks?: Array<string | Uint8Array>;
+  destroy?: () => void;
   headers: Record<string, string | string[] | undefined>;
   method?: string;
+  pause?: () => void;
   url?: string;
 }): IncomingMessage {
   const chunks: Uint8Array[] = [];
 
-  if (options.body !== undefined) {
+  if (options.bodyChunks) {
+    for (const chunk of options.bodyChunks) {
+      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk, 'utf8') : chunk);
+    }
+  } else if (options.body !== undefined) {
     chunks.push(typeof options.body === 'string' ? Buffer.from(options.body, 'utf8') : options.body);
   }
 
   return {
+    destroy: options.destroy,
     headers: options.headers,
     method: options.method ?? 'GET',
+    pause: options.pause,
     async *[Symbol.asyncIterator]() {
       for (const chunk of chunks) {
         yield chunk;
@@ -74,5 +85,43 @@ describe('node request adapter', () => {
     const frameworkRequest = await createFrameworkRequest(request, new AbortController().signal);
 
     expect(frameworkRequest.body).toEqual({ ok: true });
+  });
+
+  it('destroys the raw Node request stream when maxBodySize is exceeded', async () => {
+    let destroyed = false;
+    let paused = false;
+    const request = createIncomingMessage({
+      bodyChunks: ['12345', '67890'],
+      destroy: () => {
+        destroyed = true;
+      },
+      headers: {
+        'content-type': 'text/plain',
+      },
+      method: 'POST',
+      pause: () => {
+        paused = true;
+      },
+      url: '/body',
+    });
+
+    const response = new EventEmitter() as EventEmitter & {
+      headers: Record<string, string>;
+      setHeader: (name: string, value: string) => void;
+    };
+    response.headers = {};
+    response.setHeader = (name, value) => {
+      response.headers[name] = value;
+    };
+
+    const thrown = await createFrameworkRequest(request, new AbortController().signal, undefined, 8).catch((error: unknown) => error);
+
+    expect(thrown).toBeInstanceOf(NodeRequestPayloadTooLargeException);
+    (thrown as NodeRequestPayloadTooLargeException).prepareResponse(response as never);
+
+    expect(paused).toBe(true);
+    expect(response.headers.Connection).toBe('close');
+    response.emit('finish');
+    expect(destroyed).toBe(true);
   });
 });
