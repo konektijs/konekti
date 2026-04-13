@@ -55,7 +55,7 @@ export class AuthModule {}
 Use `@UseAuth()` and `@RequireScopes()` to enforce authentication.
 
 ```typescript
-import { Controller, Get } from '@fluojs/http';
+import { Controller, Get, type RequestContext } from '@fluojs/http';
 import { UseAuth, RequireScopes } from '@fluojs/passport';
 
 @Controller('/profile')
@@ -86,10 +86,16 @@ const googleBridge = createPassportJsStrategyBridge('google', GoogleStrategy, {
 The package provides a built-in `RefreshTokenStrategy` and `RefreshTokenService` to handle secure token rotation and revocation.
 
 ```typescript
-@Post('/refresh')
-@UseAuth('refresh-token')
-async refresh(input: never, ctx: RequestContext) {
-  return ctx.principal; // Contains new token pair
+import { Controller, Post, type RequestContext } from '@fluojs/http';
+import { UseAuth } from '@fluojs/passport';
+
+@Controller('/auth')
+export class AuthController {
+  @Post('/refresh')
+  @UseAuth('refresh-token')
+  async refresh(input: never, ctx: RequestContext) {
+    return ctx.principal; // Contains new token pair
+  }
 }
 ```
 
