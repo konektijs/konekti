@@ -135,6 +135,7 @@ function resolveMessageByteLength(message: CloudflareWorkerWebSocketMessage): nu
 export class CloudflareWorkersWebSocketGatewayLifecycleService
   implements OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, WebSocketRoomService
 {
+  private pendingUpgradeReservations = 0;
   private readonly roomSockets = new Map<string, Set<string>>();
   private shutdownPromise: Promise<void> | undefined;
   private readonly socketRegistry = new Map<string, CloudflareWorkerWebSocket>();
@@ -222,7 +223,16 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
           });
         }
 
-        const { response, serverSocket } = host.upgrade(request);
+        let response: Response;
+        let serverSocket: CloudflareWorkerWebSocket;
+
+        try {
+          ({ response, serverSocket } = host.upgrade(request));
+        } catch (error) {
+          this.releaseUpgradeReservation();
+          throw error;
+        }
+
         serverSocket.accept();
         void this.bindConnectionHandlers(serverSocket, request, matchedDescriptors).catch((error) => {
           this.unregisterSocket(this.findSocketId(serverSocket));
@@ -260,6 +270,7 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
   ): Promise<void> {
     const state = this.createConnectionHandlerState(request, descriptors);
 
+    this.releaseUpgradeReservation();
     this.socketRegistry.set(state.socketId, socket);
     this.attachConnectionListeners(state, socket, request);
 
@@ -594,7 +605,7 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
     request: Request,
     path: string,
   ): Promise<WebSocketUpgradeRejection | undefined> {
-    if (this.socketRegistry.size >= this.resolveMaxConnectionCount()) {
+    if (!this.tryReserveUpgradeSlot()) {
       return {
         body: 'WebSocket connection limit exceeded.',
         status: 429,
@@ -609,21 +620,27 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
 
     try {
       const result = await guard(request, {
-        activeConnectionCount: this.socketRegistry.size,
+        activeConnectionCount: this.resolveReservedConnectionCount() - 1,
         path,
       });
 
       if (result === false) {
+        this.releaseUpgradeReservation();
         return {
           body: 'WebSocket upgrade rejected.',
           status: 403,
         };
       }
 
-      return typeof result === 'object' && result !== null && 'status' in result
-        ? result as WebSocketUpgradeRejection
-        : undefined;
+      if (typeof result === 'object' && result !== null && 'status' in result) {
+        this.releaseUpgradeReservation();
+        return result as WebSocketUpgradeRejection;
+      }
+
+      return undefined;
     } catch (error) {
+      this.releaseUpgradeReservation();
+
       if (isHttpExceptionLike(error)) {
         return {
           body: error.message,
@@ -664,6 +681,25 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
     return configured;
   }
 
+  private resolveReservedConnectionCount(): number {
+    return this.socketRegistry.size + this.pendingUpgradeReservations;
+  }
+
+  private tryReserveUpgradeSlot(): boolean {
+    if (this.resolveReservedConnectionCount() >= this.resolveMaxConnectionCount()) {
+      return false;
+    }
+
+    this.pendingUpgradeReservations += 1;
+    return true;
+  }
+
+  private releaseUpgradeReservation(): void {
+    if (this.pendingUpgradeReservations > 0) {
+      this.pendingUpgradeReservations -= 1;
+    }
+  }
+
   private resolveMaxPayloadBytes(): number {
     const configured = this.moduleOptions.limits?.maxPayloadBytes;
 
@@ -689,6 +725,7 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
       this.adapter.configureWebSocketBinding(undefined);
     }
 
+    this.pendingUpgradeReservations = 0;
     this.socketRegistry.clear();
     this.socketRooms.clear();
     this.roomSockets.clear();

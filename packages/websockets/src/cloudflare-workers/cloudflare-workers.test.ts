@@ -199,6 +199,17 @@ async function flushAsyncWork(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, reject, resolve };
+}
+
 describe('@fluojs/websockets/cloudflare-workers', () => {
   it('exposes the explicit Cloudflare Workers websocket seam', () => {
     expect(workerPublicApi).toHaveProperty('CloudflareWorkersWebSocketModule');
@@ -283,7 +294,7 @@ describe('@fluojs/websockets/cloudflare-workers', () => {
       adapter,
       rootModule: AppModule,
     });
-    const state = await app.container.resolve(GatewayState);
+    const state = await app.container.resolve<GatewayState>(GatewayState);
 
     await app.listen();
 
@@ -389,6 +400,55 @@ describe('@fluojs/websockets/cloudflare-workers', () => {
     await app.close();
   });
 
+  it('rejects concurrent Worker upgrades once one pending upgrade already reserved the last slot', async () => {
+    const adapter = new TestWorkerAdapter();
+    const guardGate = createDeferred<void>();
+
+    @WebSocketGateway({ path: '/limited-race' })
+    class LimitedGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [CloudflareWorkersWebSocketModule.forRoot({
+        limits: {
+          maxConnections: 1,
+        },
+        upgrade: {
+          async guard() {
+            await guardGate.promise;
+            return true;
+          },
+        },
+      })],
+      providers: [LimitedGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    await app.listen();
+
+    const server = adapter.getServer();
+    const firstUpgradePromise = server?.fetch(new Request('https://worker.test/limited-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const secondUpgrade = await server?.fetch(new Request('https://worker.test/limited-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    expect(secondUpgrade?.status).toBe(429);
+
+    guardGate.resolve();
+
+    expect((await firstUpgradePromise)?.status).toBe(200);
+
+    await app.close();
+  });
+
   it('closes Worker sockets when inbound payloads exceed the configured limit', async () => {
     const adapter = new TestWorkerAdapter();
 
@@ -418,7 +478,7 @@ describe('@fluojs/websockets/cloudflare-workers', () => {
     });
 
     const app = await bootstrapApplication({ adapter, rootModule: AppModule });
-    const state = await app.container.resolve(GatewayState);
+    const state = await app.container.resolve<GatewayState>(GatewayState);
     await app.listen();
 
     const server = adapter.getServer();

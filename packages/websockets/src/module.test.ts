@@ -911,6 +911,36 @@ describe('@fluojs/websockets', () => {
     await app.close();
   });
 
+  it('reserves upgrade slots while an async Node guard is still pending', async () => {
+    const gate = createDeferred<void>();
+    const service = createTestLifecycleService({
+      limits: {
+        maxConnections: 1,
+      },
+      upgrade: {
+        async guard() {
+          await gate.promise;
+          return true;
+        },
+      },
+    });
+    const resolveUpgradeRejection = Reflect.get(service, 'resolveUpgradeRejection') as (
+      request: IncomingMessage,
+      path: string,
+    ) => Promise<{ body?: string; status: number } | undefined>;
+
+    const firstPromise = resolveUpgradeRejection.call(service, { headers: {} } as IncomingMessage, '/limited-race');
+    await Promise.resolve();
+
+    const secondResult = await resolveUpgradeRejection.call(service, { headers: {} } as IncomingMessage, '/limited-race');
+
+    expect(secondResult).toEqual({ body: 'WebSocket connection limit exceeded.', status: 429 });
+
+    gate.resolve();
+
+    await expect(firstPromise).resolves.toBeUndefined();
+  });
+
   it('closes websocket connections when inbound payloads exceed the configured limit', async () => {
     class GatewayState {
       messages: unknown[] = [];

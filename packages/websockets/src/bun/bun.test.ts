@@ -145,6 +145,17 @@ async function flushAsyncWork(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, reject, resolve };
+}
+
 describe('@fluojs/websockets/bun', () => {
   it('exposes the explicit Bun websocket seam', () => {
     expect(bunPublicApi).toHaveProperty('BunWebSocketModule');
@@ -229,7 +240,7 @@ describe('@fluojs/websockets/bun', () => {
       adapter,
       rootModule: AppModule,
     });
-    const state = await app.container.resolve(GatewayState);
+    const state = await app.container.resolve<GatewayState>(GatewayState);
 
     await app.listen();
 
@@ -334,6 +345,55 @@ describe('@fluojs/websockets/bun', () => {
     await app.close();
   });
 
+  it('rejects concurrent Bun upgrades once one pending upgrade already reserved the last slot', async () => {
+    const adapter = new TestBunAdapter();
+    const guardGate = createDeferred<void>();
+
+    @WebSocketGateway({ path: '/limited-race' })
+    class LimitedGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [BunWebSocketModule.forRoot({
+        limits: {
+          maxConnections: 1,
+        },
+        upgrade: {
+          async guard() {
+            await guardGate.promise;
+            return true;
+          },
+        },
+      })],
+      providers: [LimitedGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    await app.listen();
+
+    const server = adapter.getServer();
+    const firstUpgradePromise = server?.fetch(new Request('http://127.0.0.1:3000/limited-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const secondUpgrade = await server?.fetch(new Request('http://127.0.0.1:3000/limited-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    expect(secondUpgrade?.status).toBe(429);
+
+    guardGate.resolve();
+
+    expect(await firstUpgradePromise).toBeUndefined();
+
+    await app.close();
+  });
+
   it('closes Bun sockets when inbound payloads exceed the configured limit', async () => {
     const adapter = new TestBunAdapter();
 
@@ -363,7 +423,7 @@ describe('@fluojs/websockets/bun', () => {
     });
 
     const app = await bootstrapApplication({ adapter, rootModule: AppModule });
-    const state = await app.container.resolve(GatewayState);
+    const state = await app.container.resolve<GatewayState>(GatewayState);
     await app.listen();
 
     const server = adapter.getServer();

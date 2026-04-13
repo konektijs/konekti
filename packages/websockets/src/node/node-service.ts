@@ -241,6 +241,7 @@ export class NodeWebSocketGatewayLifecycleService
   private attachments: GatewayAttachment[] = [];
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   private ownedUpgradeServers: OwnedGatewayServerRegistration[] = [];
+  private pendingUpgradeReservations = 0;
   private readonly pingPending = new Set<string>();
   private readonly pingSentAt = new Map<string, number>();
   private readonly roomSockets = new Map<string, Set<string>>();
@@ -488,9 +489,14 @@ export class NodeWebSocketGatewayLifecycleService
       return;
     }
 
-    attachment.server.handleUpgrade(request, socket, head, (websocket: WebSocket) => {
-      attachment.server.emit('connection', websocket, request);
-    });
+    try {
+      attachment.server.handleUpgrade(request, socket, head, (websocket: WebSocket) => {
+        attachment.server.emit('connection', websocket, request);
+      });
+    } catch (error) {
+      this.releaseUpgradeReservation();
+      throw error;
+    }
   }
 
   private resolveUpgradeServer(): NodeUpgradeServer {
@@ -525,6 +531,7 @@ export class NodeWebSocketGatewayLifecycleService
     state: ConnectionHandlerState,
     socket: WebSocket,
   ): void {
+    this.releaseUpgradeReservation();
     this.socketRegistry.set(state.socketId, socket);
   }
 
@@ -879,7 +886,7 @@ export class NodeWebSocketGatewayLifecycleService
     request: IncomingMessage,
     path: string,
   ): Promise<WebSocketUpgradeRejection | undefined> {
-    if (this.socketRegistry.size >= this.resolveMaxConnectionCount()) {
+    if (!this.tryReserveUpgradeSlot()) {
       return {
         body: 'WebSocket connection limit exceeded.',
         status: 429,
@@ -894,19 +901,27 @@ export class NodeWebSocketGatewayLifecycleService
 
     try {
       const result = await guard(request, {
-        activeConnectionCount: this.socketRegistry.size,
+        activeConnectionCount: this.resolveReservedConnectionCount() - 1,
         path,
       });
 
       if (result === false) {
+        this.releaseUpgradeReservation();
         return {
           body: 'WebSocket upgrade rejected.',
           status: 403,
         };
       }
 
-      return isUpgradeRejection(result) ? result : undefined;
+      if (isUpgradeRejection(result)) {
+        this.releaseUpgradeReservation();
+        return result;
+      }
+
+      return undefined;
     } catch (error) {
+      this.releaseUpgradeReservation();
+
       if (isHttpExceptionLike(error)) {
         return {
           body: error.message,
@@ -941,6 +956,25 @@ export class NodeWebSocketGatewayLifecycleService
     }
 
     return configured;
+  }
+
+  private resolveReservedConnectionCount(): number {
+    return this.socketRegistry.size + this.pendingUpgradeReservations;
+  }
+
+  private tryReserveUpgradeSlot(): boolean {
+    if (this.resolveReservedConnectionCount() >= this.resolveMaxConnectionCount()) {
+      return false;
+    }
+
+    this.pendingUpgradeReservations += 1;
+    return true;
+  }
+
+  private releaseUpgradeReservation(): void {
+    if (this.pendingUpgradeReservations > 0) {
+      this.pendingUpgradeReservations -= 1;
+    }
   }
 
   private resolveMaxPayloadBytes(): number {
@@ -1149,6 +1183,7 @@ export class NodeWebSocketGatewayLifecycleService
     this.roomSockets.clear();
     this.pingPending.clear();
     this.pingSentAt.clear();
+    this.pendingUpgradeReservations = 0;
   }
 
   /**
