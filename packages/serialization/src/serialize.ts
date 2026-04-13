@@ -20,6 +20,17 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return prototype === Object.prototype || prototype === null;
 }
 
+function getSerializableConstructor(value: Record<string | symbol, unknown>): Function | undefined {
+  const prototype = Object.getPrototypeOf(value);
+
+  if (prototype === null || prototype === Object.prototype) {
+    return undefined;
+  }
+
+  const constructor = Reflect.get(prototype, 'constructor');
+  return typeof constructor === 'function' ? constructor : undefined;
+}
+
 function applyTransforms(value: unknown, metadata: SerializationFieldMetadata): unknown {
   let transformed = value;
 
@@ -132,7 +143,12 @@ function serializeClassInstance(
   value: Record<string | symbol, unknown>,
   context: SerializationContext,
 ): Record<string | symbol, unknown> {
-  const constructor = value.constructor as Function;
+  const constructor = getSerializableConstructor(value);
+
+  if (!constructor) {
+    return serializeRecord(value, context);
+  }
+
   const { classOptions, fieldMetadata } = getCachedMetadata(constructor, context);
   const hasMetadata = fieldMetadata.size > 0 || classOptions.excludeExtraneous === true;
 
@@ -195,6 +211,10 @@ function serializeInternal<T = unknown>(value: T, context: SerializationContext)
   }
 
   if (isObjectLike(value)) {
+    if (isPlainObject(value)) {
+      return serializeRecord(value, context);
+    }
+
     return serializeClassInstance(value, context);
   }
 

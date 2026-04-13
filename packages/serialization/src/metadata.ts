@@ -53,8 +53,29 @@ function getClassMetadataObject(metadata: unknown): ClassSerializationOptions {
   return created;
 }
 
-function getMetadataBagFromConstructor(constructor: Function): StandardMetadataBag | undefined {
+function getOwnMetadataBagFromConstructor(constructor: Function): StandardMetadataBag | undefined {
+  if (!Object.prototype.hasOwnProperty.call(constructor, metadataSymbol)) {
+    return undefined;
+  }
+
   return (constructor as unknown as Record<PropertyKey, unknown>)[metadataSymbol] as StandardMetadataBag | undefined;
+}
+
+function getConstructorMetadataBags(constructor: Function): StandardMetadataBag[] {
+  const bags: StandardMetadataBag[] = [];
+  let current: Function | null = constructor;
+
+  while (current && current !== Function.prototype) {
+    const bag = getOwnMetadataBagFromConstructor(current);
+
+    if (bag) {
+      bags.unshift(bag);
+    }
+
+    current = Object.getPrototypeOf(current) as Function | null;
+  }
+
+  return bags;
 }
 
 export function updateClassSerializationOptions(metadata: unknown, partial: ClassSerializationOptions): void {
@@ -71,29 +92,33 @@ export function updateFieldSerializationMetadata(
 }
 
 export function getClassSerializationOptions(constructor: Function): ClassSerializationOptions {
-  const bag = getMetadataBagFromConstructor(constructor);
-  return {
-    ...(bag?.[standardSerializationClassMetadataKey] as ClassSerializationOptions | undefined),
-  };
+  return getConstructorMetadataBags(constructor).reduce<ClassSerializationOptions>((options, bag) => ({
+    ...options,
+    ...(bag[standardSerializationClassMetadataKey] as ClassSerializationOptions | undefined),
+  }), {});
 }
 
 export function getFieldSerializationMetadata(constructor: Function): Map<MetadataPropertyKey, SerializationFieldMetadata> {
-  const bag = getMetadataBagFromConstructor(constructor);
-  const fieldMetadata = bag?.[standardSerializationFieldMetadataKey] as
-    | Map<MetadataPropertyKey, SerializationFieldMetadata>
-    | undefined;
+  const merged = new Map<MetadataPropertyKey, SerializationFieldMetadata>();
 
-  if (!fieldMetadata) {
-    return new Map<MetadataPropertyKey, SerializationFieldMetadata>();
+  for (const bag of getConstructorMetadataBags(constructor)) {
+    const fieldMetadata = bag[standardSerializationFieldMetadataKey] as
+      | Map<MetadataPropertyKey, SerializationFieldMetadata>
+      | undefined;
+
+    if (!fieldMetadata) {
+      continue;
+    }
+
+    for (const [propertyKey, metadata] of fieldMetadata.entries()) {
+      const current = merged.get(propertyKey);
+      merged.set(propertyKey, {
+        ...current,
+        ...metadata,
+        transforms: [...(current?.transforms ?? []), ...(metadata.transforms ?? [])],
+      });
+    }
   }
 
-  return new Map(
-    [...fieldMetadata.entries()].map(([propertyKey, metadata]) => [
-      propertyKey,
-      {
-        ...metadata,
-        transforms: metadata.transforms ? [...metadata.transforms] : undefined,
-      },
-    ]),
-  );
+  return merged;
 }
