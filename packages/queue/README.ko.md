@@ -101,6 +101,8 @@ QueueModule.forRoot({ clientName: 'jobs' })
 
 모든 재시도에 실패한 작업은 Redis의 데드 레터 리스트(`fluo:queue:dead-letter:<jobName>`)로 자동 이동되어, 나중에 수동으로 확인하거나 복구할 수 있습니다.
 
+`QueueModule.forRoot()`는 기본적으로 작업별 최근 데드 레터 엔트리 `1_000`개만 유지합니다. 무제한 보관이 꼭 필요하면 `defaultDeadLetterMaxEntries: false`로 opt-out 하고, 더 엄격한 운영 예산이 필요하면 더 작은 양의 정수를 지정하세요.
+
 ## 공개 API 개요
 
 ### 핵심 구성 요소

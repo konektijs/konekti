@@ -101,6 +101,8 @@ Workers can be configured with a maximum number of attempts and backoff strategi
 
 Jobs that fail all retry attempts are automatically moved to a dead-letter list in Redis (`fluo:queue:dead-letter:<jobName>`) for manual inspection or recovery.
 
+`QueueModule.forRoot()` keeps the most recent `1_000` dead-letter entries per job by default. Set `defaultDeadLetterMaxEntries: false` to opt out, or provide a smaller positive number when operators need a tighter retention budget.
+
 ## Public API Overview
 
 ### Core
