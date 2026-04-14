@@ -18,6 +18,7 @@ export interface JwtVerifierOptions {
   clockSkewSeconds?: number;
   issuer?: string;
   jwksCacheTtl?: number;
+  jwksRequestTimeoutMs?: number;
   jwksUri?: string;
   keys?: JwtKeyEntry[];
   maxAge?: number;

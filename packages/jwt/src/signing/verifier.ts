@@ -242,7 +242,9 @@ export class DefaultJwtVerifier {
   private readonly refreshVerificationOptions: JwtVerifierOptions | undefined;
 
   constructor(private readonly options: JwtVerifierOptions) {
-    this.jwksClient = options.jwksUri ? new JwksClient(options.jwksUri, options.jwksCacheTtl) : undefined;
+    this.jwksClient = options.jwksUri
+      ? new JwksClient(options.jwksUri, options.jwksCacheTtl, options.jwksRequestTimeoutMs)
+      : undefined;
     this.keyResolutionState = createKeyResolutionState(options.keys);
     this.refreshVerificationOptions =
       options.refreshToken

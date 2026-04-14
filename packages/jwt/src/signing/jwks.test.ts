@@ -88,6 +88,24 @@ describe('JwksClient', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it('fails fast when the jwks fetch exceeds the configured timeout budget', async () => {
+    globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      return new Promise((_, reject) => {
+        init?.signal?.addEventListener(
+          'abort',
+          () => {
+            reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' }));
+          },
+          { once: true },
+        );
+      });
+    }) as typeof fetch;
+
+    const client = new JwksClient('https://example.test/.well-known/jwks.json', 30_000, 5);
+
+    await expect(client.getSigningKey('key-1')).rejects.toThrow('JWKS fetch timed out after 5ms.');
+  });
 });
 
 describe('DefaultJwtVerifier with jwksUri', () => {
@@ -118,5 +136,30 @@ describe('DefaultJwtVerifier with jwksUri', () => {
     await expect(verifier.verifyAccessToken(token)).resolves.toMatchObject({
       subject: 'jwks-user',
     });
+  });
+
+  it('passes the jwks request timeout through verifier options', async () => {
+    globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      return new Promise((_, reject) => {
+        init?.signal?.addEventListener(
+          'abort',
+          () => {
+            reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' }));
+          },
+          { once: true },
+        );
+      });
+    }) as typeof fetch;
+
+    const verifier = new DefaultJwtVerifier({
+      algorithms: ['RS256'],
+      jwksRequestTimeoutMs: 5,
+      jwksUri: 'https://example.test/.well-known/jwks.json',
+    });
+
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const token = createRs256Token(privateKey, 'key-1');
+
+    await expect(verifier.verifyAccessToken(token)).rejects.toThrow('JWKS fetch timed out after 5ms.');
   });
 });

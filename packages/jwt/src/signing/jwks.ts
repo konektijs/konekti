@@ -17,7 +17,12 @@ export class JwksClient {
   constructor(
     private readonly uri: string,
     private readonly cacheTtl: number = 600_000,
+    private readonly requestTimeoutMs: number = 5_000,
   ) {}
+
+  private isAbortError(error: unknown): boolean {
+    return error instanceof Error && error.name === 'AbortError';
+  }
 
   async getSigningKey(kid: string): Promise<KeyObject> {
     const now = Date.now();
@@ -52,11 +57,21 @@ export class JwksClient {
 
   private async fetchKeys(): Promise<Jwk[]> {
     let response: Response;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, this.requestTimeoutMs);
 
     try {
-      response = await fetch(this.uri);
-    } catch {
+      response = await fetch(this.uri, { signal: controller.signal });
+    } catch (error) {
+      if (this.isAbortError(error)) {
+        throw new JwtConfigurationError(`JWKS fetch timed out after ${String(this.requestTimeoutMs)}ms.`);
+      }
+
       throw new JwtConfigurationError(`Failed to fetch JWKS from "${this.uri}".`);
+    } finally {
+      clearTimeout(timeout);
     }
 
     if (!response.ok) {
