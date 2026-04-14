@@ -81,7 +81,8 @@ Microservice handlers fully support fluo's DI scopes. Request-scoped providers a
 ### Delivery Safety Defaults
 - TCP frames are bounded to 1 MiB per newline-delimited message by default; oversized frames close the socket instead of growing the request buffer without limit.
 - Redis Streams acknowledges request/event entries only after handler-side processing finishes. Failed events stay pending for broker-managed recovery instead of being acknowledged early.
-- Redis Streams appends request and event frames with bounded retention by default (`messageRetentionMaxLen: 10_000`, `eventRetentionMaxLen: 10_000`, `responseRetentionMaxLen: 1_000`). Acked request/reply entries are cleaned up, and each per-consumer response stream is deleted during `close()`.
+- Redis Streams does not apply publish-time trimming to live request/event streams by default, so pending entries remain recoverable until `xack` or consumer-group recovery completes. Acked request/reply entries are cleaned up, each per-consumer response stream keeps bounded retention by default (`responseRetentionMaxLen: 1_000`), and each response stream is deleted during `close()`.
+- `messageRetentionMaxLen` and `eventRetentionMaxLen` remain available as advanced opt-in knobs. Enabling them can trade away broker-managed recovery guarantees because Redis may trim pending live-stream entries before they are acknowledged.
 - RabbitMQ request/reply uses an instance-scoped response queue by default. Pass `responseQueue` explicitly only when you intentionally own and coordinate a shared reply topology.
 
 ## Public API Overview
