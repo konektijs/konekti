@@ -23,13 +23,19 @@ Transport-agnostic email delivery core for fluo. It provides a Nest-like module 
 ## Installation
 
 ```bash
-npm install @fluojs/email nodemailer
+npm install @fluojs/email
 ```
 
 Install `@fluojs/notifications` and `@fluojs/queue` only when you want the built-in notifications channel and queue worker integration.
 
 ```bash
 npm install @fluojs/notifications @fluojs/queue
+```
+
+Install `nodemailer` only when you use the explicit `@fluojs/email/node` subpath for Node-only SMTP delivery.
+
+```bash
+npm install @fluojs/email nodemailer
 ```
 
 Node-specific SMTP delivery now lives behind the explicit `@fluojs/email/node` subpath. Queue-backed notifications integration likewise lives behind `@fluojs/email/queue`, and `@fluojs/queue` is declared as an optional peer for that subpath instead of a root install requirement. The root `@fluojs/email` entrypoint remains transport-agnostic so Bun, Deno, Cloudflare, and custom HTTP transports do not inherit Node-only or queue-specific behavior.
