@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +11,7 @@ import * as portability from './portability/http-adapter-portability.js';
 import * as webPortability from './portability/web-runtime-adapter-portability.js';
 import * as conformance from './conformance/platform-conformance.js';
 import * as fetchStyleWebsocket from './conformance/fetch-style-websocket-conformance.js';
+import { runWorkspaceBuildClosure } from '../../../tooling/scripts/run-workspace-build-closure.mjs';
 
 const packageRoot = new URL('..', import.meta.url);
 const packageRootPath = fileURLToPath(packageRoot);
@@ -25,11 +25,7 @@ const emittedHarnessSubpaths = [
 ] as const;
 
 function runBuild(): void {
-  const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-  const result = spawnSync(command, ['--filter', '@fluojs/testing...', 'build'], {
-    cwd: repoRootPath,
-    encoding: 'utf8',
-  });
+  const result = runWorkspaceBuildClosure('@fluojs/testing', repoRootPath);
 
   expect(result.status, [result.stdout, result.stderr].filter(Boolean).join('\n')).toBe(0);
 }
