@@ -4,7 +4,7 @@ Use the channel that best matches the kind of help you need.
 
 ## questions and usage help
 
-- Start a discussion in [GitHub Discussions](https://github.com/fluojs/fluo/discussions/categories/q-a) for setup help, API questions, and design feedback.
+- Start a discussion in [GitHub Discussions](https://github.com/fluojs/fluo/discussions) for setup help, API questions, and design feedback.
 
 ## bug reports
 
