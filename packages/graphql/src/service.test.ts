@@ -48,6 +48,24 @@ function resolveIntrospectionEnabled(service: GraphqlLifecycleService): boolean 
   return Reflect.apply(resolver, service, []) as boolean;
 }
 
+function resolveWebSocketLimits(service: GraphqlLifecycleService): {
+  maxConnections: number;
+  maxOperationsPerConnection: number;
+  maxPayloadBytes: number;
+} | undefined {
+  const resolver = Reflect.get(service, 'resolveWebSocketLimits');
+
+  if (typeof resolver !== 'function') {
+    throw new Error('Expected resolveWebSocketLimits method to exist.');
+  }
+
+  return Reflect.apply(resolver, service, []) as {
+    maxConnections: number;
+    maxOperationsPerConnection: number;
+    maxPayloadBytes: number;
+  } | undefined;
+}
+
 describe('GraphqlLifecycleService graphiql defaults', () => {
   it('defaults to false when graphiql option is not set', () => {
     const service = createService({});
@@ -98,5 +116,55 @@ describe('GraphqlLifecycleService graphiql defaults', () => {
 
     expect(resolveIntrospectionEnabled(disabled)).toBe(false);
     expect(resolveIntrospectionEnabled(enabled)).toBe(true);
+  });
+
+  it('uses conservative defaults for websocket limits when websocket transport is enabled', () => {
+    const service = createService({
+      subscriptions: {
+        websocket: {
+          enabled: true,
+        },
+      },
+    });
+
+    expect(resolveWebSocketLimits(service)).toEqual({
+      maxConnections: 100,
+      maxOperationsPerConnection: 25,
+      maxPayloadBytes: 64 * 1024,
+    });
+  });
+
+  it('respects explicit websocket limit overrides', () => {
+    const service = createService({
+      subscriptions: {
+        websocket: {
+          enabled: true,
+          limits: {
+            maxConnections: 5,
+            maxOperationsPerConnection: 2,
+            maxPayloadBytes: 4096,
+          },
+        },
+      },
+    });
+
+    expect(resolveWebSocketLimits(service)).toEqual({
+      maxConnections: 5,
+      maxOperationsPerConnection: 2,
+      maxPayloadBytes: 4096,
+    });
+  });
+
+  it('allows opting out of websocket hardening budgets', () => {
+    const service = createService({
+      subscriptions: {
+        websocket: {
+          enabled: true,
+          limits: false,
+        },
+      },
+    });
+
+    expect(resolveWebSocketLimits(service)).toBeUndefined();
   });
 });
