@@ -278,6 +278,64 @@ describe('@fluojs/platform-bun', () => {
     expect(process.listeners(signal).length).toBe(listenersBefore);
   });
 
+  it('marks shutdown timeout via exitCode without forcing process termination', async () => {
+    vi.useFakeTimers();
+
+    const loggerEvents: string[] = [];
+    const logger: ApplicationLogger = {
+      debug() {},
+      error(message: string, error: unknown, context?: string) {
+        loggerEvents.push(`error:${context}:${message}:${error instanceof Error ? error.message : 'none'}`);
+      },
+      log() {},
+      warn() {},
+    };
+    const mockBun = installMockBun();
+
+    @Controller('/health')
+    class HealthController {
+      @Get('/')
+      getHealth() {
+        return { ok: true };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [HealthController] });
+
+    const originalExitCode = process.exitCode;
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number | string | null) => undefined as never) as typeof process.exit);
+    const app = await runBunApplication(AppModule, {
+      forceExitTimeoutMs: 25,
+      hostname: '127.0.0.1',
+      logger,
+      port: 4313,
+      shutdownSignals: ['SIGTERM'],
+    });
+
+    const originalClose = app.close.bind(app);
+    app.close = () => new Promise<void>(() => {});
+
+    try {
+      expect(mockBun.lastServer).toBeDefined();
+
+      process.emit('SIGTERM', 'SIGTERM');
+      await vi.advanceTimersByTimeAsync(26);
+
+      expect(exitSpy).not.toHaveBeenCalled();
+      expect(process.exitCode).toBe(1);
+      expect(loggerEvents).toContain(
+        'error:FluoFactory:Shutdown timeout exceeded after 25ms; leaving process termination to the host.:none',
+      );
+    } finally {
+      app.close = originalClose;
+      await app.close();
+      exitSpy.mockRestore();
+      process.exitCode = originalExitCode;
+      vi.useRealTimers();
+    }
+  });
+
   it('drains in-flight requests before Bun close resolves', async () => {
     const mockBun = installMockBun();
     const adapter = createBunAdapter() as BunHttpApplicationAdapter;
