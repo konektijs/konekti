@@ -323,13 +323,21 @@ function verifySandboxProject(projectName) {
   const projectDirectory = resolveProjectDirectory(projectName);
   verifySandboxExists(projectDirectory);
   const packageJson = JSON.parse(readFileSync(join(projectDirectory, 'package.json'), 'utf8'));
-  const isMicroserviceStarter = Boolean(packageJson.dependencies?.['@fluojs/microservices']);
+  const hasHttpStarter = Boolean(packageJson.dependencies?.['@fluojs/http']);
+  const hasMicroserviceStarter = Boolean(packageJson.dependencies?.['@fluojs/microservices']);
+  const starterContract = hasHttpStarter && hasMicroserviceStarter
+    ? 'mixed'
+    : hasMicroserviceStarter
+      ? 'microservice'
+      : 'application';
 
-  if (isMicroserviceStarter) {
+  if (starterContract === 'microservice' || starterContract === 'mixed') {
     if (!existsSync(join(projectDirectory, 'src', 'math', 'math.handler.test.ts'))) {
-      throw new Error('Expected the microservice starter scaffold to include src/math/math.handler.test.ts.');
+      throw new Error(`Expected the ${starterContract} starter scaffold to include src/math/math.handler.test.ts.`);
     }
-  } else if (!existsSync(join(projectDirectory, 'src', 'app.e2e.test.ts'))) {
+  }
+
+  if (starterContract === 'application' && !existsSync(join(projectDirectory, 'src', 'app.e2e.test.ts'))) {
     throw new Error('Expected the starter scaffold to include src/app.e2e.test.ts.');
   }
 
@@ -337,11 +345,20 @@ function verifySandboxProject(projectName) {
     throw new Error('Expected the starter scaffold to include vite.config.ts.');
   }
 
-  if (isMicroserviceStarter) {
+  if (starterContract === 'microservice' || starterContract === 'mixed') {
     const mainFile = readFileSync(join(projectDirectory, 'src', 'main.ts'), 'utf8');
-    if (!mainFile.includes('createMicroservice')) {
+
+    if (starterContract === 'microservice' && !mainFile.includes('createMicroservice')) {
       throw new Error('Expected the microservice starter main.ts to bootstrap FluoFactory.createMicroservice(...).');
     }
+
+    if (
+      starterContract === 'mixed'
+      && (!mainFile.includes('await app.connectMicroservice();') || !mainFile.includes('await app.startAllMicroservices();'))
+    ) {
+      throw new Error('Expected the mixed starter main.ts to attach and start the TCP microservice from the HTTP app bootstrap.');
+    }
+
   }
 
   for (const configPath of ['tsconfig.json', 'tsconfig.build.json', 'vite.config.ts', 'vitest.config.ts']) {
