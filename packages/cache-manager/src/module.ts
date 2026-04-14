@@ -11,10 +11,15 @@ import { CACHE_OPTIONS, CACHE_STORE } from './tokens.js';
 import type { CacheModuleOptions, NormalizedCacheModuleOptions, RedisCompatibleClient } from './types.js';
 
 const DEFAULT_MEMORY_STORE_TTL_SECONDS = 300;
+const REDIS_PEER_MODULE_SPECIFIER = '@fluojs/redis';
 
 interface RedisPeerModule {
   getRedisClientToken(clientName?: string): Token<RedisCompatibleClient>;
 }
+
+type OptionalModuleLoader = (specifier: string) => Promise<unknown>;
+
+const loadOptionalModule: OptionalModuleLoader = async (specifier) => import(specifier);
 
 function isMissingRedisPeer(error: unknown): boolean {
   if (!(error instanceof Error)) {
@@ -23,7 +28,15 @@ function isMissingRedisPeer(error: unknown): boolean {
 
   const code = 'code' in error ? (error as { code?: unknown }).code : undefined;
 
-  return code === 'ERR_MODULE_NOT_FOUND' && error.message.includes('@fluojs/redis');
+  return code === 'ERR_MODULE_NOT_FOUND' && error.message.includes(REDIS_PEER_MODULE_SPECIFIER);
+}
+
+function isRedisPeerModule(value: unknown): value is RedisPeerModule {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  return 'getRedisClientToken' in value && typeof value.getRedisClientToken === 'function';
 }
 
 function createRedisBootstrapError(): Error {
@@ -37,8 +50,13 @@ function createRedisBootstrapError(): Error {
 
 async function resolveRedisPeerModule(): Promise<RedisPeerModule> {
   try {
-    // @ts-ignore -- optional peer is resolved only when the Redis path is selected at runtime.
-    return await import('@fluojs/redis');
+    const moduleNamespace = await loadOptionalModule(REDIS_PEER_MODULE_SPECIFIER);
+
+    if (!isRedisPeerModule(moduleNamespace)) {
+      throw new Error('@fluojs/cache-manager expected @fluojs/redis to export getRedisClientToken().');
+    }
+
+    return moduleNamespace;
   } catch (error) {
     if (isMissingRedisPeer(error)) {
       throw createRedisBootstrapError();

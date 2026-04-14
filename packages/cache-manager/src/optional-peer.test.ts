@@ -71,6 +71,24 @@ describe('optional Redis peer contract', () => {
     );
   });
 
+  it('fails fast when the optional Redis peer is installed without the expected token helper export', async () => {
+    vi.doMock('@fluojs/redis', () => {
+      return {};
+    });
+
+    const { createCacheProviders } = await import('./module.js');
+    const providers = createCacheProviders({ store: 'redis' });
+    const optionsProvider = providers.find(isNormalizedOptionsProvider);
+    const storeProvider = providers.find(isStoreFactoryProvider);
+
+    expect(optionsProvider).toBeDefined();
+    expect(storeProvider).toBeDefined();
+
+    await expect(storeProvider!.useFactory(optionsProvider!.useValue, createContainerStub())).rejects.toThrow(
+      '@fluojs/cache-manager expected @fluojs/redis to export getRedisClientToken().',
+    );
+  });
+
   it('does not touch the optional Redis peer when creating a memory store provider', async () => {
     vi.doMock('@fluojs/redis', () => {
       throw Object.assign(new Error("Cannot find package '@fluojs/redis'"), {
