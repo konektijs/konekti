@@ -93,6 +93,20 @@ const verifier = new DefaultJwtVerifier({
 
 `@fluojs/jwt` automatically unifies `scope` (string) and `scopes` (array) claims into a single `scopes: string[]` property in the `JwtPrincipal`, ensuring consistent behavior for authorization guards.
 
+### Remote JWKS verification
+
+When verification keys come from a remote JWKS endpoint, keep the fetch path bounded so auth traffic cannot hang on a slow or stalled identity provider.
+
+```typescript
+const verifier = new DefaultJwtVerifier({
+  algorithms: ['RS256'],
+  jwksRequestTimeoutMs: 5_000,
+  jwksUri: 'https://issuer.example.com/.well-known/jwks.json',
+});
+```
+
+`jwksRequestTimeoutMs` defaults to `5_000` and aborts the outbound JWKS fetch once that budget is exceeded.
+
 ## Public API Overview
 
 ### Core Classes

@@ -93,6 +93,20 @@ const verifier = new DefaultJwtVerifier({
 
 `@fluojs/jwt`는 `scope` (문자열)와 `scopes` (배열) 클레임을 자동으로 감지하여 `JwtPrincipal`의 단일 `scopes: string[]` 속성으로 통합합니다. 이를 통해 권한 가드에서 일관된 로직을 적용할 수 있습니다.
 
+### 원격 JWKS 검증
+
+검증 키를 원격 JWKS 엔드포인트에서 가져올 때는, 느리거나 멈춘 identity provider 때문에 인증 경로가 무한정 대기하지 않도록 fetch budget을 명시적으로 제한하세요.
+
+```typescript
+const verifier = new DefaultJwtVerifier({
+  algorithms: ['RS256'],
+  jwksRequestTimeoutMs: 5_000,
+  jwksUri: 'https://issuer.example.com/.well-known/jwks.json',
+});
+```
+
+`jwksRequestTimeoutMs`의 기본값은 `5_000`이며, 예산을 넘기면 진행 중인 JWKS fetch를 abort합니다.
+
 ## 공개 API 개요
 
 ### 주요 클래스
