@@ -24,6 +24,8 @@ General-purpose cache manager for fluo with pluggable memory and Redis stores. P
 npm install @fluojs/cache-manager
 ```
 
+The root `@fluojs/cache-manager` import stays safe for memory-only installs. You only need Redis peers when you explicitly select the Redis-backed store path.
+
 For Redis-backed caching:
 
 ```bash
@@ -92,6 +94,8 @@ class UserService {
 ### Redis Storage
 
 To use Redis, ensure `@fluojs/redis` is configured and set the store to `'redis'`.
+
+Memory-only consumers can keep importing from `@fluojs/cache-manager` without installing `@fluojs/redis` or `ioredis`; those optional peers are resolved only when the Redis store path is selected.
 
 ```typescript
 CacheModule.forRoot({

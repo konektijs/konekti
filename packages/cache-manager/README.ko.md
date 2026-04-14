@@ -24,6 +24,8 @@
 npm install @fluojs/cache-manager
 ```
 
+root `@fluojs/cache-manager` import는 memory-only 설치에서도 안전합니다. Redis peer는 Redis 저장소 경로를 명시적으로 선택할 때만 필요합니다.
+
 Redis 기반 캐싱을 사용하는 경우:
 
 ```bash
@@ -92,6 +94,8 @@ class UserService {
 ### Redis 저장소 사용
 
 Redis를 사용하려면 `@fluojs/redis`가 설정되어 있어야 하며, `store` 옵션을 `'redis'`로 설정합니다.
+
+memory-only 소비자는 `@fluojs/redis`나 `ioredis`를 설치하지 않아도 `@fluojs/cache-manager`를 계속 import할 수 있습니다. 이 optional peer들은 Redis 저장소 경로를 선택할 때만 해석됩니다.
 
 ```typescript
 CacheModule.forRoot({
