@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import {
   RedisStreamsMicroserviceTransport,
+  type RedisStreamWriteOptions,
   type RedisStreamsMicroserviceTransportOptions,
   type RedisStreamClientLike,
 } from './redis-streams-transport.js';
 
 interface InMemoryStreamEntry {
+  deleted?: boolean;
   readonly fields: Record<string, string>;
   readonly id: string;
 }
@@ -17,7 +19,7 @@ class InMemoryStreamBus implements RedisStreamClientLike {
   private readonly streamCounters = new Map<string, number>();
   private readonly streams = new Map<string, InMemoryStreamEntry[]>();
 
-  async xadd(stream: string, fields: Record<string, string>): Promise<string> {
+  async xadd(stream: string, fields: Record<string, string>, options?: RedisStreamWriteOptions): Promise<string> {
     const entries = this.streams.get(stream) ?? [];
     const next = (this.streamCounters.get(stream) ?? 0) + 1;
     this.streamCounters.set(stream, next);
@@ -27,6 +29,12 @@ class InMemoryStreamBus implements RedisStreamClientLike {
       id,
       fields: { ...fields },
     });
+
+    const maxLenApproximate = options?.maxLenApproximate;
+
+    if (typeof maxLenApproximate === 'number' && maxLenApproximate > 0 && entries.length > maxLenApproximate) {
+      entries.splice(0, entries.length - maxLenApproximate);
+    }
 
     this.streams.set(stream, entries);
     return id;
@@ -53,20 +61,27 @@ class InMemoryStreamBus implements RedisStreamClientLike {
       const startIndex = this.groupStartIndices.get(groupKey) ?? 0;
       const previousIndex = consumerPositions.get(consumer) ?? (startIndex - 1);
       const nextIndex = previousIndex + 1;
-      const readable = streamEntries.slice(nextIndex, nextIndex + count);
+      let lastVisitedIndex = previousIndex;
 
-      if (readable.length === 0) {
-        continue;
-      }
+      for (let index = nextIndex; index < streamEntries.length && results.length < count; index += 1) {
+        lastVisitedIndex = index;
+        const entry = streamEntries[index];
 
-      consumerPositions.set(consumer, nextIndex + readable.length - 1);
+        if (!entry || entry.deleted) {
+          continue;
+        }
 
-      for (const entry of readable) {
         results.push({
           id: entry.id,
           fields: { ...entry.fields },
         });
       }
+
+      if (lastVisitedIndex < nextIndex) {
+        continue;
+      }
+
+      consumerPositions.set(consumer, lastVisitedIndex);
     }
 
     return results.length > 0 ? results : null;
@@ -76,6 +91,40 @@ class InMemoryStreamBus implements RedisStreamClientLike {
     void stream;
     void group;
     void id;
+  }
+
+  async xdel(stream: string, id: string): Promise<void> {
+    const entries = this.streams.get(stream);
+
+    if (!entries) {
+      return;
+    }
+
+    const index = entries.findIndex((entry) => entry.id === id);
+
+    if (index >= 0) {
+      entries[index] = {
+        ...entries[index],
+        deleted: true,
+      };
+    }
+  }
+
+  async del(stream: string): Promise<void> {
+    this.streams.delete(stream);
+    this.streamCounters.delete(stream);
+
+    for (const key of [...this.groupStartIndices.keys()]) {
+      if (key.startsWith(`${stream}::`)) {
+        this.groupStartIndices.delete(key);
+      }
+    }
+
+    for (const key of [...this.groupToConsumerPositions.keys()]) {
+      if (key.startsWith(`${stream}::`)) {
+        this.groupToConsumerPositions.delete(key);
+      }
+    }
   }
 
   async xgroupCreate(stream: string, group: string, startId: string, mkstream: boolean): Promise<void> {
@@ -128,6 +177,14 @@ class InMemoryStreamBus implements RedisStreamClientLike {
 
     return Math.min(entries.length, parsed);
   }
+
+  getStreamEntries(stream: string): readonly InMemoryStreamEntry[] {
+    return (this.streams.get(stream) ?? []).filter((entry) => !entry.deleted);
+  }
+
+  getStreamNames(): readonly string[] {
+    return [...this.streams.keys()];
+  }
 }
 
 function sleep(ms: number): Promise<void> {
@@ -139,14 +196,14 @@ function sleep(ms: number): Promise<void> {
 function createTransport(
   bus: InMemoryStreamBus,
   options: Partial<RedisStreamsMicroserviceTransportOptions> = {},
-): { published: Array<{ fields: Record<string, string>; stream: string }>; transport: RedisStreamsMicroserviceTransport } {
-  const published: Array<{ fields: Record<string, string>; stream: string }> = [];
+): { published: Array<{ fields: Record<string, string>; options?: RedisStreamWriteOptions; stream: string }>; transport: RedisStreamsMicroserviceTransport } {
+  const published: Array<{ fields: Record<string, string>; options?: RedisStreamWriteOptions; stream: string }> = [];
 
   const readerClient = options.readerClient ?? bus;
   const writerClient = options.writerClient ?? {
-    xadd: async (stream: string, fields: Record<string, string>) => {
-      published.push({ stream, fields: { ...fields } });
-      return await bus.xadd(stream, fields);
+    xadd: async (stream: string, fields: Record<string, string>, writeOptions?: RedisStreamWriteOptions) => {
+      published.push({ stream, fields: { ...fields }, options: writeOptions });
+      return await bus.xadd(stream, fields, writeOptions);
     },
     xreadgroup: async (group, consumer, streams, readOptions) => {
       return await bus.xreadgroup(group, consumer, streams, readOptions);
@@ -164,9 +221,12 @@ function createTransport(
 
   const transport = new RedisStreamsMicroserviceTransport({
     consumerGroup: options.consumerGroup,
+    eventRetentionMaxLen: options.eventRetentionMaxLen,
+    messageRetentionMaxLen: options.messageRetentionMaxLen,
     namespace: options.namespace,
     pollBlockMs: options.pollBlockMs ?? 1,
     readerClient,
+    responseRetentionMaxLen: options.responseRetentionMaxLen,
     requestTimeoutMs: options.requestTimeoutMs,
     writerClient,
   });
@@ -207,6 +267,55 @@ describe('RedisStreamsMicroserviceTransport', () => {
     expect(requestFrame?.stream).toBe('fluo:streams:messages');
     expect(requestFrame?.fields.replyStream).toMatch(/^fluo:streams:responses:/);
     expect(typeof requestFrame?.fields.requestId).toBe('string');
+    expect(requestFrame?.options?.maxLenApproximate).toBe(10_000);
+
+    await transport.close();
+  });
+
+  it('applies bounded retention defaults to request, event, and response streams', async () => {
+    const bus = new InMemoryStreamBus();
+    const { published, transport } = createTransport(bus, {
+      eventRetentionMaxLen: 2,
+      messageRetentionMaxLen: 2,
+      requestTimeoutMs: 1_000,
+      responseRetentionMaxLen: 1,
+    });
+
+    await transport.listen(async (packet) => {
+      if (packet.kind === 'message') {
+        return packet.payload;
+      }
+
+      return undefined;
+    });
+
+    await transport.emit('audit.event', { value: 1 });
+    await transport.emit('audit.event', { value: 2 });
+    await transport.emit('audit.event', { value: 3 });
+
+    await expect(transport.send('audit.message', { value: 1 })).resolves.toEqual({ value: 1 });
+    await sleep(50);
+
+    expect(bus.getStreamEntries('fluo:streams:events')).toHaveLength(2);
+    expect(bus.getStreamEntries('fluo:streams:messages')).toHaveLength(0);
+
+    const eventFrames = published.filter((entry) => entry.stream === 'fluo:streams:events');
+    const requestFrame = published.find((entry) => entry.stream === 'fluo:streams:messages');
+    const responseFrame = published.find((entry) => entry.stream.startsWith('fluo:streams:responses:'));
+
+    expect(eventFrames).toHaveLength(3);
+    expect(eventFrames.every((entry) => entry.options?.maxLenApproximate === 2)).toBe(true);
+    expect(requestFrame?.options?.maxLenApproximate).toBe(2);
+    expect(responseFrame?.options?.maxLenApproximate).toBe(1);
+
+    const responseStream = bus.getStreamNames().find((name) => name.startsWith('fluo:streams:responses:'));
+    expect(responseStream).toBeTypeOf('string');
+
+    if (!responseStream) {
+      throw new Error('expected a response stream to exist');
+    }
+
+    expect(bus.getStreamEntries(responseStream)).toHaveLength(0);
 
     await transport.close();
   });
@@ -384,6 +493,35 @@ describe('RedisStreamsMicroserviceTransport', () => {
     expect(acknowledgements.some((entry) => entry.startsWith('fluo:streams:events:'))).toBe(false);
 
     await transport.close();
+  });
+
+  it('deletes the per-consumer response stream on close()', async () => {
+    const bus = new InMemoryStreamBus();
+    const { transport } = createTransport(bus, {
+      requestTimeoutMs: 1_000,
+    });
+
+    await transport.listen(async (packet) => {
+      if (packet.kind === 'message') {
+        return packet.payload;
+      }
+
+      return undefined;
+    });
+
+    await expect(transport.send('cleanup.response.stream', { ok: true })).resolves.toEqual({ ok: true });
+    await sleep(20);
+
+    const responseStream = bus.getStreamNames().find((name) => name.startsWith('fluo:streams:responses:'));
+    expect(responseStream).toBeTypeOf('string');
+
+    if (!responseStream) {
+      throw new Error('expected a response stream to exist before close');
+    }
+
+    await transport.close();
+
+    expect(bus.getStreamNames()).not.toContain(responseStream);
   });
 
   it('rejects send() with AbortSignal before publish', async () => {

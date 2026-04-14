@@ -5,9 +5,15 @@ interface StreamReadGroupResult {
   readonly fields: Readonly<Record<string, string>>;
 }
 
+/** Optional Redis Streams write controls used for bounded retention. */
+export interface RedisStreamWriteOptions {
+  /** Approximate maximum stream length preserved by Redis after this append. */
+  readonly maxLenApproximate?: number;
+}
+
 /** Minimal Redis Streams client contract required by {@link RedisStreamsMicroserviceTransport}. */
 export interface RedisStreamClientLike {
-  xadd(stream: string, fields: Record<string, string>): Promise<string>;
+  xadd(stream: string, fields: Record<string, string>, options?: RedisStreamWriteOptions): Promise<string>;
   xreadgroup(
     group: string,
     consumer: string,
@@ -15,6 +21,8 @@ export interface RedisStreamClientLike {
     options?: { blockMs?: number; count?: number },
   ): Promise<readonly StreamReadGroupResult[] | null>;
   xack(stream: string, group: string, id: string): Promise<void>;
+  xdel?(stream: string, id: string): Promise<void>;
+  del?(stream: string): Promise<void>;
   xgroupCreate(stream: string, group: string, startId: string, mkstream: boolean): Promise<void>;
   xgroupDestroy(stream: string, group: string): Promise<void>;
 }
@@ -23,6 +31,12 @@ export interface RedisStreamClientLike {
 export interface RedisStreamsMicroserviceTransportOptions {
   readerClient: RedisStreamClientLike;
   writerClient: RedisStreamClientLike;
+  /** Approximate maximum request stream length. Defaults to `10_000`. */
+  messageRetentionMaxLen?: number;
+  /** Approximate maximum event stream length. Defaults to `10_000`. */
+  eventRetentionMaxLen?: number;
+  /** Approximate maximum per-consumer response stream length. Defaults to `1_000`. */
+  responseRetentionMaxLen?: number;
   consumerGroup?: string;
   namespace?: string;
   requestTimeoutMs?: number;
@@ -68,6 +82,9 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
   private readonly consumerGroup: string;
   private readonly requestTimeoutMs: number;
   private readonly pollBlockMs: number;
+  private readonly messageRetentionMaxLen: number;
+  private readonly eventRetentionMaxLen: number;
+  private readonly responseRetentionMaxLen: number;
 
   /**
    * Creates a Redis Streams transport with dedicated reader and writer clients.
@@ -80,6 +97,9 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
     this.consumerGroup = options.consumerGroup ?? 'fluo-handlers';
     this.requestTimeoutMs = options.requestTimeoutMs ?? 3_000;
     this.pollBlockMs = options.pollBlockMs ?? 500;
+    this.messageRetentionMaxLen = options.messageRetentionMaxLen ?? 10_000;
+    this.eventRetentionMaxLen = options.eventRetentionMaxLen ?? 10_000;
+    this.responseRetentionMaxLen = options.responseRetentionMaxLen ?? 1_000;
   }
 
   /**
@@ -201,13 +221,13 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
           requestId,
         } satisfies RedisStreamTransportMessage;
 
-        await this.options.writerClient.xadd(this.messageStream, {
+        await this.publishFrame(this.messageStream, {
           kind: frame.kind,
           pattern: frame.pattern,
           payload: JSON.stringify(frame.payload),
           replyStream: frame.replyStream,
           requestId: frame.requestId,
-        });
+        }, this.messageRetentionMaxLen);
       }).catch((error: unknown) => {
         entry.reject(error instanceof Error ? error : new Error('Failed to publish Redis Streams request.'));
       });
@@ -228,11 +248,11 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
       payload,
     } satisfies RedisStreamTransportMessage;
 
-    await this.options.writerClient.xadd(this.eventStream, {
+    await this.publishFrame(this.eventStream, {
       kind: frame.kind,
       pattern: frame.pattern,
       payload: JSON.stringify(frame.payload),
-    });
+    }, this.eventRetentionMaxLen);
   }
 
   /**
@@ -265,6 +285,12 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
 
       try {
         await this.options.readerClient.xgroupDestroy(this.responseStream, this.responseGroup);
+      } catch (error) {
+        closeError ??= error;
+      }
+
+      try {
+        await this.options.readerClient.del?.(this.responseStream);
       } catch (error) {
         closeError ??= error;
       }
@@ -308,6 +334,7 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
 
           if (shouldAcknowledge) {
             await this.options.readerClient.xack(stream, group, entry.id);
+            await this.cleanupAcknowledgedEntry(stream, entry.id);
           }
         }
       } catch {
@@ -358,22 +385,40 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
         requestId: message.requestId,
       });
 
-      await this.options.writerClient.xadd(replyStream, {
+      await this.publishFrame(replyStream, {
         kind: 'response',
         pattern: message.pattern,
         payload: JSON.stringify(payload),
         requestId,
-      });
+      }, this.responseRetentionMaxLen);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unhandled microservice error';
 
-      await this.options.writerClient.xadd(replyStream, {
+      await this.publishFrame(replyStream, {
         error: errorMessage,
         kind: 'response',
         pattern: message.pattern,
         requestId,
-      });
+      }, this.responseRetentionMaxLen);
     }
+  }
+
+  private async publishFrame(
+    stream: string,
+    fields: Record<string, string>,
+    maxLenApproximate: number,
+  ): Promise<void> {
+    await this.options.writerClient.xadd(stream, fields, {
+      maxLenApproximate,
+    });
+  }
+
+  private async cleanupAcknowledgedEntry(stream: string, id: string): Promise<void> {
+    if (stream !== this.messageStream && stream !== this.responseStream) {
+      return;
+    }
+
+    await this.options.readerClient.xdel?.(stream, id);
   }
 
   private async handleInboundEvent(message: RedisStreamTransportMessage): Promise<boolean> {
