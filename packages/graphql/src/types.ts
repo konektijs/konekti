@@ -48,12 +48,41 @@ export interface GraphQLContext {
 }
 
 /**
+ * Budget settings applied to the optional GraphQL websocket transport.
+ */
+export interface GraphqlWebSocketLimitsOptions {
+  /**
+   * Maximum number of concurrently connected websocket clients.
+   *
+   * Set to `false` through `subscriptions.websocket.limits = false` to opt out of
+   * the built-in connection budget entirely.
+   */
+  maxConnections?: number;
+  /**
+   * Maximum websocket frame payload size accepted from one client, in bytes.
+   */
+  maxPayloadBytes?: number;
+  /**
+   * Maximum number of active GraphQL operations allowed on one websocket connection.
+   */
+  maxOperationsPerConnection?: number;
+}
+
+/**
  * WebSocket-specific subscription settings for `GraphqlModule`.
  */
 export interface GraphqlWebSocketSubscriptionsOptions {
   connectionInitWaitTimeoutMs?: number;
   enabled?: boolean;
   keepAliveMs?: number;
+  /**
+   * Configures built-in websocket hardening budgets for connection count,
+   * payload size, and concurrent operations.
+   *
+   * Pass `false` to disable these websocket-specific guardrails and preserve
+   * legacy unbounded transport behavior.
+   */
+  limits?: GraphqlWebSocketLimitsOptions | false;
 }
 
 /**

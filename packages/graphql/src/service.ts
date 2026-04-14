@@ -76,6 +76,18 @@ interface GraphqlSubscribePayload {
   variables?: Record<string, unknown> | null;
 }
 
+interface GraphqlWebSocketLimits {
+  maxConnections: number;
+  maxOperationsPerConnection: number;
+  maxPayloadBytes: number;
+}
+
+const DEFAULT_GRAPHQL_WEBSOCKET_LIMITS: GraphqlWebSocketLimits = {
+  maxConnections: 100,
+  maxOperationsPerConnection: 25,
+  maxPayloadBytes: 64 * 1024,
+};
+
 function hasNodeUpgradeServer(value: unknown): value is NodeUpgradeServer {
   if (typeof value !== 'object' || value === null) {
     return false;
@@ -296,6 +308,7 @@ async function loadGraphqlDeps(): Promise<GraphqlDeps> {
  */
 @Inject(RUNTIME_CONTAINER, COMPILED_MODULES, APPLICATION_LOGGER, HTTP_APPLICATION_ADAPTER, GRAPHQL_INTERNAL_MODULE_OPTIONS_TOKEN)
 export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplicationShutdown {
+  private graphQLErrorConstructor: typeof GraphQLErrorType | undefined;
   private middlewareRegistered = false;
   private readonly operationContainers = new WeakMap<Request, Container>();
   private readonly websocketOperationContainers = new Map<object, Map<string, Container>>();
@@ -369,6 +382,7 @@ export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplic
     const deps = await loadGraphqlDeps();
     const schema = this.resolveSchema(deps);
     this.executeGraphqlOperation = deps.execute;
+    this.graphQLErrorConstructor = deps.GraphQLError;
     this.subscribeGraphqlOperation = deps.subscribe;
     const requestLimits = resolveGraphqlRequestLimits(this.options.limits);
     const validationPlugin = createGraphqlValidationPlugin({
@@ -403,6 +417,7 @@ export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplic
     this.unregisterMiddleware();
     this.middlewareRegistered = false;
     this.executeGraphqlOperation = undefined;
+    this.graphQLErrorConstructor = undefined;
     this.subscribeGraphqlOperation = undefined;
     this.yoga = undefined;
   }
@@ -413,6 +428,21 @@ export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplic
 
   private resolveIntrospectionEnabled(): boolean {
     return this.options.introspection ?? this.resolveGraphiqlEnabled();
+  }
+
+  private resolveWebSocketLimits(): GraphqlWebSocketLimits | undefined {
+    const limits = this.options.subscriptions?.websocket?.limits;
+
+    if (limits === false) {
+      return undefined;
+    }
+
+    return {
+      maxConnections: limits?.maxConnections ?? DEFAULT_GRAPHQL_WEBSOCKET_LIMITS.maxConnections,
+      maxOperationsPerConnection:
+        limits?.maxOperationsPerConnection ?? DEFAULT_GRAPHQL_WEBSOCKET_LIMITS.maxOperationsPerConnection,
+      maxPayloadBytes: limits?.maxPayloadBytes ?? DEFAULT_GRAPHQL_WEBSOCKET_LIMITS.maxPayloadBytes,
+    };
   }
 
   private resolveSchema(deps: GraphqlDeps): GraphQLSchemaType {
@@ -496,14 +526,25 @@ export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplic
     }
 
     const upgradeServer = this.resolveUpgradeServer();
+    const websocketLimits = this.resolveWebSocketLimits();
     const websocketServer = new WebSocketServer({
-      handleProtocols: (protocols) => handleProtocols(protocols),
+      handleProtocols: (protocols: Set<string>) => handleProtocols(protocols),
+      maxPayload: websocketLimits?.maxPayloadBytes ?? 0,
       noServer: true,
     });
     const upgradeListener: NodeUpgradeListener = (request, socket, head) => {
       const targetPath = new URL(request.url ?? '/', 'http://localhost').pathname;
 
       if (!isGraphqlPath(targetPath)) {
+        return;
+      }
+
+      if (websocketLimits && websocketServer.clients.size >= websocketLimits.maxConnections) {
+        this.rejectWebSocketUpgrade(
+          socket,
+          503,
+          'GraphQL websocket connection count exceeds the configured limit.',
+        );
         return;
       }
 
@@ -622,6 +663,12 @@ export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplic
       throw new Error('GraphQL server not initialized.');
     }
 
+    const websocketLimitError = this.createWebSocketOperationLimitError(context.extra.socket, operationId);
+
+    if (websocketLimitError) {
+      return [websocketLimitError];
+    }
+
     const frameworkRequest = buildFrameworkRequestFromIncomingMessage(context.extra.request);
     const fetchRequest = toFetchRequest(frameworkRequest);
     const operationContainer = this.getOrCreateWebSocketOperationContainer(context.extra.socket, operationId);
@@ -659,6 +706,50 @@ export class GraphqlLifecycleService implements OnApplicationBootstrap, OnApplic
       await this.disposeWebSocketOperationContainer(context.extra.socket, operationId);
       throw error;
     }
+  }
+
+  private createWebSocketOperationLimitError(socketKey: object, operationId: string): GraphQLErrorType | undefined {
+    const limits = this.resolveWebSocketLimits();
+
+    if (!limits) {
+      return undefined;
+    }
+
+    const socketContainers = this.websocketOperationContainers.get(socketKey);
+
+    if (socketContainers?.has(operationId) || (socketContainers?.size ?? 0) < limits.maxOperationsPerConnection) {
+      return undefined;
+    }
+
+    const GraphQLError = this.graphQLErrorConstructor;
+
+    if (!GraphQLError) {
+      throw new Error('GraphQL error constructor not initialized.');
+    }
+
+    return new GraphQLError(
+      `GraphQL websocket active operation count exceeds the configured limit of ${String(limits.maxOperationsPerConnection)}.`,
+    );
+  }
+
+  private rejectWebSocketUpgrade(socket: Duplex, statusCode: number, message: string): void {
+    if (!socket.writable) {
+      socket.destroy();
+      return;
+    }
+
+    const body = `${message}\n`;
+    socket.write(
+      [
+        `HTTP/1.1 ${String(statusCode)} ${statusCode === 503 ? 'Service Unavailable' : 'Bad Request'}`,
+        'Connection: close',
+        'Content-Type: text/plain; charset=utf-8',
+        `Content-Length: ${String(Buffer.byteLength(body))}`,
+        '',
+        body,
+      ].join('\r\n'),
+    );
+    socket.destroy();
   }
 
   private getOrCreateWebSocketOperationContainer(socketKey: object, operationId: string): Container {

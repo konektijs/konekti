@@ -26,7 +26,7 @@ async function findAvailablePort(): Promise<number> {
         return;
       }
 
-      server.close((error) => {
+      server.close((error?: Error) => {
         if (error) {
           reject(error);
           return;
@@ -96,20 +96,56 @@ type GraphqlWebSocketMessage = {
   id?: string;
   payload?: {
     data?: Record<string, unknown>;
+    errors?: Array<{ message?: string }>;
   };
   type: string;
 };
 
-function onceWebSocketOpen(socket: WebSocket): Promise<void> {
-  return new Promise((resolve, reject) => {
-    socket.once('open', () => resolve());
-    socket.once('error', reject);
-  });
-}
+type UnexpectedUpgradeResponse = {
+  on(event: 'data', listener: (chunk: Uint8Array) => void): void;
+  once(event: 'end', listener: () => void): void;
+  once(event: 'error', listener: (error: Error) => void): void;
+  statusCode?: number;
+};
 
 function onceWebSocketClosed(socket: WebSocket): Promise<void> {
   return new Promise((resolve) => {
     socket.once('close', () => resolve());
+  });
+}
+
+function onceWebSocketCloseEvent(socket: WebSocket): Promise<{ code: number; reason: string }> {
+  return new Promise((resolve) => {
+    socket.once('close', (code: number, reason: Uint8Array) => {
+      resolve({ code, reason: new TextDecoder().decode(reason) });
+    });
+  });
+}
+
+function openGraphqlWebSocket(port: number): Promise<WebSocket> {
+  return new Promise((resolve, reject) => {
+    const socket = new WebSocket(`ws://127.0.0.1:${String(port)}/graphql`, 'graphql-transport-ws');
+    socket.once('open', () => resolve(socket));
+    socket.once('error', reject);
+  });
+}
+
+function onceUnexpectedWebSocketUpgradeResponse(socket: WebSocket): Promise<{ body: string; statusCode: number }> {
+  return new Promise((resolve, reject) => {
+    socket.once('unexpected-response', (_request: unknown, response: UnexpectedUpgradeResponse) => {
+      const chunks: Uint8Array[] = [];
+      response.on('data', (chunk: Uint8Array) => {
+        chunks.push(chunk);
+      });
+      response.once('end', () => {
+        resolve({
+          body: chunks.map((chunk) => new TextDecoder().decode(chunk)).join(''),
+          statusCode: response.statusCode ?? 0,
+        });
+      });
+      response.once('error', reject);
+    });
+    socket.once('error', reject);
   });
 }
 
@@ -148,9 +184,7 @@ function onceGraphqlWebSocketMessage(socket: WebSocket): Promise<GraphqlWebSocke
 }
 
 async function connectGraphqlWebSocket(port: number): Promise<WebSocket> {
-  const socket = new WebSocket(`ws://127.0.0.1:${String(port)}/graphql`, 'graphql-transport-ws');
-
-  await onceWebSocketOpen(socket);
+  const socket = await openGraphqlWebSocket(port);
   socket.send(JSON.stringify({ type: 'connection_init' }));
 
   await expect(onceGraphqlWebSocketMessage(socket)).resolves.toEqual({
@@ -1047,6 +1081,174 @@ describe('@fluojs/graphql', () => {
       },
     ]);
 
+    socket.close();
+    await onceWebSocketClosed(socket);
+    await app.close();
+  });
+
+  it('rejects websocket upgrades that exceed the configured connection budget', async () => {
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [
+        GraphqlModule.forRoot({
+          resolvers: [GraphqlResolver],
+          subscriptions: {
+            websocket: {
+              enabled: true,
+              limits: {
+                maxConnections: 1,
+              },
+            },
+          },
+        }),
+      ],
+      providers: [ResolverState, GraphqlResolver],
+    });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapNodeApplication(AppModule, {
+      cors: false,
+      port,
+    });
+
+    await app.listen();
+
+    const firstSocket = await connectGraphqlWebSocket(port);
+    const secondSocket = new WebSocket(`ws://127.0.0.1:${String(port)}/graphql`, 'graphql-transport-ws');
+
+    await expect(onceUnexpectedWebSocketUpgradeResponse(secondSocket)).resolves.toEqual({
+      body: 'GraphQL websocket connection count exceeds the configured limit.\n',
+      statusCode: 503,
+    });
+
+    firstSocket.close();
+    await onceWebSocketClosed(firstSocket);
+    await app.close();
+  });
+
+  it('closes websocket clients when subscribe payloads exceed the configured budget', async () => {
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [
+        GraphqlModule.forRoot({
+          resolvers: [GraphqlResolver],
+          subscriptions: {
+            websocket: {
+              enabled: true,
+              limits: {
+                maxPayloadBytes: 128,
+              },
+            },
+          },
+        }),
+      ],
+      providers: [ResolverState, GraphqlResolver],
+    });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapNodeApplication(AppModule, {
+      cors: false,
+      port,
+    });
+
+    await app.listen();
+
+    const socket = await connectGraphqlWebSocket(port);
+    const closeEvent = onceWebSocketCloseEvent(socket);
+    socket.send(JSON.stringify({
+      id: 'sub-oversized',
+      payload: {
+        query: 'subscription { pingStream }',
+        variables: {
+          blob: 'x'.repeat(512),
+        },
+      },
+      type: 'subscribe',
+    }));
+
+    await expect(closeEvent).resolves.toMatchObject({
+      code: 1009,
+    });
+
+    await app.close();
+  });
+
+  it('rejects websocket subscribe messages that exceed the configured active operation budget', async () => {
+    let releaseOperation: (() => void) | undefined;
+    const waitForRelease = new Promise<void>((resolve) => {
+      releaseOperation = resolve;
+    });
+
+    @Inject()
+    @Resolver('BudgetedSubscriptionResolver')
+    class BudgetedSubscriptionResolver {
+      @Subscription()
+      async *slowStream(): AsyncGenerator<string, void, void> {
+        yield 'tick';
+        await waitForRelease;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [
+        GraphqlModule.forRoot({
+          resolvers: [BudgetedSubscriptionResolver],
+          subscriptions: {
+            websocket: {
+              enabled: true,
+              limits: {
+                maxOperationsPerConnection: 1,
+              },
+            },
+          },
+        }),
+      ],
+      providers: [BudgetedSubscriptionResolver],
+    });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapNodeApplication(AppModule, { cors: false, port });
+    await app.listen();
+
+    const socket = await connectGraphqlWebSocket(port);
+    socket.send(JSON.stringify({
+      id: 'sub-1',
+      payload: {
+        query: 'subscription { slowStream }',
+      },
+      type: 'subscribe',
+    }));
+
+    await expect(onceGraphqlWebSocketMessage(socket)).resolves.toEqual({
+      id: 'sub-1',
+      payload: {
+        data: {
+          slowStream: 'tick',
+        },
+      },
+      type: 'next',
+    });
+
+    socket.send(JSON.stringify({
+      id: 'sub-2',
+      payload: {
+        query: 'subscription { slowStream }',
+      },
+      type: 'subscribe',
+    }));
+
+    await expect(onceGraphqlWebSocketMessage(socket)).resolves.toEqual({
+      id: 'sub-2',
+      payload: [
+        {
+          message: 'GraphQL websocket active operation count exceeds the configured limit of 1.',
+        },
+      ],
+      type: 'error',
+    });
+
+    releaseOperation?.();
     socket.close();
     await onceWebSocketClosed(socket);
     await app.close();
