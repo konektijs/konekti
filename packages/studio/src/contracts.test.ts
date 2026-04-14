@@ -1,23 +1,19 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
 
 import { describe, expect, it } from 'vitest';
 
 import * as studio from './index.js';
 import { applyFilters, parseStudioPayload, renderMermaid } from './contracts.js';
 import type { PlatformShellSnapshot } from '@fluojs/runtime';
+import { runWorkspaceBuildClosure } from '../../../tooling/scripts/run-workspace-build-closure.mjs';
 
 const packageDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 const repoRoot = resolve(packageDir, '..', '..');
 
 function runBuild(): void {
-  const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-  const result = spawnSync(command, ['--filter', '@fluojs/studio...', 'build'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  });
+  const result = runWorkspaceBuildClosure('@fluojs/studio', repoRoot);
 
   expect(result.status, [result.stdout, result.stderr].filter(Boolean).join('\n')).toBe(0);
 }
