@@ -41,6 +41,24 @@ function applyTransforms(value: unknown, metadata: SerializationFieldMetadata): 
   return transformed;
 }
 
+function assignSerializedProperty(
+  target: Record<string | symbol, unknown>,
+  propertyKey: string | symbol,
+  value: unknown,
+): void {
+  if (propertyKey === '__proto__' || propertyKey === 'constructor' || propertyKey === 'prototype') {
+    Object.defineProperty(target, propertyKey, {
+      configurable: true,
+      enumerable: true,
+      value,
+      writable: true,
+    });
+    return;
+  }
+
+  target[propertyKey] = value;
+}
+
 function resolveCandidateKeys(
   value: Record<string | symbol, unknown>,
   fieldMetadata: Map<MetadataPropertyKey, SerializationFieldMetadata>,
@@ -173,7 +191,7 @@ function serializeClassInstance(
       }
 
       const transformed = metadata ? applyTransforms(raw, metadata) : raw;
-      serialized[propertyKey] = serializeInternal(transformed, context);
+      assignSerializedProperty(serialized, propertyKey, serializeInternal(transformed, context));
     }
   });
 }
@@ -188,7 +206,7 @@ function serializeRecord(
   return serializeWithTrackedReference<Record<string | symbol, unknown>>(value, context, () => ({}), (serialized) => {
     for (const propertyKey of keys) {
       const propertyValue = value[propertyKey];
-      serialized[propertyKey] = serializeInternal(propertyValue, context);
+      assignSerializedProperty(serialized, propertyKey, serializeInternal(propertyValue, context));
     }
   });
 }
