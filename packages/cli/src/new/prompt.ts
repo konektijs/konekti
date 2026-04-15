@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { createInterface } from 'node:readline/promises';
+
+import * as clack from '@clack/prompts';
 
 import { resolveBootstrapSchema } from './resolver.js';
 import {
@@ -51,68 +52,51 @@ function hasOwnValue<Key extends keyof BootstrapAnswers>(
   return partial[key] !== undefined;
 }
 
-function createBootstrapPrompter(
-  stdin: NodeJS.ReadStream = process.stdin,
-  stdout: NodeJS.WriteStream = process.stdout,
-): BootstrapPrompter {
-  const readline = createInterface({ input: stdin, output: stdout });
-  const ask = async (message: string): Promise<string> => readline.question(message);
-
+function createBootstrapPrompter(): BootstrapPrompter {
   return {
-    close(): void {
-      readline.close();
-    },
     async confirm(message: string, defaultValue: boolean): Promise<boolean> {
-      const suffix = defaultValue ? 'Y/n' : 'y/N';
+      const result = await clack.confirm({
+        message,
+        initialValue: defaultValue,
+      });
 
-      while (true) {
-        const answer = (await ask(`${message} (${suffix}): `)).trim().toLowerCase();
-
-        if (answer.length === 0) {
-          return defaultValue;
-        }
-
-        if (['y', 'yes'].includes(answer)) {
-          return true;
-        }
-
-        if (['n', 'no'].includes(answer)) {
-          return false;
-        }
-
-        stdout.write('Please answer yes or no.\n');
+      if (clack.isCancel(result)) {
+        clack.cancel('Operation cancelled.');
+        process.exit(0);
       }
+
+      return result;
     },
     async select<T extends string>(message: string, choices: readonly PromptChoice<T>[], defaultValue?: T): Promise<T> {
-      const lines = [message];
+      const result = await clack.select({
+        message,
+        options: choices.map((choice) => ({ label: choice.label, value: choice.value })) as clack.Option<T>[],
+        initialValue: defaultValue,
+      }) as T | symbol;
 
-      for (const [index, choice] of choices.entries()) {
-        const marker = choice.value === defaultValue ? ' (default)' : '';
-        lines.push(`  ${index + 1}. ${choice.label}${marker}`);
+      if (clack.isCancel(result)) {
+        clack.cancel('Operation cancelled.');
+        process.exit(0);
       }
 
-      while (true) {
-        const answer = (await ask(`${lines.join('\n')}\n> `)).trim();
-
-        if (answer.length === 0 && defaultValue) {
-          return defaultValue;
-        }
-
-        const asIndex = Number(answer);
-        if (Number.isInteger(asIndex) && asIndex >= 1 && asIndex <= choices.length) {
-          return choices[asIndex - 1]!.value;
-        }
-
-        const exactMatch = choices.find((choice) => choice.value === answer);
-        if (exactMatch) {
-          return exactMatch.value;
-        }
-
-        stdout.write('Select one of the listed options.\n');
-      }
+      return result;
     },
     async text(message: string): Promise<string> {
-      return ask(`${message}: `);
+      const result = await clack.text({
+        message,
+        validate(value) {
+          if (!value || value.trim().length === 0) {
+            return 'Value is required.';
+          }
+        },
+      });
+
+      if (clack.isCancel(result)) {
+        clack.cancel('Operation cancelled.');
+        process.exit(0);
+      }
+
+      return result;
     },
   };
 }
@@ -369,13 +353,21 @@ export async function collectBootstrapAnswers(
     return resolveBootstrapAnswers(partial, cwd, userAgent);
   }
 
-  const prompt = options.prompt ?? createBootstrapPrompter(
-    options.stdin as NodeJS.ReadStream | undefined,
-    options.stdout as NodeJS.WriteStream | undefined,
-  );
+  const prompt = options.prompt ?? createBootstrapPrompter();
+  const isInteractiveShell = options.prompt === undefined;
 
   try {
-    return await resolveInteractiveBootstrapAnswers(partial, cwd, userAgent, prompt);
+    if (isInteractiveShell) {
+      clack.intro('fluo new');
+    }
+
+    const answers = await resolveInteractiveBootstrapAnswers(partial, cwd, userAgent, prompt);
+
+    if (isInteractiveShell) {
+      clack.outro(`Project created! Run: cd ${answers.targetDirectory}`);
+    }
+
+    return answers;
   } finally {
     prompt.close?.();
   }
