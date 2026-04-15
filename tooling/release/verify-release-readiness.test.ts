@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { runReleaseReadinessVerification } from './verify-release-readiness.mjs';
 
 function createDependencies() {
   const docs = new Map([
@@ -38,24 +39,20 @@ function createDependencies() {
 }
 
 describe('runReleaseReadinessVerification', () => {
-  it('keeps default verification read-only', async () => {
-    // @ts-ignore tooling script is exercised via runtime import.
-    const releaseModule = (await import('./verify-release-readiness.mjs')) as any;
+  it('keeps default verification read-only', () => {
     const dependencies = createDependencies();
 
-    const result = releaseModule.runReleaseReadinessVerification({}, dependencies);
+    const result = runReleaseReadinessVerification({}, dependencies);
 
     expect(result.writeDrafts).toBe(false);
     expect(dependencies.run).toHaveBeenCalledTimes(4);
     expect(dependencies.writeFileSync).not.toHaveBeenCalled();
   });
 
-  it('writes draft artifacts only when explicitly requested', async () => {
-    // @ts-ignore tooling script is exercised via runtime import.
-    const releaseModule = (await import('./verify-release-readiness.mjs')) as any;
+  it('writes draft artifacts only when explicitly requested', () => {
     const dependencies = createDependencies();
 
-    const result = releaseModule.runReleaseReadinessVerification({ writeDrafts: true }, dependencies);
+    const result = runReleaseReadinessVerification({ writeDrafts: true }, dependencies);
 
     expect(result.writeDrafts).toBe(true);
     expect(dependencies.writeFileSync).toHaveBeenCalledTimes(3);
