@@ -1,5 +1,7 @@
 import { resolve } from 'node:path';
 
+import { spinner as clackSpinner, log as clackLog } from '@clack/prompts';
+
 import { renderAliasList, renderHelpTable } from '../help.js';
 import { collectBootstrapAnswers, type BootstrapPrompter } from '../new/prompt.js';
 import { scaffoldBootstrapApp } from '../new/scaffold.js';
@@ -416,7 +418,21 @@ export async function runNewCommand(argv: string[], runtime: NewCommandRuntimeOp
       stdout.write('Skipping dependency installation.\n');
     }
 
+    const isInteractiveShell = runtime.prompt === undefined && !runtime.interactive;
+    let s: ReturnType<typeof clackSpinner> | undefined;
+
+    if (isInteractiveShell && !answers.installDependencies) {
+      s = clackSpinner();
+      s.start('Scaffolding project files');
+    }
+
     await scaffoldBootstrapApp(options);
+
+    if (s) {
+      s.stop('Project files written');
+    } else if (isInteractiveShell && answers.installDependencies) {
+      clackLog.step('Scaffolding complete. Installing dependencies...');
+    }
 
     stdout.write('Done.\n');
     stdout.write(

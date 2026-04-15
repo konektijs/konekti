@@ -18,6 +18,10 @@ export interface InitializeGitRepositoryOptions {
   command?: string;
 }
 
+type WritableStream = {
+  write(message: string): unknown;
+};
+
 const COREPACK_DOCS_URL = 'https://nodejs.org/api/corepack.html';
 
 function checkCommandAvailability(command: string): boolean {
@@ -72,16 +76,16 @@ export function resolveInstallCommand(
  *
  * @param targetDirectory Generated project directory.
  * @param packageManager Package manager selected for the generated starter.
+ * @param stderr Optional stream for diagnostic messages.
  * @returns A promise that resolves when installation succeeds.
  */
-export async function installDependencies(targetDirectory: string, packageManager: PackageManager): Promise<void> {
+export async function installDependencies(targetDirectory: string, packageManager: PackageManager, stderr?: WritableStream): Promise<void> {
   const hasCorepack = packageManager === 'yarn' ? checkCommandAvailability('corepack') : undefined;
   const { args, command } = resolveInstallCommand(packageManager, { isCorepackAvailable: hasCorepack });
 
   if (packageManager === 'yarn' && hasCorepack === false) {
-    console.warn(
-      `[fluo] corepack was not found in PATH, falling back to "yarn install". See ${COREPACK_DOCS_URL}`,
-    );
+    const message = `[fluo] corepack was not found in PATH, falling back to "yarn install". See ${COREPACK_DOCS_URL}\n`;
+    (stderr ?? process.stderr).write(message);
   }
 
   await new Promise<void>((resolve, reject) => {
