@@ -262,6 +262,59 @@ describe('serialize', () => {
     });
   });
 
+  it('serializes own __proto__ keys as data without polluting output prototypes', () => {
+    const input = { safe: true } as Record<string, unknown>;
+
+    Object.defineProperty(input, '__proto__', {
+      configurable: true,
+      enumerable: true,
+      value: {
+        polluted: true,
+      },
+      writable: true,
+    });
+
+    const serialized = serialize(input) as Record<string, unknown>;
+
+    expect(Object.keys(serialized)).toEqual(['safe', '__proto__']);
+    expect(Object.getPrototypeOf(serialized)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(serialized, '__proto__')).toBe(true);
+    expect(serialized.safe).toBe(true);
+    expect(serialized.__proto__).toEqual({ polluted: true });
+    expect((serialized as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+
+  it('serializes exposed own __proto__ keys on decorated instances without prototype mutation', () => {
+    @Expose({ excludeExtraneous: true })
+    class DangerousView {
+      @Expose()
+      safe = true;
+
+      @Expose()
+      ['__proto__']!: Record<string, unknown>;
+
+      constructor() {
+        Object.defineProperty(this, '__proto__', {
+          configurable: true,
+          enumerable: true,
+          value: {
+            polluted: true,
+          },
+          writable: true,
+        });
+      }
+    }
+
+    const serialized = serialize(new DangerousView()) as Record<string, unknown>;
+
+    expect(Object.keys(serialized)).toEqual(['safe', '__proto__']);
+    expect(Object.getPrototypeOf(serialized)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(serialized, '__proto__')).toBe(true);
+    expect(serialized.safe).toBe(true);
+    expect(serialized.__proto__).toEqual({ polluted: true });
+    expect((serialized as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+
   it('treats plain objects with unsafe constructor fields as plain records', () => {
     const input = {
       constructor: {
@@ -275,6 +328,25 @@ describe('serialize', () => {
     };
 
     expect(serialize(input)).toEqual(input);
+  });
+
+  it('keeps own prototype keys as plain data fields', () => {
+    const input = {
+      prototype: {
+        safe: true,
+      },
+      nested: {
+        prototype: 'still-data',
+      },
+    };
+
+    const serialized = serialize(input) as {
+      prototype: { safe: boolean };
+      nested: { prototype: string };
+    };
+
+    expect(Object.getPrototypeOf(serialized)).toBe(Object.prototype);
+    expect(serialized).toEqual(input);
   });
 
   it('preserves non-JSON leaf values instead of coercing them implicitly', () => {
