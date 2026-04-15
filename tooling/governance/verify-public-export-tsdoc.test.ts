@@ -126,6 +126,76 @@ describe('enforcePublicExportTSDocBaseline', () => {
   });
 });
 
+describe('publicExportTSDocTargetPaths', () => {
+  it('keeps diff-scoped mode unchanged by default', async () => {
+    const governanceModule = (await import('./verify-public-export-tsdoc.mjs')) as any;
+
+    expect(
+      governanceModule.publicExportTSDocTargetPaths(
+        'changed',
+        ['packages/http/src/handler.ts'],
+        ['packages/http/src/handler.ts', 'packages/core/src/app.ts'],
+      ),
+    ).toEqual(['packages/http/src/handler.ts']);
+  });
+
+  it('returns the full governed workspace set in full mode', async () => {
+    const governanceModule = (await import('./verify-public-export-tsdoc.mjs')) as any;
+
+    expect(
+      governanceModule.publicExportTSDocTargetPaths(
+        'full',
+        ['packages/http/src/handler.ts'],
+        ['packages/http/src/handler.ts', 'packages/core/src/app.ts'],
+      ),
+    ).toEqual(['packages/http/src/handler.ts', 'packages/core/src/app.ts']);
+  });
+});
+
+describe('governedPublicExportSourcePathsFromWorkspace', () => {
+  it('collects governed package source files across the workspace', async () => {
+    const governanceModule = (await import('./verify-public-export-tsdoc.mjs')) as any;
+
+    expect(
+      governanceModule.governedPublicExportSourcePathsFromWorkspace([
+        'packages/core/src/app.ts',
+        'packages/core/src/app.test.ts',
+        'packages/core/src/index.ts',
+        'packages/core/dist/index.js',
+        'tooling/governance/verify-public-export-tsdoc.mjs',
+      ]),
+    ).toEqual(['packages/core/src/app.ts', 'packages/core/src/index.ts']);
+  });
+});
+
+describe('enforcePublicExportTSDocBaselineForMode', () => {
+  it('lets diff mode ignore untouched governed files', async () => {
+    const governanceModule = (await import('./verify-public-export-tsdoc.mjs')) as any;
+
+    expect(() =>
+      governanceModule.enforcePublicExportTSDocBaselineForMode(
+        'changed',
+        () => 'export const HTTP_STATUS = 200;\n',
+        [],
+        ['packages/http/src/handler.ts'],
+      ),
+    ).not.toThrow();
+  });
+
+  it('makes full mode fail for untouched governed files that miss the baseline', async () => {
+    const governanceModule = (await import('./verify-public-export-tsdoc.mjs')) as any;
+
+    expect(() =>
+      governanceModule.enforcePublicExportTSDocBaselineForMode(
+        'full',
+        () => 'export const HTTP_STATUS = 200;\n',
+        [],
+        ['packages/http/src/handler.ts'],
+      ),
+    ).toThrowError(/governed public exports must include a TSDoc summary/);
+  });
+});
+
 describe('changedPublicExportSourcePathsFromGit', () => {
   it('ignores import-only namespace churn when exported declarations are unchanged', async () => {
     const governanceModule = (await import('./verify-public-export-tsdoc.mjs')) as any;
