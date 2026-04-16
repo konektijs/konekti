@@ -199,12 +199,13 @@ describe('platform consistency governance docs', () => {
     expect(releaseWorkflow).toContain('dist_tag:');
     expect(releaseWorkflow).toContain('release_prerelease:');
     expect(releaseWorkflow).toContain('id-token: write');
-    expect(releaseWorkflow).toContain('pnpm verify:release-readiness --target-package "$TARGET_PACKAGE" --target-version "$TARGET_VERSION" --dist-tag "$DIST_TAG"');
+    expect(releaseWorkflow).toContain('pnpm verify:release-readiness --target-package "$TARGET_PACKAGE" --target-version "$TARGET_VERSION" --dist-tag "$DIST_TAG" --write-summary --summary-output-dir "$RUNNER_TEMP/release-readiness"');
     expect(releaseWorkflow).toContain('pnpm --dir "${{ steps.resolve.outputs.package_dir }}" publish --access public --tag "$DIST_TAG" --provenance --no-git-checks');
     expect(releaseWorkflow).toContain('node tooling/release/prepare-github-release.mjs "${{ steps.resolve.outputs.release_tag }}"');
     expect(releaseWorkflow).toContain('git tag "${{ steps.resolve.outputs.release_tag }}"');
     expect(releaseWorkflow).toContain('gh release create "${{ steps.resolve.outputs.release_tag }}"');
-    expect(releaseWorkflow.indexOf('pnpm verify:release-readiness --target-package "$TARGET_PACKAGE" --target-version "$TARGET_VERSION" --dist-tag "$DIST_TAG"')).toBeLessThan(
+    expect(releaseWorkflow).toContain('"$RUNNER_TEMP/release-readiness/release-readiness-summary.md#release-readiness-summary.md"');
+    expect(releaseWorkflow.indexOf('pnpm verify:release-readiness --target-package "$TARGET_PACKAGE" --target-version "$TARGET_VERSION" --dist-tag "$DIST_TAG" --write-summary --summary-output-dir "$RUNNER_TEMP/release-readiness"')).toBeLessThan(
       releaseWorkflow.indexOf('pnpm --dir "${{ steps.resolve.outputs.package_dir }}" publish --access public --tag "$DIST_TAG" --provenance --no-git-checks'),
     );
     expect(releaseWorkflow.indexOf('pnpm --dir "${{ steps.resolve.outputs.package_dir }}" publish --access public --tag "$DIST_TAG" --provenance --no-git-checks')).toBeLessThan(
