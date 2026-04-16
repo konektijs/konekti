@@ -120,7 +120,7 @@ jobs:
           EOF
 
       - name: Canonical release-readiness preflight
-        run: pnpm verify:release-readiness --target-package "$TARGET_PACKAGE" --target-version "$TARGET_VERSION" --dist-tag "$DIST_TAG"
+        run: pnpm verify:release-readiness --target-package "$TARGET_PACKAGE" --target-version "$TARGET_VERSION" --dist-tag "$DIST_TAG" --write-summary --summary-output-dir "$RUNNER_TEMP/release-readiness"
 
       - name: Publish package to npm
         run: pnpm --dir "${{ steps.resolve.outputs.package_dir }}" publish --access public --tag "$DIST_TAG" --provenance --no-git-checks
@@ -144,4 +144,4 @@ jobs:
             --title "${{ steps.resolve.outputs.release_tag }}" \
             --notes-file tooling/release/github-release-notes.md \
             $prerelease_flag \
-            tooling/release/release-readiness-summary.md#release-readiness-summary.md
+            "$RUNNER_TEMP/release-readiness/release-readiness-summary.md#release-readiness-summary.md"

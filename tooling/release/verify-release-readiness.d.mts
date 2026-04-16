@@ -22,14 +22,17 @@ export type ReleaseReadinessDependencies = {
 export type ReleaseReadinessResult = {
   checks: ReleaseReadinessCheck[];
   writeDrafts: boolean;
+  writeSummary: boolean;
 };
 
 export function runReleaseReadinessVerification(
   options?: {
     distTag?: string;
+    summaryOutputDirectory?: string;
     targetPackage?: string;
     targetVersion?: string;
     writeDrafts?: boolean;
+    writeSummary?: boolean;
   },
   dependencies?: ReleaseReadinessDependencies,
 ): ReleaseReadinessResult;
