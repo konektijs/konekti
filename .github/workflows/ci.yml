@@ -127,7 +127,27 @@ jobs:
 
       - name: Test (full)
         if: github.event_name != 'pull_request' || needs.resolve-pr-verification-scope.outputs.mode != 'scoped'
-        run: pnpm test
+        env:
+          FLUO_VITEST_SHUTDOWN_DEBUG_DIR: .artifacts/vitest-shutdown-debug/packages
+        run: pnpm vitest run --project packages
+
+      - name: Test (full apps project)
+        if: github.event_name != 'pull_request' || needs.resolve-pr-verification-scope.outputs.mode != 'scoped'
+        env:
+          FLUO_VITEST_SHUTDOWN_DEBUG_DIR: .artifacts/vitest-shutdown-debug/apps
+        run: pnpm vitest run --project apps
+
+      - name: Test (full examples project)
+        if: github.event_name != 'pull_request' || needs.resolve-pr-verification-scope.outputs.mode != 'scoped'
+        env:
+          FLUO_VITEST_SHUTDOWN_DEBUG_DIR: .artifacts/vitest-shutdown-debug/examples
+        run: pnpm vitest run --project examples
+
+      - name: Test (full tooling project)
+        if: github.event_name != 'pull_request' || needs.resolve-pr-verification-scope.outputs.mode != 'scoped'
+        env:
+          FLUO_VITEST_SHUTDOWN_DEBUG_DIR: .artifacts/vitest-shutdown-debug/tooling
+        run: pnpm vitest run --project tooling
 
       - name: Print Vitest shutdown debug summary
         if: ${{ always() }}
@@ -147,9 +167,22 @@ jobs:
             process.exit(0);
           }
 
-          const files = readdirSync(directory)
-            .filter((entry) => entry.endsWith('.json'))
-            .sort();
+          const collectJsonFiles = (currentDirectory) => {
+            const entries = readdirSync(currentDirectory, { withFileTypes: true });
+
+            return entries
+              .flatMap((entry) => {
+                const entryPath = join(currentDirectory, entry.name);
+                if (entry.isDirectory()) {
+                  return collectJsonFiles(entryPath);
+                }
+
+                return entry.name.endsWith('.json') ? [entryPath] : [];
+              })
+              .sort();
+          };
+
+          const files = collectJsonFiles(directory);
 
           if (files.length === 0) {
             console.log('No Vitest shutdown debug artifacts were produced.');
@@ -157,12 +190,12 @@ jobs:
           }
 
           for (const file of files) {
-            const artifact = JSON.parse(readFileSync(join(directory, file), 'utf8'));
+            const artifact = JSON.parse(readFileSync(file, 'utf8'));
             const activeHandleSummary = Array.isArray(artifact.process?.activeHandles?.types)
               ? artifact.process.activeHandles.types.map((entry) => `${entry.constructorName}x${String(entry.count)}`).join(', ')
               : '';
 
-            console.log(`artifact: ${file}`);
+            console.log(`artifact: ${file.slice(directory.length + 1)}`);
             console.log(`  kind: ${String(artifact.kind ?? 'unknown')}`);
             if (artifact.lastTestReady?.fullName) {
               console.log(`  last ready test: ${artifact.lastTestReady.fullName}`);
@@ -177,11 +210,11 @@ jobs:
           EOF
 
       - name: Upload Vitest shutdown debug artifacts
-        if: ${{ always() && hashFiles('.artifacts/vitest-shutdown-debug/*.json') != '' }}
+        if: ${{ always() && hashFiles('.artifacts/vitest-shutdown-debug/**/*.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: vitest-shutdown-debug-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .artifacts/vitest-shutdown-debug/*.json
+          path: .artifacts/vitest-shutdown-debug/**/*.json
           if-no-files-found: error
 
   official-web-runtime-adapter-portability:
