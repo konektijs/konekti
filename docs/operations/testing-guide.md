@@ -107,16 +107,35 @@ Keep the module wiring real but override the low-level client tokens to avoid ne
 | `pnpm generate:release-readiness-drafts` | Explicitly writes release-readiness summary artifacts and the draft changelog block for release prep. |
 | `pnpm verify:public-export-tsdoc:baseline` | Runs the public-export TSDoc baseline against the full governed package source surface. |
 
-The manual GitHub Actions workflow `.github/workflows/release-single-package.yml` is the canonical publisher for one public package per run. It must reuse `pnpm verify:release-readiness --target-package --target-version --dist-tag` before publishing and may create the git tag plus GitHub Release only after npm publish succeeds.
+---
 
-### Generated Templates
-When using the CLI (`fluo g repo <Name>`), the following templates are provided as the baseline:
-- `<name>.repo.test.ts`: Unit test template for business logic.
-- `<name>.repo.slice.test.ts`: Integration template using `createTestingModule`.
+## Release Pre-flight Runbook
+
+Maintainers must ensure verification passes before triggering automated releases.
+
+### 1. Verification Checklist
+- [ ] `pnpm verify` passes locally.
+- [ ] Public exports follow TSDoc baseline (verified by `pnpm lint`).
+- [ ] `pnpm verify:release-readiness` returns no errors for the intended publish surface.
+
+### 2. CI-only Preflight Execution
+The manual workflow `.github/workflows/release-single-package.yml` is the canonical publisher for one public package per run. It reuses `pnpm verify:release-readiness` with specific inputs:
+
+```bash
+pnpm verify:release-readiness --target-package <package_name> --target-version <version> --dist-tag <tag> --write-summary
+```
+
+This gate ensures:
+1. The package is within the **intended publish surface**.
+2. Its internal `@fluojs/*` dependency ranges are publish-safe (canonical `workspace:^` shape).
+3. The version and `dist-tag` are correctly aligned (e.g., no stable release on a `next` tag).
+
+A `release-readiness-summary.md` artifact is generated for each run and attached to the GitHub Release as evidence of preflight success.
 
 ---
 
 ## Related Docs
+
 - [Behavioral Contract Policy](./behavioral-contract-policy.md)
 - [Platform Conformance Authoring Checklist](./platform-conformance-authoring-checklist.md)
 - [Release Governance](./release-governance.md)

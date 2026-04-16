@@ -107,16 +107,35 @@ await app.close();
 | `pnpm generate:release-readiness-drafts` | 릴리스 준비를 위해 release-readiness summary 산출물과 changelog 드래프트 블록을 명시적으로 씁니다. |
 | `pnpm verify:public-export-tsdoc:baseline` | public-export TSDoc 기준을 전체 governed 패키지 소스 표면에 적용합니다. |
 
-수동 GitHub Actions 워크플로 `.github/workflows/release-single-package.yml`은 한 번에 하나의 공개 패키지만 publish하는 canonical publisher입니다. publish 전에 반드시 `pnpm verify:release-readiness --target-package --target-version --dist-tag`를 재사용해야 하며, npm publish가 성공한 뒤에만 git tag와 GitHub Release를 생성할 수 있습니다.
+---
 
-### 생성된 템플릿
-CLI(`fluo g repo <Name>`) 사용 시 기본적으로 제공되는 템플릿은 다음과 같습니다.
-- `<name>.repo.test.ts`: 비즈니스 로직을 위한 유닛 테스트 템플릿.
-- `<name>.repo.slice.test.ts`: `createTestingModule`을 사용하는 통합 테스트 템플릿.
+## 릴리스 Pre-flight 런북 (Release Pre-flight Runbook)
+
+메인테이너는 자동화된 릴리스를 트리거하기 전에 모든 검증이 통과되었는지 확인해야 합니다.
+
+### 1. 검증 체크리스트
+- [ ] 로컬에서 `pnpm verify`를 실행하여 통과했는지 확인하십시오.
+- [ ] public export가 TSDoc 기준을 따르는지 확인하십시오 (`pnpm lint`에 의해 검증됨).
+- [ ] `pnpm verify:release-readiness`를 실행하여 intended publish surface에 대한 오류가 없는지 확인하십시오.
+
+### 2. CI 전용 Preflight 실행
+수동 워크플로 `.github/workflows/release-single-package.yml`은 한 번에 하나의 패키지를 배포하는 canonical publisher입니다. 이 워크플로는 특정 입력값으로 `pnpm verify:release-readiness`를 재사용합니다.
+
+```bash
+pnpm verify:release-readiness --target-package <package_name> --target-version <version> --dist-tag <tag> --write-summary
+```
+
+이 관문은 다음을 보장합니다:
+1. 패키지가 **intended publish surface** 내에 있는지 확인합니다.
+2. 내부 `@fluojs/*` 의존성 범위가 배포에 안전한지 확인합니다 (canonical `workspace:^` 형태).
+3. 버전과 `dist-tag`가 올바르게 일치하는지 확인합니다 (예: `next` 태그에 안정 버전을 배포하지 않음).
+
+매 실행마다 `release-readiness-summary.md` 산출물이 생성되어 preflight 성공 증거로 GitHub Release에 첨부됩니다.
 
 ---
 
 ## 관련 문서
+
 - [동작 계약 정책 (Behavioral Contract Policy)](./behavioral-contract-policy.ko.md)
 - [플랫폼 준수 작성 체크리스트 (Platform Conformance Authoring Checklist)](./platform-conformance-authoring-checklist.ko.md)
 - [릴리스 거버넌스 (Release Governance)](./release-governance.ko.md)

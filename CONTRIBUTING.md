@@ -64,6 +64,14 @@ Release-readiness verification is now read-only by default:
 
 ## maintainer workflows
 
+### Supervised Release Orchestration
+
+fluo uses a `supervised-auto` policy for releases.
+
+1. **Automation**: Maintainers trigger the `.github/workflows/release-single-package.yml` workflow via GitHub Actions for single-package publishing. This handles validation, npm publish (via OIDC), git tag creation, and GitHub Release generation.
+2. **Supervision**: After the CI workflow completes, the central supervisor handles the final review of the release artifacts, branch merge (if any), and cleanup boundaries.
+3. **Consistency**: Do not manually tag or publish packages. Always use the canonical CI-only flow to maintain the integrity of behavioral contracts and release artifacts.
+
 ### CLI sandbox verification
 
 When modifying `@fluojs/cli` or core runtime packages, use the sandbox scripts to verify end-to-end behavior.

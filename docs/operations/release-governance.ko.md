@@ -96,18 +96,46 @@ fluo는 엄격한 **유의적 버전(Semantic Versioning, Semver)**을 따릅니
 ### CI/CD 강제 사항
 - **`pnpm verify:release-readiness`**: 기본적으로 `CHANGELOG.md`나 release-readiness summary 파일을 변경하지 않고 패키징된 CLI 엔트리포인트, 스타터 스캐폴딩, intended public package manifest dependency range를 검증합니다. CI 전용 단건 publish 모드에서는 `--target-package`, `--target-version`, `--dist-tag`를 함께 넘겨 요청한 패키지의 intended publish surface 소속 여부, semver/dist-tag의 프리릴리즈 정합성, 그리고 publish 가능한 내부 `@fluojs/*` dependency shape를 같은 canonical gate에서 강제합니다.
 - **`.github/workflows/release-single-package.yml`**: 신뢰된 단건 npm publish를 위한 수동 GitHub Actions 진입점입니다. `package_name`, `package_version`, `dist_tag`, `release_prerelease`를 입력으로 받고, canonical `pnpm verify:release-readiness --target-package --target-version --dist-tag` 게이트를 통과한 뒤에만 git tag와 GitHub Release를 생성합니다.
+- **Supervised Release Orchestration**: 릴리스는 `supervised-auto` 정책을 따릅니다. CI 워크플로가 publish 및 태그 생성을 자동화하지만, 리포지토리의 일관성을 위해 최종 리뷰, 머지 및 정리 작업은 중앙 supervisor가 처리합니다.
 - **`pnpm generate:release-readiness-drafts`**: 릴리스 노트를 준비할 때 release-readiness summary 산출물과 `CHANGELOG.md` 드래프트 블록을 명시적으로 갱신합니다.
-- **`pnpm verify:platform-consistency-governance`**: 영어와 한국어 문서 간의 구조적 일관성을 강제합니다.
-- **`pnpm verify:public-export-tsdoc`**: `packages/*/src` 아래 변경된 public export가 repo-wide TSDoc 최소 기준을 놓치면 실패합니다.
-- **`pnpm verify:public-export-tsdoc:baseline`**: 동일한 TSDoc 기준을 전체 governed `packages/*/src` 표면에 적용해 아직 수정되지 않은 누락 파일도 탐지합니다.
-- **동작 계약 체크**: `process.env`가 승인된 패턴(`@fluojs/config`) 외부에서 액세스될 경우 릴리스를 차단합니다.
 
-### 변경 이력 표준 (Changelog Standards)
-모든 공개 릴리스는 *Keep a Changelog* 형식을 따르는 루트 `CHANGELOG.md`에 일치하는 항목이 있어야 합니다. 단건 릴리스 워크플로는 패키지 범위 태그(예: `@fluojs/cli@0.1.0`)를 만들고, publish가 성공한 뒤에만 같은 버전의 루트 changelog 섹션으로 GitHub Release 본문을 생성합니다.
+---
+
+## 단건 패키지 릴리스 운영 절차 (Release Operator Flow)
+
+메인테이너는 npm에 개별 패키지를 배포할 때 다음 런북을 따라야 합니다.
+
+### 1. 사전 준비 (Pre-flight)
+CI 워크플로를 트리거하기 전에 다음 사항을 확인하십시오.
+- `package.json`의 패키지 버전이 업데이트되었으며 의도한 릴리스와 일치하는지 확인하십시오.
+- 루트 `CHANGELOG.md`에 일치하는 버전 섹션이 존재하는지 확인하십시오.
+- 게이트 실패를 미리 방지하기 위해 로컬에서 `pnpm verify:release-readiness`를 실행하십시오.
+
+### 2. 워크플로 트리거
+GitHub의 **Actions** > **Release single package**로 이동하여 **Run workflow**를 클릭하십시오.
+
+| 입력값 | 설명 | 예시 |
+| :--- | :--- | :--- |
+| `package_name` | 패키지 전체 이름. | `@fluojs/cli` |
+| `package_version` | `package.json`에 명시된 정확한 버전. | `0.1.0` |
+| `dist_tag` | npm 배포 태그. | `latest` (안정 버전) 또는 `next` |
+| `release_prerelease` | 버전명에 하이픈이 포함된 경우 `true`여야 함. | `false` |
+
+### 3. 실행 및 중단 지점 (Stop Points)
+워크플로는 다음 단계를 순차적으로 실행합니다.
+1. **검증**: 입력값으로 `pnpm verify:release-readiness`를 실행합니다. 패키지가 intended publish surface에 없거나 버전/태그가 일치하지 않으면 실패합니다.
+2. **Publish**: OIDC를 통해 npm에 배포합니다 (provenance 활성화). **배포에 실패하면 워크플로가 중단됩니다.**
+3. **태깅**: git 태그(예: `@fluojs/cli@0.1.0`)를 생성하고 푸시합니다.
+4. **GitHub Release**: 릴리스 요약 산출물(summary artifact)과 changelog 노트를 포함한 릴리스를 생성합니다.
+
+### 4. 롤백 및 재시도 (Rollback & Retry)
+- **배포 실패**: 원인(빌드 오류, 매니페스트 범위 등)을 수정하고 동일한 버전으로 워크플로를 재시도하십시오.
+- **태그/릴리스 실패**: 패키지가 이미 npm에 올라갔으나 태그/릴리스에 실패한 경우, 수동으로 태그를 생성하거나 워크플로를 다시 실행하십시오. (이미 배포된 버전인 경우 `pnpm publish`가 안전하게 처리하는지 확인하십시오.)
 
 ---
 
 ## 관련 문서
+
 - [동작 계약 정책 (Behavioral Contract Policy)](./behavioral-contract-policy.ko.md)
 - [Public Export TSDoc 기준선](./public-export-tsdoc-baseline.ko.md)
 - [NestJS 기능 격차 (NestJS Parity Gaps)](./nestjs-parity-gaps.ko.md)
