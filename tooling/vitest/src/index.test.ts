@@ -3,9 +3,10 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { collectWorkspaceAliases } from './index.js';
+import { FLUO_VITEST_SHUTDOWN_DEBUG_ENV } from './shutdown-debug.js';
+import { collectWorkspaceAliases, createFluoVitestWorkspaceConfig } from './index.js';
 
 function writePackage(root: string, directoryName: string, packageName: string, sourceFiles: Record<string, string>) {
   const packageRoot = join(root, 'packages', directoryName);
@@ -45,5 +46,37 @@ describe('collectWorkspaceAliases', () => {
     expect(aliases['@fluojs/socket.io/module']).toBe(join(repoRoot, 'packages', 'platform-socket.io', 'src', 'module.ts'));
     expect(aliases).not.toHaveProperty('@fluojs/websocket');
     expect(aliases).not.toHaveProperty('@fluojs/platform-socket.io');
+  });
+});
+
+const originalShutdownDebugValue = process.env[FLUO_VITEST_SHUTDOWN_DEBUG_ENV];
+
+afterEach(() => {
+  if (originalShutdownDebugValue === undefined) {
+    delete process.env[FLUO_VITEST_SHUTDOWN_DEBUG_ENV];
+    return;
+  }
+
+  process.env[FLUO_VITEST_SHUTDOWN_DEBUG_ENV] = originalShutdownDebugValue;
+});
+
+describe('createFluoVitestWorkspaceConfig', () => {
+  it('keeps shutdown debug hooks disabled by default', () => {
+    delete process.env[FLUO_VITEST_SHUTDOWN_DEBUG_ENV];
+
+    const config = createFluoVitestWorkspaceConfig(new URL('../../../', import.meta.url));
+
+    expect(config.test?.reporters).toBeUndefined();
+    expect(config.test?.setupFiles).toBeUndefined();
+  });
+
+  it('enables shutdown debug hooks when the CI attribution path is requested', () => {
+    process.env[FLUO_VITEST_SHUTDOWN_DEBUG_ENV] = '1';
+
+    const config = createFluoVitestWorkspaceConfig(new URL('../../../', import.meta.url));
+
+    expect(config.test?.reporters).toBeDefined();
+    expect(config.test?.reporters).toMatchObject(['default', { onProcessTimeout: expect.any(Function) }]);
+    expect(config.test?.setupFiles).toEqual(expect.arrayContaining([expect.stringContaining('shutdown-debug.setup.ts')]));
   });
 });
