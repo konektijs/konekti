@@ -95,6 +95,7 @@ fluo는 엄격한 **유의적 버전(Semantic Versioning, Semver)**을 따릅니
 
 ### CI/CD 강제 사항
 - **`pnpm verify:release-readiness`**: 기본적으로 `CHANGELOG.md`나 release-readiness summary 파일을 변경하지 않고 패키징된 CLI 엔트리포인트, 스타터 스캐폴딩, intended public package manifest dependency range를 검증합니다. CI 전용 단건 publish 모드에서는 `--target-package`, `--target-version`, `--dist-tag`를 함께 넘겨 요청한 패키지의 intended publish surface 소속 여부, semver/dist-tag의 프리릴리즈 정합성, 그리고 publish 가능한 내부 `@fluojs/*` dependency shape를 같은 canonical gate에서 강제합니다.
+- **`.github/workflows/release-single-package.yml`**: 신뢰된 단건 npm publish를 위한 수동 GitHub Actions 진입점입니다. `package_name`, `package_version`, `dist_tag`, `release_prerelease`를 입력으로 받고, canonical `pnpm verify:release-readiness --target-package --target-version --dist-tag` 게이트를 통과한 뒤에만 git tag와 GitHub Release를 생성합니다.
 - **`pnpm generate:release-readiness-drafts`**: 릴리스 노트를 준비할 때 release-readiness summary 산출물과 `CHANGELOG.md` 드래프트 블록을 명시적으로 갱신합니다.
 - **`pnpm verify:platform-consistency-governance`**: 영어와 한국어 문서 간의 구조적 일관성을 강제합니다.
 - **`pnpm verify:public-export-tsdoc`**: `packages/*/src` 아래 변경된 public export가 repo-wide TSDoc 최소 기준을 놓치면 실패합니다.
@@ -102,7 +103,7 @@ fluo는 엄격한 **유의적 버전(Semantic Versioning, Semver)**을 따릅니
 - **동작 계약 체크**: `process.env`가 승인된 패턴(`@fluojs/config`) 외부에서 액세스될 경우 릴리스를 차단합니다.
 
 ### 변경 이력 표준 (Changelog Standards)
-모든 공개 릴리스는 *Keep a Changelog* 형식을 따르는 루트 `CHANGELOG.md`에 일치하는 항목이 있어야 합니다. GitHub 릴리스는 배포 단계에서 이 내용을 바탕으로 자동으로 생성됩니다.
+모든 공개 릴리스는 *Keep a Changelog* 형식을 따르는 루트 `CHANGELOG.md`에 일치하는 항목이 있어야 합니다. 단건 릴리스 워크플로는 패키지 범위 태그(예: `@fluojs/cli@0.1.0`)를 만들고, publish가 성공한 뒤에만 같은 버전의 루트 changelog 섹션으로 GitHub Release 본문을 생성합니다.
 
 ---
 

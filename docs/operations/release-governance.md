@@ -95,6 +95,7 @@ Governance is enforced through automated gates and manual checklists.
 
 ### CI/CD Enforcement
 - **`pnpm verify:release-readiness`**: Validates the packed CLI entrypoints, starter scaffolding, and intended public package manifest dependency ranges without mutating `CHANGELOG.md` or release-readiness summary files by default. In CI-only single-package publish mode, pass `--target-package`, `--target-version`, and `--dist-tag` to enforce intended publish surface membership, semver/dist-tag prerelease alignment, and publish-safe internal `@fluojs/*` dependency shape for the requested package.
+- **`.github/workflows/release-single-package.yml`**: Manual GitHub Actions entrypoint for trusted single-package npm publishing. It accepts `package_name`, `package_version`, `dist_tag`, and `release_prerelease`, runs the canonical `pnpm verify:release-readiness --target-package --target-version --dist-tag` gate, then creates the git tag and GitHub Release only after npm publish succeeds.
 - **`pnpm generate:release-readiness-drafts`**: Explicitly refreshes the release-readiness summary artifacts and the draft `CHANGELOG.md` block when maintainers are preparing release notes.
 - **`pnpm verify:platform-consistency-governance`**: Enforces structural parity between English and Korean documentation.
 - **`pnpm verify:public-export-tsdoc`**: Fails when changed public exports in `packages/*/src` miss the repo-wide TSDoc minimum baseline.
@@ -102,7 +103,7 @@ Governance is enforced through automated gates and manual checklists.
 - **Behavioral Contract Check**: Blocks releases if `process.env` is accessed outside of the sanctioned `@fluojs/config` patterns.
 
 ### Changelog Standards
-Every public release must have a matching entry in the root `CHANGELOG.md` following the *Keep a Changelog* format. GitHub Releases are automatically populated from this content during the deployment phase.
+Every public release must have a matching entry in the root `CHANGELOG.md` following the *Keep a Changelog* format. The single-package release workflow creates package-scoped tags (for example `@fluojs/cli@0.1.0`) and generates the GitHub Release body from the matching root changelog version section only after publish succeeds.
 
 ---
 

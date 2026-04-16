@@ -107,6 +107,8 @@ Keep the module wiring real but override the low-level client tokens to avoid ne
 | `pnpm generate:release-readiness-drafts` | Explicitly writes release-readiness summary artifacts and the draft changelog block for release prep. |
 | `pnpm verify:public-export-tsdoc:baseline` | Runs the public-export TSDoc baseline against the full governed package source surface. |
 
+The manual GitHub Actions workflow `.github/workflows/release-single-package.yml` is the canonical publisher for one public package per run. It must reuse `pnpm verify:release-readiness --target-package --target-version --dist-tag` before publishing and may create the git tag plus GitHub Release only after npm publish succeeds.
+
 ### Generated Templates
 When using the CLI (`fluo g repo <Name>`), the following templates are provided as the baseline:
 - `<name>.repo.test.ts`: Unit test template for business logic.

@@ -107,6 +107,8 @@ await app.close();
 | `pnpm generate:release-readiness-drafts` | 릴리스 준비를 위해 release-readiness summary 산출물과 changelog 드래프트 블록을 명시적으로 씁니다. |
 | `pnpm verify:public-export-tsdoc:baseline` | public-export TSDoc 기준을 전체 governed 패키지 소스 표면에 적용합니다. |
 
+수동 GitHub Actions 워크플로 `.github/workflows/release-single-package.yml`은 한 번에 하나의 공개 패키지만 publish하는 canonical publisher입니다. publish 전에 반드시 `pnpm verify:release-readiness --target-package --target-version --dist-tag`를 재사용해야 하며, npm publish가 성공한 뒤에만 git tag와 GitHub Release를 생성할 수 있습니다.
+
 ### 생성된 템플릿
 CLI(`fluo g repo <Name>`) 사용 시 기본적으로 제공되는 템플릿은 다음과 같습니다.
 - `<name>.repo.test.ts`: 비즈니스 로직을 위한 유닛 테스트 템플릿.
