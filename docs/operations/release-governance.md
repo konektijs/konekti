@@ -96,18 +96,46 @@ Governance is enforced through automated gates and manual checklists.
 ### CI/CD Enforcement
 - **`pnpm verify:release-readiness`**: Validates the packed CLI entrypoints, starter scaffolding, and intended public package manifest dependency ranges without mutating `CHANGELOG.md` or release-readiness summary files by default. In CI-only single-package publish mode, pass `--target-package`, `--target-version`, and `--dist-tag` to enforce intended publish surface membership, semver/dist-tag prerelease alignment, and publish-safe internal `@fluojs/*` dependency shape for the requested package.
 - **`.github/workflows/release-single-package.yml`**: Manual GitHub Actions entrypoint for trusted single-package npm publishing. It accepts `package_name`, `package_version`, `dist_tag`, and `release_prerelease`, runs the canonical `pnpm verify:release-readiness --target-package --target-version --dist-tag` gate, then creates the git tag and GitHub Release only after npm publish succeeds.
+- **Supervised Release Orchestration**: Releases follow a `supervised-auto` policy. While the CI workflow automates the publish and tag creation, the central supervisor handles final review, merge, and cleanup boundaries to ensure repository consistency.
 - **`pnpm generate:release-readiness-drafts`**: Explicitly refreshes the release-readiness summary artifacts and the draft `CHANGELOG.md` block when maintainers are preparing release notes.
-- **`pnpm verify:platform-consistency-governance`**: Enforces structural parity between English and Korean documentation.
-- **`pnpm verify:public-export-tsdoc`**: Fails when changed public exports in `packages/*/src` miss the repo-wide TSDoc minimum baseline.
-- **`pnpm verify:public-export-tsdoc:baseline`**: Runs the same TSDoc baseline against the full governed `packages/*/src` surface to catch untouched backlog files.
-- **Behavioral Contract Check**: Blocks releases if `process.env` is accessed outside of the sanctioned `@fluojs/config` patterns.
 
-### Changelog Standards
-Every public release must have a matching entry in the root `CHANGELOG.md` following the *Keep a Changelog* format. The single-package release workflow creates package-scoped tags (for example `@fluojs/cli@0.1.0`) and generates the GitHub Release body from the matching root changelog version section only after publish succeeds.
+---
+
+## Single-Package Release Operator Flow
+
+Maintainers should follow this runbook for publishing individual packages to npm.
+
+### 1. Pre-flight Preparation
+Before triggering the CI workflow, ensure the following:
+- The package version in its `package.json` is updated and matches your intended release.
+- A matching version section exists in the root `CHANGELOG.md`.
+- Run `pnpm verify:release-readiness` locally to catch obvious gate failures.
+
+### 2. Triggering the Workflow
+Navigate to **Actions** > **Release single package** in GitHub and click **Run workflow**.
+
+| Input | Description | Example |
+| :--- | :--- | :--- |
+| `package_name` | The full name of the package. | `@fluojs/cli` |
+| `package_version` | The exact version in `package.json`. | `0.1.0` |
+| `dist_tag` | npm distribution tag. | `latest` (stable) or `next` |
+| `release_prerelease` | Must be `true` if version contains a hyphen. | `false` |
+
+### 3. Execution & Stop Points
+The workflow executes the following steps sequentially:
+1. **Validation**: Runs `pnpm verify:release-readiness` with the provided inputs. Fails if the package is not in the intended publish surface or if versioning/tags are inconsistent.
+2. **Publish**: Publishes to npm via OIDC (provenance enabled). **If this fails, the workflow stops.**
+3. **Tagging**: Creates and pushes a git tag (e.g., `@fluojs/cli@0.1.0`).
+4. **GitHub Release**: Generates a release with the current-run release summary artifact and changelog notes.
+
+### 4. Rollback & Retry
+- **Publish Failure**: Fix the underlying issue (e.g., build error, manifest range) and retry the workflow with the same version.
+- **Tag/Release Failure**: If the package is already on npm but the tag/release failed, manually create the tag or rerun the workflow (ensure `pnpm publish` handles "already published" gracefully or skip it if allowed).
 
 ---
 
 ## Related Docs
+
 - [Behavioral Contract Policy](./behavioral-contract-policy.md)
 - [Public Export TSDoc Baseline](./public-export-tsdoc-baseline.md)
 - [NestJS Parity Gaps](./nestjs-parity-gaps.md)
