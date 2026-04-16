@@ -190,6 +190,31 @@ describe('platform consistency governance docs', () => {
     expect(ciWorkflow).toContain('run: pnpm verify:release-readiness');
   });
 
+  it('keeps single-package release automation bound to the canonical preflight and post-publish release creation', () => {
+    const releaseWorkflow = readFileSync(resolve(repoRoot, '.github/workflows/release-single-package.yml'), 'utf8');
+
+    expect(releaseWorkflow).toContain('workflow_dispatch:');
+    expect(releaseWorkflow).toContain('package_name:');
+    expect(releaseWorkflow).toContain('package_version:');
+    expect(releaseWorkflow).toContain('dist_tag:');
+    expect(releaseWorkflow).toContain('release_prerelease:');
+    expect(releaseWorkflow).toContain('id-token: write');
+    expect(releaseWorkflow).toContain('pnpm verify:release-readiness --target-package "$TARGET_PACKAGE" --target-version "$TARGET_VERSION" --dist-tag "$DIST_TAG"');
+    expect(releaseWorkflow).toContain('pnpm --dir "${{ steps.resolve.outputs.package_dir }}" publish --access public --tag "$DIST_TAG" --provenance --no-git-checks');
+    expect(releaseWorkflow).toContain('node tooling/release/prepare-github-release.mjs "${{ steps.resolve.outputs.release_tag }}"');
+    expect(releaseWorkflow).toContain('git tag "${{ steps.resolve.outputs.release_tag }}"');
+    expect(releaseWorkflow).toContain('gh release create "${{ steps.resolve.outputs.release_tag }}"');
+    expect(releaseWorkflow.indexOf('pnpm verify:release-readiness --target-package "$TARGET_PACKAGE" --target-version "$TARGET_VERSION" --dist-tag "$DIST_TAG"')).toBeLessThan(
+      releaseWorkflow.indexOf('pnpm --dir "${{ steps.resolve.outputs.package_dir }}" publish --access public --tag "$DIST_TAG" --provenance --no-git-checks'),
+    );
+    expect(releaseWorkflow.indexOf('pnpm --dir "${{ steps.resolve.outputs.package_dir }}" publish --access public --tag "$DIST_TAG" --provenance --no-git-checks')).toBeLessThan(
+      releaseWorkflow.indexOf('git tag "${{ steps.resolve.outputs.release_tag }}"'),
+    );
+    expect(releaseWorkflow.indexOf('git tag "${{ steps.resolve.outputs.release_tag }}"')).toBeLessThan(
+      releaseWorkflow.indexOf('gh release create "${{ steps.resolve.outputs.release_tag }}"'),
+    );
+  });
+
   it('blocks removed runtime module factory names from docs/prose surfaces', () => {
     const markdownFiles = [
       ...collectMarkdownFiles('docs'),
