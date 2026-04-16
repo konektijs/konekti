@@ -92,6 +92,29 @@ describe('runReleaseReadinessVerification', () => {
     ).toBe(true);
   });
 
+  it('can write current-run summaries without mutating changelog drafts', () => {
+    const dependencies = createDependencies();
+
+    const result = runReleaseReadinessVerification(
+      {
+        summaryOutputDirectory: '/tmp/release-readiness',
+        writeSummary: true,
+      },
+      dependencies,
+    );
+
+    expect(result.writeDrafts).toBe(false);
+    expect(result.writeSummary).toBe(true);
+    expect(dependencies.writeFileSync).toHaveBeenCalledTimes(2);
+    expect(dependencies.writeFileSync.mock.calls.every(([targetPath]) => !String(targetPath).endsWith('/CHANGELOG.md'))).toBe(true);
+    expect(dependencies.writeFileSync.mock.calls.some(([targetPath]) => String(targetPath).includes('/tmp/release-readiness/release-readiness-summary.md'))).toBe(true);
+    expect(
+      dependencies.writeFileSync.mock.calls.some(([, content]) =>
+        String(content).includes('current-run release-readiness summary artifacts generated without mutating `CHANGELOG.md`.'),
+      ),
+    ).toBe(true);
+  });
+
   it.each(['workspace:*', 'workspace:~', 'workspace:^1.2.3'])('fails when a documented public package uses %s instead of workspace:^', (invalidRange) => {
     const dependencies = createDependencies();
     dependencies.workspacePackageManifests = vi.fn(() => [

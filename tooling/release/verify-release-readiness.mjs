@@ -9,8 +9,17 @@ const summaryPath = join(scriptDirectory, 'release-readiness-summary.md');
 const summaryKoPath = join(scriptDirectory, 'release-readiness-summary.ko.md');
 const changelogPath = join(repoRoot, 'CHANGELOG.md');
 
+function resolveSummaryOutputPaths(outputDirectory = scriptDirectory) {
+  return {
+    summaryKoPath: join(outputDirectory, 'release-readiness-summary.ko.md'),
+    summaryPath: join(outputDirectory, 'release-readiness-summary.md'),
+  };
+}
+
 function parseCliOptions(argv = process.argv.slice(2)) {
   let writeDrafts = false;
+  let writeSummary = false;
+  let summaryOutputDirectory;
   let targetPackage;
   let targetVersion;
   let distTag;
@@ -20,6 +29,22 @@ function parseCliOptions(argv = process.argv.slice(2)) {
 
     if (argument === '--write-drafts') {
       writeDrafts = true;
+      continue;
+    }
+
+    if (argument === '--write-summary') {
+      writeSummary = true;
+      continue;
+    }
+
+    if (argument === '--summary-output-dir') {
+      summaryOutputDirectory = argv[index + 1];
+      index += 1;
+      continue;
+    }
+
+    if (argument.startsWith('--summary-output-dir=')) {
+      summaryOutputDirectory = argument.slice('--summary-output-dir='.length);
       continue;
     }
 
@@ -69,9 +94,11 @@ function parseCliOptions(argv = process.argv.slice(2)) {
 
   return {
     distTag,
+    summaryOutputDirectory,
     targetPackage,
     targetVersion,
     writeDrafts,
+    writeSummary,
   };
 }
 
@@ -419,13 +446,19 @@ function verifySinglePackageReleasePreflight(checks, options, packageManifests, 
   );
 }
 
-export function buildSummary(checks, writeDrafts) {
-  const sideEffects = writeDrafts
-    ? '- Side effects: `CHANGELOG.md`, `tooling/release/release-readiness-summary.md`, and `tooling/release/release-readiness-summary.ko.md` updated'
-    : '- Side effects: none by default; use `pnpm generate:release-readiness-drafts` to refresh draft artifacts explicitly.';
-  const sideEffectsKo = writeDrafts
-    ? '- 부수 효과: `CHANGELOG.md`, `tooling/release/release-readiness-summary.md`, `tooling/release/release-readiness-summary.ko.md` 갱신'
-    : '- 부수 효과: 기본값은 없음; 초안 산출물을 갱신하려면 `pnpm generate:release-readiness-drafts`를 명시적으로 실행하세요.';
+export function buildSummary(checks, sideEffectMode = 'none') {
+  const sideEffects =
+    sideEffectMode === 'drafts'
+      ? '- Side effects: `CHANGELOG.md`, `tooling/release/release-readiness-summary.md`, and `tooling/release/release-readiness-summary.ko.md` updated'
+      : sideEffectMode === 'summary'
+        ? '- Side effects: current-run release-readiness summary artifacts generated without mutating `CHANGELOG.md`.'
+        : '- Side effects: none by default; use `pnpm generate:release-readiness-drafts` to refresh draft artifacts explicitly.';
+  const sideEffectsKo =
+    sideEffectMode === 'drafts'
+      ? '- 부수 효과: `CHANGELOG.md`, `tooling/release/release-readiness-summary.md`, `tooling/release/release-readiness-summary.ko.md` 갱신'
+      : sideEffectMode === 'summary'
+        ? '- 부수 효과: `CHANGELOG.md`를 변경하지 않고 현재 실행 기준의 release-readiness summary 산출물을 생성합니다.'
+        : '- 부수 효과: 기본값은 없음; 초안 산출물을 갱신하려면 `pnpm generate:release-readiness-drafts`를 명시적으로 실행하세요.';
   const summary = [
     '# release readiness summary',
     '',
@@ -450,12 +483,14 @@ export function buildSummary(checks, writeDrafts) {
   return { summary, summaryKo };
 }
 
-function writeSummary(checks, writeDrafts, dependencies = {}) {
+function writeSummary(checks, sideEffectMode, dependencies = {}) {
   const { mkdirSync: createDirectory = mkdirSync, writeFileSync: writeFile = writeFileSync } = dependencies;
-  createDirectory(scriptDirectory, { recursive: true });
-  const { summary, summaryKo } = buildSummary(checks, writeDrafts);
-  writeFile(summaryPath, `${summary}\n`, 'utf8');
-  writeFile(summaryKoPath, `${summaryKo}\n`, 'utf8');
+  const outputDirectory = dependencies.outputDirectory ?? scriptDirectory;
+  const { summaryPath: nextSummaryPath, summaryKoPath: nextSummaryKoPath } = resolveSummaryOutputPaths(outputDirectory);
+  createDirectory(outputDirectory, { recursive: true });
+  const { summary, summaryKo } = buildSummary(checks, sideEffectMode);
+  writeFile(nextSummaryPath, `${summary}\n`, 'utf8');
+  writeFile(nextSummaryKoPath, `${summaryKo}\n`, 'utf8');
 }
 
 export function withReleaseCandidateDraft(changelog, draftDate = new Date().toISOString().slice(0, 10)) {
@@ -510,7 +545,7 @@ function upsertReleaseCandidateDraft(dependencies = {}) {
 }
 
 export function runReleaseReadinessVerification(options = {}, dependencies = {}) {
-  const { distTag, targetPackage, targetVersion, writeDrafts = false } = options;
+  const { distTag, summaryOutputDirectory, targetPackage, targetVersion, writeDrafts = false, writeSummary: shouldWriteSummary = false } = options;
   const {
     isPublishedVersion: registryVersionExists = isPublishedVersion,
     run: runCommand = run,
@@ -662,10 +697,16 @@ export function runReleaseReadinessVerification(options = {}, dependencies = {})
 
   if (writeDrafts) {
     upsertReleaseCandidateDraft({ existsSync: pathExists, readFileSync: readFile, writeFileSync: writeFile });
-    writeSummary(checks, true, { mkdirSync: createDirectory, writeFileSync: writeFile });
+    writeSummary(checks, 'drafts', { mkdirSync: createDirectory, outputDirectory: scriptDirectory, writeFileSync: writeFile });
+  } else if (shouldWriteSummary) {
+    writeSummary(checks, 'summary', {
+      mkdirSync: createDirectory,
+      outputDirectory: summaryOutputDirectory,
+      writeFileSync: writeFile,
+    });
   }
 
-  return { checks, writeDrafts };
+  return { checks, writeDrafts, writeSummary: shouldWriteSummary };
 }
 
 export function main(argv = process.argv.slice(2)) {
@@ -674,6 +715,9 @@ export function main(argv = process.argv.slice(2)) {
 
   if (result.writeDrafts) {
     console.log(`Release readiness drafts written to ${summaryPath}, ${summaryKoPath}, and ${changelogPath}`);
+  } else if (result.writeSummary) {
+    const { summaryPath: nextSummaryPath, summaryKoPath: nextSummaryKoPath } = resolveSummaryOutputPaths(options.summaryOutputDirectory);
+    console.log(`Release readiness summaries written to ${nextSummaryPath} and ${nextSummaryKoPath} without mutating ${changelogPath}`);
   } else {
     console.log('Release readiness checks passed without writing draft artifacts.');
   }
