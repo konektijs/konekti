@@ -30,28 +30,28 @@ const LOCAL_PACKAGE_DIRECTORY_BY_NAME = {
 
 const FIXTURE_WORKSPACE_DEPENDENCIES: Partial<Record<keyof typeof LOCAL_PACKAGE_DIRECTORY_BY_NAME, Record<string, string>>> = {
   '@fluojs/http': {
-    '@fluojs/core': 'workspace:*',
-    '@fluojs/di': 'workspace:*',
-    '@fluojs/validation': 'workspace:*',
+    '@fluojs/core': 'workspace:^',
+    '@fluojs/di': 'workspace:^',
+    '@fluojs/validation': 'workspace:^',
   },
   '@fluojs/platform-fastify': {
-    '@fluojs/http': 'workspace:*',
-    '@fluojs/runtime': 'workspace:*',
+    '@fluojs/http': 'workspace:^',
+    '@fluojs/runtime': 'workspace:^',
   },
   '@fluojs/platform-express': {
-    '@fluojs/http': 'workspace:*',
-    '@fluojs/runtime': 'workspace:*',
+    '@fluojs/http': 'workspace:^',
+    '@fluojs/runtime': 'workspace:^',
   },
   '@fluojs/platform-nodejs': {
-    '@fluojs/http': 'workspace:*',
-    '@fluojs/runtime': 'workspace:*',
+    '@fluojs/http': 'workspace:^',
+    '@fluojs/runtime': 'workspace:^',
   },
   '@fluojs/runtime': {
-    '@fluojs/config': 'workspace:*',
-    '@fluojs/core': 'workspace:*',
+    '@fluojs/config': 'workspace:^',
+    '@fluojs/core': 'workspace:^',
   },
   '@fluojs/testing': {
-    '@fluojs/runtime': 'workspace:*',
+    '@fluojs/runtime': 'workspace:^',
   },
 };
 
@@ -178,12 +178,16 @@ function readPackedPackageManifest(tarballPath: string): {
   };
 }
 
-function expectNoWorkspaceProtocolDependencies(tarballPath: string): void {
+function expectPackedManifestUsesPublishedWorkspaceCaretPolicy(tarballPath: string): void {
   const manifest = readPackedPackageManifest(tarballPath);
 
   for (const section of [manifest.dependencies, manifest.optionalDependencies, manifest.peerDependencies]) {
-    for (const specifier of Object.values(section ?? {})) {
+    for (const [packageName, specifier] of Object.entries(section ?? {})) {
       expect(specifier).not.toContain('workspace:');
+
+      if (packageName.startsWith('@fluojs/')) {
+        expect(specifier).toBe('^1.0.0');
+      }
     }
   }
 }
@@ -212,9 +216,12 @@ describe('scaffoldBootstrapApp', () => {
 
     expect(packageJson.devDependencies?.typescript).toBe('^6.0.2');
     expect(packageJson.dependencies).toMatchObject({
-      '@fluojs/http': expect.any(String),
-      '@fluojs/platform-fastify': expect.any(String),
-      '@fluojs/runtime': expect.any(String),
+      '@fluojs/http': '^0.0.0',
+      '@fluojs/platform-fastify': '^0.0.0',
+      '@fluojs/runtime': '^0.0.0',
+    });
+    expect(packageJson.devDependencies).toMatchObject({
+      '@fluojs/testing': '^0.0.0',
     });
     expect(tsconfig).not.toContain('baseUrl');
     expect(tsconfigBuild).not.toContain('baseUrl');
@@ -224,7 +231,7 @@ describe('scaffoldBootstrapApp', () => {
     expect(vitestConfig).not.toContain('baseUrl');
   });
 
-  it('packs local starter tarballs from staged package manifests without workspace protocol dependencies', async () => {
+  it('packs local starter tarballs from staged package manifests with published workspace caret semantics', async () => {
     const repoRoot = createFixtureLocalRepo();
     const targetDirectory = mkdtempSync(join(tmpdir(), 'fluo-scaffold-local-pack-'));
     temporaryDirectories.push(targetDirectory);
@@ -236,7 +243,7 @@ describe('scaffoldBootstrapApp', () => {
     expect(tarballPaths.length).toBeGreaterThan(0);
 
     for (const tarballPath of tarballPaths) {
-      expectNoWorkspaceProtocolDependencies(tarballPath);
+      expectPackedManifestUsesPublishedWorkspaceCaretPolicy(tarballPath);
     }
   }, 30_000);
 
@@ -284,7 +291,7 @@ describe('scaffoldBootstrapApp', () => {
     const refreshedTarballPath = readLocalDependencyTarballPaths(targetDirectory).find((tarballPath) => tarballPath.endsWith(`/${staleTarballName}`));
     expect(refreshedTarballPath).toBeTruthy();
     expect(readFileSync(refreshedTarballPath!, 'utf8')).not.toContain('stale tarball from old rewrite pipeline');
-    expectNoWorkspaceProtocolDependencies(refreshedTarballPath!);
+    expectPackedManifestUsesPublishedWorkspaceCaretPolicy(refreshedTarballPath!);
   }, 30_000);
 
   it('keeps the default Node + Fastify HTTP scaffold identical when explicit shape flags are provided', async () => {

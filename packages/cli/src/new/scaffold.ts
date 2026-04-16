@@ -159,7 +159,29 @@ function createDependencySpec(
 ): string {
   return packageSpecs[packageName]
     ?? PUBLISHED_RUNTIME_DEPENDENCIES[packageName as keyof typeof PUBLISHED_RUNTIME_DEPENDENCIES]
-    ?? `^${releaseVersion}`;
+    ?? createPublishedInternalDependencySpec(releaseVersion);
+}
+
+function createPublishedInternalDependencySpec(version: string): string {
+  return `^${version}`;
+}
+
+function rewriteWorkspaceProtocolSpecifier(specifier: string, version: string): string {
+  const workspaceRange = specifier.slice('workspace:'.length);
+
+  if (workspaceRange === '^') {
+    return createPublishedInternalDependencySpec(version);
+  }
+
+  if (workspaceRange === '~') {
+    return `~${version}`;
+  }
+
+  if (workspaceRange === '*' || workspaceRange.length === 0) {
+    return version;
+  }
+
+  return workspaceRange;
 }
 
 function createRunCommand(packageManager: PackageManager, command: string): string {
@@ -2610,7 +2632,7 @@ function rewriteWorkspaceProtocolDependencies(
         continue;
       }
 
-      dependencies[packageName] = `^${version}`;
+      dependencies[packageName] = rewriteWorkspaceProtocolSpecifier(specifier, version);
     }
   }
 }
