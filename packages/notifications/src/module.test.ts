@@ -571,6 +571,14 @@ describe('NotificationsModule', () => {
       'notification.dispatch.requested',
       'notification.dispatch.delivered',
     ]);
+
+    // Prove helper normalizes bulkThreshold: 0 → minimum 1 (single-item bulk gets queued)
+    publisher.events.length = 0;
+    const bulkResult = await service.dispatchMany([{ channel: 'email', payload: { template: 'helper-bulk' } }]);
+
+    expect(bulkResult.results).toHaveLength(1);
+    expect(bulkResult.results[0]!.queued).toBe(true);
+    expect(queue.jobs).toHaveLength(1);
   });
 
   it('preserves direct delivery results when lifecycle publication fails', async () => {
