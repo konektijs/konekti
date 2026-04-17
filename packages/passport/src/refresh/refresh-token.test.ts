@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { getModuleMetadata } from '@fluojs/core/internal';
-import { Container } from '@fluojs/di';
+import { Container, type Provider } from '@fluojs/di';
 import type { DefaultJwtVerifier } from '@fluojs/jwt';
 import { JwtExpiredTokenError, JwtInvalidTokenError } from '@fluojs/jwt';
 
@@ -50,6 +50,20 @@ function createGuardContext(body?: Record<string, unknown>, headers?: Record<str
       } as unknown as RequestContext['container'],
     } as RequestContext,
   };
+}
+
+function getRefreshTokenModuleProviders(
+  service: Parameters<typeof RefreshTokenModule.forRoot>[0],
+): Provider[] {
+  const metadata = getModuleMetadata(RefreshTokenModule.forRoot(service)) as {
+    providers?: Provider[];
+  };
+
+  if (!Array.isArray(metadata.providers)) {
+    throw new Error('Expected RefreshTokenModule.forRoot(...) to expose runtime providers.');
+  }
+
+  return metadata.providers;
 }
 
 describe('RefreshTokenStrategy', () => {
@@ -308,13 +322,11 @@ describe('RefreshTokenService contract', () => {
       async revokeAllForSubject(): Promise<void> {}
     }
 
-    const metadata = getModuleMetadata(RefreshTokenModule.forRoot(RefreshTokenServiceImpl));
+    const providers: Provider[] = getRefreshTokenModuleProviders(RefreshTokenServiceImpl);
+    const container = new Container();
 
-    if (!metadata?.providers) {
-      throw new Error('Expected RefreshTokenModule.forRoot(...) to expose runtime providers.');
-    }
-
-    const container = new Container().register(RefreshTokenServiceImpl, ...metadata.providers);
+    container.register(RefreshTokenServiceImpl);
+    container.register(...providers);
 
     const byClass = await container.resolve(RefreshTokenServiceImpl);
     const bySharedToken = await container.resolve(REFRESH_TOKEN_SERVICE);

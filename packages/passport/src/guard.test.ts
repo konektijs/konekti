@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getModuleMetadata } from '@fluojs/core/internal';
 import { Controller, Get, UnauthorizedException, createDispatcher, createHandlerMapping } from '@fluojs/http';
+import type { Provider } from '@fluojs/di';
 import type { FrameworkRequest, FrameworkResponse, GuardContext } from '@fluojs/http';
 import { Container } from '@fluojs/di';
 import { DefaultJwtVerifier } from '@fluojs/jwt';
@@ -17,10 +18,12 @@ import type { AuthStrategy } from './types.js';
 function createPassportModuleProviders(
   options: Parameters<typeof PassportModule.forRoot>[0],
   strategies: Parameters<typeof PassportModule.forRoot>[1],
-): NonNullable<ReturnType<typeof getModuleMetadata>['providers']> {
-  const metadata = getModuleMetadata(PassportModule.forRoot(options, strategies));
+): Provider[] {
+  const metadata = getModuleMetadata(PassportModule.forRoot(options, strategies)) as {
+    providers?: Provider[];
+  };
 
-  if (!metadata?.providers) {
+  if (!Array.isArray(metadata.providers)) {
     throw new Error('Expected PassportModule.forRoot(...) to expose runtime providers.');
   }
 
