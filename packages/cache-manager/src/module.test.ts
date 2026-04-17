@@ -117,6 +117,34 @@ describe('CacheModule.forRoot', () => {
     });
   });
 
+  it('keeps createCacheProviders as a supported manual-composition API', async () => {
+    @Inject(CacheService)
+    class Consumer {
+      constructor(readonly cache: CacheService) {}
+    }
+
+    class ManualCacheModule {}
+    defineModule(ManualCacheModule, {
+      exports: [CacheService, CacheInterceptor],
+      providers: createCacheProviders({ store: 'memory' }),
+    });
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [ManualCacheModule],
+      providers: [Consumer],
+    });
+
+    const app = await bootstrapApplication({ rootModule: AppModule });
+    const consumer = await app.container.resolve(Consumer);
+
+    await consumer.cache.set('/manual', { ok: true }, 30);
+
+    await expect(consumer.cache.get('/manual')).resolves.toEqual({ ok: true });
+
+    await app.close();
+  });
+
   it('supports memory store without redis module/client installed', async () => {
     @Inject(CacheService)
     class Consumer {
