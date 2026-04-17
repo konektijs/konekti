@@ -68,13 +68,7 @@ export function normalizeCronModuleOptions(options: CronModuleOptions = {}): Nor
   };
 }
 
-/**
- * Creates the providers required for scheduler lifecycle management.
- *
- * @param options Raw cron module options used to configure the scheduling registry.
- * @returns Providers for normalized options and the shared scheduling registry token.
- */
-export function createCronProviders(options: CronModuleOptions = {}): Provider[] {
+function createCronProviders(options: CronModuleOptions = {}): Provider[] {
   return [
     {
       provide: CRON_OPTIONS,
