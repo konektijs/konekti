@@ -48,6 +48,71 @@ export class UsersService {
 - **Factory Providers**: Logic-driven providers that are created dynamically based on other services or environment state.
 - **Alias Providers**: Mapping one token to another (e.g., mapping `ILogger` to `PinoLogger`).
 
+```ts
+@Module({
+  providers: [
+    // Class provider (shorthand)
+    UsersService,
+
+    // Value provider
+    {
+      provide: 'APP_CONFIG',
+      useValue: { port: 3000, debug: true }
+    },
+
+    // Factory provider
+    {
+      provide: 'DATABASE_CONNECTION',
+      useFactory: async (config: any) => {
+        const conn = new Connection(config);
+        await conn.connect();
+        return conn;
+      },
+      inject: ['APP_CONFIG']
+    },
+
+    // Alias provider
+    {
+      provide: ILogger,
+      useExisting: PinoLogger
+    }
+  ]
+})
+export class AppModule {}
+```
+
+## async modules
+
+Modules can be configured asynchronously when they depend on external data (like configuration from a remote vault) before they can provide their own services. fluo uses the `AsyncModuleOptions` pattern for this.
+
+```ts
+export interface RedisModuleOptions {
+  host: string;
+  port: number;
+}
+
+@Module({})
+export class RedisModule {
+  static registerAsync(options: AsyncModuleOptions<RedisModuleOptions>) {
+    return {
+      module: RedisModule,
+      imports: options.imports || [],
+      providers: [
+        {
+          provide: 'REDIS_CLIENT',
+          useFactory: async (...args: any[]) => {
+            const config = await options.useFactory(...args);
+            return new RedisClient(config);
+          },
+          inject: options.inject || []
+        }
+      ],
+      exports: ['REDIS_CLIENT']
+    };
+  }
+}
+```
+
 ## injection scopes
 
 - **Singleton (Default)**: One instance shared across the whole app. Best for stateless services and connection pools.
@@ -57,8 +122,31 @@ export class UsersService {
 ## boundaries
 
 - **No Global Scope**: There is no "global" provider unless explicitly marked. We prefer the safety of the import/export chain.
+- **Module Exports**: Only providers listed in the `exports` array are visible to other modules that import it.
+
+```ts
+@Module({
+  providers: [PublicService, PrivateService],
+  exports: [PublicService] // PrivateService remains hidden
+})
+export class UserModule {}
+
+@Module({
+  imports: [UserModule],
+  providers: [AuthService] // Can inject PublicService, but not PrivateService
+})
+export class AuthModule {}
+```
+
 - **Circular Dependency Detection**: fluo's DI container detects circular dependencies at bootstrap time and throws a clear error, preventing stack overflows.
 - **Strict Validation**: If a required dependency is missing from the module graph, the application will **fail to start**. We prefer a crash at boot over a crash in production.
+
+## troubleshooting
+
+- **CircularDependencyError**: Occurs when two or more services depend on each other. Use `forwardRef()` to defer resolution, or better, refactor to a shared service.
+- **Missing Provider**: Ensure the provider is either in the current module's `providers` or exported by an imported module.
+- **Token Mismatch**: If you use a Symbol or String token, ensure the `@Inject(TOKEN)` decorator matches the `provide: TOKEN` key exactly.
+- **Wrong Export**: Forgetting to add a service to the `exports` array is the most common cause of "Provider not found" errors in dependent modules.
 
 ## related docs
 

@@ -53,6 +53,64 @@ fluo의 기본 키 생성 전략은 보안을 최우선으로 합니다. `Reques
 - **클러스터 안전성**: 다중 인스턴스 배포 환경에서는 **반드시** Redis 저장소를 사용해야 합니다. 메모리 저장소는 각 프로세스에 로컬로 존재하며 동기화되지 않습니다.
 - **기본적으로 GET 전용**: 안전하고 멱등(Idempotent)한 동작을 보장하기 위해 `CacheInterceptor`는 `GET` 요청만 캐싱합니다.
 
+## 모듈 등록 (Module Registration)
+
+글로벌 프로바이더와 인터셉터 지원을 활성화하려면 애플리케이션의 루트 레벨에서 `CacheModule`을 등록해야 합니다.
+
+```typescript
+// 메모리 저장소 등록 (기본값)
+@Module({
+  imports: [
+    CacheModule.forRoot({
+      isGlobal: true,
+      ttl: 300,
+    }),
+  ],
+})
+export class AppModule {}
+
+// Redis 저장소 등록
+@Module({
+  imports: [
+    CacheModule.forRoot({
+      store: 'redis',
+      redis: { clientName: 'cache' },
+      isGlobal: true,
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+## 캐시 제거 (Cache Eviction)
+
+캐시를 데이터와 동기화된 상태로 유지하는 작업은 `@CacheEvict()` 데코레이터를 통해 처리됩니다. 이를 통해 상태 변경 작업이 성공했을 때 특정 키를 즉시 삭제할 수 있습니다.
+
+```typescript
+@Inject(CacheService)
+export class ProductsService {
+  constructor(private readonly cache: CacheService) {}
+
+  @Post('/')
+  @CacheEvict('products:list')
+  async createProduct(data: any) {
+    return this.service.create(data);
+  }
+
+  @Delete('/:id')
+  async removeProduct(id: string) {
+    await this.service.delete(id);
+    await this.cache.del(`products:${id}`); // 수동 제거
+  }
+}
+```
+
+## 트러블슈팅 (Troubleshooting)
+
+- **`CacheInterceptor` 누락**: 컨트롤러나 메서드에 `@UseInterceptors(CacheInterceptor)`가 적용되었는지 확인하세요. `CacheModule`의 글로벌 등록은 서비스만 활성화하며, 모든 경로에 대한 인터셉터 동작까지 자동으로 적용하지는 않습니다.
+- **Redis 연결 실패**: Redis 클라이언트 등록이 `CacheModule` 옵션에 제공된 `clientName`과 일치하는지 확인하세요.
+- **인메모리 데이터 불일치**: 멀티 컨테이너 환경에서 요청마다 다른 값이 보인다면, Redis 대신 메모리 저장소를 사용하고 있을 가능성이 큽니다.
+
 ## 다음 단계
 
 - **구현 세부 사항**: [Cache Manager 패키지](../../packages/cache-manager/README.ko.md)에서 더 깊이 있게 알아보세요.

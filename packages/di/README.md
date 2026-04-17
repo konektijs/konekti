@@ -10,6 +10,9 @@ Minimal token-based dependency injection container powering every fluo applicati
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Key Capabilities](#key-capabilities)
+- [Circular Dependency Handling](#circular-dependency-handling)
+- [Testing and Mocking](#testing-and-mocking)
+- [Troubleshooting](#troubleshooting)
 - [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
@@ -65,6 +68,7 @@ fluo DI supports three main provider shapes:
 - **Class Providers**: `container.register(MyService)` or `{ provide: MyToken, useClass: MyService }`.
 - **Value Providers**: `{ provide: 'API_URL', useValue: 'https://api.example.com' }`.
 - **Factory Providers**: `{ provide: 'ASYNC_CONFIG', useFactory: async (db) => await db.load(), inject: [Database] }`.
+- **Alias Providers**: `{ provide: ILogger, useExisting: PinoLogger }` allows mapping one token to another existing provider.
 
 ### Scope Management
 - **Singleton** (Default): Instance is created once and shared across the entire container.
@@ -78,6 +82,55 @@ Isolated containers can be created to handle per-request state without polluting
 const requestContainer = container.createRequestScope();
 const scopedService = await requestContainer.resolve(RequestScopedService);
 ```
+
+## Circular Dependency Handling
+
+The container automatically detects circular dependencies and throws a `CircularDependencyError` to prevent infinite loops. This includes direct (A→A), two-node (A→B→A), and deep (A→B→C→A) cycles.
+
+To resolve a circular dependency, use `forwardRef()` to defer the resolution of the dependent token.
+
+```typescript
+import { forwardRef } from '@fluojs/di';
+import { Inject } from '@fluojs/core';
+
+@Inject(forwardRef(() => ServiceB))
+class ServiceA {
+  constructor(private serviceB: any) {}
+}
+
+@Inject(forwardRef(() => ServiceA))
+class ServiceB {
+  constructor(private serviceA: any) {}
+}
+```
+
+## Testing and Mocking
+
+You can easily override providers in the container to use mocks or stubs during unit testing by using `useValue`.
+
+```typescript
+import { Container } from '@fluojs/di';
+
+const container = new Container();
+const mockDb = { query: jest.fn() };
+
+// Override the real Database class with a mock value
+container.register({ 
+  provide: Database, 
+  useValue: mockDb 
+});
+
+const service = await container.resolve(DataService);
+// service will now use mockDb instead of the real Database instance
+```
+
+## Troubleshooting
+
+### CircularDependencyError
+Thrown when the container detects a cycle in the dependency graph. Check your constructor injections and use `forwardRef()` where necessary to break the cycle.
+
+### Token Not Found
+Ensure all required providers are registered in the container. If you use `createRequestScope()`, the child container can resolve tokens from the parent, but not vice versa.
 
 ## Public API
 

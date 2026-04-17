@@ -102,6 +102,105 @@ The fluo runtime (specifically `runNodeApplication` from `@fluojs/runtime/node`)
 
 ---
 
+## Alternative Runtimes
+
+While Node.js is the primary target, fluo provides first-class support for modern runtimes through specialized platform packages.
+
+### Bun
+Bun provides built-in support for TypeScript and fast startup times. Use `@fluojs/platform-bun` for tight integration.
+
+**Entrypoint:**
+```bash
+bun run dist/main.js
+```
+
+### Deno
+Deno offers a secure-by-default environment. Use `@fluojs/platform-deno` to leverage Deno's native APIs.
+
+**Entrypoint:**
+```bash
+deno run --allow-net dist/main.js
+```
+
+### Cloudflare Workers
+For edge deployments, use `@fluojs/platform-cloudflare-workers`. This requires a `wrangler.toml` configuration.
+
+**Example `wrangler.toml`:**
+```toml
+name = "fluo-app"
+main = "dist/main.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+NODE_ENV = "production"
+```
+
+---
+
+## CI/CD Pipeline
+
+Standardizing your deployment pipeline ensures consistent quality and repeatable builds.
+
+### GitHub Actions Example
+```yaml
+name: CI/CD
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy
+        run: ./deploy.sh
+```
+
+---
+
+## Scaling Strategies
+
+fluo is designed to scale horizontally across multiple instances.
+
+### Horizontal Scaling
+- **Stateless Design**: Avoid storing session data in memory. Use Redis or a database for shared state.
+- **Pod Autoscaling**: In Kubernetes, use Horizontal Pod Autoscaler (HPA) based on CPU or memory metrics.
+
+### Connection Pooling
+When scaling instances, ensure your database connections are pooled correctly to prevent exhausting server limits. Tools like PgBouncer for PostgreSQL are recommended.
+
+### Load Balancing
+Distribute incoming traffic across instances using a load balancer (e.g., NGINX, AWS ALB). Ensure health checks are configured to use the `/health` endpoint.
+
+---
+
+## Troubleshooting
+
+### Common Deployment Pitfalls
+- **Port Mismatch**: Ensure the `PORT` environment variable matches your infrastructure configuration.
+- **Missing Peer Dependencies**: Some platform-specific features require manual installation of peer dependencies (e.g., `@fluojs/platform-bun`).
+- **Memory Limits**: Standard Node.js heap limits may be too restrictive for large applications. Tune `--max-old-space-size` if necessary.
+
+---
+
 ## Related Docs
 - [Behavioral Contract Policy](./behavioral-contract-policy.md)
 - [Testing Guide](./testing-guide.md)

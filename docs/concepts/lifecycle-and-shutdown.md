@@ -37,9 +37,98 @@ When a `SIGTERM` or `SIGINT` is received, fluo begins a coordinated retreat:
 ## lifecycle hooks
 
 - **`onModuleInit`**: Logic that must run as soon as a module's providers are instantiated (e.g., establishing a socket connection).
+  ```ts
+  import { OnModuleInit } from '@fluojs/runtime';
+
+  export class ConnectionProvider implements OnModuleInit {
+    async onModuleInit(): Promise<void> {
+      await this.connect();
+    }
+  }
+  ```
 - **`onApplicationBootstrap`**: Logic that runs once the *entire* application graph is ready (e.g., starting a background cron job).
+  ```ts
+  import { OnApplicationBootstrap } from '@fluojs/runtime';
+
+  export class JobRunner implements OnApplicationBootstrap {
+    onApplicationBootstrap(): void {
+      this.startPolling();
+    }
+  }
+  ```
 - **`onModuleDestroy`**: Cleanup logic for a specific module.
-- **`beforeApplicationShutdown`**: The final chance to perform cleanup before the process exits.
+  ```ts
+  import { OnModuleDestroy } from '@fluojs/runtime';
+
+  export class CacheProvider implements OnModuleDestroy {
+    async onModuleDestroy(): Promise<void> {
+      await this.flush();
+    }
+  }
+  ```
+- **`onApplicationShutdown`**: The final chance to perform cleanup before the process exits. Receives the signal that triggered the shutdown.
+  ```ts
+  import { OnApplicationShutdown } from '@fluojs/runtime';
+
+  export class LoggerService implements OnApplicationShutdown {
+    onApplicationShutdown(signal?: string): void {
+      console.log(`received ${signal}, closing logs`);
+    }
+  }
+  ```
+
+## implementing lifecycle hooks
+
+You can implement multiple hooks in a single provider to manage a resource throughout its entire life.
+
+```ts
+import { 
+  OnModuleInit, 
+  OnApplicationBootstrap, 
+  OnModuleDestroy, 
+  OnApplicationShutdown 
+} from '@fluojs/runtime';
+
+export class DatabaseService implements OnModuleInit, OnModuleDestroy {
+  private client: any;
+
+  async onModuleInit(): Promise<void> {
+    // connect as soon as the module is ready
+    this.client = await createClient();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    // ensure connection is closed before module is gone
+    await this.client.close();
+  }
+}
+```
+
+## shutdown configuration
+
+You can tune the shutdown behavior through the application configuration.
+
+```ts
+const app = await FluoFactory.create(AppModule);
+
+app.enableShutdownHooks({
+  // duration to wait for hooks to finish before force exit
+  shutdownTimeoutMs: 5000, 
+});
+
+await app.listen(3000);
+```
+
+## troubleshooting
+
+### hooks not running
+Lifecycle hooks only execute if the class is registered as a provider in a module. If you just create an instance with `new`, fluo cannot manage its lifecycle.
+
+### wrong cleanup order
+If a service depends on another (Service A uses Service B), ensure they are correctly injected. fluo uses this graph to ensure Service A is cleaned up while Service B is still alive.
+
+### hanging shutdown
+If your shutdown takes too long, it's often due to an unawaited promise or a connection that refuses to close. Use the `shutdownTimeoutMs` to identify which hooks are causing delays.
 
 ## boundaries
 

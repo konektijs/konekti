@@ -48,6 +48,71 @@ export class UsersService {
 - **팩토리 공급자(Factory Providers)**: 다른 서비스나 환경 상태를 기반으로 동적으로 생성되는 로직 기반 공급자입니다.
 - **별칭 공급자(Alias Providers)**: 하나의 토큰을 다른 토큰에 매핑합니다(예: `ILogger`를 `PinoLogger`에 매핑).
 
+```ts
+@Module({
+  providers: [
+    // 클래스 공급자 (단축 표기)
+    UsersService,
+
+    // 값 공급자
+    {
+      provide: 'APP_CONFIG',
+      useValue: { port: 3000, debug: true }
+    },
+
+    // 팩토리 공급자
+    {
+      provide: 'DATABASE_CONNECTION',
+      useFactory: async (config: any) => {
+        const conn = new Connection(config);
+        await conn.connect();
+        return conn;
+      },
+      inject: ['APP_CONFIG']
+    },
+
+    // 별칭 공급자
+    {
+      provide: ILogger,
+      useExisting: PinoLogger
+    }
+  ]
+})
+export class AppModule {}
+```
+
+## 비동기 모듈 (async modules)
+
+모듈이 자신의 서비스를 제공하기 전에 외부 데이터(예: 원격 보관소의 구성 정보)에 의존해야 하는 경우 비동기적으로 설정할 수 있습니다. fluo는 이를 위해 `AsyncModuleOptions` 패턴을 사용합니다.
+
+```ts
+export interface RedisModuleOptions {
+  host: string;
+  port: number;
+}
+
+@Module({})
+export class RedisModule {
+  static registerAsync(options: AsyncModuleOptions<RedisModuleOptions>) {
+    return {
+      module: RedisModule,
+      imports: options.imports || [],
+      providers: [
+        {
+          provide: 'REDIS_CLIENT',
+          useFactory: async (...args: any[]) => {
+            const config = await options.useFactory(...args);
+            return new RedisClient(config);
+          },
+          inject: options.inject || []
+        }
+      ],
+      exports: ['REDIS_CLIENT']
+    };
+  }
+}
+```
+
 ## 주입 범위(Injection Scopes)
 
 - **싱글톤(Singleton, 기본값)**: 앱 전체에서 공유되는 하나의 인스턴스입니다. 상태가 없는 서비스나 커넥션 풀에 가장 적합합니다.
@@ -57,8 +122,31 @@ export class UsersService {
 ## 경계
 
 - **전역 범위 없음**: 명시적으로 표시되지 않은 한 “전역(global)” 공급자는 없습니다. 우리는 가져오기/내보내기(import/export) 체인의 안전성을 선호합니다.
+- **모듈 내보내기**: `exports` 배열에 나열된 공급자만 해당 모듈을 가져오는 다른 모듈에서 사용할 수 있습니다.
+
+```ts
+@Module({
+  providers: [PublicService, PrivateService],
+  exports: [PublicService] // PrivateService는 숨겨진 상태로 유지됨
+})
+export class UserModule {}
+
+@Module({
+  imports: [UserModule],
+  providers: [AuthService] // PublicService는 주입받을 수 있지만, PrivateService는 불가
+})
+export class AuthModule {}
+```
+
 - **순환 의존성 감지**: fluo의 DI 컨테이너는 부트스트랩 시점에 순환 의존성을 감지하고 명확한 오류를 발생시켜 스택 오버플로를 방지합니다.
 - **엄격한 검증**: 필요한 의존성이 모듈 그래프에서 빠져 있으면 애플리케이션은 **시작에 실패**합니다. 운영 중 충돌보다 부트 시점의 실패를 선호합니다.
+
+## 문제 해결 (troubleshooting)
+
+- **CircularDependencyError**: 두 개 이상의 서비스가 서로 의존할 때 발생합니다. `forwardRef()`를 사용해 해결을 늦추거나, 공통 서비스로 로직을 분리하는 리팩토링을 권장합니다.
+- **공급자 누락 (Missing Provider)**: 해당 공급자가 현재 모듈의 `providers`에 포함되어 있거나, 가져온 모듈에서 `exports` 되었는지 확인하세요.
+- **토큰 불일치 (Token Mismatch)**: 심볼이나 문자열 토큰을 사용하는 경우, `@Inject(TOKEN)` 데코레이터가 `provide: TOKEN` 키와 정확히 일치하는지 확인하세요.
+- **내보내기 누락**: 서비스를 `exports` 배열에 추가하는 것을 잊는 것이 의존 모듈에서 "Provider not found" 오류가 발생하는 가장 흔한 원인입니다.
 
 ## 관련 문서
 

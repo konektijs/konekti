@@ -102,6 +102,105 @@ fluo 런타임(특히 `@fluojs/runtime/node`의 `runNodeApplication`)은 `SIGTER
 
 ---
 
+## 대체 런타임 (Alternative Runtimes)
+
+Node.js가 주요 타겟이지만, fluo는 특화된 플랫폼 패키지를 통해 현대적인 런타임들을 일급 수준으로 지원합니다.
+
+### Bun
+Bun은 TypeScript를 내장 지원하며 빠른 시작 속도를 제공합니다. 긴밀한 통합을 위해 `@fluojs/platform-bun`을 사용하세요.
+
+**진입점(Entrypoint):**
+```bash
+bun run dist/main.js
+```
+
+### Deno
+Deno는 기본적으로 보안이 강화된 환경을 제공합니다. Deno의 네이티브 API를 활용하려면 `@fluojs/platform-deno`를 사용하세요.
+
+**진입점(Entrypoint):**
+```bash
+deno run --allow-net dist/main.js
+```
+
+### Cloudflare Workers
+엣지 배포를 위해 `@fluojs/platform-cloudflare-workers`를 사용하세요. 이는 `wrangler.toml` 설정이 필요합니다.
+
+**`wrangler.toml` 예시:**
+```toml
+name = "fluo-app"
+main = "dist/main.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+NODE_ENV = "production"
+```
+
+---
+
+## CI/CD 파이프라인 (CI/CD Pipeline)
+
+배포 파이프라인을 표준화하면 일관된 품질과 반복 가능한 빌드를 보장할 수 있습니다.
+
+### GitHub Actions 예시
+```yaml
+name: CI/CD
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy
+        run: ./deploy.sh
+```
+
+---
+
+## 스케일링 전략 (Scaling Strategies)
+
+fluo는 여러 인스턴스에 걸쳐 수평적으로 확장되도록 설계되었습니다.
+
+### 수평적 확장 (Horizontal Scaling)
+- **무상태 설계 (Stateless Design)**: 세션 데이터를 메모리에 저장하지 마세요. 공유 상태를 위해 Redis나 데이터베이스를 사용하세요.
+- **포드 자동 확장 (Pod Autoscaling)**: Kubernetes에서는 CPU 또는 메모리 메트릭을 기반으로 Horizontal Pod Autoscaler(HPA)를 사용하세요.
+
+### 커넥션 풀링 (Connection Pooling)
+인스턴스를 확장할 때, 서버 제한을 초과하지 않도록 데이터베이스 연결이 올바르게 풀링되는지 확인하세요. PostgreSQL의 경우 PgBouncer와 같은 도구를 권장합니다.
+
+### 부하 분산 (Load Balancing)
+부하 분산 장치(예: NGINX, AWS ALB)를 사용하여 인입 트래픽을 인스턴스에 분산시키세요. 상태 체크가 `/health` 엔드포인트를 사용하도록 구성되었는지 확인하세요.
+
+---
+
+## 트러블슈팅 (Troubleshooting)
+
+### 주요 배포 함정
+- **포트 불일치**: `PORT` 환경 변수가 인프라 설정과 일치하는지 확인하세요.
+- **피어 의존성 누락**: 일부 플랫폼 특정 기능은 피어 의존성(예: `@fluojs/platform-bun`)의 수동 설치가 필요할 수 있습니다.
+- **메모리 제한**: 기본 Node.js 힙 제한은 대규모 애플리케이션에 너무 제한적일 수 있습니다. 필요한 경우 `--max-old-space-size`를 조정하세요.
+
+---
+
 ## 관련 문서
 - [동작 계약 정책 (Behavioral Contract Policy)](./behavioral-contract-policy.ko.md)
 - [테스트 가이드 (Testing Guide)](./testing-guide.ko.md)

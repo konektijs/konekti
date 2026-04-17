@@ -10,6 +10,7 @@
 - [사용 시점](#사용-시점)
 - [빠른 시작](#빠른-시작)
 - [주요 기능](#주요-기능)
+- [문제 해결](#문제-해결)
 - [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
@@ -84,6 +85,65 @@ import { getModuleMetadata } from '@fluojs/core/internal';
 const metadata = getModuleMetadata(AppModule);
 console.log(metadata.providers);
 ```
+
+### 동적 설정을 위한 AsyncModuleOptions
+
+`AsyncModuleOptions<T>`는 외부 `ConfigService` 등에 의존하여 비동기적으로 초기화가 필요한 모듈을 위한 표준 계약입니다.
+
+```ts
+import { AsyncModuleOptions, MaybePromise, Token } from '@fluojs/core';
+
+interface Config {
+  apiKey: string;
+}
+
+class EmailModule {
+  static forRootAsync(options: AsyncModuleOptions<Config>) {
+    return {
+      module: EmailModule,
+      providers: [
+        {
+          provide: 'CONFIG',
+          useFactory: options.useFactory,
+          inject: options.inject,
+        },
+      ],
+    };
+  }
+}
+```
+
+### @Scope를 이용한 생명주기 제어
+
+`@Scope` 데코레이터는 프로바이더 인스턴스의 생존 범위를 결정합니다. fluo는 세 가지 스코프를 지원합니다.
+
+- `singleton` (기본값): 애플리케이션 전체에서 단 하나의 인스턴스를 공유합니다.
+- `request`: 각 HTTP 요청마다 새로운 인스턴스를 생성합니다.
+- `transient`: 주입될 때마다 매번 새로운 인스턴스를 생성합니다.
+
+```ts
+import { Scope } from '@fluojs/core';
+
+@Scope('request')
+class TransactionContext {}
+
+@Scope('transient')
+class Logger {}
+```
+
+## 문제 해결
+
+### 데코레이터 메타데이터를 찾을 수 없음
+
+표준 TC39 데코레이터를 사용하고 있는지 확인하세요. fluo는 `reflect-metadata`를 사용하지 않습니다. NestJS에서 전환하는 경우, `tsconfig.json`에서 `experimentalDecorators`와 `emitDecoratorMetadata` 설정을 제거하여 표준 데코레이터 동작과 충돌하지 않도록 하세요.
+
+### 모듈 간 순환 참조
+
+두 모듈이 서로를 import하면 모듈 그래프를 컴파일할 수 없습니다. 공통 의존성을 담은 "Common"이나 "Core" 모듈을 만들어 분리하거나, 공유 로직을 별도 패키지로 추출하세요.
+
+### 추상 클래스에 대한 @Inject 누락
+
+표준 데코레이터는 추상 클래스나 인터페이스의 타입을 자동으로 추론할 수 없습니다. 구체적인 클래스 생성자가 아닌 대상을 주입할 때는 반드시 `@Inject(TOKEN)`을 사용하세요.
 
 ## 공개 API
 

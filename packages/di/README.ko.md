@@ -10,6 +10,9 @@
 - [사용 시점](#사용-시점)
 - [빠른 시작](#빠른-시작)
 - [주요 기능](#주요-기능)
+- [순환 의존성 처리](#순환-의존성-처리)
+- [테스트 및 모킹](#테스트-및-모킹)
+- [문제 해결](#문제-해결)
 - [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
@@ -65,6 +68,7 @@ const service = await container.resolve(UserService);
 - **클래스 provider**: `container.register(MyService)` 또는 `{ provide, useClass }`
 - **값 provider**: `{ provide: 'API_URL', useValue: 'https://api.example.com' }`
 - **팩토리 provider**: `{ provide, useFactory, inject }`
+- **별칭(Alias) provider**: `{ provide: ILogger, useExisting: PinoLogger }`를 사용하여 하나의 토큰을 기존에 등록된 다른 provider로 매핑할 수 있습니다.
 
 ### scope-aware 수명 주기 관리
 
@@ -78,6 +82,55 @@ const service = await container.resolve(UserService);
 const requestContainer = container.createRequestScope();
 const scopedService = await requestContainer.resolve(RequestScopedService);
 ```
+
+## 순환 의존성 처리
+
+컨테이너는 순환 의존성을 자동으로 감지하고 `CircularDependencyError`를 발생시켜 무한 루프를 방지합니다. 여기에는 직접 참조(A→A), 이중 노드(A→B→A), 깊은 순환(A→B→C→A)이 모두 포함됩니다.
+
+순환 의존성을 해결하려면 `forwardRef()`를 사용하여 의존성 토큰의 해석을 지연시키세요.
+
+```typescript
+import { forwardRef } from '@fluojs/di';
+import { Inject } from '@fluojs/core';
+
+@Inject(forwardRef(() => ServiceB))
+class ServiceA {
+  constructor(private serviceB: any) {}
+}
+
+@Inject(forwardRef(() => ServiceA))
+class ServiceB {
+  constructor(private serviceA: any) {}
+}
+```
+
+## 테스트 및 모킹
+
+`useValue`를 사용하면 단위 테스트 중에 컨테이너의 provider를 모의 객체(mock)나 스텁(stub)으로 쉽게 교체할 수 있습니다.
+
+```typescript
+import { Container } from '@fluojs/di';
+
+const container = new Container();
+const mockDb = { query: jest.fn() };
+
+// 실제 Database 클래스를 모의 객체 값으로 교체
+container.register({ 
+  provide: Database, 
+  useValue: mockDb 
+});
+
+const service = await container.resolve(DataService);
+// 이제 service는 실제 Database 인스턴스 대신 mockDb를 사용합니다.
+```
+
+## 문제 해결
+
+### CircularDependencyError
+의존성 그래프에서 순환이 감지될 때 발생합니다. 생성자 주입 항목을 확인하고 필요한 경우 `forwardRef()`를 사용하여 순환을 끊으세요.
+
+### 토큰을 찾을 수 없음 (Token Not Found)
+필요한 모든 provider가 컨테이너에 등록되어 있는지 확인하세요. `createRequestScope()`를 사용하는 경우 자식 컨테이너는 부모의 토큰을 해석할 수 있지만, 그 반대는 불가능합니다.
 
 ## 공개 API
 

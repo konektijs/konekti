@@ -12,6 +12,7 @@ Fastify-backed HTTP adapter for the fluo runtime.
 - [Common Patterns](#common-patterns)
 - [Performance](#performance)
 - [Public API Overview](#public-api-overview)
+- [Troubleshooting](#troubleshooting)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -64,6 +65,63 @@ Fastify provides a `server-backed` capability that allows `@fluojs/websockets` t
 export class MyGateway {}
 ```
 
+### CORS Configuration
+CORS is handled via bootstrap options. fluo manages the underlying CORS logic rather than relying on a separate Fastify plugin.
+
+```typescript
+// Simple origin string
+await bootstrapFastifyApplication(AppModule, {
+  cors: 'https://my-frontend.com',
+  port: 3000,
+});
+
+// Fine-grained control
+await bootstrapFastifyApplication(AppModule, {
+  cors: {
+    origin: ['https://a.com', 'https://b.com'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  },
+  port: 3000,
+});
+
+// Explicitly disabled
+await bootstrapFastifyApplication(AppModule, {
+  cors: false,
+  port: 3000,
+});
+```
+
+### Global Prefix
+Configure a global routing prefix and exclude specific paths like health checks.
+
+```typescript
+await bootstrapFastifyApplication(AppModule, {
+  globalPrefix: '/api',
+  globalPrefixExclude: ['/health'],
+  port: 3000,
+});
+```
+
+### Logging
+fluo uses its own logging system. The adapter creates the Fastify instance with its native logger disabled and pipes through the fluo logger provided in the bootstrap options.
+
+```typescript
+await runFastifyApplication(AppModule, {
+  logger: myLogger,
+  port: 3000,
+});
+```
+
+### Middleware
+You can register runtime-level middleware that runs before the request reaches the handlers. Note that these are standard `MiddlewareLike` functions, not Fastify-specific plugins.
+
+```typescript
+await bootstrapFastifyApplication(AppModule, {
+  middleware: [myCustomMiddleware],
+  port: 3000,
+});
+```
+
 ## Performance
 
 fluo's Fastify adapter significantly outperforms the raw Node.js adapter in high-concurrency scenarios.
@@ -81,6 +139,13 @@ fluo's Fastify adapter significantly outperforms the raw Node.js adapter in high
 - `bootstrapFastifyApplication(module, options)`: advanced bootstrap without implicit listening.
 - `runFastifyApplication(module, options)`: Quick-start helper with lifecycle management. On timeout/failure it reports the condition through logging and `process.exitCode`, while leaving final process termination to the surrounding host.
 - `FastifyHttpApplicationAdapter`: The core adapter implementation.
+
+## Troubleshooting
+
+- **CORS Errors**: Ensure you're using the `cors` bootstrap option. Since Fastify's native CORS plugin is not registered, only the fluo-managed CORS logic applies.
+- **Middleware Issues**: The `middleware` option accepts runtime-level `MiddlewareLike[]` functions. These are not Fastify plugins and follow the standard middleware interface used across fluo adapters.
+- **Logging**: The native Fastify logger is disabled to prevent duplicate log streams. All logging should be configured via the fluo `logger` option in `runFastifyApplication` or `bootstrapFastifyApplication`.
+- **Global Prefix**: Use `globalPrefixExclude` to prevent the prefix from being applied to internal routes or health check endpoints.
 
 ## Related Packages
 

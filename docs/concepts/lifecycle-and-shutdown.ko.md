@@ -37,9 +37,98 @@ fluo는 “살아 있음(Liveness, 프로세스 실행 중)”과 “준비됨(R
 ## 수명 주기 훅(Lifecycle Hooks)
 
 - **`onModuleInit`**: 모듈의 공급자가 인스턴스화되자마자 실행되어야 하는 로직입니다(예: 소켓 연결 수립).
+  ```ts
+  import { OnModuleInit } from '@fluojs/runtime';
+
+  export class ConnectionProvider implements OnModuleInit {
+    async onModuleInit(): Promise<void> {
+      await this.connect();
+    }
+  }
+  ```
 - **`onApplicationBootstrap`**: *전체* 애플리케이션 그래프가 준비된 후 실행되는 로직입니다(예: 백그라운드 크론 작업 시작).
+  ```ts
+  import { OnApplicationBootstrap } from '@fluojs/runtime';
+
+  export class JobRunner implements OnApplicationBootstrap {
+    onApplicationBootstrap(): void {
+      this.startPolling();
+    }
+  }
+  ```
 - **`onModuleDestroy`**: 특정 모듈을 정리하는 로직입니다.
-- **`beforeApplicationShutdown`**: 프로세스가 종료되기 전에 정리를 수행할 수 있는 마지막 기회입니다.
+  ```ts
+  import { OnModuleDestroy } from '@fluojs/runtime';
+
+  export class CacheProvider implements OnModuleDestroy {
+    async onModuleDestroy(): Promise<void> {
+      await this.flush();
+    }
+  }
+  ```
+- **`onApplicationShutdown`**: 프로세스가 종료되기 전에 정리를 수행할 수 있는 마지막 기회입니다. 종료를 유발한 신호를 인자로 받습니다.
+  ```ts
+  import { OnApplicationShutdown } from '@fluojs/runtime';
+
+  export class LoggerService implements OnApplicationShutdown {
+    onApplicationShutdown(signal?: string): void {
+      console.log(`received ${signal}, closing logs`);
+    }
+  }
+  ```
+
+## 수명 주기 훅 구현하기(implementing lifecycle hooks)
+
+하나의 공급자에서 여러 훅을 구현하여 리소스의 전체 수명 주기를 관리할 수 있습니다.
+
+```ts
+import { 
+  OnModuleInit, 
+  OnApplicationBootstrap, 
+  OnModuleDestroy, 
+  OnApplicationShutdown 
+} from '@fluojs/runtime';
+
+export class DatabaseService implements OnModuleInit, OnModuleDestroy {
+  private client: any;
+
+  async onModuleInit(): Promise<void> {
+    // 모듈이 준비되는 즉시 연결
+    this.client = await createClient();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    // 모듈이 사라지기 전에 연결 종료 보장
+    await this.client.close();
+  }
+}
+```
+
+## 종료 구성(shutdown configuration)
+
+애플리케이션 구성을 통해 종료 동작을 세밀하게 조정할 수 있습니다.
+
+```ts
+const app = await FluoFactory.create(AppModule);
+
+app.enableShutdownHooks({
+  // 강제 종료 전까지 훅이 완료되기를 기다리는 시간
+  shutdownTimeoutMs: 5000, 
+});
+
+await app.listen(3000);
+```
+
+## 문제 해결(troubleshooting)
+
+### 훅이 실행되지 않음
+수명 주기 훅은 해당 클래스가 모듈의 공급자(provider)로 등록된 경우에만 실행됩니다. `new`를 통해 직접 인스턴스를 생성하면 fluo가 수명 주기를 관리할 수 없습니다.
+
+### 잘못된 정리 순서
+한 서비스가 다른 서비스에 의존하는 경우(서비스 A가 서비스 B를 사용), 의존성이 올바르게 주입되었는지 확인하세요. fluo는 이 그래프를 사용하여 서비스 B가 살아있는 동안 서비스 A가 정리되도록 보장합니다.
+
+### 종료 지연(Hanging Shutdown)
+종료가 너무 오래 걸린다면 대개 기다리지 않은(unawaited) 프로미스나 종료를 거부하는 연결 때문입니다. `shutdownTimeoutMs`를 사용하여 어떤 훅이 지연을 일으키는지 확인하세요.
 
 ## 경계
 

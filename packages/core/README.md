@@ -10,6 +10,7 @@ Shared contracts, standard decorators, and metadata primitives that every fluo p
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Key Capabilities](#key-capabilities)
+- [Troubleshooting](#troubleshooting)
 - [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
@@ -86,6 +87,65 @@ import { getModuleMetadata } from '@fluojs/core/internal';
 const metadata = getModuleMetadata(AppModule);
 console.log(metadata.providers);
 ```
+
+### AsyncModuleOptions for dynamic configuration
+
+`AsyncModuleOptions<T>` is the standard contract for modules that require asynchronous initialization, such as those relying on an external `ConfigService`.
+
+```ts
+import { AsyncModuleOptions, MaybePromise, Token } from '@fluojs/core';
+
+interface Config {
+  apiKey: string;
+}
+
+class EmailModule {
+  static forRootAsync(options: AsyncModuleOptions<Config>) {
+    return {
+      module: EmailModule,
+      providers: [
+        {
+          provide: 'CONFIG',
+          useFactory: options.useFactory,
+          inject: options.inject,
+        },
+      ],
+    };
+  }
+}
+```
+
+### Lifecycle scopes with @Scope
+
+The `@Scope` decorator controls the lifetime of a provider instance. fluo supports three distinct levels:
+
+- `singleton` (default): A single instance is shared across the entire application.
+- `request`: A new instance is created for every incoming HTTP request.
+- `transient`: A new instance is created every time it is injected into a consumer.
+
+```ts
+import { Scope } from '@fluojs/core';
+
+@Scope('request')
+class TransactionContext {}
+
+@Scope('transient')
+class Logger {}
+```
+
+## Troubleshooting
+
+### Decorator metadata not found
+
+Ensure you are using standard TC39 decorators. fluo does not use `reflect-metadata`. If you are migrating from NestJS, remove `experimentalDecorators` and `emitDecoratorMetadata` from your `tsconfig.json` to prevent conflicts with standard decorator behavior.
+
+### Circular dependencies in modules
+
+If two modules import each other, the module graph cannot be compiled. Use a shared "Common" or "Core" module to house providers that both modules depend on, or refactor the shared logic into a separate package.
+
+### Missing @Inject for abstract classes
+
+Standard decorators cannot automatically infer types for abstract classes or interfaces. Always use `@Inject(TOKEN)` when injecting anything that is not a concrete class constructor.
 
 ## Public API
 

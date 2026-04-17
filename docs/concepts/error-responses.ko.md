@@ -68,6 +68,57 @@ DTO 유효성 검사에 실패하면 `details` 배열에 구체적인 필드 위
 - **상관관계가 핵심입니다**: 클라이언트 측 에러 보고나 지원 티켓에 항상 `requestId`를 포함하세요. 이는 클라이언트의 경험과 서버 로그를 연결하는 "접착제" 역할을 합니다.
 - **커스텀보다 일관성**: 에러 필터를 커스텀할 수 있지만, CLI 및 클라이언트 생성기와의 생태계 호환성을 유지하기 위해 표준 봉투 형식을 따를 것을 권장합니다.
 
+## 커스텀 예외 클래스 (Custom Exception Classes)
+
+내장된 예외 클래스가 도메인 요구사항을 충족하지 못할 경우, `HttpException`을 상속받아 직접 정의할 수 있습니다. 이를 통해 커스텀 에러도 글로벌 필터의 혜택을 받고 표준 봉투 포맷을 유지할 수 있습니다.
+
+```typescript
+import { HttpException } from '@fluojs/http';
+
+export class PaymentRequiredException extends HttpException {
+  constructor(message = 'Payment required to access this resource') {
+    super(message, 402, 'PAYMENT_REQUIRED');
+  }
+}
+```
+
+`FluoError`를 상속받는 `HttpException`을 사용하면 프레임워크 전반의 타입 호환성을 유지하면서도 API 실패의 의미를 더욱 명확하게 전달할 수 있습니다.
+
+## 커스텀 예외 필터 (Custom Exception Filters)
+
+예외 필터를 사용하면 에러가 처리되거나 기록되는 방식을 가로채서 수정할 수 있습니다. `@fluojs/runtime`에서 제공하는 `ExceptionFilterHandler` 인터페이스를 구현하여 특정 에러 타입에 대한 전문화된 로직을 작성할 수 있습니다.
+
+```typescript
+import { ExceptionFilterHandler } from '@fluojs/runtime';
+import { MaybePromise } from '@fluojs/core';
+
+export class DatabaseExceptionFilter implements ExceptionFilterHandler {
+  catch(error: any, context: any): MaybePromise<boolean | void> {
+    if (error.name === 'PrismaClientKnownRequestError') {
+      // 커스텀 로깅 또는 변환 로직
+      console.error('Database error detected:', error.message);
+      
+      // false를 반환하면 다음 필터가 처리를 이어갑니다.
+      // void 또는 true를 반환하면 전파가 중단됩니다.
+      return false;
+    }
+  }
+}
+```
+
+### 비 HTTP 에러 처리 (Non-HTTP Error Handling)
+
+fluo는 HTTP에 고도로 최적화되어 있지만, WebSocket이나 CQRS 커맨드 핸들러와 같은 다른 컨텍스트에서도 에러를 엄격하게 처리합니다.
+
+- **WebSockets**: 게이트웨이 핸들러에서 던져진 에러는 캡처되어 설정된 소켓 에러 이벤트를 통해 전송되며, 동일한 `{ error: { ... } }` 구조를 유지합니다.
+- **CQRS**: 커맨드 및 쿼리 핸들러는 표준 예외를 던져야 합니다. 이러한 핸들러를 호출하는 디스패처는 활성 전송 계층에 따라 에러를 정규화합니다.
+
+## 문제 해결 (Troubleshooting)
+
+- **개발 vs 프로덕션의 가공되지 않은 에러**: JSON 응답에 전체 스택 트레이스가 보인다면 환경이 `development`로 설정되어 있을 가능성이 큽니다. `production` 환경에서는 정보 유출 방지를 위해 `InternalServerErrorException`으로 대체됩니다.
+- **유실된 상세 정보**: 에러를 직접 캐치한 뒤 일반 `Error` 객체로 다시 던지지 마세요. 이는 풍부한 에러 봉투 형성에 필요한 `HttpException` 메타데이터를 제거하게 됩니다.
+- **필터 실행 순서**: 커스텀 필터는 등록된 순서대로 실행됩니다. 만약 필터가 `true`나 `void`를 반환하면 이후의 필터들은 해당 에러를 처리하지 못합니다.
+
 ## 다음 단계
 
 - **계층 구조**: [HTTP 패키지 README](../../packages/http/README.ko.md)에서 내장된 예외 클래스들을 확인하세요.

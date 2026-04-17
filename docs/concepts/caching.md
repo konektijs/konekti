@@ -53,6 +53,64 @@ fluo's default key strategy is security-first. If a `RequestContext.principal` i
 - **Cluster Safety**: For multi-instance deployments, you **must** use the Redis store. The memory store is local to each process and does not synchronize.
 - **GET-Only by Default**: The `CacheInterceptor` only caches `GET` requests to ensure safe, idempotent behavior.
 
+## Module Registration
+
+The `CacheModule` should be registered at the root level of your application to enable the global provider and interceptor support.
+
+```typescript
+// Memory store registration (default)
+@Module({
+  imports: [
+    CacheModule.forRoot({
+      isGlobal: true,
+      ttl: 300,
+    }),
+  ],
+})
+export class AppModule {}
+
+// Redis store registration
+@Module({
+  imports: [
+    CacheModule.forRoot({
+      store: 'redis',
+      redis: { clientName: 'cache' },
+      isGlobal: true,
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+## Cache Eviction
+
+Keeping the cache synchronized with your data is handled via the `@CacheEvict()` decorator. This ensures that specific keys are purged when a state-changing operation succeeds.
+
+```typescript
+@Inject(CacheService)
+export class ProductsService {
+  constructor(private readonly cache: CacheService) {}
+
+  @Post('/')
+  @CacheEvict('products:list')
+  async createProduct(data: any) {
+    return this.service.create(data);
+  }
+
+  @Delete('/:id')
+  async removeProduct(id: string) {
+    await this.service.delete(id);
+    await this.cache.del(`products:${id}`); // Manual eviction
+  }
+}
+```
+
+## Troubleshooting
+
+- **Missing `CacheInterceptor`**: Ensure `@UseInterceptors(CacheInterceptor)` is applied to the controller or method. Global registration in `CacheModule` only enables the service, not the interceptor behavior for all routes.
+- **Redis Connection Failures**: Verify the Redis client registration matches the `clientName` provided in the `CacheModule` options.
+- **In-Memory Drift**: If you see different values on different request attempts in a multi-container environment, you are likely using the memory store instead of Redis.
+
 ## Next Steps
 
 - **Implementation Details**: Deep dive into the [Cache Manager Package](../../packages/cache-manager/README.md).
