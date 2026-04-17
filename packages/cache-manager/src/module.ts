@@ -155,6 +155,11 @@ async function createStore(options: NormalizedCacheModuleOptions, container: Con
 /**
  * Create the cache-manager provider set for manual module composition.
  *
+ * @remarks
+ * `CacheModule.forRoot(...)` remains the default documented entrypoint for most
+ * applications. Use this helper when you need to compose the cache-manager
+ * provider graph inside a custom `defineModule(...)` registration.
+ *
  * @param options Cache module options with optional store and HTTP caching configuration.
  * @returns Providers for normalized options, cache store resolution, `CacheService`, and `CacheInterceptor`.
  *
@@ -213,6 +218,11 @@ export function createCacheProviders(options: CacheModuleOptions = {}): Provider
 export class CacheModule {
   /**
    * Register cache providers for the current application module graph.
+   *
+   * @remarks
+   * This is the primary package entrypoint. Reach for `createCacheProviders(...)`
+   * only when you need equivalent provider wiring inside a manually composed
+   * runtime module definition.
    *
    * @param options Cache module options.
    * @returns A runtime module exporting `CacheService` and `CacheInterceptor`.
