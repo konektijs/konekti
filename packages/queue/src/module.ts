@@ -24,13 +24,7 @@ function normalizeQueueModuleOptions(options: QueueModuleOptions = {}): Normaliz
   };
 }
 
-/**
- * Creates queue lifecycle providers and normalized queue options.
- *
- * @param options Queue module defaults for attempts, backoff, concurrency, and rate limiting.
- * @returns Provider definitions that register normalized `QUEUE_OPTIONS`, `QueueLifecycleService`, and the compatibility alias `QUEUE`.
- */
-export function createQueueProviders(options: QueueModuleOptions = {}): Provider[] {
+function createQueueProviders(options: QueueModuleOptions = {}): Provider[] {
   return [
     {
       provide: QUEUE_OPTIONS,
