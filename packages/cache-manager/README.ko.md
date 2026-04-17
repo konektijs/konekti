@@ -14,6 +14,7 @@
 - [공통 패턴](#공통-패턴)
   - [Redis 저장소 사용](#redis-저장소-사용)
   - [쿼리 매개변수 기반 캐싱](#쿼리-매개변수-기반-캐싱)
+  - [수동 모듈 조합](#수동-모듈-조합)
 - [공개 API 개요](#공개-api-개요)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
@@ -130,6 +131,24 @@ CacheModule.forRoot({
 })
 ```
 
+### 수동 모듈 조합
+
+일반적인 애플리케이션 설정에서는 `CacheModule.forRoot(...)`가 기본 진입점입니다.
+동일한 cache-manager provider 그래프를 커스텀 `defineModule(...)` 등록 안에 직접 배치해야 할 때는
+`createCacheProviders(...)`를 계속 지원되는 공개 API로 사용할 수 있습니다.
+
+```typescript
+import { defineModule } from '@fluojs/runtime';
+import { CacheInterceptor, CacheService, createCacheProviders } from '@fluojs/cache-manager';
+
+class ManualCacheModule {}
+
+defineModule(ManualCacheModule, {
+  exports: [CacheService, CacheInterceptor],
+  providers: createCacheProviders({ store: 'memory', ttl: 60 }),
+});
+```
+
 ### 메모리 저장소 운영 한계
 
 내장 메모리 저장소는 단일 프로세스의 bounded cache 용도로 설계되어 있습니다.
@@ -146,6 +165,10 @@ CacheModule.forRoot({
 
 ### 모듈
 - `CacheModule.forRoot(options)`: 캐시 저장소(memory/redis), 기본 TTL, 키 전략 등을 설정합니다.
+  애플리케이션 모듈에서 사용하는 기본 패키지 진입점입니다.
+
+### Provider 조합
+- `createCacheProviders(options)`: `CacheModule.forRoot(options)`와 동일한 provider 집합을 반환하며, 지원되는 수동 `defineModule(...)` 조합에 사용합니다.
 
 ### 서비스
 - `CacheService`: 수동 캐시 작업(`get`, `set`, `del`, `remember`, `reset`)을 위한 기본 API입니다.

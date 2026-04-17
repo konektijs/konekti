@@ -14,6 +14,7 @@ General-purpose cache manager for fluo with pluggable memory and Redis stores. P
 - [Common Patterns](#common-patterns)
   - [Redis Storage](#redis-storage)
   - [Query-Sensitive Caching](#query-sensitive-caching)
+  - [Manual Module Composition](#manual-module-composition)
 - [Public API Overview](#public-api-overview)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
@@ -130,6 +131,24 @@ CacheModule.forRoot({
 })
 ```
 
+### Manual Module Composition
+
+`CacheModule.forRoot(...)` remains the default entrypoint for normal application setup.
+When you need to wire the same cache-manager providers into a custom `defineModule(...)`
+registration, `createCacheProviders(...)` remains a supported public API.
+
+```typescript
+import { defineModule } from '@fluojs/runtime';
+import { CacheInterceptor, CacheService, createCacheProviders } from '@fluojs/cache-manager';
+
+class ManualCacheModule {}
+
+defineModule(ManualCacheModule, {
+  exports: [CacheService, CacheInterceptor],
+  providers: createCacheProviders({ store: 'memory', ttl: 60 }),
+});
+```
+
 ### Memory Store Operational Limits
 
 The built-in memory store is designed for single-process, bounded caching:
@@ -146,6 +165,10 @@ For non-GET handlers decorated with `@CacheEvict(...)`, eviction is deferred unt
 
 ### Modules
 - `CacheModule.forRoot(options)`: Configures the cache store (memory/redis), default TTL, and key strategies.
+  This is the primary package entrypoint for application modules.
+
+### Provider composition
+- `createCacheProviders(options)`: Returns the provider set used by `CacheModule.forRoot(options)` for supported manual `defineModule(...)` composition.
 
 ### Services
 - `CacheService`: Main API for manual cache operations (`get`, `set`, `del`, `remember`, `reset`).
