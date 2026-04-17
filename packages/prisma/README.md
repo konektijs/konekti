@@ -13,6 +13,7 @@ Prisma lifecycle and ALS-backed transaction context for fluo applications. Conne
   - [PrismaService and current()](#prismaservice-and-current)
   - [Manual Transactions](#manual-transactions)
   - [Automatic Request Transactions](#automatic-request-transactions)
+  - [Manual Module Composition](#manual-module-composition)
 - [Public API Overview](#public-api-overview)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
@@ -100,6 +101,28 @@ class UserController {
 }
 ```
 
+### Manual Module Composition
+
+`PrismaModule.forRoot(...)` / `forRootAsync(...)` remain the canonical application
+entrypoints. When you need to wire the same Prisma providers into a custom
+`defineModule(...)` registration, `createPrismaProviders(...)` remains a supported
+public helper for manual composition.
+
+```typescript
+import { defineModule } from '@fluojs/runtime';
+import { PrismaService, PrismaTransactionInterceptor, createPrismaProviders } from '@fluojs/prisma';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+class ManualPrismaModule {}
+
+defineModule(ManualPrismaModule, {
+  exports: [PrismaService, PrismaTransactionInterceptor],
+  providers: createPrismaProviders({ client: prisma }),
+});
+```
+
 ## Public API Overview
 
 ### `PrismaModule`
@@ -107,6 +130,10 @@ class UserController {
 - `PrismaModule.forRoot(options)` / `PrismaModule.forRootAsync(options)`
 - `forRootAsync(...)` accepts `AsyncModuleOptions<PrismaModuleOptions<...>>`.
 - Supports `strictTransactions: true` to throw if transaction support is missing.
+
+### Provider composition
+
+- `createPrismaProviders(options)`: Returns the provider set used by `PrismaModule.forRoot(...)` for supported manual `defineModule(...)` composition.
 
 ### `PrismaService<TClient>`
 
