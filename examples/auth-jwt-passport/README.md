@@ -52,7 +52,7 @@ examples/auth-jwt-passport/
 2. `src/auth/auth.service.ts` — JWT issuance
 3. `src/auth/bearer.strategy.ts` — bearer token verification through passport core
 4. `src/auth/auth.controller.ts` — open token route + protected profile route
-5. `src/auth/auth.module.ts` — provider registration for JWT + passport
+5. `src/auth/auth.module.ts` — module-first registration via `JwtModule.forRoot(...)` + `PassportModule.forRoot(...)`
 6. `src/app.test.ts` — integration and e2e-style verification
 
 ## related docs

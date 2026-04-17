@@ -1,5 +1,5 @@
 import { Module } from '@fluojs/core';
-import { createJwtCoreProviders } from '@fluojs/jwt';
+import { JwtModule } from '@fluojs/jwt';
 import { PassportModule } from '@fluojs/passport';
 
 import { AuthController, ProfileController } from './auth.controller';
@@ -9,6 +9,13 @@ import { BearerJwtStrategy } from './bearer.strategy';
 @Module({
   controllers: [AuthController, ProfileController],
   imports: [
+    JwtModule.forRoot({
+      accessTokenTtlSeconds: 3600,
+      algorithms: ['HS256'],
+      audience: 'fluo-auth-example-clients',
+      issuer: 'fluo-auth-example',
+      secret: 'fluo-auth-example-secret',
+    }),
     PassportModule.forRoot(
       { defaultStrategy: 'jwt' },
       [{ name: 'jwt', token: BearerJwtStrategy }],
@@ -17,13 +24,6 @@ import { BearerJwtStrategy } from './bearer.strategy';
   providers: [
     AuthService,
     BearerJwtStrategy,
-    ...createJwtCoreProviders({
-      accessTokenTtlSeconds: 3600,
-      algorithms: ['HS256'],
-      audience: 'fluo-auth-example-clients',
-      issuer: 'fluo-auth-example',
-      secret: 'fluo-auth-example-secret',
-    }),
   ],
 })
 export class AuthModule {}

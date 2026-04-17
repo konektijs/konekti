@@ -34,6 +34,8 @@ fluo는 **일회용 로테이션(One-Time-Use Rotation)**을 구현하는 `Refre
 - 새로운 액세스/리프레시 토큰 쌍이 발급됩니다.
 - 이전 리프레시 토큰이 재사용되면(재생 공격), 해당 토큰 가족 전체가 자동으로 취소될 수 있어 탈취된 자격 증명으로부터 사용자를 보호합니다.
 
+애플리케이션 모듈 등록에서는 `JwtModule.forRoot(...)` 및 `JwtModule.forRootAsync(...)`를 `@fluojs/jwt`의 canonical entrypoint로 취급하세요. `createJwtCoreProviders(...)`는 기존 커스텀 모듈 내부에서 고급 직접 provider 구성이 필요할 때만 사용하세요.
+
 ## 다음 단계
 
 - **빠른 시작**: [Auth JWT Passport 예제](../../examples/auth-jwt-passport/README.ko.md)에서 토큰 발급 및 검증을 확인하세요.
