@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { getModuleMetadata } from '@fluojs/core/internal';
+
 import type { GuardContext, RequestContext } from '@fluojs/http';
 import type { DefaultJwtVerifier } from '@fluojs/jwt';
 
 import { CookieAuthStrategy, normalizeCookieAuthOptions } from './cookie-auth.js';
+import { CookieAuthModule, createCookieAuthProviders } from './cookie-auth-module.js';
 import { AuthenticationRequiredError } from '../errors.js';
 
 function createMockVerifier(overrides: Partial<DefaultJwtVerifier> = {}): DefaultJwtVerifier {
@@ -323,5 +326,27 @@ describe('CookieManager', () => {
     expect(cookies).toHaveLength(2);
     expect(cookies[0]).toContain('access_token=; Max-Age=0');
     expect(cookies[1]).toContain('refresh_token=; Max-Age=0');
+  });
+});
+
+describe('CookieAuthModule', () => {
+  it('creates a module-first runtime definition for the cookie preset', async () => {
+    const config = {
+      cookieAuth: { accessTokenCookieName: 'session' },
+    };
+    const moduleDefinition = CookieAuthModule.forRoot(config);
+
+    const metadata = getModuleMetadata(moduleDefinition);
+    const { CookieManager } = await import('./cookie-manager.js');
+    const expectedProviders = createCookieAuthProviders(config);
+
+    expect(metadata?.exports).toEqual([CookieAuthStrategy, CookieManager]);
+    expect(metadata?.providers).toHaveLength(expectedProviders.length);
+    expect(metadata?.providers?.[0]).toEqual(expectedProviders[0]);
+    expect(metadata?.providers?.[1]).toBe(CookieAuthStrategy);
+    expect(metadata?.providers?.[2]).toMatchObject({
+      inject: [],
+      provide: CookieManager,
+    });
   });
 });
