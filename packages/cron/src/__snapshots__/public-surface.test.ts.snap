@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`@fluojs/cron root barrel public surface > keeps the documented root exports stable for 0.x governance 1`] = `
+exports[`@fluojs/cron root barrel public surface > keeps CronModule.forRoot as the canonical root entrypoint 1`] = `
 [
   "Cron",
   "CronExpression",
@@ -9,7 +9,6 @@ exports[`@fluojs/cron root barrel public surface > keeps the documented root exp
   "SCHEDULING_REGISTRY",
   "Timeout",
   "createCronPlatformStatusSnapshot",
-  "createCronProviders",
   "cronMetadataSymbol",
   "defineCronTaskMetadata",
   "defineSchedulingTaskMetadata",
