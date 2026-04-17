@@ -116,7 +116,7 @@ export type SocketIoMessageGuard = (
   | void;
 
 /**
- * Options accepted by {@link SocketIoModule.forRoot} and {@link createSocketIoProviders}.
+ * Options accepted by {@link SocketIoModule.forRoot}.
  */
 export interface SocketIoModuleOptions {
   /**
