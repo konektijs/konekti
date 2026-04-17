@@ -30,6 +30,8 @@ npm install @fluojs/redis ioredis
 
 ### 모듈 등록
 
+`RedisModule.forRoot(options)`는 기본 Redis 클라이언트와 `RedisService` 파사드를 등록하는 지원되는 root entrypoint입니다.
+
 ```typescript
 import { Module } from '@fluojs/core';
 import { RedisModule } from '@fluojs/redis';
@@ -71,7 +73,7 @@ export class CacheRepository {
 
 ### 이름 있는 클라이언트
 
-하나의 애플리케이션에서 여러 Redis 연결이 필요하면 `RedisModule.forRootNamed(name, options)`를 사용하세요. `RedisModule.forRoot(options)`는 계속 기본 `REDIS_CLIENT`와 `RedisService` 별칭을 유지하고, 이름 있는 등록은 `getRedisClientToken(name)`과 `getRedisServiceToken(name)`으로 해석합니다.
+하나의 애플리케이션에서 여러 Redis 연결이 필요하면 `RedisModule.forRootNamed(name, options)`를 사용하세요. `RedisModule.forRoot(options)`는 계속 기본 `REDIS_CLIENT`와 `RedisService` 별칭을 유지하고, 이름 있는 등록은 `getRedisClientToken(name)`과 `getRedisServiceToken(name)`으로 해석합니다. 내부 provider 구성 helper는 지원되는 root-barrel API의 일부가 아닙니다.
 
 - `name`을 생략하면 기본 별칭인 `REDIS_CLIENT` / `RedisService`를 사용합니다.
 - `name`을 지정하면 `getRedisClientToken(name)` / `getRedisServiceToken(name)`으로 이름 있는 바인딩을 가져옵니다.
@@ -130,6 +132,7 @@ export class AdvancedService {
 
 ### 핵심 구성 요소
 - `RedisModule`: 전역 Redis 클라이언트 등록 및 수명 주기 훅을 관리합니다.
+- `RedisModule.forRoot(options)`: 기본 Redis 클라이언트와 `RedisService` 파사드를 위한 지원되는 root entrypoint입니다.
 - `RedisModule.forRootNamed(name, options)`: 기본 별칭을 유지한 채 추가 Redis 클라이언트를 등록합니다.
 - `RedisService`: JSON 코덱 지원 및 `get`/`set`/`del` 메서드를 제공하는 파사드입니다.
 - `REDIS_CLIENT`: 내부 `ioredis` 인스턴스에 접근하기 위한 DI 토큰입니다.
