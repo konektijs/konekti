@@ -5,7 +5,7 @@ import * as cacheManagerPublicApi from './index.js';
 describe('@fluojs/cache-manager public API surface', () => {
   it('keeps documented supported root-barrel exports', () => {
     expect(cacheManagerPublicApi).toHaveProperty('CacheModule');
-    expect(cacheManagerPublicApi).toHaveProperty('createCacheProviders');
+    expect(cacheManagerPublicApi).not.toHaveProperty('createCacheProviders');
     expect(cacheManagerPublicApi).toHaveProperty('CacheService');
     expect(cacheManagerPublicApi).toHaveProperty('CacheInterceptor');
     expect(cacheManagerPublicApi).toHaveProperty('CacheKey');

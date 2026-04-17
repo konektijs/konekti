@@ -9,7 +9,7 @@ import { bootstrapApplication, defineModule } from '@fluojs/runtime';
 import { CacheEvict } from './decorators.js';
 import { CacheInterceptor } from './interceptor.js';
 import { CacheService } from './service.js';
-import { CacheModule, createCacheProviders } from './module.js';
+import { CacheModule } from './module.js';
 import { CACHE_OPTIONS } from './tokens.js';
 import type { RedisCompatibleClient } from './types.js';
 
@@ -101,8 +101,9 @@ describe('CacheModule.forRoot', () => {
   });
 
   it('uses a bounded TTL by default on the built-in memory store path', () => {
-    const optionsProvider = createCacheProviders().find(
-      (provider): provider is { provide: typeof CACHE_OPTIONS; useValue: { store: string; ttl: number } } =>
+    const providers = getModuleMetadata(CacheModule.forRoot())?.providers ?? [];
+    const optionsProvider = providers.find(
+      (provider: unknown): provider is { provide: typeof CACHE_OPTIONS; useValue: { store: string; ttl: number } } =>
         typeof provider === 'object' &&
         provider !== null &&
         'provide' in provider &&
@@ -117,7 +118,7 @@ describe('CacheModule.forRoot', () => {
     });
   });
 
-  it('keeps createCacheProviders as a supported manual-composition API', async () => {
+  it('supports module-first cache composition inside custom defineModule registrations', async () => {
     @Inject(CacheService)
     class Consumer {
       constructor(readonly cache: CacheService) {}
@@ -126,7 +127,7 @@ describe('CacheModule.forRoot', () => {
     class ManualCacheModule {}
     defineModule(ManualCacheModule, {
       exports: [CacheService, CacheInterceptor],
-      providers: createCacheProviders({ store: 'memory' }),
+      imports: [CacheModule.forRoot({ store: 'memory' })],
     });
 
     class AppModule {}

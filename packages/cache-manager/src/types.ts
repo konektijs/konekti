@@ -42,7 +42,7 @@ interface CacheModuleInternalOptions {
 export type PrincipalScopeResolver = (context: InterceptorContext) => string | undefined;
 
 /**
- * Public configuration options for `CacheModule.forRoot(...)` and `createCacheProviders(...)`.
+ * Public configuration options for `CacheModule.forRoot(...)`.
  */
 export interface CacheModuleOptions extends CacheModuleInternalOptions {
   isGlobal?: boolean;
