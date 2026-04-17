@@ -34,6 +34,8 @@ fluo provides a built-in `RefreshTokenService` that implements **One-Time-Use Ro
 - A new access/refresh token pair is issued.
 - If an old refresh token is reused (Replay Attack), the entire token family can be revoked automatically, protecting your users from stolen credentials.
 
+For application module registration, treat `JwtModule.forRoot(...)` and `JwtModule.forRootAsync(...)` as the canonical `@fluojs/jwt` entrypoints. Reserve `createJwtCoreProviders(...)` for advanced direct provider composition inside an existing custom module.
+
 ## Next Steps
 
 - **Quick Start**: issuance and verification in the [Auth JWT Passport Example](../../examples/auth-jwt-passport/README.md).
