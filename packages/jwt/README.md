@@ -32,7 +32,7 @@ npm install @fluojs/jwt
 
 Configure the JWT module with your signing keys and policy.
 
-`JwtModule.forRoot(...)` and `JwtModule.forRootAsync(...)` are the canonical application entrypoints. Import JWT support through these module-first entrypoints so registration, exports, and refresh-token wiring stay aligned with the published package surface.
+Import JWT support through `JwtModule.forRoot(...)` or `JwtModule.forRootAsync(...)`.
 
 ```typescript
 import { Module } from '@fluojs/core';

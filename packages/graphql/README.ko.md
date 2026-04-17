@@ -112,8 +112,8 @@ GraphqlModule.forRoot({
 - `graphiql`을 명시적으로 켜거나 `introspection: true`를 설정하지 않으면 스키마 introspection은 기본적으로 비활성화됩니다.
 - 문서 depth, field complexity, aggregate query cost에 대한 request validation budget이 기본적으로 보수적인 값으로 활성화됩니다.
 - WebSocket 구독 경로에는 별도의 전송 budget이 기본 적용됩니다: 동시 연결 `100`, 최대 payload 크기 `64 KiB`, 연결당 활성 operation `25`개입니다.
-- 레거시 무제한 WebSocket 동작이 정말 필요할 때만 `subscriptions.websocket.limits = false`를 사용하고, 그 경우에도 동일한 수준의 외부 제어 수단을 마련해야 합니다.
-- 레거시 무제한 동작이 꼭 필요할 때만 `limits: false`를 사용하고, 그 경우에는 외부 제어 수단을 함께 두어야 합니다.
+- 무제한 WebSocket 동작이 정말 필요할 때만 `subscriptions.websocket.limits = false`를 사용하고, 그 경우에도 동일한 수준의 외부 제어 수단을 마련해야 합니다.
+- 무제한 동작이 꼭 필요할 때만 `limits: false`를 사용하고, 그 경우에는 외부 제어 수단을 함께 두어야 합니다.
 
 ```typescript
 GraphqlModule.forRoot({
@@ -141,7 +141,6 @@ GraphqlModule.forRoot({
 ## 공개 API 개요
 
 - `GraphqlModule.forRoot(options)`: GraphQL 통합을 위한 메인 엔트리 포인트.
-- 루트 수준의 등록 계약은 의도적으로 `GraphqlModule.forRoot(...)`에만 맞춰져 있으며, `createGraphqlProviders(...)` 같은 저수준 provider helper는 문서화된 root barrel 계약에 포함되지 않습니다.
 - `Resolver`, `Query`, `Mutation`, `Subscription`: 작업 데코레이터.
 - `Arg`: 인자 매핑 데코레이터.
 - `createDataLoader`, `createDataLoaderMap`: DataLoader 팩토리 헬퍼.

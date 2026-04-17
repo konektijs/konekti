@@ -57,7 +57,7 @@ class UserService {
 
 ## Key Capabilities
 
-### Standard decorators without legacy TypeScript flags
+### Standard decorators with TC39 decorator support
 
 fluo uses TC39 standard decorators. You do not need `experimentalDecorators: true` or `emitDecoratorMetadata: true` to use `@Module`, `@Inject`, `@Global`, or `@Scope`.
 
@@ -74,7 +74,7 @@ class UsesConfigValue {
 }
 ```
 
-The legacy array form (`@Inject([A, B])`) is still accepted during the staged migration window, but variadic calls are now the canonical public API.
+Pass multiple tokens as variadic arguments such as `@Inject(A, B)`.
 
 ### Shared metadata helpers for sibling packages
 

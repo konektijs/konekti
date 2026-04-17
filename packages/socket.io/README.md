@@ -100,9 +100,10 @@ SocketIoModule.forRoot({
 
 When `cors` is omitted, `@fluojs/socket.io` now defaults to `origin: false` so cross-origin exposure stays opt-in. When `engine.maxHttpBufferSize` is omitted, the adapter applies a bounded 1 MiB Engine.IO payload limit.
 
-### Module-first registration only
-`SocketIoModule.forRoot(...)` is the only supported registration seam for `@fluojs/socket.io`.
-Manual `defineModule(...)` composition through provider-array helpers is intentionally unsupported, so custom modules should import `SocketIoModule.forRoot(...)` instead of re-wiring the lifecycle providers themselves.
+### Module registration
+Register Socket.IO with `SocketIoModule.forRoot(...)`.
+
+Register Socket.IO through module imports in the owning module so namespace/message guards, CORS, and Engine.IO options stay configured in one place.
 
 ## Public API Overview
 
@@ -110,7 +111,6 @@ Manual `defineModule(...)` composition through provider-array helpers is intenti
 - `SocketIoModule.forRoot({ auth, cors, engine, ... })`: Configures namespace/message guards plus explicit CORS and Engine.IO payload bounds.
 - `SOCKETIO_SERVER`: Token to inject the raw Socket.IO `Server`.
 - `SOCKETIO_ROOM_SERVICE`: Token to inject the `SocketIoRoomService`.
-- Manual `defineModule(...)` provider composition is intentionally unsupported; import `SocketIoModule.forRoot(...)` into the owning module instead.
 
 ## Supported Platforms
 

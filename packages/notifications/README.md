@@ -34,7 +34,7 @@ npm install @fluojs/notifications
 
 ### 1. Register the foundation module
 
-`NotificationsModule.forRoot(...)` and `NotificationsModule.forRootAsync(...)` are the supported registration seams for application and custom module composition. Low-level provider arrays are internal implementation details and not part of the root public API contract.
+Register notifications with `NotificationsModule.forRoot(...)` or `NotificationsModule.forRootAsync(...)`.
 
 ```typescript
 import { Module } from '@fluojs/core';

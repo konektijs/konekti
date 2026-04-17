@@ -2,7 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
-The canonical CLI for fluo — bootstrap new applications, generate components, and migrate from legacy frameworks.
+The official CLI for fluo — bootstrap new applications, generate components, inspect runtime graphs, and run code transforms.
 
 ## Table of Contents
 
@@ -36,7 +36,7 @@ pnpm dlx @fluojs/cli new my-app
 
 - **Bootstrapping**: When starting a new project with a standard, verifiable structure.
 - **Generation**: To create modules, controllers, services, and repositories with consistent naming and automatic wiring.
-- **Migration**: When moving an existing NestJS application to fluo's standard decorator model.
+- **Code transforms**: When aligning an existing codebase with fluo's standard decorator model.
 - **Inspection**: To visualize the runtime dependency graph and diagnose platform-level issues.
 
 ## Quick Start
@@ -50,7 +50,7 @@ cd my-app
 pnpm dev
 ```
 
-The default starter remains the Node.js + Fastify HTTP application baseline. `fluo new` now also ships first-class Express and raw Node.js HTTP application starters on the same Node-oriented install/build story:
+`fluo new` supports Node.js + Fastify, Express, and raw Node.js HTTP application starters on the same Node-oriented install/build flow:
 
 ```bash
 fluo new my-app --shape application --transport http --runtime node --platform fastify
@@ -58,7 +58,7 @@ fluo new my-express-app --shape application --transport http --runtime node --pl
 fluo new my-node-app --shape application --transport http --runtime node --platform nodejs
 ```
 
-The application matrix now also includes runtime-native Bun, Deno, and Cloudflare Workers starters with runtime-specific entrypoints, scripts, and dependency sets:
+The application matrix also includes runtime-native Bun, Deno, and Cloudflare Workers starters with runtime-specific entrypoints, scripts, and dependency sets:
 
 ```bash
 fluo new my-bun-app --shape application --transport http --runtime bun --platform bun
@@ -66,7 +66,7 @@ fluo new my-deno-app --shape application --transport http --runtime deno --platf
 fluo new my-worker-app --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
 ```
 
-`fluo new` also exposes first-class microservice starter paths. TCP remains the simplest default when you omit `--transport`, and the microservice starter matrix now also includes runnable Redis Streams, NATS, Kafka, RabbitMQ, MQTT, and gRPC variants with transport-specific dependencies, env templates, and entrypoints:
+`fluo new` also exposes microservice starter paths. TCP is the default when you omit `--transport`, and the starter matrix includes runnable Redis Streams, NATS, Kafka, RabbitMQ, MQTT, and gRPC variants with transport-specific dependencies, env templates, and entrypoints:
 
 ```bash
 fluo new my-microservice --shape microservice --transport tcp --runtime node --platform none
@@ -80,13 +80,13 @@ fluo new my-grpc-service --shape microservice --transport grpc --runtime node --
 
 The NATS/Kafka/RabbitMQ starter contracts stay explicit about external brokers and caller-owned client libraries. Generated projects wire `nats` + `JSONCodec()`, `kafkajs` producer/consumer collaborators, and `amqplib` publisher/consumer collaborators directly in `src/app.ts` so the starter contract is runnable without pretending the base fluo packages hide those dependencies.
 
-The v2 matrix also includes a mixed single-package starter: one Fastify HTTP app with an attached TCP microservice in the same generated project.
+The starter matrix also includes a mixed single-package starter: one Fastify HTTP app with an attached TCP microservice in the same generated project.
 
 ```bash
 fluo new my-mixed-app --shape mixed --transport tcp --runtime node --platform fastify
 ```
 
-When `fluo new` runs in an interactive TTY, the v2 wizard now layers on top of the same flags/config model instead of replacing it. The wizard asks for the project name, shape-first branch (`application` -> runtime + HTTP platform, `microservice` -> transport), the maintained tooling preset, package-manager choice, whether to install dependencies immediately, and whether to initialize a git repository. Non-interactive flags and programmatic `runNewCommand(...)` calls still stay first-class paths with the same resolved defaults.
+When `fluo new` runs in an interactive TTY, the wizard uses the same flags/config model. It asks for the project name, shape-first branch (`application` -> runtime + HTTP platform, `microservice` -> transport), the maintained tooling preset, package-manager choice, whether to install dependencies immediately, and whether to initialize a git repository. Non-interactive flags and programmatic `runNewCommand(...)` calls use the same resolved defaults.
 
 For a docs-level table that separates the shipped starter matrix (Node.js Fastify/Express/raw Node.js HTTP, Bun, Deno, Cloudflare Workers, TCP/Redis Streams/NATS/Kafka/RabbitMQ/MQTT/gRPC microservices, plus mixed) from the remaining broader adapter ecosystem, see the [fluo new support matrix](../../docs/reference/fluo-new-support-matrix.md).
 
@@ -101,8 +101,8 @@ fluo generate service users
 
 ## Common Patterns
 
-### NestJS to fluo Migration
-Run safe, first-phase codemods to align your codebase with TC39 standard decorators.
+### Decorator Codemods
+Run codemods to align your codebase with TC39 standard decorators.
 
 ```bash
 # Preview changes (dry-run)
@@ -150,4 +150,4 @@ The package can be used programmatically to trigger CLI actions from within othe
 - [cli.ts](./src/cli.ts) - Command dispatcher and argument parsing.
 - [commands/new.ts](./src/commands/new.ts) - Project scaffolding implementation.
 - [generators/](./src/generators/) - Template-based file generation logic.
-- [transforms/](./src/transforms/) - Migration codemod implementations.
+- [transforms/](./src/transforms/) - Code transformation implementations.

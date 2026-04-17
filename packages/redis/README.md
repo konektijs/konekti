@@ -30,7 +30,7 @@ npm install @fluojs/redis ioredis
 
 ### Register the Module
 
-`RedisModule.forRoot(options)` is the supported root entrypoint for registering the default Redis client and `RedisService` facade.
+Use `RedisModule.forRoot(options)` to register the default Redis client and `RedisService` facade.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -73,7 +73,7 @@ export class CacheRepository {
 
 ### Named Clients
 
-Use `RedisModule.forRootNamed(name, options)` when one application needs more than one Redis connection. `RedisModule.forRoot(options)` still owns the default `REDIS_CLIENT` and `RedisService` aliases; named registrations are resolved with `getRedisClientToken(name)` and `getRedisServiceToken(name)`. Internal provider-construction helpers are not part of the supported root-barrel API.
+Use `RedisModule.forRootNamed(name, options)` when one application needs more than one Redis connection. `RedisModule.forRoot(options)` provides the default `REDIS_CLIENT` and `RedisService` aliases, and named registrations are resolved with `getRedisClientToken(name)` and `getRedisServiceToken(name)`.
 
 - Omit `name` when you want the default aliases: `REDIS_CLIENT` / `RedisService`.
 - Pass `name` when you want the named helpers: `getRedisClientToken(name)` / `getRedisServiceToken(name)`.
@@ -132,7 +132,7 @@ export class AdvancedService {
 
 ### Core
 - `RedisModule`: Registers the global Redis client and lifecycle hooks.
-- `RedisModule.forRoot(options)`: Supported root entrypoint for the default Redis client plus `RedisService` facade.
+- `RedisModule.forRoot(options)`: Registers the default Redis client plus `RedisService` facade.
 - `RedisModule.forRootNamed(name, options)`: Registers an additional named Redis client without replacing the default aliases.
 - `RedisService`: Facade with JSON codec support and `get`/`set`/`del` methods.
 - `REDIS_CLIENT`: DI token for the underlying `ioredis` instance.

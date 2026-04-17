@@ -50,7 +50,7 @@ import { MyJwtStrategy } from './jwt.strategy';
 export class AuthModule {}
 ```
 
-`PassportModule.forRoot(...)` is the canonical public entrypoint for strategy registration. Configure passport wiring through module imports rather than low-level root provider composition.
+Register strategies through `PassportModule.forRoot(...)`.
 
 ### 2. Protect Routes
 
@@ -108,7 +108,7 @@ import {
 export class AuthModule {}
 ```
 
-`CookieAuthModule.forRoot(...)` is the canonical preset entrypoint. Import it alongside `PassportModule.forRoot(...)` when you want cookie-auth support in an application module.
+Import `CookieAuthModule.forRoot(...)` alongside `PassportModule.forRoot(...)` when you want cookie-auth support in an application module.
 
 ### Refresh Token Lifecycle
 
@@ -147,7 +147,7 @@ export class AuthController {
 }
 ```
 
-`RefreshTokenModule.forRoot(...)` is the canonical preset entrypoint. Import it alongside `PassportModule.forRoot(...)` so the refresh-token strategy and shared `REFRESH_TOKEN_SERVICE` alias stay aligned through module wiring.
+Import `RefreshTokenModule.forRoot(...)` alongside `PassportModule.forRoot(...)` so the refresh-token strategy and shared `REFRESH_TOKEN_SERVICE` alias are available in the same module wiring.
 
 ## Public API Overview
 
@@ -156,7 +156,7 @@ export class AuthController {
 - `@RequireScopes(...scopes)`: Enforces specific scope requirements.
 
 ### Core Classes
-- `PassportModule`: Canonical module-first entry point for passport strategy wiring.
+- `PassportModule`: Module entry point for passport strategy wiring.
 - `AuthGuard`: The HTTP guard that executes the strategy chain.
 - `CookieAuthModule`: Module entry point for the built-in cookie-auth preset.
 - `CookieManager`: Utility for managing HttpOnly auth cookies.
@@ -176,4 +176,4 @@ export class AuthController {
 
 - `packages/passport/src/guard.test.ts`: Guard execution and scope enforcement patterns.
 - `packages/passport/src/adapters/passport-js.ts`: Implementation of the Passport.js bridge.
-- `examples/auth-jwt-passport/src/auth/bearer.strategy.ts`: Canonical JWT strategy implementation.
+- `examples/auth-jwt-passport/src/auth/bearer.strategy.ts`: JWT strategy implementation.

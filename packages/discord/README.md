@@ -186,7 +186,7 @@ These limitations are part of the package contract so runtime choice, provider c
 - `DISCORD`
 - `DISCORD_CHANNEL`
 
-`createDiscordProviders(...)` is an internal wiring helper and is no longer part of the supported root package contract. Compose applications through `DiscordModule` and integrate notifications through `DISCORD_CHANNEL` plus the exported transport contracts.
+Compose applications through `DiscordModule` and integrate notifications through `DISCORD_CHANNEL` plus the exported transport contracts.
 
 ### Contracts and helpers
 

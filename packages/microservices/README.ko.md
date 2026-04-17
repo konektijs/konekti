@@ -91,9 +91,9 @@ await microservice.listen();
 
 ## 공통 패턴
 
-### module-first custom registration
+### 커스텀 모듈 등록
 
-custom provider/export/non-global 구성이 필요할 때도 raw provider array로 내려가지 말고 `MicroservicesModule.forRoot({ transport, module: { ... } })`를 우선 사용하세요.
+custom provider/export/non-global 구성이 필요할 때는 `MicroservicesModule.forRoot({ transport, module: { ... } })`를 사용하세요.
 
 ```ts
 import { Module } from '@fluojs/core';
@@ -120,11 +120,11 @@ Behavioral contract notes:
 
 - 이 모듈 경로는 기본 `MicroservicesModule.forRoot(...)` 호출과 동일한 `MICROSERVICE_OPTIONS`, `MicroserviceLifecycleService`, `MICROSERVICE` wiring을 그대로 설치합니다.
 - `module.providers`는 내장 런타임 wiring 뒤에 추가 provider를 붙이고, `module.additionalExports`는 기본 export 토큰을 교체하지 않고 확장합니다.
-- `module.global`을 사용하면 raw provider graph를 다시 조립하지 않고도 고급 호출자가 등록 범위를 로컬로 제한할 수 있습니다.
+- `module.global`을 사용하면 등록 범위를 로컬로 제한할 수 있습니다.
 
-### low-level helper for raw provider arrays
+### provider 배열 헬퍼
 
-`createMicroservicesProviders(...)`는 실제로 low-level provider array 자체가 필요한 호출자에게만 남아 있습니다.
+`createMicroservicesProviders(...)`는 커스텀 모듈 조합에 provider 배열이 필요할 때 사용할 수 있습니다.
 
 ```ts
 import { Module } from '@fluojs/core';
@@ -141,11 +141,11 @@ class ManualMicroserviceProvidersModule {}
 ### 루트 배럴 (`@fluojs/microservices`)
 
 - `MicroservicesModule`, `createMicroservicesProviders`: 모듈 등록 진입점입니다.
-- `MicroservicesModule.forRoot(...)`는 여전히 표준 런타임 진입점입니다. 고급 호출자가 raw provider graph를 다시 조립하지 않고 모듈 경로에서 커스터마이즈해야 할 때는 `module: { global, providers, additionalExports }`를 함께 넘기세요.
-- `createMicroservicesProviders(...)`는 low-level provider array 자체가 필요한 호출자를 위한 공개 helper로 유지합니다.
+- `MicroservicesModule.forRoot(...)`: `module: { global, providers, additionalExports }`와 함께 트랜스포트와 모듈 구성을 설정합니다.
+- `createMicroservicesProviders(...)`: 커스텀 모듈 조합용 provider 배열을 생성합니다.
 - `MessagePattern`, `EventPattern`, `ServerStreamPattern`, `ClientStreamPattern`, `BidiStreamPattern`: 라우팅/스트리밍 데코레이터입니다.
 - `TcpMicroserviceTransport`, `RedisPubSubMicroserviceTransport`, `RedisStreamsMicroserviceTransport`, `NatsMicroserviceTransport`, `KafkaMicroserviceTransport`, `RabbitMqMicroserviceTransport`, `GrpcMicroserviceTransport`, `MqttMicroserviceTransport`: 루트 배럴에서 제공하는 트랜스포트 어댑터입니다.
-- `MicroserviceLifecycleService`, `MICROSERVICE`: 런타임 접근용 서비스와 호환 토큰입니다.
+- `MicroserviceLifecycleService`, `MICROSERVICE`: 런타임 접근용 서비스와 토큰입니다.
 - `createMicroservicePlatformStatusSnapshot`, `ServerStreamWriter`: 상태 스냅샷/TypeScript 계약 헬퍼입니다.
 
 ### 지원되는 트랜스포트 서브패스
@@ -169,8 +169,8 @@ class ManualMicroserviceProvidersModule {}
 ## 예제 소스
 
 - `packages/microservices/src/module.test.ts`: 모든 트랜스포트 통합 계약을 검증합니다.
-- `packages/microservices/src/public-api.test.ts`: module-first registration override와 `createMicroservicesProviders(...)` helper 계약을 포함한 루트 배럴 export 계약을 검증합니다.
-- `packages/microservices/src/public-surface.test.ts`: 0.x 거버넌스 동안 helper를 유지하면서 module-first replacement path도 문서화되었는지 고정합니다.
+- `packages/microservices/src/public-api.test.ts`: 모듈 등록 override와 `createMicroservicesProviders(...)`를 포함한 루트 배럴 export 계약을 검증합니다.
+- `packages/microservices/src/public-surface.test.ts`: 문서화된 공개 surface를 검증합니다.
 - `packages/microservices/src/public-subpaths.test.ts`: 문서화된 트랜스포트 서브패스 export map 계약을 검증합니다.
 - `examples/microservices-tcp`: 기본 TCP 마이크로서비스 예제입니다.
 - `examples/microservices-kafka`: Kafka 기반 분산 아키텍처 예제입니다.

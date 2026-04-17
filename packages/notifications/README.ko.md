@@ -34,7 +34,7 @@ npm install @fluojs/notifications
 
 ### 1. foundation 모듈 등록
 
-`NotificationsModule.forRoot(...)`와 `NotificationsModule.forRootAsync(...)`가 애플리케이션 및 custom module composition에서 지원되는 등록 심입니다. 저수준 provider 배열은 내부 구현 세부사항이며 루트 공개 API 계약에 포함되지 않습니다.
+알림 모듈 등록은 `NotificationsModule.forRoot(...)` 또는 `NotificationsModule.forRootAsync(...)`로 구성합니다.
 
 ```typescript
 import { Module } from '@fluojs/core';

@@ -73,7 +73,7 @@ export class CacheRepository {
 
 ### 이름 있는 클라이언트
 
-하나의 애플리케이션에서 여러 Redis 연결이 필요하면 `RedisModule.forRootNamed(name, options)`를 사용하세요. `RedisModule.forRoot(options)`는 계속 기본 `REDIS_CLIENT`와 `RedisService` 별칭을 유지하고, 이름 있는 등록은 `getRedisClientToken(name)`과 `getRedisServiceToken(name)`으로 해석합니다. 내부 provider 구성 helper는 지원되는 root-barrel API의 일부가 아닙니다.
+하나의 애플리케이션에서 여러 Redis 연결이 필요하면 `RedisModule.forRootNamed(name, options)`를 사용하세요. `RedisModule.forRoot(options)`는 기본 `REDIS_CLIENT`와 `RedisService` 별칭을 제공하고, 이름 있는 등록은 `getRedisClientToken(name)`과 `getRedisServiceToken(name)`으로 해석합니다.
 
 - `name`을 생략하면 기본 별칭인 `REDIS_CLIENT` / `RedisService`를 사용합니다.
 - `name`을 지정하면 `getRedisClientToken(name)` / `getRedisServiceToken(name)`으로 이름 있는 바인딩을 가져옵니다.
@@ -153,5 +153,5 @@ export class AdvancedService {
 ## 예제 소스
 
 - `packages/redis/src/module.test.ts`: 모듈 수명 주기 및 DI 연결 예제.
-- `packages/redis/src/public-api.test.ts`: 문서화된 Redis root-barrel surface를 지키는 export guard.
+- `packages/redis/src/public-api.test.ts`: 문서화된 Redis 공개 export를 검증하는 테스트입니다.
 - `packages/redis/src/redis-service.ts`: 파사드 구현 및 코덱 로직.

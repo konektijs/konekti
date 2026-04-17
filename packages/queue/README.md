@@ -52,7 +52,7 @@ export class OrderWorker {
 
 Import `QueueModule` and inject `QueueLifecycleService` to enqueue jobs.
 
-`QueueModule.forRoot(...)` is the supported root entrypoint for queue registration. Root-package consumers should treat low-level provider assembly as an internal implementation detail instead of part of the root-barrel API.
+Use `QueueModule.forRoot(...)` for application-level queue registration.
 
 ```typescript
 import { Module, Inject } from '@fluojs/core';
@@ -109,11 +109,10 @@ Jobs that fail all retry attempts are automatically moved to a dead-letter list 
 
 ### Core
 - `QueueModule`: Main entry point for queue registration.
-- `QueueModule.forRoot(options)`: Supported root entrypoint for application-level queue registration.
+- `QueueModule.forRoot(options)`: Registers queue support for an application module.
 - `QueueLifecycleService`: Primary service for enqueuing jobs (`enqueue(job)`).
 - `@QueueWorker(JobClass, options?)`: Decorator to mark a class as a job handler.
 
-Root-level registration is intentionally centered on `QueueModule.forRoot(...)`; low-level provider helpers are not part of the documented root-barrel contract.
 
 ### Types
 - `QueueModuleOptions`: Global queue settings (clientName, default attempts, concurrency, rate limiting).

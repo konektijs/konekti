@@ -55,7 +55,7 @@ class UserService {
 
 ## 주요 기능
 
-### 레거시 TypeScript 플래그 없이 쓰는 표준 데코레이터
+### TC39 데코레이터를 사용하는 표준 데코레이터
 
 fluo는 TC39 표준 데코레이터를 사용하므로 `experimentalDecorators: true`나 `emitDecoratorMetadata: true`에 의존하지 않습니다.
 
@@ -72,7 +72,7 @@ class UsesConfigValue {
 }
 ```
 
-레거시 배열 형식(`@Inject([A, B])`)은 단계적 마이그레이션 동안 계속 허용되지만, 이제 공개 API의 canonical form은 variadic 호출입니다.
+여러 토큰을 지정할 때는 `@Inject(A, B)`처럼 variadic 호출을 사용하면 됩니다.
 
 ### 형제 패키지를 위한 공용 메타데이터 헬퍼
 

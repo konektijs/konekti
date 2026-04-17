@@ -50,7 +50,7 @@ import { MyJwtStrategy } from './jwt.strategy';
 export class AuthModule {}
 ```
 
-`PassportModule.forRoot(...)`가 전략 등록을 위한 표준 public entrypoint입니다. passport wiring은 낮은 수준의 root provider 조합 대신 모듈 import를 통해 구성하세요.
+전략 등록은 `PassportModule.forRoot(...)`로 구성합니다.
 
 ### 2. 라우트 보호
 
@@ -108,7 +108,7 @@ import {
 export class AuthModule {}
 ```
 
-`CookieAuthModule.forRoot(...)`가 표준 프리셋 진입점입니다. 애플리케이션 모듈에서 cookie-auth 지원이 필요하면 `PassportModule.forRoot(...)`와 함께 import 하세요.
+애플리케이션 모듈에서 cookie-auth 지원이 필요하면 `CookieAuthModule.forRoot(...)`를 `PassportModule.forRoot(...)`와 함께 import 하세요.
 
 ### 리프레시 토큰 수명 주기
 
@@ -147,7 +147,7 @@ export class AuthController {
 }
 ```
 
-`RefreshTokenModule.forRoot(...)`가 표준 프리셋 진입점입니다. `PassportModule.forRoot(...)`와 함께 import 하여 refresh-token 전략과 공유 `REFRESH_TOKEN_SERVICE` alias를 동일한 모듈 wiring 안에서 맞추세요.
+`RefreshTokenModule.forRoot(...)`를 `PassportModule.forRoot(...)`와 함께 import 하여 refresh-token 전략과 공유 `REFRESH_TOKEN_SERVICE` alias를 같은 모듈 wiring에서 사용하세요.
 
 ## 공개 API 개요
 
@@ -156,7 +156,7 @@ export class AuthController {
 - `@RequireScopes(...scopes)`: 특정 권한(스코프) 요구 사항을 강제합니다.
 
 ### 주요 클래스
-- `PassportModule`: passport 전략 wiring을 위한 표준 module-first 진입점입니다.
+- `PassportModule`: passport 전략 wiring을 위한 모듈 진입점입니다.
 - `AuthGuard`: 전략 체인을 실행하는 HTTP 가드입니다.
 - `CookieAuthModule`: 내장 cookie-auth 프리셋의 모듈 진입점입니다.
 - `CookieManager`: HttpOnly 인증 쿠키 관리를 위한 유틸리티입니다.

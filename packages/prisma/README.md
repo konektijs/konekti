@@ -103,11 +103,7 @@ class UserController {
 
 ### Manual Module Composition
 
-`PrismaModule.forRoot(...)` / `forRootAsync(...)` remain the canonical application
-entrypoints. When you need to compose Prisma support inside a custom
-`defineModule(...)` registration, import the module entrypoint there as well.
-Provider-array assembly is an internal implementation detail rather than part of
-the supported root-barrel contract.
+Use `PrismaModule.forRoot(...)` / `forRootAsync(...)` to register Prisma. When you need to compose Prisma support inside a custom `defineModule(...)` registration, import the module entrypoint there as well.
 
 ```typescript
 import { defineModule } from '@fluojs/runtime';
@@ -131,7 +127,6 @@ defineModule(ManualPrismaModule, {
 - `PrismaModule.forRoot(options)` / `PrismaModule.forRootAsync(options)`
 - `forRootAsync(...)` accepts `AsyncModuleOptions<PrismaModuleOptions<...>>`.
 - Supports `strictTransactions: true` to throw if transaction support is missing.
-- Root-level registration is intentionally centered on `PrismaModule.forRoot(...)` / `forRootAsync(...)`; low-level provider wiring is not part of the documented root-barrel contract.
 
 ### `PrismaService<TClient>`
 
@@ -161,4 +156,4 @@ Injectable token for the raw `PrismaClient` instance.
 
 ## Example Sources
 
-- `packages/prisma/src/vertical-slice.test.ts`: Canonical DTO → Service → Repository → Prisma flow.
+- `packages/prisma/src/vertical-slice.test.ts`: DTO → Service → Repository → Prisma flow.

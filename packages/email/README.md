@@ -38,7 +38,7 @@ Install `nodemailer` only when you use the explicit `@fluojs/email/node` subpath
 npm install @fluojs/email nodemailer
 ```
 
-Node-specific SMTP delivery now lives behind the explicit `@fluojs/email/node` subpath. Queue-backed notifications integration likewise lives behind `@fluojs/email/queue`, and `@fluojs/queue` is declared as an optional peer for that subpath instead of a root install requirement. The root `@fluojs/email` entrypoint remains transport-agnostic so Bun, Deno, Cloudflare, and custom HTTP transports do not inherit Node-only or queue-specific behavior.
+Node-specific SMTP delivery is available from the explicit `@fluojs/email/node` subpath. Queue-backed notifications integration is available from `@fluojs/email/queue`, and `@fluojs/queue` is declared as an optional peer for that subpath. The root `@fluojs/email` entrypoint stays transport-agnostic so Bun, Deno, Cloudflare, and custom HTTP transports do not inherit Node-only or queue-specific behavior.
 
 ## When to Use
 
@@ -99,7 +99,7 @@ export class WelcomeService {
 }
 ```
 
-The root `@fluojs/email` surface is intentionally module-first. Register email delivery through `EmailModule.forRoot(...)` or `EmailModule.forRootAsync(...)`. Low-level provider-array composition is internal and no longer part of the supported root public API.
+Register email delivery through `EmailModule.forRoot(...)` or `EmailModule.forRootAsync(...)`.
 
 ## Common Patterns
 
@@ -319,7 +319,7 @@ These limitations are part of the package contract so transport selection, templ
 
 ## Example Sources
 
-- `packages/email/src/module.test.ts`: Module registration, module-first option normalization, async wiring, lifecycle, and queue-backed notifications examples.
+- `packages/email/src/module.test.ts`: Module registration, option normalization, async wiring, lifecycle, and queue-backed notifications examples.
 - `packages/email/src/public-surface.test.ts`: Public export and TypeScript contract verification.
 - `packages/email/src/node/node.test.ts`: Node-only Nodemailer adapter mapping and lifecycle examples.
 - `packages/email/src/status.test.ts`: Health/readiness contract examples.

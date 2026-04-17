@@ -2,7 +2,7 @@
 
 <p><a href="./README.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
-fluo 공식 CLI — 새 애플리케이션 부트스트랩, 컴포넌트 생성, 그리고 레거시 프레임워크로부터의 마이그레이션을 지원합니다.
+fluo 공식 CLI — 새 애플리케이션 부트스트랩, 컴포넌트 생성, 런타임 그래프 검사, 코드 변환을 지원합니다.
 
 ## 목차
 
@@ -36,7 +36,7 @@ pnpm dlx @fluojs/cli new my-app
 
 - **부트스트랩**: 표준적이고 검증 가능한 구조로 새 프로젝트를 시작할 때.
 - **코드 생성**: 일관된 네이밍 규칙과 자동 연결 기능을 갖춘 모듈, 컨트롤러, 서비스, 레포지토리를 생성할 때.
-- **마이그레이션**: 기존 NestJS 애플리케이션을 fluo의 표준 데코레이터 모델로 전환할 때.
+- **코드 변환**: 기존 코드베이스를 fluo의 표준 데코레이터 모델에 맞출 때.
 - **검사(Inspection)**: 런타임 의존성 그래프를 시각화하고 플랫폼 수준의 문제를 진단할 때.
 
 ## 빠른 시작
@@ -50,7 +50,7 @@ cd my-app
 pnpm dev
 ```
 
-기본 스타터는 여전히 Node.js + Fastify HTTP 애플리케이션 기준선을 유지합니다. 이제 `fluo new`는 같은 Node 기반 설치/빌드 흐름 위에서 Express와 raw Node.js HTTP 애플리케이션 스타터도 first-class 경로로 제공합니다.
+`fluo new`는 같은 Node 기반 설치/빌드 흐름 위에서 Node.js + Fastify, Express, raw Node.js HTTP 애플리케이션 스타터를 제공합니다.
 
 ```bash
 fluo new my-app --shape application --transport http --runtime node --platform fastify
@@ -58,7 +58,7 @@ fluo new my-express-app --shape application --transport http --runtime node --pl
 fluo new my-node-app --shape application --transport http --runtime node --platform nodejs
 ```
 
-이제 애플리케이션 매트릭스에는 런타임별 entrypoint, scripts, dependency 세트를 갖춘 Bun, Deno, Cloudflare Workers 네이티브 스타터도 포함됩니다.
+애플리케이션 매트릭스에는 런타임별 entrypoint, scripts, dependency 세트를 갖춘 Bun, Deno, Cloudflare Workers 네이티브 스타터도 포함됩니다.
 
 ```bash
 fluo new my-bun-app --shape application --transport http --runtime bun --platform bun
@@ -66,7 +66,7 @@ fluo new my-deno-app --shape application --transport http --runtime deno --platf
 fluo new my-worker-app --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
 ```
 
-`fluo new`는 이제 first-class microservice starter path도 제공합니다. `--transport`를 생략하면 여전히 TCP가 가장 단순한 기본 경로로 유지되며, 이제 microservice starter 매트릭스에는 transport별 dependency, env 템플릿, entrypoint를 갖춘 Redis Streams, NATS, Kafka, RabbitMQ, MQTT, gRPC runnable 변형도 포함됩니다.
+`fluo new`는 microservice starter path도 제공합니다. `--transport`를 생략하면 TCP가 기본 경로로 사용되며, starter 매트릭스에는 transport별 dependency, env 템플릿, entrypoint를 갖춘 Redis Streams, NATS, Kafka, RabbitMQ, MQTT, gRPC 변형도 포함됩니다.
 
 ```bash
 fluo new my-microservice --shape microservice --transport tcp --runtime node --platform none
@@ -80,13 +80,13 @@ fluo new my-grpc-service --shape microservice --transport grpc --runtime node --
 
 NATS/Kafka/RabbitMQ 스타터 계약은 외부 broker와 caller-owned client library 의존성을 숨기지 않고 명시적으로 유지합니다. 생성된 프로젝트는 `src/app.ts`에서 `nats` + `JSONCodec()`, `kafkajs` producer/consumer collaborator, `amqplib` publisher/consumer collaborator를 직접 연결하므로, 기본 fluo 패키지가 그 의존성을 감춘 것처럼 가장하지 않는 runnable starter 계약이 됩니다.
 
-v2 매트릭스에는 mixed single-package starter도 포함됩니다. 하나의 Fastify HTTP 앱과 attached TCP microservice를 같은 생성 프로젝트 안에 함께 배치합니다.
+starter 매트릭스에는 mixed single-package starter도 포함됩니다. 하나의 Fastify HTTP 앱과 attached TCP microservice를 같은 생성 프로젝트 안에 함께 배치합니다.
 
 ```bash
 fluo new my-mixed-app --shape mixed --transport tcp --runtime node --platform fastify
 ```
 
-`fluo new`가 interactive TTY에서 실행되면, 이제 v2 wizard가 기존 flags/config 모델 위에 그대로 얹혀 동작합니다. wizard는 프로젝트 이름, shape-first 분기(`application` -> runtime + HTTP platform, `microservice` -> transport), 유지보수 가능한 tooling preset, package manager, 즉시 dependency를 설치할지 여부, git 저장소를 초기화할지 여부를 묻습니다. 반면 non-interactive 플래그 경로와 프로그래밍 방식의 `runNewCommand(...)` 호출은 동일한 resolved defaults를 유지하는 first-class path로 계속 동작합니다.
+`fluo new`가 interactive TTY에서 실행되면 wizard는 기존 flags/config 모델을 그대로 사용합니다. wizard는 프로젝트 이름, shape-first 분기(`application` -> runtime + HTTP platform, `microservice` -> transport), 유지보수 가능한 tooling preset, package manager, 즉시 dependency를 설치할지 여부, git 저장소를 초기화할지 여부를 묻습니다. non-interactive 플래그 경로와 프로그래밍 방식의 `runNewCommand(...)` 호출도 동일한 resolved defaults를 사용합니다.
 
 현재 제공되는 스타터 매트릭스(Node.js Fastify/Express/raw Node.js HTTP, Bun, Deno, Cloudflare Workers, TCP/Redis Streams/NATS/Kafka/RabbitMQ/MQTT/gRPC microservice, 그리고 mixed)와 남아 있는 더 넓은 어댑터 생태계를 문서 수준에서 구분한 표는 [fluo new 지원 매트릭스](../../docs/reference/fluo-new-support-matrix.ko.md)를 확인하세요.
 
@@ -101,8 +101,8 @@ fluo generate service users
 
 ## 주요 패턴
 
-### NestJS에서 fluo로 마이그레이션
-코드베이스를 TC39 표준 데코레이터에 맞게 조정하기 위해 안전한 1차 codemod를 실행합니다.
+### 데코레이터 코드 변환
+코드베이스를 TC39 표준 데코레이터에 맞게 조정하는 codemod를 실행합니다.
 
 ```bash
 # 변경 사항 미리보기 (dry-run)
@@ -150,4 +150,4 @@ fluo inspect ./src/app.module.ts --json > snapshot.json
 - [cli.ts](./src/cli.ts) - 명령 디스패처 및 인자 파싱.
 - [commands/new.ts](./src/commands/new.ts) - 프로젝트 스캐폴딩 구현.
 - [generators/](./src/generators/) - 템플릿 기반 파일 생성 로직.
-- [transforms/](./src/transforms/) - 마이그레이션 codemod 구현.
+- [transforms/](./src/transforms/) - 코드 변환 구현.

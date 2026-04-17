@@ -133,10 +133,7 @@ CacheModule.forRoot({
 
 ### Manual Module Composition
 
-`CacheModule.forRoot(...)` remains the supported root entrypoint for normal application setup,
-including custom `defineModule(...)` composition. Root-package consumers should treat
-low-level provider assembly as an internal implementation detail instead of part of the
-documented root-barrel API.
+Use `CacheModule.forRoot(...)` for normal application setup, including custom `defineModule(...)` composition.
 
 ```typescript
 import { defineModule } from '@fluojs/runtime';
@@ -168,7 +165,6 @@ For non-GET handlers decorated with `@CacheEvict(...)`, eviction is deferred unt
 - `CacheModule.forRoot(options)`: Configures the cache store (memory/redis), default TTL, and key strategies.
   This is the primary package entrypoint for application modules.
 
-Root-level cache registration is intentionally centered on `CacheModule.forRoot(...)`; low-level provider wiring is not part of the documented root-barrel contract.
 
 ### Services
 - `CacheService`: Main API for manual cache operations (`get`, `set`, `del`, `remember`, `reset`).

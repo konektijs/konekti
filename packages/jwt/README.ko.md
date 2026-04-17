@@ -32,7 +32,7 @@ npm install @fluojs/jwt
 
 서명 키와 정책을 사용하여 JWT 모듈을 설정합니다.
 
-`JwtModule.forRoot(...)` 및 `JwtModule.forRootAsync(...)`가 애플리케이션의 canonical entrypoint입니다. JWT 등록, export, refresh token wiring이 공개 패키지 surface와 일치하도록 항상 이 module-first entrypoint를 통해 가져오세요.
+JWT 지원은 `JwtModule.forRoot(...)` 또는 `JwtModule.forRootAsync(...)`를 통해 등록합니다.
 
 ```typescript
 import { Module } from '@fluojs/core';

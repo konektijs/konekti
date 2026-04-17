@@ -11,7 +11,7 @@ CQRS primitives for fluo applications with bootstrap-time handler discovery, com
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
   - [Saga Process Managers](#saga-process-managers)
-  - [Compatibility Tokens](#compatibility-tokens)
+  - [Symbol Tokens](#symbol-tokens)
 - [Public API Overview](#public-api-overview)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
@@ -33,7 +33,7 @@ npm install @fluojs/cqrs
 
 Register the `CqrsModule` and define your first command and handler.
 
-`CqrsModule.forRoot(...)` is the supported root entrypoint for wiring CQRS buses and handler discovery. Root-only consumers should treat low-level provider assembly as an internal implementation detail instead of part of the root-barrel API.
+Use `CqrsModule.forRoot(...)` to wire CQRS buses and handler discovery.
 
 ```typescript
 import { Inject, Module } from '@fluojs/core';
@@ -107,16 +107,16 @@ class UserSaga implements ISaga<UserCreatedEvent> {
 
 Saga execution now fails fast with `SagaTopologyError` when an in-process publish chain re-enters the same saga route cyclically or exceeds 32 nested saga hops. Multi-stage sagas may still react to different event types in sequence, but in-process saga graphs must stay acyclic overall; move intentionally cyclic or long-running feedback loops behind an external transport, scheduler, or other bounded boundary.
 
-### Compatibility Tokens
+### Symbol Tokens
 
-For codebases transitioning to class-first DI or requiring explicit symbol tokens, the following are available:
+Use these exports when you want explicit symbol tokens for the CQRS buses:
 
 ```typescript
 import { Inject } from '@fluojs/core';
 import { COMMAND_BUS, QUERY_BUS, EVENT_BUS } from '@fluojs/cqrs';
 
 @Inject(COMMAND_BUS, QUERY_BUS, EVENT_BUS)
-class LegacyService {
+class TokenInjectedService {
   constructor(commandBus, queryBus, eventBus) {}
 }
 ```
@@ -125,7 +125,6 @@ class LegacyService {
 
 ### Modules & Providers
 - `CqrsModule.forRoot(options)`: Main entry point. Registers buses and starts discovery.
-- Root-level registration is intentionally centered on `CqrsModule.forRoot(...)`; low-level provider helpers are not part of the documented root-barrel contract.
 - `CommandBusLifecycleService`: Primary service for executing commands.
 - `QueryBusLifecycleService`: Primary service for executing queries.
 - `CqrsEventBusService`: Primary service for publishing events.

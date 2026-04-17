@@ -99,7 +99,7 @@ export class WelcomeService {
 }
 ```
 
-루트 `@fluojs/email` 공개 표면은 의도적으로 module-first입니다. 이메일 등록은 `EmailModule.forRoot(...)` 또는 `EmailModule.forRootAsync(...)`를 통해 수행해야 합니다. 저수준 provider 배열 조합은 내부 구현이며 더 이상 지원되는 루트 공개 API가 아닙니다.
+이메일 등록은 `EmailModule.forRoot(...)` 또는 `EmailModule.forRootAsync(...)`를 통해 수행합니다.
 
 ## 일반적인 패턴
 
@@ -319,7 +319,7 @@ email 패키지는 의도적으로 다음을 **포함하지 않습니다**:
 
 ## 예제 소스
 
-- `packages/email/src/module.test.ts`: 모듈 등록, module-first 옵션 정규화, async wiring, lifecycle, queue-backed notifications 예제.
+- `packages/email/src/module.test.ts`: 모듈 등록, 옵션 정규화, async wiring, lifecycle, queue-backed notifications 예제.
 - `packages/email/src/public-surface.test.ts`: 공개 export와 TypeScript 계약 검증 예제.
 - `packages/email/src/node/node.test.ts`: Node 전용 Nodemailer adapter 매핑과 lifecycle 예제.
 - `packages/email/src/status.test.ts`: health/readiness 계약 예제.

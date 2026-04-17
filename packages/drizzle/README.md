@@ -98,11 +98,7 @@ class UsersController {}
 
 ## Manual Module Composition
 
-`DrizzleModule.forRoot(...)` / `forRootAsync(...)` remain the canonical application
-entrypoints. When you need to compose Drizzle support inside a custom
-`defineModule(...)` registration, import the module entrypoint there as well.
-Provider-array assembly is an internal implementation detail rather than part of
-the supported root-barrel contract.
+Use `DrizzleModule.forRoot(...)` / `forRootAsync(...)` to register Drizzle. When you need to compose Drizzle support inside a custom `defineModule(...)` registration, import the module entrypoint there as well.
 
 ```ts
 import { defineModule } from '@fluojs/runtime';
@@ -133,7 +129,6 @@ defineModule(ManualDrizzleModule, {
 - `DrizzleModule.forRoot(options)` / `DrizzleModule.forRootAsync(options)`
 - `forRootAsync(...)` accepts `AsyncModuleOptions<DrizzleModuleOptions<...>>`.
 - Supports `strictTransactions: true` to throw if transaction support is missing.
-- Root-level registration is intentionally centered on `DrizzleModule.forRoot(...)` / `forRootAsync(...)`; low-level provider wiring is not part of the documented root-barrel contract.
 
 ## Related Packages
 

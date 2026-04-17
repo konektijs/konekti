@@ -26,11 +26,10 @@ Use this package to add real-time WebSocket capabilities to your fluo applicatio
 
 ## Quick Start
 
-`WebSocketModule.forRoot(...)` is the supported root registration surface when you want the default Node.js-backed websocket runtime from `@fluojs/websockets`. Low-level provider-composition helpers are internal implementation details and are not part of the documented root public API.
+Use `WebSocketModule.forRoot()` when you want the default Node.js-backed websocket runtime.
 
 ```typescript
-import { WebSocketGateway, OnConnect, OnMessage } from '@fluojs/websockets';
-import { NodeWebSocketModule } from '@fluojs/websockets/node';
+import { WebSocketGateway, OnConnect, OnMessage, WebSocketModule } from '@fluojs/websockets';
 import { Module } from '@fluojs/core';
 
 @WebSocketGateway({ path: '/chat' })
@@ -47,7 +46,7 @@ class ChatGateway {
 }
 
 @Module({
-  imports: [NodeWebSocketModule.forRoot()],
+  imports: [WebSocketModule.forRoot()],
   providers: [ChatGateway],
 })
 export class AppModule {}
@@ -113,11 +112,11 @@ When omitted, `@fluojs/websockets` now applies bounded defaults for concurrent c
 - `WebSocketModule`: Root module for WebSocket integration.
 - `WebSocketModule.forRoot({ upgrade, limits, heartbeat, ... })`: Configures pre-upgrade guards and bounded runtime defaults.
 - `WebSocketGatewayLifecycleService`: Root alias for the default Node.js-backed lifecycle service token.
-- The root barrel intentionally stays module-first: use `WebSocketModule.forRoot(...)` for package-level registration, and treat provider-assembly helpers as internal rather than supported root exports.
+- `WebSocketModule.forRoot(...)`: Configures package-level registration for the default root websocket module.
 
 ## Runtime-Specific Subpaths
 
-Use the runtime subpaths when you want an explicit runtime binding instead of the default root Node.js alias. Each subpath supports its `*WebSocketModule.forRoot(...)` entrypoint plus the matching runtime lifecycle service export. Low-level `create*WebSocketProviders(...)` helpers are internal wiring details and are not part of the supported public contract.
+Use the runtime subpaths when you want an explicit runtime binding instead of the default root Node.js alias. Each subpath exposes its `*WebSocketModule.forRoot(...)` entrypoint plus the matching runtime lifecycle service export.
 
 | Runtime | Subpath | Module |
 | --- | --- | --- |

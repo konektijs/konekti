@@ -34,7 +34,7 @@ npm install @fluojs/cron croner
 
 Register the `CronModule` and use decorators to schedule your methods.
 
-`CronModule.forRoot(...)` is the supported root registration surface for application modules. The package's internal provider-wiring helper is not part of the documented root-barrel contract.
+Use `CronModule.forRoot(...)` to register scheduling for an application module.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -160,7 +160,6 @@ class AppModule {}
 
 ### Modules
 - `CronModule.forRoot(options)`: Configures the scheduler and enables distributed locking if requested.
-  This is the supported root entrypoint for application-level scheduler registration.
 
 ### Decorators
 - `@Cron(expression, options?)`: Schedules a method using a cron expression.
@@ -171,7 +170,6 @@ class AppModule {}
 - `CronExpression`: Enum-like object with common cron patterns (e.g., `EVERY_HOUR`, `EVERY_DAY_AT_MIDNIGHT`).
 - `SCHEDULING_REGISTRY`: Injection token for the `SchedulingRegistry` service.
 
-Root-package consumers should compose scheduling through `CronModule.forRoot(...)`. Low-level provider assembly stays internal so the documented root API remains aligned with the module entrypoint used throughout the package examples and lifecycle tests.
 
 ## Related Packages
 

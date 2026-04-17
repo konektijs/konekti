@@ -88,9 +88,9 @@ Microservice handlers fully support fluo's DI scopes. Request-scoped providers a
 
 ## Common Patterns
 
-### Module-first custom registration
+### Custom module registration
 
-Use `MicroservicesModule.forRoot({ transport, module: { ... } })` when you want custom providers, exports, or non-global registration without dropping back to raw provider arrays.
+Use `MicroservicesModule.forRoot({ transport, module: { ... } })` when you want custom providers, exports, or non-global registration.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -117,11 +117,11 @@ Behavioral contract notes:
 
 - The module path still installs the same built-in `MICROSERVICE_OPTIONS`, `MicroserviceLifecycleService`, and `MICROSERVICE` wiring as the default `MicroservicesModule.forRoot(...)` call.
 - `module.providers` appends extra providers after the built-in runtime wiring, while `module.additionalExports` extends the default exported tokens instead of replacing them.
-- `module.global` lets advanced callers keep the registration local without reassembling the raw provider graph themselves.
+- `module.global` lets advanced callers keep the registration local.
 
-### Low-level helper for raw provider arrays
+### Provider-array helper
 
-`createMicroservicesProviders(...)` remains available only for callers that truly need the low-level provider array itself.
+Use `createMicroservicesProviders(...)` when you need a provider array for custom module assembly.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -138,11 +138,11 @@ class ManualMicroserviceProvidersModule {}
 ### Root barrel (`@fluojs/microservices`)
 
 - `MicroservicesModule`, `createMicroservicesProviders`: module registration helpers.
-- `MicroservicesModule.forRoot(...)` remains the canonical runtime entrypoint. Pass `module: { global, providers, additionalExports }` when advanced callers need module-first customization without reassembling the raw provider graph.
-- `createMicroservicesProviders(...)` stays public for callers that intentionally need the low-level provider array itself.
+- `MicroservicesModule.forRoot(...)`: Configures a transport plus optional module customization via `module: { global, providers, additionalExports }`.
+- `createMicroservicesProviders(...)`: Builds provider arrays for custom module assembly.
 - `MessagePattern`, `EventPattern`, `ServerStreamPattern`, `ClientStreamPattern`, `BidiStreamPattern`: routing and streaming decorators.
 - `TcpMicroserviceTransport`, `RedisPubSubMicroserviceTransport`, `RedisStreamsMicroserviceTransport`, `NatsMicroserviceTransport`, `KafkaMicroserviceTransport`, `RabbitMqMicroserviceTransport`, `GrpcMicroserviceTransport`, `MqttMicroserviceTransport`: transport adapters exported from the root barrel.
-- `MicroserviceLifecycleService`, `MICROSERVICE`: programmatic runtime access and compatibility token.
+- `MicroserviceLifecycleService`, `MICROSERVICE`: programmatic runtime access token and service.
 - `createMicroservicePlatformStatusSnapshot`, `ServerStreamWriter`: status and TypeScript contract helpers.
 
 ### Supported transport subpaths
@@ -166,8 +166,8 @@ class ManualMicroserviceProvidersModule {}
 ## Example Sources
 
 - `packages/microservices/src/module.test.ts`: Integration tests for all transports.
-- `packages/microservices/src/public-api.test.ts`: Root-barrel export coverage, including the module-first registration overrides and `createMicroservicesProviders(...)` helper contract.
-- `packages/microservices/src/public-surface.test.ts`: Root-barrel snapshot coverage that keeps the helper public while documenting the module-first replacement path during 0.x governance.
+- `packages/microservices/src/public-api.test.ts`: Root-barrel export coverage, including module registration overrides and `createMicroservicesProviders(...)`.
+- `packages/microservices/src/public-surface.test.ts`: Root-barrel snapshot coverage for the documented public surface.
 - `packages/microservices/src/public-subpaths.test.ts`: Export-map coverage for documented transport subpaths.
 - `examples/microservices-tcp`: Basic TCP microservice example.
 - `examples/microservices-kafka`: Distributed Kafka-based architecture example.

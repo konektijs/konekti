@@ -98,10 +98,7 @@ class UsersController {}
 
 ## 수동 모듈 구성
 
-`DrizzleModule.forRoot(...)` / `forRootAsync(...)`는 애플리케이션에서 Drizzle을 등록하는
-정식 entrypoint입니다. 커스텀 `defineModule(...)` 안에서 Drizzle 지원을 조합해야 할 때도
-별도 provider 배열 helper 대신 이 module entrypoint를 import해서 사용하세요.
-provider 배열 조립은 지원되는 root-barrel contract가 아니라 내부 구현 세부사항입니다.
+`DrizzleModule.forRoot(...)` / `forRootAsync(...)`를 사용해 Drizzle을 등록합니다. 커스텀 `defineModule(...)` 안에서 Drizzle 지원을 조합해야 할 때도 동일한 모듈 entrypoint를 import해서 사용하세요.
 
 ```ts
 import { defineModule } from '@fluojs/runtime';
@@ -132,7 +129,6 @@ defineModule(ManualDrizzleModule, {
 - `DrizzleModule.forRoot(options)` / `DrizzleModule.forRootAsync(options)`
 - `forRootAsync(...)`는 `AsyncModuleOptions<DrizzleModuleOptions<...>>`를 받습니다.
 - `strictTransactions: true`를 설정하면 transaction 지원이 없는 database handle에서 예외를 던집니다.
-- root-level 등록은 의도적으로 `DrizzleModule.forRoot(...)` / `forRootAsync(...)` 중심이며, 저수준 provider wiring은 문서화된 root-barrel contract에 포함되지 않습니다.
 
 ## 관련 패키지
 

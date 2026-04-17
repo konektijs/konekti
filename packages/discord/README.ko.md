@@ -186,7 +186,7 @@ Discord 패키지는 의도적으로 다음을 **포함하지 않습니다**:
 - `DISCORD`
 - `DISCORD_CHANNEL`
 
-`createDiscordProviders(...)`는 내부 wiring helper이며 더 이상 지원되는 루트 패키지 contract에 포함되지 않습니다. 애플리케이션 구성은 `DiscordModule`로, notifications 연동은 `DISCORD_CHANNEL`과 export된 transport 계약으로 조합해야 합니다.
+애플리케이션 구성은 `DiscordModule`로, notifications 연동은 `DISCORD_CHANNEL`과 export된 transport 계약으로 조합합니다.
 
 ### 계약과 헬퍼
 

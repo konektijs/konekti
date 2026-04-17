@@ -103,10 +103,7 @@ class UserController {
 
 ### 수동 모듈 조합
 
-`PrismaModule.forRoot(...)` / `forRootAsync(...)`는 계속 canonical application
-entrypoint입니다. 커스텀 `defineModule(...)` 등록 안에서 Prisma 지원을 조합해야
-할 때도 동일하게 모듈 entrypoint를 import해서 사용하세요. Provider 배열 조립은
-지원되는 root-barrel contract가 아니라 내부 구현 세부사항입니다.
+`PrismaModule.forRoot(...)` / `forRootAsync(...)`를 사용해 Prisma를 등록합니다. 커스텀 `defineModule(...)` 등록 안에서 Prisma 지원을 조합해야 할 때도 동일한 모듈 entrypoint를 import해서 사용하세요.
 
 ```typescript
 import { defineModule } from '@fluojs/runtime';
@@ -130,7 +127,6 @@ defineModule(ManualPrismaModule, {
 - `PrismaModule.forRoot(options)` / `PrismaModule.forRootAsync(options)`
 - `forRootAsync(...)`는 `AsyncModuleOptions<PrismaModuleOptions<...>>`를 받습니다.
 - `strictTransactions: true` 설정 시 트랜잭션 미지원 환경에서 즉시 예외를 발생시킵니다.
-- 루트 수준 등록은 의도적으로 `PrismaModule.forRoot(...)` / `forRootAsync(...)` 중심이며, 저수준 provider wiring은 문서화된 root-barrel contract에 포함되지 않습니다.
 
 ### `PrismaService<TClient>`
 
