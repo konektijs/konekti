@@ -11,6 +11,7 @@ Transport-agnostic email delivery core for fluo. It provides a Nest-like module 
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
   - [Node-only SMTP with `@fluojs/email/node`](#node-only-smtp-with-fluojs-email-node)
+  - [Manual provider composition with `createEmailProviders`](#manual-provider-composition-with-createemailproviders)
   - [Standalone delivery with `EmailService`](#standalone-delivery-with-emailservice)
   - [Integration with `@fluojs/notifications`](#integration-with-fluojs-notifications)
   - [Queue-backed bulk delivery](#queue-backed-bulk-delivery)
@@ -138,6 +139,36 @@ Behavioral contract notes:
 - The factory owns the Nodemailer transporter it creates, so `EmailService` can verify it on bootstrap and close it during shutdown.
 - `createNodemailerEmailTransport(...)` wraps an existing Nodemailer transporter without transferring resource ownership.
 - SMTP credentials still enter through explicit options or DI. Neither the root package nor the Node subpath reads `process.env` directly.
+
+### Manual provider composition with `createEmailProviders`
+
+`createEmailProviders(...)` is the supported manual-composition helper when applications need the same provider normalization outside `EmailModule.forRoot(...)`.
+
+```typescript
+import { Module } from '@fluojs/core';
+import { createEmailProviders } from '@fluojs/email';
+
+@Module({
+  providers: [
+    ...createEmailProviders({
+      defaultFrom: 'noreply@example.com',
+      transport: {
+        kind: 'custom-http-transport',
+        create: () => customTransport,
+        ownsResources: false,
+      },
+    }),
+  ],
+  exports: [],
+})
+export class EmailProvidersModule {}
+```
+
+Behavioral contract notes:
+
+- The helper preserves the same `EMAIL`, `EMAIL_CHANNEL`, and `EmailService` wiring that `EmailModule.forRoot(...)` installs.
+- `createEmailProviders(...)` applies the same option normalization as `EmailModule.forRoot(...)`, including trimmed addresses, default notification channel fallback, and transport ownership defaults.
+- The helper still requires an explicit `transport`; it does not weaken the package's runtime-portable, no-implicit-env contract.
 
 ### Standalone delivery with `EmailService`
 
@@ -318,7 +349,7 @@ These limitations are part of the package contract so transport selection, templ
 
 ## Example Sources
 
-- `packages/email/src/module.test.ts`: Module registration, async wiring, lifecycle, and queue-backed notifications examples.
+- `packages/email/src/module.test.ts`: Module registration, `createEmailProviders(...)` helper coverage, async wiring, lifecycle, and queue-backed notifications examples.
 - `packages/email/src/public-surface.test.ts`: Public export and TypeScript contract verification.
 - `packages/email/src/node/node.test.ts`: Node-only Nodemailer adapter mapping and lifecycle examples.
 - `packages/email/src/status.test.ts`: Health/readiness contract examples.
