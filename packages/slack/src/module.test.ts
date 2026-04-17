@@ -3,12 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Constructor, type Token } from '@fluojs/core';
 import { getModuleMetadata } from '@fluojs/core/internal';
 import { Container, type Provider } from '@fluojs/di';
+import { NOTIFICATION_CHANNELS, NotificationsModule, NotificationsService } from '@fluojs/notifications';
 
 import { SlackChannel } from './channel.js';
 import { SlackConfigurationError, SlackMessageValidationError, SlackTransportError } from './errors.js';
 import { SlackModule, createSlackProviders } from './module.js';
 import { SlackService } from './service.js';
-import { SLACK } from './tokens.js';
+import { SLACK, SLACK_CHANNEL } from './tokens.js';
 import { createSlackWebhookTransport } from './webhook.js';
 import type {
   NormalizedSlackMessage,
@@ -223,6 +224,70 @@ describe('SlackModule', () => {
     expect(factoryCalls).toEqual(['#release']);
   });
 
+  it('wires module-first async Slack and notifications registration through SLACK_CHANNEL', async () => {
+    const SLACK_CONFIG = Symbol('slack-config');
+    const container = new Container();
+    const slackModuleType = SlackModule.forRootAsync({
+      inject: [SLACK_CONFIG],
+      useFactory: async (...deps: unknown[]) => {
+        const [defaultChannel] = deps;
+
+        if (typeof defaultChannel !== 'string') {
+          throw new Error('default channel must be a string');
+        }
+
+        return {
+          defaultChannel,
+          notifications: { channel: ' alerts ' },
+          transport: createRecordingTransportFactory({ responsePrefix: 'integration' }),
+        };
+      },
+    });
+    const notificationsModuleType = NotificationsModule.forRootAsync({
+      inject: [SLACK_CHANNEL],
+      useFactory: async (...deps: unknown[]) => {
+        const [channel] = deps;
+
+        return {
+          channels: [channel as SlackChannel],
+        };
+      },
+    });
+
+    container.register(
+      { provide: SLACK_CONFIG as Token<string>, useValue: ' #release ' },
+      ...moduleProviders(slackModuleType),
+      ...moduleProviders(notificationsModuleType),
+    );
+
+    const notifications = await container.resolve(NotificationsService);
+    const channels = await container.resolve(NOTIFICATION_CHANNELS);
+    const result = await notifications.dispatch({
+      channel: 'alerts',
+      metadata: { source: 'ci' },
+      payload: {
+        metadata: { correlationId: 'deploy-1' },
+        text: 'Async integration ready',
+      },
+    });
+
+    expect(result).toMatchObject({
+      channel: 'alerts',
+      deliveryId: 'integration-1',
+      queued: false,
+      status: 'delivered',
+    });
+    expect(channels.map((channel: { channel: string }) => channel.channel)).toEqual(['alerts']);
+    expect(transportState.sent[0]).toMatchObject({
+      channel: '#release',
+      metadata: {
+        correlationId: 'deploy-1',
+        source: 'ci',
+      },
+      text: 'Async integration ready',
+    });
+  });
+
   it('renders notification templates and adapts them through SlackChannel', async () => {
     const container = new Container();
     const moduleType = SlackModule.forRoot({
@@ -291,6 +356,66 @@ describe('SlackModule', () => {
     expect(calls).toEqual([
       {
         body: JSON.stringify({ channel: '#ops', text: 'Webhook path' }),
+        input: 'https://hooks.slack.test/services/T000/B000/XXXX',
+        method: 'POST',
+      },
+    ]);
+  });
+
+  it('serializes the documented Slack webhook payload fields through the built-in transport', async () => {
+    const calls: Array<{ body?: string; input: string; method?: string }> = [];
+    const fetchLike: SlackFetchLike = async (input, init) => {
+      calls.push({ body: init?.body, input, method: init?.method });
+
+      return {
+        ok: true,
+        status: 200,
+        async text() {
+          return 'ok';
+        },
+      };
+    };
+    const transport = createSlackWebhookTransport({
+      fetch: fetchLike,
+      webhookUrl: 'https://hooks.slack.test/services/T000/B000/XXXX',
+    });
+
+    await transport.send(
+      {
+        attachments: [{ color: '#36a64f' }],
+        blocks: [{ text: { text: '*Deploy finished*', type: 'mrkdwn' }, type: 'section' }],
+        channel: '#ops',
+        iconEmoji: ':rocket:',
+        iconUrl: 'https://cdn.example.com/icon.png',
+        metadata: { eventPayload: { releaseId: 'rel-1' }, eventType: 'deploy.finished' },
+        mrkdwn: true,
+        replyBroadcast: true,
+        text: 'Deploy finished',
+        threadTs: '1712345678.000100',
+        unfurlLinks: false,
+        unfurlMedia: true,
+        username: 'Deploy Bot',
+      },
+      {},
+    );
+
+    expect(calls).toEqual([
+      {
+        body: JSON.stringify({
+          attachments: [{ color: '#36a64f' }],
+          blocks: [{ text: { text: '*Deploy finished*', type: 'mrkdwn' }, type: 'section' }],
+          channel: '#ops',
+          icon_emoji: ':rocket:',
+          icon_url: 'https://cdn.example.com/icon.png',
+          metadata: { eventPayload: { releaseId: 'rel-1' }, eventType: 'deploy.finished' },
+          mrkdwn: true,
+          reply_broadcast: true,
+          text: 'Deploy finished',
+          thread_ts: '1712345678.000100',
+          unfurl_links: false,
+          unfurl_media: true,
+          username: 'Deploy Bot',
+        }),
         input: 'https://hooks.slack.test/services/T000/B000/XXXX',
         method: 'POST',
       },
