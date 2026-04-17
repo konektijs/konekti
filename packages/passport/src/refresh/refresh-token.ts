@@ -2,13 +2,14 @@ import type { GuardContext, RequestContext } from '@fluojs/http';
 import { Inject, InvariantError, type Token } from '@fluojs/core';
 import type { Provider } from '@fluojs/di';
 import { DefaultJwtVerifier, JwtExpiredTokenError, JwtInvalidTokenError } from '@fluojs/jwt';
+import { defineModule, type ModuleType } from '@fluojs/runtime';
 
 import {
   AuthenticationExpiredError,
   AuthenticationFailedError,
   AuthenticationRequiredError,
 } from '../errors.js';
-import type { AuthStrategy, AuthStrategyResult } from '../types.js';
+import type { AuthStrategy, AuthStrategyRegistration, AuthStrategyResult } from '../types.js';
 
 /**
  * Defines the operations required to issue, rotate, and revoke refresh tokens.
@@ -41,7 +42,14 @@ export interface RefreshTokenAuthResult {
   subject: string;
 }
 
+/**
+ * Identifies the built-in refresh-token authentication strategy.
+ */
+export const REFRESH_TOKEN_STRATEGY_NAME = 'refresh-token';
+
 const MALFORMED_REFRESH_TOKEN = Symbol('MALFORMED_REFRESH_TOKEN');
+
+type RefreshTokenModuleType = ModuleType;
 
 /**
  * Authenticates refresh-token requests and exchanges them for a fresh token pair.
@@ -136,6 +144,10 @@ export class RefreshTokenStrategy implements AuthStrategy {
 /**
  * Creates alias providers that expose a refresh-token service under the shared token.
  *
+ * @remarks
+ * Prefer {@link RefreshTokenModule.forRoot} for the canonical module-first API,
+ * and use this helper when you need to compose the alias provider directly.
+ *
  * @param service DI token for the concrete refresh-token service implementation.
  * @returns Providers that bind the shared refresh-token token to the supplied service.
  */
@@ -148,4 +160,59 @@ export function createRefreshTokenProviders(
       useExisting: service,
     },
   ];
+}
+
+/**
+ * Creates the passport strategy registration for the built-in refresh-token strategy.
+ *
+ * @returns The named strategy registration consumed by `PassportModule.forRoot(...)`.
+ */
+export function createRefreshTokenStrategyRegistration(): AuthStrategyRegistration {
+  return {
+    name: REFRESH_TOKEN_STRATEGY_NAME,
+    token: RefreshTokenStrategy,
+  };
+}
+
+/**
+ * Canonical module-first entrypoint for refresh-token strategy support.
+ */
+export class RefreshTokenModule {
+  /**
+   * Registers the shared refresh-token service alias together with `RefreshTokenStrategy`.
+   *
+   * @param service DI token for the concrete refresh-token service implementation.
+   * @returns A module definition that exports `RefreshTokenStrategy` and `REFRESH_TOKEN_SERVICE`.
+   *
+   * @example
+   * ```ts
+   * import { Module } from '@fluojs/core';
+   * import {
+   *   PassportModule,
+   *   RefreshTokenModule,
+   *   RefreshTokenStrategy,
+   *   REFRESH_TOKEN_STRATEGY_NAME,
+   * } from '@fluojs/passport';
+   *
+   * @Module({
+   *   imports: [
+   *     RefreshTokenModule.forRoot(MyRefreshTokenService),
+   *     PassportModule.forRoot(
+   *       { defaultStrategy: REFRESH_TOKEN_STRATEGY_NAME },
+   *       [{ name: REFRESH_TOKEN_STRATEGY_NAME, token: RefreshTokenStrategy }],
+   *     ),
+   *   ],
+   *   providers: [MyRefreshTokenService],
+   * })
+   * export class AuthModule {}
+   * ```
+   */
+  static forRoot(service: Token<RefreshTokenService>): RefreshTokenModuleType {
+    class RefreshTokenRuntimeModule extends RefreshTokenModule {}
+
+    return defineModule(RefreshTokenRuntimeModule, {
+      exports: [RefreshTokenStrategy, REFRESH_TOKEN_SERVICE],
+      providers: [RefreshTokenStrategy, ...createRefreshTokenProviders(service)],
+    });
+  }
 }
