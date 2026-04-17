@@ -10,7 +10,7 @@ Mongoose integration for fluo with session-aware transaction handling and lifecy
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -85,7 +85,7 @@ import { MongooseTransactionInterceptor } from '@fluojs/mongoose';
 class UserController {}
 ```
 
-## Public API Overview
+## Public API
 
 - `MongooseModule.forRoot(options)` / `MongooseModule.forRootAsync(options)`
 - `MongooseConnection`

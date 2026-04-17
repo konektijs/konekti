@@ -10,7 +10,7 @@ Minimal token-based dependency injection container powering every fluo applicati
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Key Capabilities](#key-capabilities)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -79,7 +79,7 @@ const requestContainer = container.createRequestScope();
 const scopedService = await requestContainer.resolve(RequestScopedService);
 ```
 
-## Public API Overview
+## Public API
 
 | Class/Method | Description |
 |---|---|

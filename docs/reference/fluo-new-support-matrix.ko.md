@@ -8,16 +8,16 @@
 
 | 표면 | 현재 상태 | `fluo new`에 실제로 연결된 항목 | 다음 단계 |
 | --- | --- | --- | --- |
-| **애플리케이션 스타터** | **지금 스캐폴딩됨** | `--shape application --transport http --runtime node --platform fastify|express|nodejs`로 생성되는 Node.js + HTTP, `--runtime bun --platform bun`으로 생성되는 Bun, `--runtime deno --platform deno`로 생성되는 Deno, `--runtime cloudflare-workers --platform cloudflare-workers`로 생성되는 Cloudflare Workers | `--platform`을 생략하면 Fastify가 기본 스타터 기준선으로 유지되며, Express, raw Node.js, Bun, Deno, Cloudflare Workers가 모두 first-class 애플리케이션 스타터가 되었습니다. |
-| **마이크로서비스 스타터** | **지금 스캐폴딩됨** | `--shape microservice --transport tcp --runtime node --platform none`으로 생성되는 Node.js + 비HTTP 플랫폼 + TCP, `--transport redis-streams`로 생성되는 Redis Streams, `--transport nats`로 생성되는 NATS, `--transport kafka`로 생성되는 Kafka, `--transport rabbitmq`로 생성되는 RabbitMQ, `--transport mqtt`로 생성되는 MQTT, `--transport grpc`로 생성되는 gRPC | `--transport`를 생략하면 TCP가 가장 단순한 기본 스타터 기준선으로 유지됩니다. Redis Streams, NATS, Kafka, RabbitMQ, MQTT, gRPC는 이제 transport별 dependency/env/proto 구성을 갖춘 runnable starter로 제공되며, Redis Pub/Sub만 당분간 문서화된 validation-only 계열로 남습니다. |
-| **mixed 스타터** | **지금 스캐폴딩됨** | `--shape mixed --transport tcp --runtime node --platform fastify`로 생성되는 Node.js + Fastify HTTP 앱 + 연결된 TCP microservice | 이것이 현재 공개된 유일한 mixed starter 변형입니다. |
-| **더 넓은 어댑터/런타임 생태계** | **일부는 스캐폴딩됨, 일부는 문서 전용** | `@fluojs/platform-fastify`, `@fluojs/platform-express`, `@fluojs/platform-nodejs`, `@fluojs/platform-bun`, `@fluojs/platform-deno`, `@fluojs/platform-cloudflare-workers`는 모두 이제 first-class 애플리케이션 스타터 경로를 가집니다. 그 외 런타임/패키지 조합은 여전히 더 넓은 생태계 문서 범주에 남습니다. | 남아 있는 문서 전용 어댑터는 스캐폴딩 이후나 수동 구성에서 아래 런타임/패키지 문서를 사용해 채택하세요. |
+| **애플리케이션 스타터** | **지금 스캐폴딩됨** | `--shape application --transport http --runtime node --platform fastify|express|nodejs`로 생성되는 Node.js + HTTP, `--runtime bun --platform bun`으로 생성되는 Bun, `--runtime deno --platform deno`로 생성되는 Deno, `--runtime cloudflare-workers --platform cloudflare-workers`로 생성되는 Cloudflare Workers | `--platform`을 생략하면 Fastify가 기본 스타터 기준선으로 유지되며, Express, raw Node.js, Bun, Deno, Cloudflare Workers가 모두 공식 애플리케이션 스타터가 되었습니다. |
+| **마이크로서비스 스타터** | **지금 스캐폴딩됨** | `--shape microservice --transport tcp --runtime node --platform none`으로 생성되는 Node.js + 비HTTP 플랫폼 + TCP, `--transport redis-streams`로 생성되는 Redis Streams, `--transport nats`로 생성되는 NATS, `--transport kafka`로 생성되는 Kafka, `--transport rabbitmq`로 생성되는 RabbitMQ, `--transport mqtt`로 생성되는 MQTT, `--transport grpc`로 생성되는 gRPC | `--transport`를 생략하면 TCP가 가장 단순한 기본 스타터 기준선으로 유지됩니다. Redis Streams, NATS, Kafka, RabbitMQ, MQTT, gRPC는 이제 transport별 dependency/env/proto 구성을 갖춘 runnable starter로 제공되며, Redis Pub/Sub만 당분간 문서화된 검증 전용(validation-only) 계열로 남습니다. |
+| **mixed 스타터** | **지금 스캐폴딩됨** | `--shape mixed --transport tcp --runtime node --platform fastify`로 생성되는 Node.js + Fastify HTTP 앱 + 연결된 TCP microservice | 이것이 현재 공개된 유일한 혼합 스타터 변형입니다. |
+| **더 넓은 어댑터/런타임 생태계** | **일부는 스캐폴딩됨, 일부는 문서 전용** | `@fluojs/platform-fastify`, `@fluojs/platform-express`, `@fluojs/platform-nodejs`, `@fluojs/platform-bun`, `@fluojs/platform-deno`, `@fluojs/platform-cloudflare-workers`는 모두 이제 공식 애플리케이션 스타터 경로를 가집니다. 그 외 런타임/패키지 조합은 여전히 더 넓은 생태계 문서 범주에 남습니다. | 남아 있는 문서 전용 어댑터는 스캐폴딩 이후나 수동 구성에서 아래 런타임/패키지 문서를 사용해 채택하세요. |
 
 ## 다른 문서를 읽는 방법
 
 - `fluo new` 문서는 스타터 계약으로 읽고, 문서화된 모든 어댑터가 이미 스타터 프리셋을 가진다고 해석하지 마세요.
 - 런타임/패키지 참조 문서는 현재 스타터 매트릭스 밖에서 채택 가능한 어댑터, 플랫폼, 배포 대상을 설명하는 더 넓은 생태계 지도입니다.
-- 어떤 페이지가 Node.js HTTP 플랫폼(Fastify, Express, raw Node.js), Bun, Deno, Cloudflare Workers를 언급할 때 명시적인 `fluo new --shape application --transport http --runtime ... --platform ...` 명령이 함께 있다면 그것이 runnable starter 계약입니다. 마이크로서비스의 경우 문서화된 `tcp`, `redis-streams`, `nats`, `kafka`, `rabbitmq`, `mqtt`, `grpc` 명령 변형을 runnable starter 계약으로 읽으세요. 그 밖의 어댑터/패키지 언급은 여전히 더 넓은 패키지 생태계를 설명합니다.
+- 어떤 페이지가 Node.js HTTP 플랫폼(Fastify, Express, raw Node.js), Bun, Deno, Cloudflare Workers를 언급할 때 명시적인 `fluo new --shape application --transport http --runtime ... --platform ...` 명령이 함께 있다면 그것이 실행 가능한 스타터 계약입니다. 마이크로서비스의 경우 문서화된 `tcp`, `redis-streams`, `nats`, `kafka`, `rabbitmq`, `mqtt`, `grpc` 명령 변형을 runnable starter 계약으로 읽으세요. 그 밖의 어댑터/패키지 언급은 여전히 더 넓은 패키지 생태계를 설명합니다.
 
 ## 기준 출처
 

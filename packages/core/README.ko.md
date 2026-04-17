@@ -10,7 +10,7 @@
 - [사용 시점](#사용-시점)
 - [빠른 시작](#빠른-시작)
 - [주요 기능](#주요-기능)
-- [공개 API 개요](#공개-api-개요)
+- [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
 
@@ -85,7 +85,7 @@ const metadata = getModuleMetadata(AppModule);
 console.log(metadata.providers);
 ```
 
-## 공개 API 개요
+## 공개 API
 
 - **데코레이터**: `Module`, `Global`, `Inject`, `Scope`
 - **에러**: `FluoError`, `InvariantError`, `FluoCodeError`

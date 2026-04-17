@@ -87,7 +87,7 @@ const metadata = getModuleMetadata(AppModule);
 console.log(metadata.providers);
 ```
 
-## Public API Overview
+## Public API
 
 - **Decorators**: `Module`, `Global`, `Inject`, `Scope`
 - **Errors**: `FluoError`, `InvariantError`, `FluoCodeError`

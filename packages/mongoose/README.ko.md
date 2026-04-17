@@ -10,10 +10,7 @@ fluo 애플리케이션을 위한 Mongoose 라이프사이클 및 세션 기반 
 - [사용 시점](#사용-시점)
 - [빠른 시작](#빠른-시작)
 - [공통 패턴](#공통-패턴)
-  - [MongooseConnection과 current()](#mongooseconnection과-current)
-  - [수동 트랜잭션과 세션](#수동-트랜잭션과-세션)
-  - [자동 요청 트랜잭션](#자동-요청-트랜잭션)
-- [공개 API 개요](#공개-api-개요)
+- [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
 
@@ -98,7 +95,7 @@ import { MongooseTransactionInterceptor } from '@fluojs/mongoose';
 class UserController {}
 ```
 
-## 공개 API 개요
+## 공개 API
 
 - `MongooseModule.forRoot(options)` / `MongooseModule.forRootAsync(options)`
 - `MongooseConnection`

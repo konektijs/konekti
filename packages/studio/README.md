@@ -11,7 +11,7 @@ File-first shared platform snapshot viewer for fluo runtime exports.
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -68,7 +68,7 @@ Use the **Diagnostics** tab to see issues collected during the runtime bootstrap
 2. Select the modules or components you want to visualize.
 3. Use the **Export to Mermaid** button to get a text-based diagram for your documentation.
 
-## Public API Overview
+## Public API
 
 Studio is primarily a web application, but the published package also exposes the documented snapshot-consumption helpers used by tooling and automation.
 

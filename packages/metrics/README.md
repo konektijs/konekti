@@ -10,7 +10,7 @@ Prometheus metrics exposure for fluo applications, including framework-aware HTT
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -113,7 +113,7 @@ MetricsModule.forRoot({
 });
 ```
 
-## Public API Overview
+## Public API
 
 - `MetricsModule.forRoot(options)`
 - `MetricsService`

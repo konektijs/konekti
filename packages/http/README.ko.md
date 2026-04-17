@@ -10,7 +10,7 @@
 - [사용 시점](#사용-시점)
 - [빠른 시작](#빠른-시작)
 - [주요 패턴](#주요-패턴)
-- [공개 API 개요](#공개-api-개요)
+- [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
 
@@ -112,7 +112,7 @@ stream(_input: undefined, ctx: RequestContext) {
 }
 ```
 
-## 공개 API 개요
+## 공개 API
 
 - **라우팅 데코레이터**: `Controller`, `Get`, `Post`, `Put`, `Patch`, `Delete`, `All`
 - **바인딩 데코레이터**: `FromBody`, `FromQuery`, `FromPath`, `FromHeader`, `FromCookie`, `RequestDto`

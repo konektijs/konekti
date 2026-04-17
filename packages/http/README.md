@@ -10,7 +10,7 @@ The HTTP execution layer that turns route metadata into a request pipeline with 
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -114,7 +114,7 @@ stream(_input: undefined, ctx: RequestContext) {
 }
 ```
 
-## Public API Overview
+## Public API
 
 - **Routing decorators**: `Controller`, `Get`, `Post`, `Put`, `Patch`, `Delete`, `All`
 - **Binding decorators**: `FromBody`, `FromQuery`, `FromPath`, `FromHeader`, `FromCookie`, `RequestDto`

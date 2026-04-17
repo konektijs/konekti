@@ -10,7 +10,7 @@ Input-side validation decorators, mapped DTO helpers, and the materialization en
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -98,7 +98,7 @@ class RestrictedUserDto {
 
 `materialize()` is intentionally strict. If a transport gives you `'42'` and your DTO expects `number`, the transport or binding layer must convert it first.
 
-## Public API Overview
+## Public API
 
 - **Validator engine**: `DefaultValidator`, `DtoValidationError`, `ValidationIssue`
 - **Core decorators**: `IsString`, `IsNumber`, `IsBoolean`, `IsEmail`, `IsUrl`, `ValidateNested`, `ValidateIf`, `IsOptional`, `ValidateClass`

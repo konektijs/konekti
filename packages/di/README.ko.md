@@ -10,7 +10,7 @@
 - [사용 시점](#사용-시점)
 - [빠른 시작](#빠른-시작)
 - [주요 기능](#주요-기능)
-- [공개 API 개요](#공개-api-개요)
+- [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
 
@@ -79,13 +79,15 @@ const requestContainer = container.createRequestScope();
 const scopedService = await requestContainer.resolve(RequestScopedService);
 ```
 
-## 공개 API 개요
+## 공개 API
 
-- `Container`
-- `register(...providers)`
-- `resolve<T>(token)`
-- `createRequestScope()`
-- `has(token)`
+| 클래스/메서드 | 설명 |
+|---|---|
+| `Container` | 메인 DI 컨테이너 클래스입니다. |
+| `register(...providers)` | 하나 이상의 프로바이더를 등록합니다. |
+| `resolve<T>(token)` | 토큰을 인스턴스로 비동기 해석합니다. |
+| `createRequestScope()` | 요청 스코프 의존성을 위한 자식 컨테이너를 생성합니다. |
+| `has(token)` | 컨테이너나 부모에 토큰이 등록되어 있는지 확인합니다. |
 
 ## 관련 패키지
 

@@ -10,7 +10,7 @@ Decorator-based OpenAPI 3.1.0 document generation for fluo. Automatically genera
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Core Capabilities](#core-capabilities)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -86,7 +86,7 @@ Easily document authentication requirements like Bearer tokens or API keys using
 ### Deterministic Swagger UI Assets
 When `ui: true` is enabled, the generated `/docs` page references an exact `swagger-ui-dist` asset version so release behavior stays deterministic across package updates.
 
-## Public API Overview
+## Public API
 
 - `OpenApiModule`: Main entry point for OpenAPI integration.
 - `ApiTag`, `ApiOperation`, `ApiResponse`: Documentation decorators.

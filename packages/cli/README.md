@@ -10,7 +10,7 @@ The official CLI for fluo — bootstrap new applications, generate components, i
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -128,7 +128,7 @@ fluo inspect ./src/app.module.ts --mermaid
 fluo inspect ./src/app.module.ts --json > snapshot.json
 ```
 
-## Public API Overview
+## Public API
 
 The package can be used programmatically to trigger CLI actions from within other tools.
 

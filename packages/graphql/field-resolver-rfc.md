@@ -1,5 +1,7 @@
 # @FieldResolver RFC (Design-Only)
 
+<p><strong><kbd>English</kbd></strong> <a href="./field-resolver-rfc.ko.md"><kbd>한국어</kbd></a></p>
+
 Status: Draft (Phase 4)
 
 This RFC defines the API and integration plan for `@FieldResolver` in `@fluojs/graphql`.

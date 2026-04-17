@@ -12,17 +12,17 @@
 | **Babel** | `v7.26+` | `@babel/plugin-proposal-decorators` (`{ version: '2023-11' }`) |
 | **Vite** | `v6.2+` | 개발 번들링 및 빌드 오케스트레이션에 사용. |
 | **Vitest** | `v3.0+` | 유닛 및 E2E 테스트용 표준 테스트 러너. |
-| **Node.js** | `v20+` | 루트 워크스페이스와 배포 패키지 manifest가 선언하는 Node 기반 어댑터의 최소 지원 런타임 기준선. Bun, Deno, Cloudflare Workers 어댑터는 패키지 메타데이터가 비-Node 런타임 계약과 일치하도록 `engines.node`를 의도적으로 생략합니다. |
+| **Node.js** | `v20+` | 루트 워크스페이스와 배포 패키지 매니페스트(manifest)가 선언하는 Node 기반 어댑터의 최소 지원 런타임 기준선. Bun, Deno, Cloudflare Workers 어댑터는 패키지 메타데이터가 비-Node 런타임 계약과 일치하도록 `engines.node`를 의도적으로 생략합니다. |
 
 ## CLI 및 스캐폴딩 계약
 
 | 목표 | 명령어 | 출력 계약 |
 | --- | --- | --- |
-| **프로젝트 생성 (기본 HTTP)** | `fluo new my-app` | 호환 기준선 스타터인 single-package Node.js + Fastify HTTP 앱을 생성합니다. |
+| **프로젝트 생성 (기본 HTTP)** | `fluo new my-app` | 호환 기준선 스타터인 단일 패키지(single-package) Node.js + Fastify HTTP 앱을 생성합니다. |
 | **프로젝트 생성 (명시적 HTTP)** | `fluo new my-app --shape application --transport http --runtime node --platform fastify` | 기본 HTTP 스타터와 동일한 생성 결과로 해석됩니다. |
-| **프로젝트 생성 (microservice)** | `fluo new my-service --shape microservice --transport tcp --runtime node --platform none` | 실행 가능한 single-package TCP microservice 스타터를 생성합니다. 이제 `--transport redis-streams`, `--transport nats`, `--transport kafka`, `--transport rabbitmq`, `--transport mqtt`, `--transport grpc`도 transport별 dependency/env/proto 구성을 갖춘 runnable starter 변형을 생성하며, transport 검증은 여전히 `tcp`, `redis`, `redis-streams`, `nats`, `kafka`, `rabbitmq`, `mqtt`, `grpc` 문서 계열 전체를 인식합니다. |
-| **프로젝트 생성 (mixed)** | `fluo new my-app --shape mixed --transport tcp --runtime node --platform fastify` | Fastify HTTP 앱 하나와 attached TCP microservice 하나를 함께 생성하는 mixed single-package 스타터를 생성합니다. |
-| **Interactive wizard** | TTY에서 `fluo new` 실행 | non-interactive flags 경로와 동일한 shape-first 스키마(프로젝트 이름, shape, tooling preset, package manager, install 선택, git 선택)로 해석됩니다. |
+| **프로젝트 생성 (microservice)** | `fluo new my-service --shape microservice --transport tcp --runtime node --platform none` | 실행 가능한 단일 패키지 TCP 마이크로서비스(microservice) 스타터를 생성합니다. 이제 `--transport redis-streams`, `--transport nats`, `--transport kafka`, `--transport rabbitmq`, `--transport mqtt`, `--transport grpc`도 전송별 dependency/env/proto 구성을 갖춘 실행 가능한 스타터 변형을 생성하며, 전송 검증은 여전히 `tcp`, `redis`, `redis-streams`, `nats`, `kafka`, `rabbitmq`, `mqtt`, `grpc` 문서 계열 전체를 인식합니다. |
+| **프로젝트 생성 (mixed)** | `fluo new my-app --shape mixed --transport tcp --runtime node --platform fastify` | Fastify HTTP 앱 하나와 연결된(attached) TCP 마이크로서비스 하나를 함께 생성하는 혼합 단일 패키지 스타터를 생성합니다. |
+| **대화형 위저드** | TTY에서 `fluo new` 실행 | 비대화형(non-interactive) 플래그 경로와 동일한 shape-first 스키마(프로젝트 이름, shape, tooling preset, package manager, install 선택, git 선택)로 해석됩니다. |
 | **리소스 생성** | `fluo g <type>` | 일관된 명명 접미사 (`.service.ts`, `.controller.ts`) 산출. |
 | **진단** | `fluo inspect` | 런타임 그래프 및 타이밍 데이터를 JSON 형식으로 내보내기. |
 
@@ -33,8 +33,8 @@
 | **Controller** | `.controller.ts` | `users.controller.ts` |
 | **Service** | `.service.ts` | `users.service.ts` |
 | **Repository** | `.repo.ts` | `users.repo.ts` |
-| **DTO (Input)** | `.request.dto.ts` | `create-user.request.dto.ts` |
-| **DTO (Output)** | `.response.dto.ts` | `user.response.dto.ts` |
+| **DTO (입력)** | `.request.dto.ts` | `create-user.request.dto.ts` |
+| **DTO (출력)** | `.response.dto.ts` | `user.response.dto.ts` |
 
 ## 빌드 구성
 

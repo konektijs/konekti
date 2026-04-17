@@ -10,10 +10,7 @@ fluo 애플리케이션을 위한 Prometheus 메트릭 노출 모듈입니다. `
 - [사용 시점](#사용-시점)
 - [빠른 시작](#빠른-시작)
 - [공통 패턴](#공통-패턴)
-  - [HTTP 라벨 정규화](#http-라벨-정규화)
-  - [공유 Registry (권장)](#공유-registry-권장)
-  - [런타임 플랫폼 텔레메트리](#런타임-플랫폼-텔레메트리)
-- [공개 API 개요](#공개-api-개요)
+- [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
 
@@ -153,33 +150,14 @@ MetricsModule.forRoot({
 })
 ```
 
-## 공개 API 개요
+## 공개 API
 
-### `MetricsModule`
-
-- `static forRoot(options?: MetricsModuleOptions): ModuleType`
-  - 메트릭 엔드포인트, 레지스트리 및 선택적 HTTP 모니터링을 설정합니다.
+- `MetricsModule.forRoot(options)`
+- `MetricsService`
+- `METER_PROVIDER` (Token)
+- 카운터, 게이지, 히스토그램 및 레지스트리 접근을 위한 Prometheus 기반 헬퍼
 
 ### 운영 기본값
-
-- `path` 기본값은 `'/metrics'`이며, `path: false`를 주면 스크레이프 엔드포인트를 완전히 비활성화합니다.
-- `defaultMetrics` 기본값은 `true`이며, `defaultMetrics: false`를 주면 해당 Registry의 Prometheus 기본 프로세스/Node.js collector를 비활성화합니다.
-- `endpointMiddleware`는 스크레이프 엔드포인트에만 route-scoped middleware를 바인딩합니다.
-- HTTP 메트릭은 기본적으로 템플릿 기반 path label 정규화를 사용합니다.
-- raw path label은 `allowUnsafeRawPathLabelMode: true`가 필요하며, 반드시 경계가 있는 내부 경로에만 제한해야 합니다.
-
-### `MetricsService`
-
-Provider 내부에서 Prometheus 네이티브 메트릭을 생성할 때 사용합니다.
-
-- `counter<T>(config: CounterConfiguration<T>)`
-- `gauge<T>(config: GaugeConfiguration<T>)`
-- `histogram<T>(config: HistogramConfiguration<T>)`
-- `getRegistry(): Registry`
-
-### `METER_PROVIDER` (Token)
-
-다양한 모니터링 백엔드에서 표준화된 Meter 추상화를 위한 주입 토큰입니다.
 
 ## 관련 패키지
 

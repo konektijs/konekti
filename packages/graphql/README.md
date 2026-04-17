@@ -11,7 +11,7 @@ Decorator-based GraphQL integration for fluo. Built on **GraphQL Yoga**, it prov
 - [Quick Start](#quick-start)
 - [Core Capabilities](#core-capabilities)
 - [Operational Guardrails](#operational-guardrails)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -138,7 +138,7 @@ GraphqlModule.forRoot({
 })
 ```
 
-## Public API Overview
+## Public API
 
 - `GraphqlModule.forRoot(options)`: Main entry point for GraphQL integration.
 - `Resolver`, `Query`, `Mutation`, `Subscription`: Operation decorators.

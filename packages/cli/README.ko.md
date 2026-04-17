@@ -10,7 +10,7 @@ fluo 공식 CLI — 새 애플리케이션 부트스트랩, 컴포넌트 생성,
 - [사용 시점](#사용-시점)
 - [빠른 시작](#빠른-시작)
 - [주요 패턴](#주요-패턴)
-- [공개 API 개요](#공개-api-개요)
+- [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
 
@@ -128,7 +128,7 @@ fluo inspect ./src/app.module.ts --mermaid
 fluo inspect ./src/app.module.ts --json > snapshot.json
 ```
 
-## 공개 API 개요
+## 공개 API
 
 다른 도구 내에서 CLI 동작을 트리거하기 위해 패키지를 프로그래밍 방식으로 사용할 수 있습니다.
 

@@ -11,7 +11,7 @@ fluo를 위한 데코레이터 기반 GraphQL 통합 패키지입니다. **Graph
 - [빠른 시작](#빠른-시작)
 - [핵심 기능](#핵심-기능)
 - [운영 가드레일](#운영-가드레일)
-- [공개 API 개요](#공개-api-개요)
+- [공개 API](#공개-api)
 - [관련 패키지](#관련-패키지)
 - [예제 소스](#예제-소스)
 
@@ -138,7 +138,7 @@ GraphqlModule.forRoot({
 })
 ```
 
-## 공개 API 개요
+## 공개 API
 
 - `GraphqlModule.forRoot(options)`: GraphQL 통합을 위한 메인 엔트리 포인트.
 - `Resolver`, `Query`, `Mutation`, `Subscription`: 작업 데코레이터.

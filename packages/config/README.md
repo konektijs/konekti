@@ -10,7 +10,7 @@ Configuration loading, merging, validation, and typed runtime access for fluo ap
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Key Capabilities](#key-capabilities)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 
@@ -85,7 +85,7 @@ Plain objects are deep-merged by key. Arrays and primitive values from higher-pr
 ### Validation
 The `validate` function runs after all sources are merged but before the application starts. If it throws, the application bootstrap fails immediately.
 
-## Public API Overview
+## Public API
 
 | Class/Helper | Description |
 |---|---|
