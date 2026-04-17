@@ -188,7 +188,7 @@ export function createPassportPlatformDiagnosticIssues(input: PassportStatusAdap
     issues.push({
       code: 'AUTH_PASSPORT_STRATEGY_REGISTRY_EMPTY',
       componentId,
-      fixHint: 'Register at least one auth strategy via PassportModule.forRoot(..., strategies) or createPassportProviders(..., strategies).',
+      fixHint: 'Register at least one auth strategy via PassportModule.forRoot(..., strategies).',
       message: 'Passport strategy registry has no registered auth strategies.',
       severity,
     });
