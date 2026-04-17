@@ -18,7 +18,7 @@ import { OnConnect, OnDisconnect, OnMessage, WebSocketGateway } from '@fluojs/we
 import { io as createClient, type Socket as ClientSocket } from 'socket.io-client';
 import type { Server as SocketIoServer, Socket } from 'socket.io';
 
-import { SocketIoModule, createSocketIoProviders } from './module.js';
+import { SocketIoModule } from './module.js';
 import * as publicApi from './index.js';
 import { SocketIoLifecycleService } from './adapter.js';
 import { SOCKETIO_ROOM_SERVICE, SOCKETIO_SERVER } from './tokens.js';
@@ -293,19 +293,19 @@ describe('@fluojs/socket.io', () => {
   it('keeps lifecycle and options tokens out of the root public entrypoint', () => {
     expect(publicApi.SOCKETIO_ROOM_SERVICE).toBeDefined();
     expect(publicApi.SOCKETIO_SERVER).toBeDefined();
-    expect(publicApi.createSocketIoProviders).toBe(createSocketIoProviders);
+    expect('createSocketIoProviders' in publicApi).toBe(false);
     expect('SOCKETIO_LIFECYCLE_SERVICE' in publicApi).toBe(false);
     expect('SOCKETIO_OPTIONS' in publicApi).toBe(false);
   });
 
-  it('wires lifecycle dependencies through the lifecycle service class internally', () => {
-    const providers = createSocketIoProviders();
+  it('wires lifecycle dependencies through forRoot metadata internally', () => {
+    const providers = getModuleMetadata(SocketIoModule.forRoot())?.providers ?? [];
     const serverProvider = providers.find(
-      (provider) =>
+      (provider: unknown) =>
         typeof provider === 'object' && provider !== null && 'provide' in provider && provider.provide === SOCKETIO_SERVER,
     ) as { inject?: unknown[] } | undefined;
     const roomProvider = providers.find(
-      (provider) =>
+      (provider: unknown) =>
         typeof provider === 'object' &&
         provider !== null &&
         'provide' in provider &&
@@ -352,40 +352,6 @@ describe('@fluojs/socket.io', () => {
     const probe = await app.container.resolve(ServerProbe);
 
     expect(probe.server).toBeDefined();
-
-    await app.close();
-  });
-
-  it('supports manual defineModule composition through createSocketIoProviders', async () => {
-    @Inject(SOCKETIO_SERVER, SOCKETIO_ROOM_SERVICE)
-    class ManualProbe {
-      constructor(
-        public readonly server: SocketIoServer,
-        public readonly rooms: SocketIoRoomService,
-      ) {}
-    }
-
-    class ManualSocketIoModule {}
-    defineModule(ManualSocketIoModule, {
-      exports: [SOCKETIO_ROOM_SERVICE, SOCKETIO_SERVER],
-      global: true,
-      providers: createSocketIoProviders(),
-    });
-
-    class AppModule {}
-    defineModule(AppModule, {
-      imports: [ManualSocketIoModule],
-      providers: [ManualProbe],
-    });
-
-    const app = await bootstrapNodeApplication(AppModule, {
-      cors: false,
-      port: await findAvailablePort(),
-    });
-    const probe = await app.container.resolve(ManualProbe);
-
-    expect(probe.server).toBeDefined();
-    expect(probe.rooms).toBeInstanceOf(SocketIoLifecycleService);
 
     await app.close();
   });

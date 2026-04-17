@@ -1,4 +1,3 @@
-import type { Provider } from '@fluojs/di';
 import { defineModule, type ModuleType } from '@fluojs/runtime';
 
 import { SOCKETIO_OPTIONS_INTERNAL } from './options-token.internal.js';
@@ -9,22 +8,7 @@ import {
 } from './tokens.js';
 import type { SocketIoModuleOptions } from './types.js';
 
-/**
- * Creates the provider set that wires Socket.IO lifecycle, server access, and room helpers.
- *
- * @param options Socket.IO adapter options that should be shared by the lifecycle service.
- * @returns Providers that register the lifecycle service plus the public Socket.IO tokens.
- *
- * @example
- * ```ts
- * import { createSocketIoProviders } from '@fluojs/socket.io';
- *
- * const providers = createSocketIoProviders({
- *   shutdown: { timeoutMs: 5_000 },
- * });
- * ```
- */
-export function createSocketIoProviders(options: SocketIoModuleOptions = {}): Provider[] {
+function createSocketIoProviderSet(options: SocketIoModuleOptions = {}) {
   return [
     {
       provide: SOCKETIO_OPTIONS_INTERNAL,
@@ -73,7 +57,7 @@ export class SocketIoModule {
     return defineModule(SocketIoRuntimeModule, {
       exports: [SOCKETIO_ROOM_SERVICE, SOCKETIO_SERVER],
       global: true,
-      providers: createSocketIoProviders(options),
+      providers: createSocketIoProviderSet(options),
     });
   }
 }
