@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { getModuleMetadata } from '@fluojs/core/internal';
 import { Container } from '@fluojs/di';
 import type { DefaultJwtVerifier } from '@fluojs/jwt';
 import { JwtExpiredTokenError, JwtInvalidTokenError } from '@fluojs/jwt';
 
 import { AuthenticationExpiredError, AuthenticationFailedError, AuthenticationRequiredError } from '../errors.js';
-import { REFRESH_TOKEN_SERVICE, RefreshTokenStrategy, createRefreshTokenProviders, type RefreshTokenService } from './refresh-token.js';
+import { REFRESH_TOKEN_SERVICE, RefreshTokenModule, RefreshTokenStrategy, createRefreshTokenProviders, type RefreshTokenService } from './refresh-token.js';
 import type { AuthStrategyResult } from '../types.js';
 import type { GuardContext, RequestContext } from '@fluojs/http';
 
@@ -316,5 +317,35 @@ describe('RefreshTokenService contract', () => {
     const bySharedToken = await container.resolve(REFRESH_TOKEN_SERVICE);
 
     expect(bySharedToken).toBe(byClass);
+  });
+});
+
+describe('RefreshTokenModule', () => {
+  it('creates a module-first runtime definition for refresh-token strategy support', () => {
+    class RefreshTokenServiceImpl implements RefreshTokenService {
+      async issueRefreshToken(): Promise<string> {
+        return 'refresh-token';
+      }
+
+      async rotateRefreshToken(): Promise<{ accessToken: string; refreshToken: string }> {
+        return {
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+        };
+      }
+
+      async revokeRefreshToken(): Promise<void> {}
+
+      async revokeAllForSubject(): Promise<void> {}
+    }
+
+    const moduleDefinition = RefreshTokenModule.forRoot(RefreshTokenServiceImpl);
+    const metadata = getModuleMetadata(moduleDefinition);
+
+    expect(metadata?.exports).toEqual([RefreshTokenStrategy, REFRESH_TOKEN_SERVICE]);
+    expect(metadata?.providers).toEqual([
+      RefreshTokenStrategy,
+      ...createRefreshTokenProviders(RefreshTokenServiceImpl),
+    ]);
   });
 });
