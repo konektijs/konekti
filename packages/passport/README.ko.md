@@ -108,6 +108,8 @@ import {
 export class AuthModule {}
 ```
 
+`CookieAuthModule.forRoot(...)`가 표준 프리셋 진입점입니다. 이미 존재하는 모듈 정의 안에서 cookie preset provider를 수동으로 조합해야 할 때는 `createCookieAuthProviders(...)`를 호환 shim으로 계속 사용할 수 있습니다.
+
 ### 리프레시 토큰 수명 주기
 
 패키지에서 제공하는 `RefreshTokenStrategy`와 `RefreshTokenService`를 사용하여 안전한 토큰 로테이션 및 폐기 기능을 구현할 수 있습니다.

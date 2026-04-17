@@ -108,6 +108,8 @@ import {
 export class AuthModule {}
 ```
 
+`CookieAuthModule.forRoot(...)` is the canonical preset entrypoint. `createCookieAuthProviders(...)` remains available as a compatibility shim when you need to compose the cookie preset providers manually inside an existing module definition.
+
 ### Refresh Token Lifecycle
 
 The package provides a built-in `RefreshTokenStrategy` and `RefreshTokenService` to handle secure token rotation and revocation.
