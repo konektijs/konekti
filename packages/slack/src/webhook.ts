@@ -23,6 +23,7 @@ function createWebhookPayload(message: NormalizedSlackMessage): Record<string, u
     ...(message.channel ? { channel: message.channel } : {}),
     ...(message.iconEmoji ? { icon_emoji: message.iconEmoji } : {}),
     ...(message.iconUrl ? { icon_url: message.iconUrl } : {}),
+    ...(message.metadata ? { metadata: message.metadata } : {}),
     ...(typeof message.mrkdwn === 'boolean' ? { mrkdwn: message.mrkdwn } : {}),
     ...(typeof message.replyBroadcast === 'boolean' ? { reply_broadcast: message.replyBroadcast } : {}),
     ...(message.text ? { text: message.text } : {}),
