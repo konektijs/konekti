@@ -52,6 +52,8 @@ export class OrderWorker {
 
 `QueueModule`을 등록하고 `QueueLifecycleService`를 주입받아 작업을 큐에 추가합니다.
 
+`QueueModule.forRoot(...)`는 큐 등록을 위한 지원되는 루트 엔트리포인트입니다. 루트 패키지 사용자는 저수준 provider 조합을 루트 barrel API의 일부가 아니라 내부 구현 세부사항으로 취급해야 합니다.
+
 ```typescript
 import { Module, Inject } from '@fluojs/core';
 import { QueueModule, QueueLifecycleService } from '@fluojs/queue';
@@ -107,8 +109,11 @@ QueueModule.forRoot({ clientName: 'jobs' })
 
 ### 핵심 구성 요소
 - `QueueModule`: 큐 기능을 위한 기본 모듈입니다.
+- `QueueModule.forRoot(options)`: 애플리케이션 수준 큐 등록을 위한 지원되는 루트 엔트리포인트입니다.
 - `QueueLifecycleService`: 작업을 큐에 추가(`enqueue(job)`)하기 위한 기본 서비스입니다.
 - `@QueueWorker(JobClass, options?)`: 특정 작업을 처리할 핸들러를 지정하는 데코레이터입니다.
+
+루트 수준 등록은 의도적으로 `QueueModule.forRoot(...)`를 중심으로 유지되며, 저수준 provider helper는 문서화된 루트 barrel 계약에 포함되지 않습니다.
 
 ### 타입
 - `QueueModuleOptions`: 전역 큐 설정(clientName, 기본 시도 횟수, 동시성, 전송률 제한 등)을 위한 타입입니다.
