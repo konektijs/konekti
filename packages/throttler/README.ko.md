@@ -111,6 +111,7 @@ ThrottlerModule.forRoot({
 
 ### 모듈
 - `ThrottlerModule.forRoot(options)`: 글로벌 속도 제한 동작 및 저장소를 설정합니다.
+- 패키지 수준 등록은 `ThrottlerModule.forRoot(options)`를 통해 지원합니다. 내부 프로바이더 조합 헬퍼는 공개 계약에 포함되지 않습니다.
 
 ### 데코레이터
 - `@Throttle({ ttl, limit })`: 클래스나 메서드에 특정 속도 제한을 설정합니다.

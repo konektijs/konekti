@@ -111,6 +111,7 @@ ThrottlerModule.forRoot({
 
 ### Modules
 - `ThrottlerModule.forRoot(options)`: Configures the global throttling behavior and storage.
+- Package-level registration is supported through `ThrottlerModule.forRoot(options)`. Internal provider-composition helpers are not part of the public contract.
 
 ### Decorators
 - `@Throttle({ ttl, limit })`: Sets a specific rate limit for a class or method.
