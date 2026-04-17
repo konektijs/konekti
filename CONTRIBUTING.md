@@ -1,5 +1,11 @@
 # contributing to fluo
 
+<p align="center">
+  <a href="./CONTRIBUTING.md">English</a>
+  &nbsp;&middot;&nbsp;
+  <a href="./CONTRIBUTING.ko.md">한국어</a>
+</p>
+
 fluo is built on standard TypeScript decorators and explicit contract discipline. This guide explains how to set up your environment, verify changes, and follow our maintainer workflows.
 
 ## local development setup

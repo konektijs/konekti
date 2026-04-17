@@ -52,8 +52,8 @@ fluo는 전송 중립(transport-neutral) 런타임을 사용합니다. 어댑터
 - **`@fluojs/notifications`**: provider별 알림 패키지가 공유하는 채널 계약과 오케스트레이션 계층.
 - **`@fluojs/email`**: 전송 중립(transport-agnostic) 이메일 발송 코어. 알림 채널 및 큐 워커 통합을 제공합니다.
 - **`@fluojs/email/node`**: Nodemailer/SMTP 전송을 제공하는 `@fluojs/email`의 Node.js 전용 서브패스.
-- **`@fluojs/slack`**: standalone으로도 동작하고 1st-party notifications 채널로도 등록할 수 있는 webhook-first Slack 전달 코어.
-- **`@fluojs/discord`**: standalone으로도 동작하고 1st-party notifications 채널로도 등록할 수 있는 webhook-first Discord 전달 코어.
+- **`@fluojs/slack`**: standalone으로도 동작하고 공식 알림 채널로도 등록할 수 있는 webhook-first Slack 전달 코어.
+- **`@fluojs/discord`**: standalone으로도 동작하고 공식 알림 채널로도 등록할 수 있는 webhook-first Discord 전달 코어.
 - **`@fluojs/websockets`**: 전송 중립 WebSocket 게이트웨이 작성.
 - **`@fluojs/validation`**: class-validator 기반 입력 구체화(materialization) 및 안전성.
 - **`@fluojs/prisma` / `@fluojs/drizzle`**: ORM 라이프사이클 및 ALS 기반 트랜잭션 컨텍스트.

@@ -2,7 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./caching.ko.md"><kbd>한국어</kbd></a></p>
 
-Performance is a first-class citizen in fluo. The caching system provides a unified interface for both **transparent HTTP response caching** and **programmatic application-level caching**, supporting in-memory and distributed Redis backends.
+Performance is a first-class citizen in fluo. The caching system provides a unified interface for **transparent HTTP response caching** and **programmatic application-level caching**, supporting in-memory and distributed Redis backends.
 
 ## Why Caching in fluo?
 
@@ -20,7 +20,7 @@ Performance is a first-class citizen in fluo. The caching system provides a unif
 ## Typical Workflows
 
 ### 1. Transparent HTTP Caching
-For high-traffic endpoints like product catalogs or public profiles, you can enable caching with zero impact on your business logic.
+For high-traffic endpoints like product catalogs or public profiles, you can enable caching with zero impact on business logic.
 
 ```typescript
 @Get('/')
@@ -49,7 +49,7 @@ fluo's default key strategy is security-first. If a `RequestContext.principal` i
 
 ## Core Boundaries
 
-- **Lazy Expiry**: To maximize performance, TTL (Time-To-Live) expiry is enforced at the time of access rather than via background timers (in the memory store).
+- **Lazy Expiry**: To maximize performance, TTL (Time-To-Live) expiry is enforced at the time of access rather than via background timers in the memory store.
 - **Cluster Safety**: For multi-instance deployments, you **must** use the Redis store. The memory store is local to each process and does not synchronize.
 - **GET-Only by Default**: The `CacheInterceptor` only caches `GET` requests to ensure safe, idempotent behavior.
 

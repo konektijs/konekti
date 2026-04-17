@@ -2,14 +2,14 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./transactions.ko.md"><kbd>한국어</kbd></a></p>
 
-Data integrity is the foundation of any reliable backend. fluo provides standardized transaction management for official ORM integrations (Prisma, Drizzle, Mongoose), ensuring **atomicity** across complex business operations without the "prop-drilling" of transaction objects.
+Data integrity is the foundation of any reliable backend. fluo provides standardized transaction management for official ORM integrations (Prisma, Drizzle, Mongoose), ensuring **atomicity** across complex business operations without prop-drilling transaction objects.
 
 ## Why Transactions in fluo?
 
 - **ALS-Backed Context**: Using `AsyncLocalStorage`, fluo tracks active transactions automatically. You don't need to pass a `tx` or `session` object through every function call.
 - **Unified `current()` Pattern**: Every ORM integration provides a `Service.current()` method that resolves to either the active transaction client or the root client, maintaining full type safety and IDE autocomplete.
-- **Request-Scoped Transactions**: Wrap an entire HTTP request in a single transaction with a simple interceptor, ensuring that any error in any service results in a full rollback.
-- **Explicit Propagation**: While fluo simplifies the *access* to transactions, the *boundaries* remain explicit. You control exactly when a transaction starts and ends.
+- **Request-Scoped Transactions**: Wrap an entire HTTP request in a single transaction with a simple interceptor, ensuring that any error results in a full rollback.
+- **Explicit Propagation**: While fluo simplifies transaction access, the boundaries remain explicit. You control exactly when a transaction starts and ends.
 
 ## Responsibility Split
 
@@ -51,7 +51,7 @@ async createAccount(@FromBody() dto: CreateAccountDto) {
 
 ## Core Boundaries
 
-- **The `current()` Rule**: Always use `Service.current()` instead of the root client instance in your repositories. This ensures your code is "transaction-aware" by default.
+- **The `current()` Rule**: Always use `Service.current()` instead of the root client instance in your repositories. This ensures your code is transaction-aware by default.
 - **No Implicit Globals**: Transactions are opt-in. fluo avoids implicit, global transactions to prevent accidental performance bottlenecks and database locking issues.
 - **Error-Driven Rollback**: Transactions automatically roll back if an exception is thrown within the boundary. Ensure your error handling logic doesn't silently catch and swallow errors you want to trigger a rollback.
 

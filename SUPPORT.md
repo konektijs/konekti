@@ -1,5 +1,11 @@
 # support
 
+<p align="center">
+  <a href="./SUPPORT.md">English</a>
+  &nbsp;&middot;&nbsp;
+  <a href="./SUPPORT.ko.md">한국어</a>
+</p>
+
 Use the channel that best matches the kind of help you need.
 
 ## questions and usage help

@@ -2,13 +2,13 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./generator-workflow.ko.md"><kbd>한국어</kbd></a></p>
 
-Eliminate manual boilerplate and maintain a consistent project structure using the fluo CLI. The generators create real fluo building blocks that follow the framework's module-first conventions.
+Eliminate manual boilerplate and maintain a consistent project structure using the fluo CLI. The generators create fluo building blocks that follow the framework's module-first conventions.
 
-### who this is for
-Developers who want to stay productive by automating the creation of modules, controllers, and services while ensuring architectural consistency.
+### target audience
+Developers who want to automate the creation of modules, controllers, and services while ensuring architectural consistency.
 
 ### 1. generating a complete feature module
-A **module** is the primary unit of organization in fluo. One command gives you a clean module entry point, and you can add the remaining pieces with focused generators.
+A **module** is the primary unit of organization in fluo. One command gives you a module entry point, and you can add the remaining pieces with focused generators.
 
 ```sh
 fluo g module catalog
@@ -34,7 +34,7 @@ import { Module } from '@fluojs/core';
 export class CatalogModule {}
 ```
 
-From here, you add controllers, services, and other building blocks as the feature grows.
+Add controllers, services, and other building blocks as the feature grows.
 
 ### 2. precise component generation
 Need to add a single building block to an existing feature? Use granular generators.
@@ -88,7 +88,7 @@ fluo g module auth --target-directory src/shared
 This creates `src/shared/auth/auth.module.ts` instead of `src/auth/auth.module.ts`.
 
 ### 4. safe execution with dry runs
-Preview exactly which files will be modified or created before committing to the change.
+Preview which files will be modified or created before committing to the change.
 
 ```sh
 fluo g module shop --dry-run
@@ -156,5 +156,5 @@ export class AppModule {}
 - **Composable Workflow**: Start with a module, then add controllers, services, DTOs, events, or repositories as the feature grows.
 
 ### next steps
-- **Implement Logic**: Now that your files are ready, follow the [First Feature Path](./first-feature-path.md) to add logic.
+- **Implement Logic**: Follow the [First Feature Path](./first-feature-path.md) to add logic.
 - **Verification**: Learn how to test your generated components in the [Testing Guide](../operations/testing-guide.md).

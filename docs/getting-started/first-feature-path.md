@@ -4,11 +4,11 @@
 
 Move from a basic starter to building real-world logic. fluo encourages a **slice-based architecture**, where related logic is grouped by feature rather than technical layer.
 
-### who this is for
+### target audience
 Developers who have completed the [Quick Start](./quick-start.md) and are ready to implement their first API endpoint.
 
 ### 1. define the feature boundary
-Create a dedicated directory for your feature slice. Let's build a "catalog" service.
+Create a dedicated directory for your feature slice. We'll build a "catalog" service.
 
 ```sh
 mkdir -p src/catalog
@@ -89,10 +89,10 @@ curl http://localhost:3000/products
 *Expect: `[{"id":1,"name":"Standard Decorator","price":99}]`*
 
 ### why this workflow?
-- **Explicit Wiring**: `@Inject(ProductService)` makes it immediately clear what a class depends on without hidden metadata magic.
+- **Explicit Wiring**: `@Inject(ProductService)` clarifies what a class depends on without hidden metadata magic.
 - **Slice Ownership**: All logic related to "Catalog" lives in one place, making it easier to maintain and scale.
 - **Standard-Ready**: This entire flow uses native TypeScript decorators that align with future ECMAScript standards.
 
 ### next steps
-- **Automate the Boilerplate**: Use `fluo g module catalog` to generate this entire structure in seconds. See [Generator Workflow](./generator-workflow.md).
+- **Automate the Boilerplate**: Use `fluo g module catalog` to generate this structure in seconds. See [Generator Workflow](./generator-workflow.md).
 - **Add Validation**: Learn how to use DTOs and `@fluojs/validation` for secure, type-safe inputs.

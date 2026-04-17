@@ -84,7 +84,7 @@
 | **마이크로서비스** | `@fluojs/microservices` |
 | **백그라운드 작업** | `@fluojs/queue` + `@fluojs/redis` |
 | **크론 / 스케줄링** | `@fluojs/cron` |
-| **알림 (Notifications)** | `@fluojs/notifications` |
+| **알림** | `@fluojs/notifications` |
 | **이메일 (Portable)** | `@fluojs/email` |
 | **이메일 (Node SMTP)** | `@fluojs/email/node` |
 | **슬랙 알림** | `@fluojs/slack` |

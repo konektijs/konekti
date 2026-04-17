@@ -53,7 +53,7 @@ fluo의 설계 철학과 그 이면의 "왜"와 "어떻게"를 이해합니다.
 
 ### 관찰 가능성
 
-- **[관찰 가능성 (Observability)](./concepts/observability.ko.md)**: 메트릭, 헬스 체크, 트레이싱을 위한 내장 패턴.
+- **[관찰 가능성](./concepts/observability.ko.md)**: 메트릭, 헬스 체크, 트레이싱을 위한 내장 패턴.
 
 ## 🛠️ 운영 및 거버넌스
 

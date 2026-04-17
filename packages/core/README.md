@@ -10,7 +10,7 @@ Shared contracts, standard decorators, and metadata primitives that every fluo p
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Key Capabilities](#key-capabilities)
-- [Public API Overview](#public-api-overview)
+- [Public API](#public-api)
 - [Related Packages](#related-packages)
 - [Example Sources](#example-sources)
 

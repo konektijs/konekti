@@ -2,11 +2,11 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./bootstrap-paths.ko.md"><kbd>한국어</kbd></a></p>
 
-fluo is built on a **runtime-agnostic core**. This means you can write your business logic once and deploy it to virtually any TypeScript-capable environment using dedicated platform adapters.
+fluo is built on a **runtime-agnostic core**. You can write business logic once and deploy it to any TypeScript-capable environment using dedicated platform adapters.
 
-> This page describes the broader adapter ecosystem after bootstrapping. For the exact starter choices that `fluo new` scaffolds today, see the [fluo new support matrix](../reference/fluo-new-support-matrix.md).
+> This page describes the adapter ecosystem. For the exact starter choices in `fluo new`, see the [fluo new support matrix](../reference/fluo-new-support-matrix.md).
 
-### who this is for
+### target audience
 Developers moving beyond the local Fastify starter who need to target specific environments like Bun, Deno, or Edge functions.
 
 ### 1. the adapter pattern
@@ -23,11 +23,11 @@ const app = await FluoFactory.create(AppModule, {
 await app.listen();
 ```
 
-Switching runtimes is a one-line change — replace the adapter import and call, and everything else stays the same.
+Switching runtimes is a one-line change — replace the adapter import and call. Everything else stays the same.
 
 ### 2. standard node.js paths
 
-**Fastify** (`@fluojs/platform-fastify`) — the default and recommended path for Node.js. High performance and compatible with the vast Fastify plugin ecosystem.
+**Fastify** (`@fluojs/platform-fastify`) — the default recommended path for Node.js. High performance and compatible with the Fastify plugin ecosystem.
 
 ```ts
 import { createFastifyAdapter } from '@fluojs/platform-fastify';
@@ -37,7 +37,7 @@ const app = await FluoFactory.create(AppModule, {
 });
 ```
 
-**Express** (`@fluojs/platform-express`) — best for projects that rely heavily on legacy Express middleware.
+**Express** (`@fluojs/platform-express`) — best for projects that rely on legacy Express middleware.
 
 ```ts
 import { createExpressAdapter } from '@fluojs/platform-express';
@@ -47,7 +47,7 @@ const app = await FluoFactory.create(AppModule, {
 });
 ```
 
-**Raw Node** (`@fluojs/platform-nodejs`) — use this for the absolute lowest overhead on Node.js using native `http.createServer`.
+**Raw Node** (`@fluojs/platform-nodejs`) — use this for minimum overhead on Node.js using native `http.createServer`.
 
 ```ts
 import { createNodeAdapter } from '@fluojs/platform-nodejs';
@@ -70,7 +70,7 @@ const app = await FluoFactory.create(AppModule, {
 });
 ```
 
-**Deno** (`@fluojs/platform-deno`) — fully compatible with Deno's standard library and security model.
+**Deno** (`@fluojs/platform-deno`) — compatible with Deno's standard library and security model.
 
 ```ts
 import { createDenoAdapter } from '@fluojs/platform-deno';
@@ -81,7 +81,7 @@ const app = await FluoFactory.create(AppModule, {
 ```
 
 ### 4. edge & serverless
-For "zero-cold-start" environments, fluo provides specialized adapters that handle the specific fetch-event lifecycle of Edge runtimes.
+For "zero-cold-start" environments, fluo provides adapters that handle the fetch-event lifecycle of Edge runtimes.
 
 **Cloudflare Workers** (`@fluojs/platform-cloudflare-workers`) — integrated with the Workers environment and KV/Durable Objects.
 
@@ -95,7 +95,7 @@ export default app.handler;
 ```
 
 ### choosing your runtime
-The table below is an adapter ecosystem guide, not a list of current `fluo new` starter presets.
+The table below is an adapter ecosystem guide, not a list of current `fluo new` presets.
 
 | adapter | package | best for |
 | :--- | :--- | :--- |
@@ -107,7 +107,7 @@ The table below is an adapter ecosystem guide, not a list of current `fluo new` 
 | **Cloudflare** | `@fluojs/platform-cloudflare-workers` | Global edge distribution, zero-cold-start. |
 
 ### what stays the same across runtimes
-Your `AppModule`, controllers, services, DI wiring, guards, interceptors, and middleware all remain identical regardless of which adapter you choose. The adapter only changes the HTTP ingress layer — everything above it is portable.
+Your `AppModule`, controllers, services, DI wiring, guards, interceptors, and middleware all remain identical. The adapter only changes the HTTP ingress layer — everything above it is portable.
 
 ```ts
 // This module works on every runtime without modification
@@ -120,6 +120,6 @@ export class AppModule {}
 ```
 
 ### next steps
-- **Master the CLI**: See how the [Generator Workflow](./generator-workflow.md) works across all runtimes.
-- **Check starter reality first**: Review the [fluo new support matrix](../reference/fluo-new-support-matrix.md) before assuming an adapter already has a starter preset.
-- **Deep Dive**: Read the [Package Surface](../reference/package-surface.md) for a full matrix of available adapters and their capabilities.
+- **Master the CLI**: See how the [Generator Workflow](./generator-workflow.md) works across runtimes.
+- **Check starter reality**: Review the [fluo new support matrix](../reference/fluo-new-support-matrix.md) for available presets.
+- **Deep Dive**: Read the [Package Surface](../reference/package-surface.md) for a full matrix of adapters and capabilities.

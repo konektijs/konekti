@@ -6,15 +6,15 @@ A secure backend is built in layers. fluo provides transport-level security midd
 
 ## Why Security Middleware in fluo?
 
-- **Defense in Depth**: Protect your application at the earliest stage of the request journey, before any expensive business logic or database queries are executed.
-- **Consistent Protection**: Apply security headers (CORS, CSP, HSTS, etc.) globally across all routes with a single configuration, ensuring no "shadow endpoints" are left vulnerable.
-- **Granular Throttling**: Combine broad IP-based rate limiting with specific, user-driven limits (e.g., "Max 5 password resets per hour") using decorators.
+- **Defense in Depth**: Protect your application at the earliest stage of the request journey, before expensive business logic or database queries are executed.
+- **Consistent Protection**: Apply security headers like CORS, CSP, or HSTS globally across all routes with a single configuration, ensuring no vulnerable "shadow endpoints" remain.
+- **Granular Throttling**: Combine broad IP-based rate limiting with specific, user-driven limits like "Max 5 password resets per hour" using decorators.
 - **Platform Agnostic**: Our security middleware works across Fastify, Node.js, Bun, and Deno, providing the same protection regardless of your deployment target.
 
 ## Responsibility Split
 
-- **`@fluojs/http` (Infrastructure Protection)**: Contains core middleware like `createCorsMiddleware`, `RateLimitMiddleware`, and security header injectors. These provide a baseline "shield" for the entire application.
-- **`@fluojs/throttler` (Application Protection)**: A more refined system for logic-driven limits. It uses decorators to protect specific methods and can store hit counts in shared Redis instances.
+- **`@fluojs/http` (Infrastructure Protection)**: Contains core middleware like `createCorsMiddleware`, `RateLimitMiddleware`, and security header injectors. These provide a baseline shield for the entire application.
+- **`@fluojs/throttler` (Application Protection)**: A refined system for logic-driven limits. It uses decorators to protect specific methods and can store hit counts in shared Redis instances.
 - **`@fluojs/passport` (Identity Protection)**: Manages the authentication layer, ensuring that security middleware can differentiate between anonymous and authenticated traffic.
 
 ## Typical Workflows
@@ -48,9 +48,9 @@ fluo ensures every response carries the necessary metadata to instruct the brows
 ## Core Boundaries
 
 - **Transport vs. Application**: 
-  - **Middleware** (Transport) is fast and stops malicious traffic early (e.g., DDoS protection).
-  - **Interceptors/Decorators** (Application) are smart and understand the user's identity and intent.
-- **Stateless by Default**: Rate limiting in the HTTP package is memory-based (stateless per instance). For distributed environments, you **must** use the Redis-backed `@fluojs/throttler`.
+  - **Middleware** (Transport) is fast and stops malicious traffic early like DDoS protection.
+  - **Interceptors/Decorators** (Application) are smart and understand user identity and intent.
+- **Stateless by Default**: Rate limiting in the HTTP package is memory-based. For distributed environments, you **must** use the Redis-backed `@fluojs/throttler`.
 - **The "Fail-Fast" Rule**: Security checks always run before validation and business logic. A throttled request never hits your service code.
 
 ## Next Steps

@@ -2,7 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./openapi.ko.md"><kbd>한국어</kbd></a></p>
 
-Documentation should never be an afterthought. fluo provides automated **OpenAPI 3.1.0** document generation by aggregating metadata from your HTTP routes, validation rules, and security configurations—keeping your API spec and implementation in perfect sync.
+Documentation should never be an afterthought. fluo provides automated **OpenAPI 3.1.0** document generation by aggregating metadata from your HTTP routes, validation rules, and security configurations—keeping your API spec and implementation in sync.
 
 ## Why OpenAPI in fluo?
 
@@ -61,7 +61,7 @@ The generated document is exposed at runtime:
 
 - **Startup-Only Overhead**: Document generation happens once during the application bootstrap. It has zero impact on request-time performance.
 - **Standard Decorators**: Like the rest of fluo, the OpenAPI system uses TC39 standard decorators, avoiding legacy compiler flags.
-- **Security-First**: Documenting auth requirements (JWT, API Keys) is handled via explicit `@ApiBearerAuth()` decorators to ensure your security posture is clearly communicated.
+- **Security-First**: Documenting auth requirements like JWT or API keys is handled via explicit `@ApiBearerAuth()` decorators to ensure your security posture is clearly communicated.
 
 ## Next Steps
 

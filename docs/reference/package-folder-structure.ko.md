@@ -1,6 +1,6 @@
-# package folder structure (패키지 폴더 구조)
+# package folder structure
 
-<p><a href="./package-folder-structure.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
+<p><strong><kbd>한국어</kbd></strong> <a href="./package-folder-structure.md"><kbd>English</kbd></a></p>
 
 이 참조 가이드는 fluo 모노레포 내 패키지들의 표준 폴더 구조를 정의합니다. `packages/` 내의 모든 패키지는 일관성과 유지보수성을 위해 이 규칙을 따라야 합니다.
 

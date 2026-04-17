@@ -45,7 +45,9 @@ fluo는 엄격한 **유의적 버전(Semantic Versioning, Semver)**을 따릅니
 ### 0.x 단계 (안정화 전)
 `0.x` 단계에서는 **Minor** 버전이 파괴적 변경을 위해 사용됩니다. `0.x` 마이너 릴리스의 모든 파괴적 변경은 반드시 `CHANGELOG.md`에 마이그레이션 노트를 동반해야 합니다.
 
-## intended publish surface
+---
+
+## 의도된 배포 범위 (Intended Publish Surface)
 
 - `@fluojs/cache-manager`
 - `@fluojs/cli`
@@ -94,7 +96,7 @@ fluo는 엄격한 **유의적 버전(Semantic Versioning, Semver)**을 따릅니
 거버넌스는 자동화된 게이트와 수동 체크리스트를 통해 강제됩니다.
 
 ### CI/CD 강제 사항
-- **`pnpm verify:release-readiness`**: 기본적으로 `CHANGELOG.md`나 release-readiness summary 파일을 변경하지 않고 패키징된 CLI 엔트리포인트, 스타터 스캐폴딩, intended public package manifest dependency range를 검증합니다. canonical release gate의 full-suite 테스트 단계는 main 브랜치 CI의 split workspace Vitest 모델(`pnpm vitest run --project packages`, `apps`, `examples`, `tooling`)을 그대로 재사용하며, monolithic `pnpm test` 경로로 조용히 되돌아가지 않습니다. 또한 release evidence와 contract-governing 문서를 항상 동기화하기 위해 companion documentation/governance gate인 **`pnpm verify:platform-consistency-governance`**를 함께 전제로 둡니다. CI 전용 단건 publish 모드에서는 `--target-package`, `--target-version`, `--dist-tag`를 함께 넘겨 요청한 패키지의 intended publish surface 소속 여부, semver/dist-tag의 프리릴리즈 정합성, 그리고 publish 가능한 내부 `@fluojs/*` dependency shape를 같은 canonical gate에서 강제합니다.
+- **`pnpm verify:release-readiness`**: 기본적으로 `CHANGELOG.md`나 release-readiness summary 파일을 변경하지 않고 패키징된 CLI 엔트리포인트, 스타터 스캐폴딩, 의도된 배포 범위(Intended Publish Surface)의 패키지 매니페스트 의존성 범위를 검증합니다. canonical release gate의 full-suite 테스트 단계는 main 브랜치 CI의 split workspace Vitest 모델(`pnpm vitest run --project packages`, `apps`, `examples`, `tooling`)을 그대로 재사용하며, monolithic `pnpm test` 경로로 조용히 되돌아가지 않습니다. 또한 release evidence와 contract-governing 문서를 항상 동기화하기 위해 companion documentation/governance gate인 **`pnpm verify:platform-consistency-governance`**를 함께 전제로 둡니다. CI 전용 단건 publish 모드에서는 `--target-package`, `--target-version`, `--dist-tag`를 함께 넘겨 요청한 패키지의 의도된 배포 범위(Intended Publish Surface) 소속 여부, semver/dist-tag의 프리릴리즈 정합성, 그리고 publish 가능한 내부 `@fluojs/*` dependency shape를 같은 canonical gate에서 강제합니다.
 - **`.github/workflows/release-single-package.yml`**: 신뢰된 단건 npm publish를 위한 수동 GitHub Actions 진입점입니다. `package_name`, `package_version`, `dist_tag`, `release_prerelease`를 입력으로 받고, canonical `pnpm verify:release-readiness --target-package --target-version --dist-tag` 게이트를 통과한 뒤에만 git tag와 GitHub Release를 생성합니다.
 - **Supervised Release Orchestration**: 릴리스는 `supervised-auto` 정책을 따릅니다. CI 워크플로가 publish 및 태그 생성을 자동화하지만, 리포지토리의 일관성을 위해 최종 리뷰, 머지 및 정리 작업은 중앙 supervisor가 처리합니다.
 - **`pnpm generate:release-readiness-drafts`**: 릴리스 노트를 준비할 때 release-readiness summary 산출물과 `CHANGELOG.md` 드래프트 블록을 명시적으로 갱신합니다.
@@ -123,7 +125,7 @@ GitHub의 **Actions** > **Release single package**로 이동하여 **Run workflo
 
 ### 3. 실행 및 중단 지점 (Stop Points)
 워크플로는 다음 단계를 순차적으로 실행합니다.
-1. **검증**: 입력값으로 `pnpm verify:release-readiness`를 실행합니다. 패키지가 intended publish surface에 없거나 버전/태그가 일치하지 않으면 실패합니다.
+1. **검증**: 입력값으로 `pnpm verify:release-readiness`를 실행합니다. 패키지가 의도된 배포 범위(Intended Publish Surface)에 없거나 버전/태그가 일치하지 않으면 실패합니다.
 2. **Publish**: OIDC를 통해 npm에 배포합니다 (provenance 활성화). **배포에 실패하면 워크플로가 중단됩니다.**
 3. **태깅**: git 태그(예: `@fluojs/cli@0.1.0`)를 생성하고 푸시합니다.
 4. **GitHub Release**: 릴리스 요약 산출물(summary artifact)과 changelog 노트를 포함한 릴리스를 생성합니다.

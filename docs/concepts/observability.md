@@ -2,14 +2,14 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./observability.ko.md"><kbd>한국어</kbd></a></p>
 
-You cannot manage what you cannot measure. fluo provides a unified observability model that integrates **logging**, **Prometheus metrics**, **health checks**, and **request correlation** into a single, cohesive operations strategy.
+You cannot manage what you cannot measure. fluo provides a unified observability model that integrates **logging**, **Prometheus metrics**, **health checks**, and **request correlation** into a single cohesive operations strategy.
 
 ## Why Observability in fluo?
 
 - **Unified Context**: Every log entry, metric, and trace is tied together by a consistent `X-Request-Id` that persists across asynchronous boundaries.
-- **Production-Ready by Default**: With a few lines of code, your application exposes `/health`, `/ready`, and `/metrics` endpoints compatible with industry-standard tooling (Kubernetes, Prometheus, Grafana).
-- **Explicit Metrics Boundary**: Metrics scraping is easy to turn on, but production deployments should still make the scrape boundary explicit with route-scoped protection or `path: false` until a protected ingress path exists.
-- **Safe Cardinality**: Automatic path normalization (e.g., `/users/123` -> `/users/:id`) prevents "label explosion" in your metrics, ensuring your observability stack stays stable under high load.
+- **Production-Ready by Default**: With a few lines of code, your application exposes `/health`, `/ready`, and `/metrics` endpoints compatible with industry-standard tooling like Kubernetes, Prometheus, or Grafana.
+- **Explicit Metrics Boundary**: Metrics scraping is easy to turn on, but production deployments should make the scrape boundary explicit with route-scoped protection or `path: false` until a protected ingress path exists.
+- **Safe Cardinality**: Automatic path normalization like `/users/123` to `/users/:id` prevents "label explosion" in metrics, ensuring your observability stack stays stable under high load.
 - **Graceful Lifecycle**: Integration with **Terminus** ensures that your application shuts down cleanly, finishing in-flight requests and closing database connections before exiting.
 
 ## Responsibility Split
@@ -64,7 +64,7 @@ TerminusModule.forRoot({
   - `/ready` (Readiness): If this fails, the load balancer stops sending traffic to this instance.
 - **Label Hygiene**: Never use raw user IDs or unique tokens in metric labels. Always use templates or normalized categories to keep your metrics storage efficient.
 - **Metrics Endpoint Exposure**: Treat `/metrics` as an operational surface, not a public business endpoint. Protect it with explicit middleware or keep it disabled until your network boundary is in place.
-- **Async Safety**: Correlation IDs rely on `AsyncLocalStorage`. Avoid breaking the async chain (e.g., using `setTimeout` without wrapping) to ensure IDs are not lost.
+- **Async Safety**: Correlation IDs rely on `AsyncLocalStorage`. Avoid breaking the async chain like using `setTimeout` without wrapping to ensure IDs are not lost.
 
 ## Next Steps
 

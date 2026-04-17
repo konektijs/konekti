@@ -109,6 +109,8 @@ We believe in **Behavioral Contracts**. Every package in this repo follows stric
 - [Release Governance](./docs/operations/release-governance.md)
 - [Behavioral Contract Policy](./docs/operations/behavioral-contract-policy.md)
 - [Contributing](./CONTRIBUTING.md)
+- [Support](./SUPPORT.md)
+- [Security](./SECURITY.md)
 
 ---
 <p align="center">

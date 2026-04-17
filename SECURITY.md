@@ -1,5 +1,11 @@
 # security policy
 
+<p align="center">
+  <a href="./SECURITY.md">English</a>
+  &nbsp;&middot;&nbsp;
+  <a href="./SECURITY.ko.md">한국어</a>
+</p>
+
 fluo uses private reporting for suspected vulnerabilities whenever possible.
 
 ## reporting a vulnerability

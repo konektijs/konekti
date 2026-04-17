@@ -130,7 +130,7 @@ await app.close();
 ### 1. 검증 체크리스트
 - [ ] 로컬에서 `pnpm verify`를 실행하여 통과했는지 확인하십시오.
 - [ ] public export가 TSDoc 기준을 따르는지 확인하십시오 (`pnpm lint`에 의해 검증됨).
-- [ ] `pnpm verify:release-readiness`를 실행하여 intended publish surface에 대한 오류가 없는지 확인하십시오.
+- [ ] `pnpm verify:release-readiness`를 실행하여 의도된 배포 범위(Intended Publish Surface)에 대한 오류가 없는지 확인하십시오.
 
 로컬에서 release readiness를 검증할 때도 full-suite 테스트 단계는 CI의 split workspace 모델과 일치해야 합니다. canonical `pnpm vitest run --project packages|apps|examples|tooling` 순서를 monolithic `pnpm test`로 대체하면 #1141에서 분리한 동일한 worker-timeout 실패 경로를 release gate가 다시 들여오게 됩니다.
 
@@ -142,7 +142,7 @@ pnpm verify:release-readiness --target-package <package_name> --target-version <
 ```
 
 이 관문은 다음을 보장합니다:
-1. 패키지가 **intended publish surface** 내에 있는지 확인합니다.
+1. 패키지가 **의도된 배포 범위(Intended Publish Surface)** 내에 있는지 확인합니다.
 2. 내부 `@fluojs/*` 의존성 범위가 배포에 안전한지 확인합니다 (canonical `workspace:^` 형태).
 3. 버전과 `dist-tag`가 올바르게 일치하는지 확인합니다 (예: `next` 태그에 안정 버전을 배포하지 않음).
 

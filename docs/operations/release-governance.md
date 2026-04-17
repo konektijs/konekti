@@ -45,7 +45,9 @@ fluo follows strict **Semantic Versioning (Semver)**.
 ### 0.x Phase (Pre-Stable)
 During the `0.x` phase, the **Minor** version is used for breaking changes. Every breaking change in a `0.x` minor release MUST be accompanied by a migration note in the `CHANGELOG.md`.
 
-## intended publish surface
+---
+
+## Intended Publish Surface
 
 - `@fluojs/cache-manager`
 - `@fluojs/cli`
@@ -94,7 +96,7 @@ During the `0.x` phase, the **Minor** version is used for breaking changes. Ever
 Governance is enforced through automated gates and manual checklists.
 
 ### CI/CD Enforcement
-- **`pnpm verify:release-readiness`**: Validates the packed CLI entrypoints, starter scaffolding, and intended public package manifest dependency ranges without mutating `CHANGELOG.md` or release-readiness summary files by default. Its canonical release gate reuses the split workspace Vitest model from main-branch CI (`pnpm vitest run --project packages`, `apps`, `examples`, and `tooling`) so release readiness does not silently regress to a monolithic `pnpm test` path. It also relies on **`pnpm verify:platform-consistency-governance`** as the companion documentation/governance gate so release evidence and contract-governing docs stay synchronized. In CI-only single-package publish mode, pass `--target-package`, `--target-version`, and `--dist-tag` to enforce intended publish surface membership, semver/dist-tag prerelease alignment, and publish-safe internal `@fluojs/*` dependency shape for the requested package.
+- **`pnpm verify:release-readiness`**: Validates the packed CLI entrypoints, starter scaffolding, and Intended Publish Surface package manifest dependency ranges without mutating `CHANGELOG.md` or release-readiness summary files by default. Its canonical release gate reuses the split workspace Vitest model from main-branch CI (`pnpm vitest run --project packages`, `apps`, `examples`, and `tooling`) so release readiness does not silently regress to a monolithic `pnpm test` path. It also relies on **`pnpm verify:platform-consistency-governance`** as the companion documentation/governance gate so release evidence and contract-governing docs stay synchronized. In CI-only single-package publish mode, pass `--target-package`, `--target-version`, and `--dist-tag` to enforce Intended Publish Surface membership, semver/dist-tag prerelease alignment, and publish-safe internal `@fluojs/*` dependency shape for the requested package.
 - **`.github/workflows/release-single-package.yml`**: Manual GitHub Actions entrypoint for trusted single-package npm publishing. It accepts `package_name`, `package_version`, `dist_tag`, and `release_prerelease`, runs the canonical `pnpm verify:release-readiness --target-package --target-version --dist-tag` gate, then creates the git tag and GitHub Release only after npm publish succeeds.
 - **Supervised Release Orchestration**: Releases follow a `supervised-auto` policy. While the CI workflow automates the publish and tag creation, the central supervisor handles final review, merge, and cleanup boundaries to ensure repository consistency.
 - **`pnpm generate:release-readiness-drafts`**: Explicitly refreshes the release-readiness summary artifacts and the draft `CHANGELOG.md` block when maintainers are preparing release notes.
@@ -123,7 +125,7 @@ Navigate to **Actions** > **Release single package** in GitHub and click **Run w
 
 ### 3. Execution & Stop Points
 The workflow executes the following steps sequentially:
-1. **Validation**: Runs `pnpm verify:release-readiness` with the provided inputs. Fails if the package is not in the intended publish surface or if versioning/tags are inconsistent.
+1. **Validation**: Runs `pnpm verify:release-readiness` with the provided inputs. Fails if the package is not in the Intended Publish Surface or if versioning/tags are inconsistent.
 2. **Publish**: Publishes to npm via OIDC (provenance enabled). **If this fails, the workflow stops.**
 3. **Tagging**: Creates and pushes a git tag (e.g., `@fluojs/cli@0.1.0`).
 4. **GitHub Release**: Generates a release with the current-run release summary artifact and changelog notes.

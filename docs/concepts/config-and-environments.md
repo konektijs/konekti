@@ -2,16 +2,16 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./config-and-environments.ko.md"><kbd>한국어</kbd></a></p>
 
-fluo treats configuration as **validated runtime data** rather than a collection of ambient environment variables. By enforcing explicit loading, strict validation, and typed access, we ensure your application's behavior is predictable across every environment.
+fluo treats configuration as **validated runtime data** rather than a collection of environment variables. By enforcing explicit loading, strict validation, and typed access, we ensure your application behavior is predictable across every environment.
 
 ## why this matters
 
 "Ambient" configuration—scattering `process.env.DB_URL` throughout your codebase—is a major source of production instability.
-- **Hidden Dependencies**: You don't know which environment variables your app actually needs until it crashes in production.
-- **Type Uncertainty**: `process.env` values are always strings. Forgetting to parse a `PORT` as a number or a `DEBUG` flag as a boolean leads to subtle, hard-to-trace bugs.
+- **Hidden Dependencies**: You don't know which environment variables your app needs until it crashes in production.
+- **Type Uncertainty**: `process.env` values are always strings. Forgetting to parse a `PORT` as a number or a `DEBUG` flag as a boolean leads to subtle bugs.
 - **Testing Friction**: Mocking global `process.env` in unit tests is messy and can lead to side effects between test suites.
 
-fluo solves these issues by creating a **Config Boundary**. All configuration must pass through a validation gate before it ever reaches your application logic.
+fluo solves these issues by creating a **Config Boundary**. All configuration must pass through a validation gate before it reaches your application logic.
 
 ## core ideas
 
@@ -21,18 +21,18 @@ fluo does not automatically scan your system for environment variables. You must
 - A static JSON or YAML configuration.
 - A filtered subset of `process.env`.
 
-This explicitness makes your application "hermetic"—it only knows what you've told it to know, making it highly portable and easy to test.
+This explicitness makes your application "hermetic"—it only knows what you've told it, making it portable and easy to test.
 
 ### early validation gate
 The application will **refuse to start** if its configuration is invalid.
-- **Schema-Driven**: You define the "shape" of your config (e.g., using a validation library).
+- **Schema-Driven**: You define the "shape" of your config using a validation library.
 - **Fail-Fast**: Missing keys, incorrect types, or out-of-range values are caught at the very first line of code execution. This prevents "half-booted" applications that fail only when a specific service is called.
 
 ### the `ConfigService` boundary
 Within your application, you never access external environment variables. Instead, you inject the `ConfigService`.
 - **Typed Access**: `config.get<number>('port')` ensures you're working with the correct data type.
 - **Safe Defaults**: You can define fallback values in code that are only used if the environment doesn't provide them.
-- **Secret Masking**: The `ConfigService` can be configured to mask sensitive values (like API keys) when logging the application state.
+- **Secret Masking**: The `ConfigService` can mask sensitive values like API keys when logging the application state.
 
 ## loading precedence
 

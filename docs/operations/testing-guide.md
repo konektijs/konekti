@@ -130,7 +130,7 @@ Maintainers must ensure verification passes before triggering automated releases
 ### 1. Verification Checklist
 - [ ] `pnpm verify` passes locally.
 - [ ] Public exports follow TSDoc baseline (verified by `pnpm lint`).
-- [ ] `pnpm verify:release-readiness` returns no errors for the intended publish surface.
+- [ ] `pnpm verify:release-readiness` returns no errors for the Intended Publish Surface.
 
 When you are validating release readiness locally, keep the full-suite test phase aligned with CI's split workspace model. Do not replace the canonical `pnpm vitest run --project packages|apps|examples|tooling` sequence with a monolithic `pnpm test`, or the release gate will reintroduce the same worker-timeout failure mode that #1141 split apart.
 
@@ -142,7 +142,7 @@ pnpm verify:release-readiness --target-package <package_name> --target-version <
 ```
 
 This gate ensures:
-1. The package is within the **intended publish surface**.
+1. The package is within the **Intended Publish Surface**.
 2. Its internal `@fluojs/*` dependency ranges are publish-safe (canonical `workspace:^` shape).
 3. The version and `dist-tag` are correctly aligned (e.g., no stable release on a `next` tag).
 

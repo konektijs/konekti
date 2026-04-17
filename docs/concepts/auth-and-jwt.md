@@ -2,14 +2,14 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./auth-and-jwt.ko.md"><kbd>한국어</kbd></a></p>
 
-Authentication in fluo is built on a "strategy-agnostic" execution model. Instead of hardcoding auth logic into your routes, fluo separates identity verification from route protection, allowing your application to scale across multiple authentication methods and runtimes (Node.js, Bun, Deno) without changing your business logic.
+Authentication in fluo is built on a "strategy-agnostic" execution model. Instead of hardcoding auth logic into routes, fluo separates identity verification from route protection, allowing your application to scale across multiple authentication methods and runtimes like Node.js, Bun, or Deno without changing your business logic.
 
 ## Why fluo's Approach?
 
 - **Standard Decorators**: Use standard TC39 decorators like `@UseAuth()` and `@RequireScopes()` for a clean, metadata-driven security posture.
 - **Principal Normalization**: Whether you use JWT, Session Cookies, or API Keys, your application always interacts with a consistent `principal` object.
 - **Multi-Runtime Safety**: The auth core is transport-agnostic, making it safe for HTTP, WebSockets, and even CLI-driven execution.
-- **Explicit Scopes**: Built-in support for scope-based authorization (RBAC/Scopes) directly at the route level.
+- **Explicit Scopes**: Built-in support for scope-based authorizationdirectly at the route level.
 
 ## Responsibility Split
 
@@ -145,7 +145,7 @@ The custom strategy manually extracts the token from the request headers and del
 fluo provides a built-in `RefreshTokenService` that implements **One-Time-Use Rotation**. When a user refreshes their session:
 - The old refresh token is invalidated.
 - A new access/refresh token pair is issued.
-- If an old refresh token is reused (Replay Attack), the entire token family can be revoked automatically, protecting your users from stolen credentials.
+- If an old refresh token is reused, the entire token family can be revoked automatically, protecting your users from stolen credentials.
 
 For application module registration, treat `JwtModule.forRoot(...)` and `JwtModule.forRootAsync(...)` as the canonical `@fluojs/jwt` entrypoints.
 
