@@ -1,0 +1,40 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`@fluojs/websockets public surface > keeps runtime subpaths focused on explicit module and lifecycle exports > runtime-subpaths 1`] = `
+{
+  "bun": [
+    "BunWebSocketGatewayLifecycleService",
+    "BunWebSocketModule",
+  ],
+  "cloudflare-workers": [
+    "CloudflareWorkersWebSocketGatewayLifecycleService",
+    "CloudflareWorkersWebSocketModule",
+  ],
+  "deno": [
+    "DenoWebSocketGatewayLifecycleService",
+    "DenoWebSocketModule",
+  ],
+  "node": [
+    "NodeWebSocketGatewayLifecycleService",
+    "NodeWebSocketModule",
+  ],
+}
+`;
+
+exports[`@fluojs/websockets public surface > keeps the documented root barrel focused on module-first registration > root 1`] = `
+[
+  "OnConnect",
+  "OnDisconnect",
+  "OnMessage",
+  "WebSocketGateway",
+  "WebSocketGatewayLifecycleService",
+  "WebSocketModule",
+  "defineWebSocketGatewayMetadata",
+  "defineWebSocketHandlerMetadata",
+  "getWebSocketGatewayMetadata",
+  "getWebSocketHandlerMetadata",
+  "getWebSocketHandlerMetadataEntries",
+  "webSocketGatewayMetadataSymbol",
+  "webSocketHandlerMetadataSymbol",
+]
+`;

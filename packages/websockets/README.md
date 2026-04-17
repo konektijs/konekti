@@ -26,6 +26,8 @@ Use this package to add real-time WebSocket capabilities to your fluo applicatio
 
 ## Quick Start
 
+`WebSocketModule.forRoot(...)` is the supported root registration surface when you want the default Node.js-backed websocket runtime from `@fluojs/websockets`. Low-level provider-composition helpers are internal implementation details and are not part of the documented root public API.
+
 ```typescript
 import { WebSocketGateway, OnConnect, OnMessage } from '@fluojs/websockets';
 import { NodeWebSocketModule } from '@fluojs/websockets/node';
@@ -110,8 +112,12 @@ When omitted, `@fluojs/websockets` now applies bounded defaults for concurrent c
 - `@OnDisconnect()`: Decorator for disconnection handlers.
 - `WebSocketModule`: Root module for WebSocket integration.
 - `WebSocketModule.forRoot({ upgrade, limits, heartbeat, ... })`: Configures pre-upgrade guards and bounded runtime defaults.
+- `WebSocketGatewayLifecycleService`: Root alias for the default Node.js-backed lifecycle service token.
+- The root barrel intentionally stays module-first: use `WebSocketModule.forRoot(...)` for package-level registration, and treat provider-assembly helpers as internal rather than supported root exports.
 
 ## Runtime-Specific Subpaths
+
+Use the runtime subpaths when you want an explicit runtime binding instead of the default root Node.js alias. Each subpath supports its `*WebSocketModule.forRoot(...)` entrypoint plus the matching runtime lifecycle service export. Low-level `create*WebSocketProviders(...)` helpers are internal wiring details and are not part of the supported public contract.
 
 | Runtime | Subpath | Module |
 | --- | --- | --- |
@@ -123,5 +129,6 @@ When omitted, `@fluojs/websockets` now applies bounded defaults for concurrent c
 ## Example Sources
 
 - `packages/websockets/src/module.test.ts`
+- `packages/websockets/src/public-surface.test.ts`
 - `packages/websockets/src/node/node.test.ts`
 - `packages/websockets/src/bun/bun.test.ts`

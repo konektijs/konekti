@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { Inject } from '@fluojs/core';
+import { getModuleMetadata } from '@fluojs/core/internal';
 import type { HttpApplicationAdapter } from '@fluojs/http';
 import { bootstrapApplication, defineModule } from '@fluojs/runtime';
 
 import { OnConnect, OnDisconnect, OnMessage, WebSocketGateway } from '../decorators.js';
 import * as denoPublicApi from './deno.js';
 import {
-  createDenoWebSocketProviders,
   DenoWebSocketGatewayLifecycleService,
   DenoWebSocketModule,
   type DenoServerWebSocket,
@@ -217,16 +217,16 @@ describe('@fluojs/websockets/deno', () => {
   it('exposes the explicit Deno websocket seam', () => {
     expect(denoPublicApi).toHaveProperty('DenoWebSocketModule');
     expect(denoPublicApi).toHaveProperty('DenoWebSocketGatewayLifecycleService');
-    expect(denoPublicApi).toHaveProperty('createDenoWebSocketProviders');
+    expect(denoPublicApi).not.toHaveProperty('createDenoWebSocketProviders');
   });
 
   it('wires the Deno lifecycle service through Deno-only providers', () => {
     const options = {
       shutdown: { timeoutMs: 1234 },
     };
-    const providers = createDenoWebSocketProviders(options);
+    const providers = getModuleMetadata(DenoWebSocketModule.forRoot(options))?.providers ?? [];
     const optionsProvider = providers.find(
-      (provider) => typeof provider === 'object' && provider !== null && 'useValue' in provider,
+      (provider: unknown) => typeof provider === 'object' && provider !== null && 'useValue' in provider,
     );
 
     expect(providers).toContain(DenoWebSocketGatewayLifecycleService);
