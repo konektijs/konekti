@@ -26,36 +26,7 @@ function createStrategyRegistry(strategies: AuthStrategyRegistration[]): AuthStr
 
 type PassportModuleType = ModuleType;
 
-/**
- * Creates the provider set that wires passport options, strategy registry, and
- * the public {@link AuthGuard} into one module-friendly bundle.
- *
- * @remarks
- * Strategy names must be unique within the provided registration list. Prefer
- * {@link PassportModule.forRoot} for the canonical module-first API, and use
- * this helper when you need lower-level provider composition inside an
- * existing module definition.
- *
- * @example
- * ```ts
- * @Module({
- *   providers: [
- *     JwtStrategy,
- *     ...createPassportProviders(
- *       { defaultStrategy: 'jwt' },
- *       [{ name: 'jwt', token: JwtStrategy }],
- *     ),
- *   ],
- * })
- * export class AuthModule {}
- * ```
- *
- * @param options Module-level auth defaults such as `defaultStrategy`.
- * @param strategies Named strategy registrations exposed to `@UseAuth(...)` and the fallback default strategy.
- * @returns Providers for passport options, the strategy registry, and `AuthGuard`.
- * @throws {AuthStrategyResolutionError} When duplicate strategy names are registered.
- */
-export function createPassportProviders(
+function createPassportModuleProviders(
   options: PassportModuleOptions = {},
   strategies: AuthStrategyRegistration[] = [],
 ): Provider[] {
@@ -109,7 +80,7 @@ export class PassportModule {
 
     return defineModule(PassportRootModule, {
       exports: [AuthGuard],
-      providers: createPassportProviders(options, strategies),
+      providers: createPassportModuleProviders(options, strategies),
     });
   }
 }

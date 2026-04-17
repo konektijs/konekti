@@ -20,13 +20,7 @@ export interface CookieAuthPresetConfig {
   cookieManager?: CookieManagerConfig;
 }
 
-/**
- * Creates the providers required by the built-in cookie-auth preset.
- *
- * @param config Optional cookie strategy and cookie manager configuration.
- * @returns Provider definitions for `COOKIE_AUTH_OPTIONS`, `CookieAuthStrategy`, and `CookieManager`.
- */
-export function createCookieAuthProviders(config?: CookieAuthPresetConfig): Provider[] {
+function createCookieAuthPresetProviders(config?: CookieAuthPresetConfig): Provider[] {
   return [
     {
       provide: COOKIE_AUTH_OPTIONS,
@@ -64,7 +58,7 @@ export function createCookieAuthPreset(config?: CookieAuthPresetConfig): {
   strategy: AuthStrategyRegistration;
 } {
   return {
-    providers: createCookieAuthProviders(config),
+    providers: createCookieAuthPresetProviders(config),
     strategy: createCookieAuthStrategyRegistration(),
   };
 }
@@ -106,7 +100,7 @@ export class CookieAuthModule {
 
     return defineModule(CookieAuthRuntimeModule, {
       exports: [CookieAuthStrategy, CookieManager],
-      providers: createCookieAuthProviders(config),
+      providers: createCookieAuthPresetProviders(config),
     });
   }
 }
