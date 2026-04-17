@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { getModuleMetadata } from '@fluojs/core/internal';
+
 import { CACHE_OPTIONS, CACHE_STORE } from './tokens.js';
+import { CacheModule } from './module.js';
 import { MemoryStore } from './stores/memory-store.js';
 import type { NormalizedCacheModuleOptions } from './types.js';
 
@@ -28,6 +31,10 @@ afterEach(() => {
   vi.resetModules();
 });
 
+function getModuleProviders(options?: Parameters<typeof CacheModule.forRoot>[0]) {
+  return getModuleMetadata(CacheModule.forRoot(options))?.providers ?? [];
+}
+
 describe('optional Redis peer contract', () => {
   it('keeps the root barrel importable for memory-only consumers when Redis peers are absent', async () => {
     vi.doMock('@fluojs/redis', () => {
@@ -39,7 +46,7 @@ describe('optional Redis peer contract', () => {
     const cacheManagerPublicApi = await import('./index.js');
 
     expect(cacheManagerPublicApi).toHaveProperty('CacheModule');
-    expect(cacheManagerPublicApi).toHaveProperty('createCacheProviders');
+    expect(cacheManagerPublicApi).not.toHaveProperty('createCacheProviders');
     expect(cacheManagerPublicApi).toHaveProperty('MemoryStore');
     expect(cacheManagerPublicApi).toHaveProperty('RedisStore');
   });
@@ -55,8 +62,7 @@ describe('optional Redis peer contract', () => {
       };
     });
 
-    const { createCacheProviders } = await import('./module.js');
-    const providers = createCacheProviders({ store: 'redis' });
+    const providers = getModuleProviders({ store: 'redis' });
     const optionsProvider = providers.find(isNormalizedOptionsProvider);
     const storeProvider = providers.find(isStoreFactoryProvider);
 
@@ -76,8 +82,7 @@ describe('optional Redis peer contract', () => {
       return {};
     });
 
-    const { createCacheProviders } = await import('./module.js');
-    const providers = createCacheProviders({ store: 'redis' });
+    const providers = getModuleProviders({ store: 'redis' });
     const optionsProvider = providers.find(isNormalizedOptionsProvider);
     const storeProvider = providers.find(isStoreFactoryProvider);
 
@@ -96,8 +101,7 @@ describe('optional Redis peer contract', () => {
       });
     });
 
-    const { createCacheProviders } = await import('./module.js');
-    const providers = createCacheProviders({ store: 'memory' });
+    const providers = getModuleProviders({ store: 'memory' });
     const optionsProvider = providers.find(isNormalizedOptionsProvider);
     const storeProvider = providers.find(isStoreFactoryProvider);
 
