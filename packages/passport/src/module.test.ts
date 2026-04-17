@@ -4,11 +4,24 @@ import { getModuleMetadata } from '@fluojs/core/internal';
 
 import { AuthStrategyResolutionError } from './errors.js';
 import { AuthGuard } from './guard.js';
-import { AUTH_STRATEGY_REGISTRY } from './internal-tokens.js';
-import { createPassportProviders, PassportModule } from './module.js';
+import { AUTH_STRATEGY_REGISTRY, PASSPORT_OPTIONS } from './internal-tokens.js';
+import { PassportModule } from './module.js';
 import type { AuthStrategy } from './types.js';
 
-describe('createPassportProviders', () => {
+function getPassportProviders(
+  options: Parameters<typeof PassportModule.forRoot>[0],
+  strategies: Parameters<typeof PassportModule.forRoot>[1],
+): NonNullable<ReturnType<typeof getModuleMetadata>['providers']> {
+  const metadata = getModuleMetadata(PassportModule.forRoot(options, strategies));
+
+  if (!metadata?.providers) {
+    throw new Error('Expected PassportModule.forRoot(...) to expose runtime providers.');
+  }
+
+  return metadata.providers;
+}
+
+describe('PassportModule.forRoot', () => {
   it('keeps registry and module options tokens internal to package wiring', async () => {
     const passport = await import('./index.js');
 
@@ -30,7 +43,7 @@ describe('createPassportProviders', () => {
     }
 
     expect(() =>
-      createPassportProviders(
+      PassportModule.forRoot(
         { defaultStrategy: 'jwt' },
         [
           { name: 'jwt', token: FirstStrategy },
@@ -47,13 +60,13 @@ describe('createPassportProviders', () => {
       }
     }
 
-    const providers = createPassportProviders(
+    const providers = getPassportProviders(
       { defaultStrategy: 'toString' },
       [{ name: 'toString', token: ToStringStrategy }],
     );
 
     const strategyRegistryProvider = providers.find(
-      (provider) =>
+      (provider: unknown) =>
         typeof provider === 'object'
         && provider !== null
         && 'provide' in provider
@@ -85,7 +98,7 @@ describe('createPassportProviders', () => {
     }
 
     expect(() =>
-      createPassportProviders(
+      PassportModule.forRoot(
         { defaultStrategy: 'toString' },
         [
           { name: 'toString', token: FirstStrategy },
@@ -94,9 +107,7 @@ describe('createPassportProviders', () => {
       ),
     ).toThrow(AuthStrategyResolutionError);
   });
-});
 
-describe('PassportModule', () => {
   it('creates a module-first runtime definition that exports AuthGuard', () => {
     class JwtStrategy implements AuthStrategy {
       async authenticate() {
@@ -112,9 +123,16 @@ describe('PassportModule', () => {
     const metadata = getModuleMetadata(moduleDefinition);
 
     expect(metadata?.exports).toContain(AuthGuard);
-    expect(metadata?.providers).toEqual(createPassportProviders(
-      { defaultStrategy: 'jwt' },
-      [{ name: 'jwt', token: JwtStrategy }],
-    ));
+    expect(metadata?.providers).toEqual([
+      {
+        provide: PASSPORT_OPTIONS,
+        useValue: { defaultStrategy: 'jwt' },
+      },
+      {
+        provide: AUTH_STRATEGY_REGISTRY,
+        useValue: { jwt: JwtStrategy },
+      },
+      AuthGuard,
+    ]);
   });
 });

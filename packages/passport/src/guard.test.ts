@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { getModuleMetadata } from '@fluojs/core/internal';
 import { Controller, Get, UnauthorizedException, createDispatcher, createHandlerMapping } from '@fluojs/http';
 import type { FrameworkRequest, FrameworkResponse, GuardContext } from '@fluojs/http';
 import { Container } from '@fluojs/di';
@@ -8,10 +9,23 @@ import { DefaultJwtVerifier } from '@fluojs/jwt';
 import { RequireScopes, UseAuth } from './decorators.js';
 import { AuthenticationExpiredError, AuthenticationFailedError, AuthenticationRequiredError } from './errors.js';
 import { AuthGuard } from './guard.js';
-import { createPassportProviders } from './module.js';
+import { PassportModule } from './module.js';
 import { createPassportJsStrategyBridge } from './adapters/passport-js.js';
 import { REFRESH_TOKEN_SERVICE, RefreshTokenStrategy, type RefreshTokenService } from './refresh/refresh-token.js';
 import type { AuthStrategy } from './types.js';
+
+function createPassportModuleProviders(
+  options: Parameters<typeof PassportModule.forRoot>[0],
+  strategies: Parameters<typeof PassportModule.forRoot>[1],
+): NonNullable<ReturnType<typeof getModuleMetadata>['providers']> {
+  const metadata = getModuleMetadata(PassportModule.forRoot(options, strategies));
+
+  if (!metadata?.providers) {
+    throw new Error('Expected PassportModule.forRoot(...) to expose runtime providers.');
+  }
+
+  return metadata.providers;
+}
 
 function createRequest(path: string, headers: FrameworkRequest['headers'] = {}): FrameworkRequest {
   return {
@@ -31,19 +45,19 @@ function createResponse(): FrameworkResponse & { body?: unknown } {
   return {
     committed: false,
     headers: {},
-    redirect(status, location) {
+    redirect(status: number, location: string) {
       this.setStatus(status);
       this.setHeader('Location', location);
       this.committed = true;
     },
-    send(body) {
+    send(body: unknown) {
       this.body = body;
       this.committed = true;
     },
-    setHeader(name, value) {
+    setHeader(name: string, value: string | string[]) {
       this.headers[name] = value;
     },
-    setStatus(code) {
+    setStatus(code: number) {
       this.statusCode = code;
       this.statusSet = true;
     },
@@ -77,7 +91,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       MockStrategy,
-      ...createPassportProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: MockStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: MockStrategy }]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -112,7 +126,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       ToStringStrategy,
-      ...createPassportProviders({ defaultStrategy: 'toString' }, [{ name: 'toString', token: ToStringStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'toString' }, [{ name: 'toString', token: ToStringStrategy }]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -144,7 +158,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       MissingCredentialsStrategy,
-      ...createPassportProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: MissingCredentialsStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: MissingCredentialsStrategy }]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -191,7 +205,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       ReadOnlyStrategy,
-      ...createPassportProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: ReadOnlyStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: ReadOnlyStrategy }]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -242,7 +256,7 @@ describe('AuthGuard', () => {
       ProtectedController,
       PassportLikeGoogleStrategy,
       ...googleBridge.providers,
-      ...createPassportProviders({ defaultStrategy: 'google' }, [googleBridge.strategy]),
+      ...createPassportModuleProviders({ defaultStrategy: 'google' }, [googleBridge.strategy]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -286,7 +300,7 @@ describe('AuthGuard', () => {
       ProtectedController,
       PassportLikeGoogleStrategy,
       ...googleBridge.providers,
-      ...createPassportProviders({ defaultStrategy: 'google' }, [googleBridge.strategy]),
+      ...createPassportModuleProviders({ defaultStrategy: 'google' }, [googleBridge.strategy]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -335,7 +349,7 @@ describe('AuthGuard', () => {
       ProtectedController,
       PassportLikeConcurrentStrategy,
       ...bridge.providers,
-      ...createPassportProviders({ defaultStrategy: 'google-concurrent' }, [bridge.strategy]),
+      ...createPassportModuleProviders({ defaultStrategy: 'google-concurrent' }, [bridge.strategy]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -389,7 +403,7 @@ describe('AuthGuard', () => {
       ProtectedController,
       PassportLikeMutableStateStrategy,
       ...bridge.providers,
-      ...createPassportProviders({ defaultStrategy: 'google-mutable' }, [bridge.strategy]),
+      ...createPassportModuleProviders({ defaultStrategy: 'google-mutable' }, [bridge.strategy]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -435,7 +449,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       BrokenHandledStrategy,
-      ...createPassportProviders({ defaultStrategy: 'broken' }, [{ name: 'broken', token: BrokenHandledStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'broken' }, [{ name: 'broken', token: BrokenHandledStrategy }]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -475,7 +489,7 @@ describe('AuthGuard', () => {
       LoginController,
       PassportLikeGoogleStrategy,
       ...googleBridge.providers,
-      ...createPassportProviders({ defaultStrategy: 'google' }, [googleBridge.strategy]),
+      ...createPassportModuleProviders({ defaultStrategy: 'google' }, [googleBridge.strategy]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: LoginController }]),
@@ -509,7 +523,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       FailingStrategy,
-      ...createPassportProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: FailingStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: FailingStrategy }]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -551,7 +565,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       ExpiredStrategy,
-      ...createPassportProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: ExpiredStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: ExpiredStrategy }]),
     );
     const dispatcher = createDispatcher({
       handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
@@ -595,7 +609,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       FailingStrategy,
-      ...createPassportProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: FailingStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: FailingStrategy }]),
     );
     const guardContext = {
       handler: {
@@ -643,7 +657,7 @@ describe('AuthGuard', () => {
     const root = new Container().register(
       ProtectedController,
       FailingStrategy,
-      ...createPassportProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: FailingStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'mock' }, [{ name: 'mock', token: FailingStrategy }]),
     );
     const guardContext = {
       handler: {
@@ -698,7 +712,7 @@ describe('AuthGuard', () => {
           verifyRefreshToken: async () => ({ claims: { sub: 'user-1' } }),
         },
       },
-      ...createPassportProviders({ defaultStrategy: 'refresh-token' }, [{ name: 'refresh-token', token: RefreshTokenStrategy }]),
+      ...createPassportModuleProviders({ defaultStrategy: 'refresh-token' }, [{ name: 'refresh-token', token: RefreshTokenStrategy }]),
     );
     const guardContext = {
       handler: {
