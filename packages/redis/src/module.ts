@@ -18,7 +18,7 @@ function getRedisLifecycleToken(name: string): symbol {
  * @param name Optional Redis client name for additional named registrations.
  * @returns Providers for the raw client token, the JSON-aware facade, and lifecycle hooks.
  */
-export function createRedisProviders(options: RedisModuleOptions, name?: string): Provider[] {
+function createRedisProviders(options: RedisModuleOptions, name?: string): Provider[] {
   const clientToken = getRedisClientToken(name);
 
   if (clientToken === REDIS_CLIENT) {

@@ -5,7 +5,6 @@ import * as redisPublicApi from './index.js';
 describe('@fluojs/redis public API surface', () => {
   it('keeps documented supported root-barrel exports', () => {
     expect(redisPublicApi).toHaveProperty('RedisModule');
-    expect(redisPublicApi).toHaveProperty('createRedisProviders');
     expect(redisPublicApi).toHaveProperty('RedisService');
     expect(redisPublicApi).toHaveProperty('createRedisPlatformStatusSnapshot');
     expect(redisPublicApi).toHaveProperty('REDIS_CLIENT');
@@ -16,6 +15,7 @@ describe('@fluojs/redis public API surface', () => {
   });
 
   it('does not expose internal lifecycle wiring values from the root barrel', () => {
+    expect(redisPublicApi).not.toHaveProperty('createRedisProviders');
     expect(redisPublicApi).not.toHaveProperty('RedisLifecycleService');
     expect(redisPublicApi).not.toHaveProperty('normalizeRedisClientName');
     expect(redisPublicApi).not.toHaveProperty('decodeRedisValue');
