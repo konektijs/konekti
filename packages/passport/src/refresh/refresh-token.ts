@@ -141,17 +141,7 @@ export class RefreshTokenStrategy implements AuthStrategy {
   }
 }
 
-/**
- * Creates alias providers that expose a refresh-token service under the shared token.
- *
- * @remarks
- * Prefer {@link RefreshTokenModule.forRoot} for the canonical module-first API,
- * and use this helper when you need to compose the alias provider directly.
- *
- * @param service DI token for the concrete refresh-token service implementation.
- * @returns Providers that bind the shared refresh-token token to the supplied service.
- */
-export function createRefreshTokenProviders(
+function createRefreshTokenAliasProviders(
   service: Token<RefreshTokenService>,
 ): Provider[] {
   return [
@@ -212,7 +202,7 @@ export class RefreshTokenModule {
 
     return defineModule(RefreshTokenRuntimeModule, {
       exports: [RefreshTokenStrategy, REFRESH_TOKEN_SERVICE],
-      providers: [RefreshTokenStrategy, ...createRefreshTokenProviders(service)],
+      providers: [RefreshTokenStrategy, ...createRefreshTokenAliasProviders(service)],
     });
   }
 }

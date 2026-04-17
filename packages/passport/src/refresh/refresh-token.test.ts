@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { getModuleMetadata } from '@fluojs/core/internal';
-import { Container } from '@fluojs/di';
+import { Container, type Provider } from '@fluojs/di';
 import type { DefaultJwtVerifier } from '@fluojs/jwt';
 import { JwtExpiredTokenError, JwtInvalidTokenError } from '@fluojs/jwt';
 
 import { AuthenticationExpiredError, AuthenticationFailedError, AuthenticationRequiredError } from '../errors.js';
-import { REFRESH_TOKEN_SERVICE, RefreshTokenModule, RefreshTokenStrategy, createRefreshTokenProviders, type RefreshTokenService } from './refresh-token.js';
+import { REFRESH_TOKEN_SERVICE, RefreshTokenModule, RefreshTokenStrategy, type RefreshTokenService } from './refresh-token.js';
 import type { AuthStrategyResult } from '../types.js';
 import type { GuardContext, RequestContext } from '@fluojs/http';
 
@@ -50,6 +50,20 @@ function createGuardContext(body?: Record<string, unknown>, headers?: Record<str
       } as unknown as RequestContext['container'],
     } as RequestContext,
   };
+}
+
+function getRefreshTokenModuleProviders(
+  service: Parameters<typeof RefreshTokenModule.forRoot>[0],
+): Provider[] {
+  const metadata = getModuleMetadata(RefreshTokenModule.forRoot(service)) as {
+    providers?: Provider[];
+  };
+
+  if (!Array.isArray(metadata.providers)) {
+    throw new Error('Expected RefreshTokenModule.forRoot(...) to expose runtime providers.');
+  }
+
+  return metadata.providers;
 }
 
 describe('RefreshTokenStrategy', () => {
@@ -290,7 +304,7 @@ describe('RefreshTokenService contract', () => {
     expect(service.revokeAllForSubject).toHaveBeenCalledWith('user-1');
   });
 
-  it('creates valid DI alias providers for shared refresh-token service access', async () => {
+  it('exposes the shared refresh-token service alias through RefreshTokenModule.forRoot(...)', async () => {
     class RefreshTokenServiceImpl implements RefreshTokenService {
       async issueRefreshToken(): Promise<string> {
         return 'refresh-token';
@@ -308,10 +322,11 @@ describe('RefreshTokenService contract', () => {
       async revokeAllForSubject(): Promise<void> {}
     }
 
-    const container = new Container().register(
-      RefreshTokenServiceImpl,
-      ...createRefreshTokenProviders(RefreshTokenServiceImpl),
-    );
+    const providers: Provider[] = getRefreshTokenModuleProviders(RefreshTokenServiceImpl);
+    const container = new Container();
+
+    container.register(RefreshTokenServiceImpl);
+    container.register(...providers);
 
     const byClass = await container.resolve(RefreshTokenServiceImpl);
     const bySharedToken = await container.resolve(REFRESH_TOKEN_SERVICE);
@@ -345,7 +360,10 @@ describe('RefreshTokenModule', () => {
     expect(metadata?.exports).toEqual([RefreshTokenStrategy, REFRESH_TOKEN_SERVICE]);
     expect(metadata?.providers).toEqual([
       RefreshTokenStrategy,
-      ...createRefreshTokenProviders(RefreshTokenServiceImpl),
+      {
+        provide: REFRESH_TOKEN_SERVICE,
+        useExisting: RefreshTokenServiceImpl,
+      },
     ]);
   });
 });
