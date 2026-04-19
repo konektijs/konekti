@@ -28,6 +28,8 @@ Use this package when deploying fluo applications to [Cloudflare Workers](https:
 
 The adapter binds each request lifecycle to `executionContext.waitUntil(...)` and keeps in-flight dispatches alive during `close()` so Worker shutdown does not drop active work mid-request.
 
+During application shutdown, the adapter stops accepting new ingress immediately and gives active HTTP handlers a bounded 10-second drain window before `close()` fails with a timeout instead of hanging indefinitely.
+
 ## Quick Start
 
 ### Standard Adapter Usage
