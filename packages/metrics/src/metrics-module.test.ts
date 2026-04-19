@@ -430,16 +430,20 @@ describe('MetricsModule', () => {
   });
 
   it('suppresses only missing platform shell registration errors during scrape refresh', async () => {
+    const missingPlatformShellError = new ContainerResolutionError(
+      `No provider registered for token ${String(PLATFORM_SHELL)}.`,
+      {
+        hint: 'Ensure the provider is registered in a module\'s providers array, or that the module exporting it is imported by the consuming module.',
+        token: PLATFORM_SHELL,
+      },
+    );
     const missingPlatformShellMiddleware = {
       async handle(context: MiddlewareContext, next: Next): Promise<void> {
         const originalResolve = context.requestContext.container.resolve.bind(context.requestContext.container);
 
         context.requestContext.container.resolve = (async (token: Parameters<typeof originalResolve>[0]) => {
           if (token === PLATFORM_SHELL) {
-            throw new ContainerResolutionError('No provider registered for token PLATFORM_SHELL.', {
-              hint: 'Ensure the provider is registered in a module\'s providers array, or that the module exporting it is imported by the consuming module.',
-              token: PLATFORM_SHELL,
-            });
+            throw missingPlatformShellError;
           }
 
           return await originalResolve(token);
@@ -473,7 +477,13 @@ describe('MetricsModule', () => {
   });
 
   it('surfaces unexpected platform shell resolution failures during scrape refresh', async () => {
-    const resolutionFailure = new Error('unexpected platform shell resolution failure');
+    const resolutionFailure = new ContainerResolutionError(
+      `Failed to resolve token ${String(PLATFORM_SHELL)} because the provider factory threw an unexpected error.`,
+      {
+        hint: 'Inspect the PLATFORM_SHELL provider registration and its factory dependencies.',
+        token: PLATFORM_SHELL,
+      },
+    );
     const unexpectedPlatformShellMiddleware = {
       async handle(context: MiddlewareContext, next: Next): Promise<void> {
         const originalResolve = context.requestContext.container.resolve.bind(context.requestContext.container);
@@ -504,6 +514,14 @@ describe('MetricsModule', () => {
     await app.dispatch(createRequest('/metrics'), response);
 
     expect(response.statusCode).toBe(500);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          message: 'Internal server error.',
+          status: 500,
+        }),
+      }),
+    );
 
     await app.close();
   });
