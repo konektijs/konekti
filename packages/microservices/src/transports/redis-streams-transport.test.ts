@@ -570,6 +570,56 @@ describe('RedisStreamsMicroserviceTransport', () => {
     expect(bus.getStreamNames()).not.toContain(responseStream);
   });
 
+  it('destroys the request consumer group on close so repeated listen/close cycles do not leak BUSYGROUP state', async () => {
+    const groupKeys = new Set<string>();
+    const destroyedGroups: string[] = [];
+
+    const createStrictClient = (): RedisStreamClientLike => ({
+      xadd: async () => '0-1',
+      xreadgroup: async () => null,
+      xack: async () => {},
+      del: async () => {},
+      xgroupCreate: async (stream, group) => {
+        const key = `${stream}::${group}`;
+
+        if (groupKeys.has(key)) {
+          throw new Error(`BUSYGROUP Consumer Group name already exists for ${key}`);
+        }
+
+        groupKeys.add(key);
+      },
+      xgroupDestroy: async (stream, group) => {
+        const key = `${stream}::${group}`;
+        destroyedGroups.push(key);
+        groupKeys.delete(key);
+      },
+    });
+
+    const firstTransport = new RedisStreamsMicroserviceTransport({
+      namespace: 'fluo:streams:strict',
+      pollBlockMs: 1,
+      readerClient: createStrictClient(),
+      requestTimeoutMs: 50,
+      writerClient: createStrictClient(),
+    });
+
+    await firstTransport.listen(async () => undefined);
+    await firstTransport.close();
+
+    const secondTransport = new RedisStreamsMicroserviceTransport({
+      namespace: 'fluo:streams:strict',
+      pollBlockMs: 1,
+      readerClient: createStrictClient(),
+      requestTimeoutMs: 50,
+      writerClient: createStrictClient(),
+    });
+
+    await expect(secondTransport.listen(async () => undefined)).resolves.toBeUndefined();
+    await secondTransport.close();
+
+    expect(destroyedGroups.some((key) => key === 'fluo:streams:strict:messages::fluo-handlers')).toBe(true);
+  });
+
   it('rejects send() with AbortSignal before publish', async () => {
     const bus = new InMemoryStreamBus();
     const { transport } = createTransport(bus, {

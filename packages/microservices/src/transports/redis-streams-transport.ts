@@ -84,6 +84,7 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
   private logger: MicroserviceTransportLogger | undefined;
   private listening = false;
   private listenPromise: Promise<void> | undefined;
+  private ownsMessageGroup = false;
   private readonly pending = new Map<string, PendingRequest>();
   private pollPromises: Promise<void>[] = [];
 
@@ -135,7 +136,7 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
     }
 
     this.listenPromise = (async () => {
-      await this.options.readerClient.xgroupCreate(this.messageStream, this.messageGroup, '$', true);
+      this.ownsMessageGroup = await this.ensureConsumerGroup(this.messageStream, this.messageGroup);
       await this.options.readerClient.xgroupCreate(this.eventStream, this.eventGroup, '$', true);
       await this.options.readerClient.xgroupCreate(this.responseStream, this.responseGroup, '$', true);
 
@@ -269,7 +270,7 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
   }
 
   /**
-   * Stops polling and tears down the event/response consumer groups.
+   * Stops polling and tears down the owned request, event, and response consumer resources.
    *
    * @returns A promise that resolves once shutdown cleanup finishes.
    */
@@ -287,6 +288,14 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
       for (const result of settled) {
         if (result.status === 'rejected') {
           closeError ??= result.reason;
+        }
+      }
+
+      if (this.ownsMessageGroup) {
+        try {
+          await this.options.readerClient.xgroupDestroy(this.messageStream, this.messageGroup);
+        } catch (error) {
+          closeError ??= error;
         }
       }
 
@@ -310,6 +319,7 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
     } finally {
       this.listening = false;
       this.handler = undefined;
+      this.ownsMessageGroup = false;
       this.pollPromises = [];
 
       for (const pending of [...this.pending.values()]) {
@@ -319,6 +329,19 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
 
     if (closeError) {
       throw closeError;
+    }
+  }
+
+  private async ensureConsumerGroup(stream: string, group: string): Promise<boolean> {
+    try {
+      await this.options.readerClient.xgroupCreate(stream, group, '$', true);
+      return true;
+    } catch (error) {
+      if (this.isBusyGroupError(error)) {
+        return false;
+      }
+
+      throw error;
     }
   }
 
@@ -520,6 +543,10 @@ export class RedisStreamsMicroserviceTransport implements MicroserviceTransport 
     }
 
     console.error('[fluo][RedisStreamsMicroserviceTransport] event handler failed:', error);
+  }
+
+  private isBusyGroupError(error: unknown): boolean {
+    return error instanceof Error && error.message.includes('BUSYGROUP');
   }
 
   private get messageStream(): string {
