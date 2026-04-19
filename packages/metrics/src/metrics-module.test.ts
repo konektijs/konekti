@@ -428,6 +428,73 @@ describe('MetricsModule', () => {
     await app.close();
   });
 
+  it('exports accumulated platform diagnostics as bounded metrics labels', async () => {
+    const component: PlatformComponent = {
+      async health() {
+        return { status: 'healthy' };
+      },
+      id: 'cache.default',
+      kind: 'cache',
+      async ready() {
+        return { critical: false, status: 'ready' };
+      },
+      snapshot() {
+        return {
+          dependencies: [],
+          details: { mode: 'memory' },
+          health: { status: 'healthy' },
+          id: 'cache.default',
+          kind: 'cache',
+          ownership: { externallyManaged: false, ownsResources: true },
+          readiness: { critical: false, status: 'ready' },
+          state: 'ready',
+          telemetry: { namespace: 'cache', tags: {} },
+        };
+      },
+      async start() {},
+      state() {
+        return 'ready';
+      },
+      async stop() {},
+      async validate() {
+        return {
+          issues: [],
+          ok: true,
+          warnings: [
+            {
+              code: 'CACHE_WARN_HIGH_LATENCY',
+              componentId: 'cache.default',
+              fixHint: 'Inspect cache latency and connection pressure.',
+              message: 'Cache latency is elevated.',
+              severity: 'warning',
+            },
+          ],
+        };
+      },
+    };
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [MetricsModule.forRoot({ defaultMetrics: false })],
+    });
+
+    const app = await bootstrapApplication({
+      platform: { components: [component] },
+      rootModule: AppModule,
+    });
+
+    const response = createResponse();
+    await app.dispatch(createRequest('/metrics'), response);
+
+    expect(response.statusCode).toBe(200);
+    expect(String(response.body)).toContain(
+      'fluo_platform_diagnostic_issues{component_id="cache.default",severity="warning",code="CACHE_WARN_HIGH_LATENCY",env="unknown",instance="local"} 1',
+    );
+
+    await app.close();
+  });
+
   it('serializes overlapping scrapes and removes stale platform status series', async () => {
     let currentReadiness: 'ready' | 'degraded' = 'ready';
     let currentHealth: 'healthy' | 'degraded' = 'healthy';

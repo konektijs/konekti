@@ -1,6 +1,6 @@
 import type { Provider } from '@fluojs/di';
 import { Controller, Get, forRoutes, type Middleware, type MiddlewareLike, type RequestContext } from '@fluojs/http';
-import { defineModule, type ModuleType, PLATFORM_SHELL, type PlatformShellSnapshot } from '@fluojs/runtime';
+import { defineModule, type ModuleType, PLATFORM_SHELL, type PlatformDiagnosticIssue, type PlatformShellSnapshot } from '@fluojs/runtime';
 import { collectDefaultMetrics, Gauge, Registry as PrometheusRegistry, type Registry } from 'prom-client';
 
 import {
@@ -129,6 +129,7 @@ export class MetricsModule {
 }
 
 type RegistryMode = 'isolated' | 'shared';
+type PlatformDiagnosticSeverity = PlatformDiagnosticIssue['severity'];
 type PlatformHealthStatus = PlatformShellSnapshot['health']['status'];
 type PlatformReadinessStatus = PlatformShellSnapshot['readiness']['status'];
 type RuntimeTelemetryComponent = {
@@ -139,6 +140,7 @@ type RuntimeTelemetryComponent = {
 };
 
 const PLATFORM_COMPONENT_LABELS = ['component_id', 'component_kind', 'operation', 'result', 'env', 'instance'] as const;
+const PLATFORM_DIAGNOSTIC_LABELS = ['component_id', 'severity', 'code', 'env', 'instance'] as const;
 const REGISTRY_MODE_LABELS = ['mode'] as const;
 const HEALTH_STATUSES = ['healthy', 'unhealthy', 'degraded'] as const satisfies readonly PlatformHealthStatus[];
 const READINESS_STATUSES = ['ready', 'not-ready', 'degraded'] as const satisfies readonly PlatformReadinessStatus[];
@@ -176,7 +178,9 @@ function getOrCreateGauge(
 class RuntimePlatformTelemetry {
   private readonly readinessGauge: Gauge<string>;
   private readonly healthGauge: Gauge<string>;
+  private readonly diagnosticsGauge: Gauge<string>;
   private readonly registryModeGauge: Gauge<string>;
+  private readonly lastDiagnosticCounts = new Map<string, number>();
   private readonly lastHealthStatuses = new Map<string, PlatformHealthStatus>();
   private readonly lastReadinessStatuses = new Map<string, PlatformReadinessStatus>();
   private scrapeChain: Promise<unknown> = Promise.resolve();
@@ -200,6 +204,11 @@ class RuntimePlatformTelemetry {
       help: 'Metrics module registry mode: isolated or shared.',
       labelNames: REGISTRY_MODE_LABELS,
       name: 'fluo_metrics_registry_mode',
+    });
+    this.diagnosticsGauge = getOrCreateGauge(registry, {
+      help: 'Current runtime platform diagnostic issue counts by component, severity, and code.',
+      labelNames: PLATFORM_DIAGNOSTIC_LABELS,
+      name: 'fluo_platform_diagnostic_issues',
     });
 
     this.registryModeGauge.labels(this.registryMode).set(1);
@@ -265,6 +274,11 @@ class RuntimePlatformTelemetry {
       statuses: READINESS_STATUSES,
       toMetricValue: toReadinessValue,
     });
+    this.syncDiagnosticCounts({
+      currentCounts: this.toDiagnosticCounts(snapshot.diagnostics),
+      env,
+      instance,
+    });
   }
 
   private syncGaugeStatuses<TStatus extends string>({
@@ -316,6 +330,56 @@ class RuntimePlatformTelemetry {
   private fromComponentKey(componentKey: string): [string, string] {
     const separatorIndex = componentKey.indexOf('::');
     return [componentKey.slice(0, separatorIndex), componentKey.slice(separatorIndex + 2)];
+  }
+
+  private syncDiagnosticCounts({
+    currentCounts,
+    env,
+    instance,
+  }: {
+    currentCounts: Map<string, number>;
+    env: string;
+    instance: string;
+  }): void {
+    for (const [diagnosticKey, previousCount] of this.lastDiagnosticCounts) {
+      const nextCount = currentCounts.get(diagnosticKey);
+      if (nextCount === previousCount) {
+        continue;
+      }
+
+      const [componentId, severity, code] = this.fromDiagnosticKey(diagnosticKey);
+      this.diagnosticsGauge.remove(componentId, severity, code, env, instance);
+    }
+
+    for (const [diagnosticKey, count] of currentCounts) {
+      const [componentId, severity, code] = this.fromDiagnosticKey(diagnosticKey);
+      this.diagnosticsGauge.labels(componentId, severity, code, env, instance).set(count);
+    }
+
+    this.lastDiagnosticCounts.clear();
+    for (const [diagnosticKey, count] of currentCounts) {
+      this.lastDiagnosticCounts.set(diagnosticKey, count);
+    }
+  }
+
+  private toDiagnosticCounts(diagnostics: PlatformDiagnosticIssue[]): Map<string, number> {
+    const diagnosticCounts = new Map<string, number>();
+
+    for (const diagnostic of diagnostics) {
+      const diagnosticKey = this.toDiagnosticKey(diagnostic.componentId, diagnostic.severity, diagnostic.code);
+      diagnosticCounts.set(diagnosticKey, (diagnosticCounts.get(diagnosticKey) ?? 0) + 1);
+    }
+
+    return diagnosticCounts;
+  }
+
+  private fromDiagnosticKey(diagnosticKey: string): [string, PlatformDiagnosticSeverity, string] {
+    const [componentId, severity, ...codeParts] = diagnosticKey.split('::');
+    return [componentId, severity as PlatformDiagnosticSeverity, codeParts.join('::')];
+  }
+
+  private toDiagnosticKey(componentId: string, severity: PlatformDiagnosticSeverity, code: string): string {
+    return `${componentId}::${severity}::${code}`;
   }
 
   private toComponentKey(componentId: string, componentKind: string): string {
