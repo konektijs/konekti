@@ -729,6 +729,25 @@ describe('GrpcMicroserviceTransport', () => {
     await transport.close();
   });
 
+  it('does not fall back to console.error when no logger is configured', async () => {
+    const { transport } = createGrpcTransport();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await transport.listen(async (packet) => {
+      if (packet.kind === 'event') {
+        throw new Error('grpc event failed without logger');
+      }
+
+      return undefined;
+    });
+
+    await expect(transport.emit('MathService.Notify', { value: 'bad' })).resolves.toBeUndefined();
+
+    expect(consoleError).not.toHaveBeenCalled();
+
+    await transport.close();
+  });
+
   it('rejects pending requests when close() is called before reply', async () => {
     const { transport } = createGrpcTransport();
     await transport.listen(async () => {

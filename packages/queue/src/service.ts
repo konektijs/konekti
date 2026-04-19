@@ -12,16 +12,11 @@ import {
 import { APPLICATION_LOGGER, COMPILED_MODULES, RUNTIME_CONTAINER } from '@fluojs/runtime/internal';
 import { Queue as BullQueue, Worker as BullWorker, type ConnectionOptions, type JobsOptions, type Job as BullJob } from 'bullmq';
 
-import { getQueueWorkerMetadata } from './metadata.js';
-import {
-  collectDiscoveryCandidates,
-  normalizePositiveInteger,
-  normalizeRateLimiter,
-  withTimeout,
-  type DiscoveryCandidate,
-} from './helpers.js';
+import { QueueDeadLetterManager, type QueueRedisDeadLetterClient } from './dead-letter-manager.js';
+import { normalizePositiveInteger } from './helpers.js';
 import { createQueuePlatformStatusSnapshot } from './status.js';
 import { QUEUE_OPTIONS } from './tokens.js';
+import { discoverQueueWorkerDescriptors } from './worker-discovery.js';
 import type {
   NormalizedQueueModuleOptions,
   Queue,
@@ -33,7 +28,6 @@ import type {
 type QueuePayload = Record<string, unknown>;
 type QueueInstance = BullQueue;
 type WorkerInstance = BullWorker;
-const DEAD_LETTER_DRAIN_TIMEOUT_MS = 5_000;
 
 type QueueLifecycleState = 'idle' | 'starting' | 'started' | 'stopping' | 'stopped';
 
@@ -44,10 +38,8 @@ type QueueOwnedConnection = ConnectionOptions & {
   status?: string;
 };
 
-interface QueueRedisClient {
+interface QueueRedisClient extends QueueRedisDeadLetterClient {
   duplicate(): QueueOwnedConnection;
-  ltrim(key: string, start: number, stop: number): Promise<unknown>;
-  rpush(key: string, value: string): Promise<unknown>;
 }
 
 interface WorkerInitializationResources {
@@ -63,8 +55,6 @@ interface InitializedWorkerResources {
   worker: WorkerInstance;
   workerConnection: QueueOwnedConnection;
 }
-
-type QueueWorkerMetadata = NonNullable<ReturnType<typeof getQueueWorkerMetadata>>;
 
 interface ResolvedWorkerHandler {
   handler: (this: unknown, payload: object) => Promise<void>;
@@ -110,10 +100,6 @@ function toBullBackoff(backoff: QueueBackoffOptions | undefined): JobsOptions['b
   };
 }
 
-function deadLetterKey(jobName: string): string {
-  return `fluo:queue:dead-letter:${jobName}`;
-}
-
 async function closeConnection(connection: QueueOwnedConnection): Promise<void> {
   if (connection.status === 'end') {
     return;
@@ -142,7 +128,7 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
   private readonly queuesByJobName = new Map<string, QueueInstance>();
   private readonly workersByJobName = new Map<string, WorkerInstance>();
   private readonly ownedConnections: QueueOwnedConnection[] = [];
-  private readonly pendingDeadLetterWrites = new Set<Promise<void>>();
+  private readonly deadLetterManager: QueueDeadLetterManager;
   private lifecycleState: QueueLifecycleState = 'idle';
   private redisClient: QueueRedisClient | undefined;
   private startPromise: Promise<void> | undefined;
@@ -153,7 +139,9 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
     private readonly runtimeContainer: Container,
     private readonly compiledModules: readonly CompiledModule[],
     private readonly logger: ApplicationLogger,
-  ) {}
+  ) {
+    this.deadLetterManager = new QueueDeadLetterManager(this.options, this.logger, () => this.getRedisClient());
+  }
 
   async onApplicationBootstrap(): Promise<void> {
     await this.ensureStarted();
@@ -207,7 +195,7 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
     return createQueuePlatformStatusSnapshot({
       dependencyId: getRedisComponentId(this.options.clientName),
       lifecycleState: this.lifecycleState,
-      pendingDeadLetterWrites: this.pendingDeadLetterWrites.size,
+      pendingDeadLetterWrites: this.deadLetterManager.pendingWriteCount,
       queuesReady: this.queuesByJobName.size,
       workersDiscovered: this.descriptorsByJobType.size,
       workersReady: this.workersByJobName.size,
@@ -241,7 +229,12 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
   private async startLifecycle(): Promise<void> {
     const redis = await this.resolveRedisClient();
     this.redisClient = redis;
-    this.discoverWorkers();
+    this.descriptorsByJobType.clear();
+
+    for (const [jobType, descriptor] of discoverQueueWorkerDescriptors(this.compiledModules, this.options, this.logger)) {
+      this.descriptorsByJobType.set(jobType, descriptor);
+    }
+
     await this.initializeWorkers(redis);
     this.lifecycleState = 'started';
   }
@@ -275,96 +268,6 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
     }
 
     return this.redisClient;
-  }
-
-  private discoverWorkers(): void {
-    this.descriptorsByJobType.clear();
-    const seenJobNames = new Set<string>();
-
-    for (const candidate of this.discoveryCandidates()) {
-      const metadata = getQueueWorkerMetadata(candidate.targetType);
-
-      if (!metadata) {
-        continue;
-      }
-
-      if (this.shouldSkipNonSingletonWorker(candidate)) {
-        continue;
-      }
-
-      const jobType = metadata.jobType;
-
-      if (this.isDuplicateWorkerRegistration(jobType, candidate.moduleName)) {
-        continue;
-      }
-
-      const jobName = metadata.options.jobName ?? jobType.name;
-
-      if (this.isDuplicateJobName(jobName, candidate.moduleName, seenJobNames)) {
-        continue;
-      }
-
-      seenJobNames.add(jobName);
-      this.descriptorsByJobType.set(jobType, this.createWorkerDescriptor(candidate, metadata, jobName));
-    }
-  }
-
-  private shouldSkipNonSingletonWorker(candidate: DiscoveryCandidate): boolean {
-    if (candidate.scope === 'singleton') {
-      return false;
-    }
-
-    this.logger.warn(
-      `${candidate.targetType.name} in module ${candidate.moduleName} declares @QueueWorker() but is registered with ${candidate.scope} scope. Queue workers are registered only for singleton providers.`,
-      'QueueLifecycleService',
-    );
-    return true;
-  }
-
-  private isDuplicateWorkerRegistration(jobType: QueueJobType, moduleName: string): boolean {
-    if (!this.descriptorsByJobType.has(jobType)) {
-      return false;
-    }
-
-    this.logger.warn(
-      `Duplicate @QueueWorker() registration for job type ${jobType.name} was ignored in ${moduleName}.`,
-      'QueueLifecycleService',
-    );
-    return true;
-  }
-
-  private isDuplicateJobName(jobName: string, moduleName: string, seenJobNames: Set<string>): boolean {
-    if (!seenJobNames.has(jobName)) {
-      return false;
-    }
-
-    this.logger.warn(
-      `Duplicate queue job name ${jobName} was ignored in ${moduleName}.`,
-      'QueueLifecycleService',
-    );
-    return true;
-  }
-
-  private createWorkerDescriptor(
-    candidate: DiscoveryCandidate,
-    metadata: QueueWorkerMetadata,
-    jobName: string,
-  ): QueueWorkerDescriptor {
-    return {
-      attempts: normalizePositiveInteger(metadata.options.attempts, this.options.defaultAttempts),
-      backoff: metadata.options.backoff ?? this.options.defaultBackoff,
-      concurrency: normalizePositiveInteger(metadata.options.concurrency, this.options.defaultConcurrency),
-      jobName,
-      jobType: metadata.jobType,
-      moduleName: candidate.moduleName,
-      rateLimiter: normalizeRateLimiter(metadata.options.rateLimiter ?? this.options.defaultRateLimiter),
-      token: candidate.token,
-      workerName: candidate.targetType.name,
-    };
-  }
-
-  private discoveryCandidates(): DiscoveryCandidate[] {
-    return collectDiscoveryCandidates(this.compiledModules);
   }
 
   private async initializeWorkers(redis: QueueRedisClient): Promise<void> {
@@ -462,15 +365,7 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
     worker: WorkerInstance,
   ): void {
     worker.on('failed', (job: BullJob | undefined, error: Error) => {
-      if (!job || !this.isTerminalFailure(job, descriptor.attempts)) {
-        return;
-      }
-
-      const pendingWrite = this.handleFailedJob(descriptor, job, error);
-      this.pendingDeadLetterWrites.add(pendingWrite);
-      pendingWrite.finally(() => {
-        this.pendingDeadLetterWrites.delete(pendingWrite);
-      });
+      this.deadLetterManager.trackTerminalFailure(descriptor, job, error);
     });
   }
 
@@ -556,54 +451,6 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
     return rehydrateJobPayload(descriptor.jobType, job.data);
   }
 
-  private async handleFailedJob(
-    descriptor: QueueWorkerDescriptor,
-    job: BullJob | undefined,
-    error: Error,
-  ): Promise<void> {
-    if (!job) {
-      return;
-    }
-
-    if (!this.isTerminalFailure(job, descriptor.attempts)) {
-      return;
-    }
-
-    try {
-      const key = deadLetterKey(descriptor.jobName);
-      const deadLetter = {
-        attemptsMade: job.attemptsMade,
-        errorMessage: error.message,
-        failedAt: new Date(job.finishedOn ?? Date.now()).toISOString(),
-        jobId: job.id ?? '',
-        jobName: descriptor.jobName,
-        payload: isQueuePayload(job.data) ? cloneWithFallback(job.data) : job.data,
-      };
-
-      const redis = this.getRedisClient();
-      await redis.rpush(key, JSON.stringify(deadLetter));
-
-      if (this.options.defaultDeadLetterMaxEntries !== false) {
-        await redis.ltrim(key, -this.options.defaultDeadLetterMaxEntries, -1);
-      }
-    } catch (deadLetterError) {
-      this.logger.error(
-        `Failed to append dead-letter record for queue job ${descriptor.jobName}.`,
-        deadLetterError,
-        'QueueLifecycleService',
-      );
-    }
-  }
-
-  private isTerminalFailure(job: BullJob, attemptsFallback: number): boolean {
-    const configuredAttempts =
-      typeof job.opts.attempts === 'number' && Number.isFinite(job.opts.attempts)
-        ? normalizePositiveInteger(job.opts.attempts, attemptsFallback)
-        : attemptsFallback;
-
-    return job.attemptsMade >= configuredAttempts;
-  }
-
   private async shutdown(): Promise<void> {
     if (this.shutdownPromise) {
       await this.shutdownPromise;
@@ -618,7 +465,7 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
 
     this.shutdownPromise = (async () => {
       await this.closeInitializedResources();
-      await this.drainDeadLetterWrites();
+      await this.deadLetterManager.drainPendingWrites();
       this.lifecycleState = 'stopped';
       this.startPromise = undefined;
     })();
@@ -644,29 +491,6 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
 
     for (const connection of ownedConnections) {
       await this.tryCloseOwnedConnection(connection);
-    }
-  }
-
-  private async drainDeadLetterWrites(): Promise<void> {
-    while (this.pendingDeadLetterWrites.size > 0) {
-      await this.drainDeadLetterWriteBatch(Array.from(this.pendingDeadLetterWrites));
-    }
-  }
-
-  private async drainDeadLetterWriteBatch(writes: readonly Promise<void>[]): Promise<void> {
-    await Promise.allSettled(writes.map(async (write) => this.awaitDeadLetterWriteWithTimeout(write)));
-  }
-
-  private async awaitDeadLetterWriteWithTimeout(write: Promise<void>): Promise<void> {
-    try {
-      await withTimeout(write, DEAD_LETTER_DRAIN_TIMEOUT_MS, () => new Error('dead-letter write timed out'));
-    } catch (error) {
-      this.pendingDeadLetterWrites.delete(write);
-      this.logger.error(
-        'Dead-letter write did not complete within shutdown timeout.',
-        error,
-        'QueueLifecycleService',
-      );
     }
   }
 
