@@ -283,10 +283,15 @@ export function createCloudflareWorkerEntrypoint<Env = unknown>(
   rootModule: ModuleType,
   options: BootstrapCloudflareWorkerApplicationOptions = {},
 ): CloudflareWorkerEntrypoint<Env> {
+  let closeError: unknown;
   let closeInFlight: Promise<void> | undefined;
   let runningApplication: Promise<CloudflareWorkerApplication<Env>> | undefined;
 
   const ready = async (): Promise<CloudflareWorkerApplication<Env>> => {
+    if (closeError) {
+      throw closeError;
+    }
+
     if (!runningApplication) {
       runningApplication = bootstrapCloudflareWorkerApplication<Env>(rootModule, options);
     }
@@ -301,6 +306,10 @@ export function createCloudflareWorkerEntrypoint<Env = unknown>(
         return;
       }
 
+      if (closeError) {
+        throw closeError;
+      }
+
       const application = runningApplication;
 
       if (!application) {
@@ -310,11 +319,14 @@ export function createCloudflareWorkerEntrypoint<Env = unknown>(
       const closing = (async () => {
         try {
           await (await application).close(signal);
-        } finally {
+
           if (runningApplication === application) {
             runningApplication = undefined;
           }
-
+        } catch (error) {
+          closeError = error;
+          throw error;
+        } finally {
           closeInFlight = undefined;
         }
       })();
@@ -323,7 +335,7 @@ export function createCloudflareWorkerEntrypoint<Env = unknown>(
       await closing;
     },
     async fetch(request: Request, env: Env, executionContext: CloudflareWorkerExecutionContext) {
-      if (closeInFlight) {
+      if (closeError || closeInFlight) {
         return createShutdownResponse();
       }
 

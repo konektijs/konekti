@@ -428,6 +428,65 @@ describe('@fluojs/platform-cloudflare-workers', () => {
       await entrypoint.close();
     }
   });
+
+  it('keeps lazy Worker entrypoint shutdown gating after close times out', async () => {
+    vi.useFakeTimers();
+
+    let bootstrapCount = 0;
+    const neverSettles = new Promise<void>(() => {});
+
+    class StartupProbe {
+      onApplicationBootstrap() {
+        bootstrapCount += 1;
+      }
+    }
+
+    @Controller('/slow')
+    class SlowController {
+      @Get('/')
+      async getSlow() {
+        await neverSettles;
+        return { ok: true };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      controllers: [SlowController],
+      providers: [StartupProbe],
+    });
+
+    const entrypoint = createCloudflareWorkerEntrypoint(AppModule, {
+      cors: false,
+    });
+
+    await entrypoint.ready();
+
+    void entrypoint.fetch(new Request('https://worker.test/slow'), {}, createExecutionContext());
+    await Promise.resolve();
+
+    const closePromise = entrypoint.close();
+    const closeAssertion = expect(closePromise).rejects.toThrow(
+      'Cloudflare Workers adapter shutdown timeout exceeded 10000ms.',
+    );
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await closeAssertion;
+
+    const followUpResponse = await entrypoint.fetch(
+      new Request('https://worker.test/slow'),
+      {},
+      createExecutionContext(),
+    );
+
+    expect(followUpResponse.status).toBe(503);
+    expect(bootstrapCount).toBe(1);
+    await expect(entrypoint.ready()).rejects.toThrow(
+      'Cloudflare Workers adapter shutdown timeout exceeded 10000ms.',
+    );
+
+    vi.useRealTimers();
+  });
 });
 
 function createDeferred<T>() {
