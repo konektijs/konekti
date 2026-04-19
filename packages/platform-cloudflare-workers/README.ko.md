@@ -28,6 +28,8 @@ fluo 애플리케이션을 [Cloudflare Workers](https://workers.cloudflare.com/)
 
 이 어댑터는 각 요청 수명주기를 `executionContext.waitUntil(...)`에 연결하고, `close()` 중에도 진행 중인 디스패치를 유지하여 Worker 종료 도중 활성 작업이 중간에 잘리지 않도록 보장합니다.
 
+애플리케이션 종료 중에는 즉시 새 ingress 수락을 중단하고, 활성 HTTP 핸들러가 정리될 수 있도록 최대 10초의 bounded drain window를 제공합니다. 이 시간을 넘기면 `close()`는 무기한 대기하지 않고 timeout 오류로 종료됩니다.
+
 ## 빠른 시작
 
 ### 표준 어댑터 사용
