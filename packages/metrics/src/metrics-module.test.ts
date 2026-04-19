@@ -1,5 +1,6 @@
+import { ContainerResolutionError } from '@fluojs/di';
 import { ForbiddenException, type FrameworkRequest, type FrameworkResponse, type MiddlewareContext, type Next } from '@fluojs/http';
-import { bootstrapApplication, defineModule, type PlatformComponent } from '@fluojs/runtime';
+import { bootstrapApplication, defineModule, PLATFORM_SHELL, type PlatformComponent } from '@fluojs/runtime';
 import { Counter, Registry } from 'prom-client';
 import { describe, expect, it } from 'vitest';
 import { METER_PROVIDER } from './providers/meter-provider.js';
@@ -424,6 +425,103 @@ describe('MetricsModule', () => {
     expect(response.statusCode).toBe(200);
     expect(metricsText).toContain('fluo_component_ready{component_id="cache.default",component_kind="cache",operation="readiness",result="degraded"');
     expect(metricsText).toContain('fluo_component_health{component_id="cache.default",component_kind="cache",operation="health",result="degraded"');
+
+    await app.close();
+  });
+
+  it('suppresses only missing platform shell registration errors during scrape refresh', async () => {
+    const missingPlatformShellError = new ContainerResolutionError(
+      `No provider registered for token ${String(PLATFORM_SHELL)}.`,
+      {
+        hint: 'Ensure the provider is registered in a module\'s providers array, or that the module exporting it is imported by the consuming module.',
+        token: PLATFORM_SHELL,
+      },
+    );
+    const missingPlatformShellMiddleware = {
+      async handle(context: MiddlewareContext, next: Next): Promise<void> {
+        const originalResolve = context.requestContext.container.resolve.bind(context.requestContext.container);
+
+        context.requestContext.container.resolve = (async (token: Parameters<typeof originalResolve>[0]) => {
+          if (token === PLATFORM_SHELL) {
+            throw missingPlatformShellError;
+          }
+
+          return await originalResolve(token);
+        }) as typeof context.requestContext.container.resolve;
+
+        await next();
+      },
+    };
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [MetricsModule.forRoot({ defaultMetrics: false, middleware: [missingPlatformShellMiddleware] })],
+    });
+
+    const app = await bootstrapApplication({
+      rootModule: AppModule,
+    });
+
+    const response = createResponse();
+    await app.dispatch(createRequest('/metrics'), response);
+
+    const metricsText = String(response.body);
+
+    expect(response.statusCode).toBe(200);
+    expect(metricsText).toContain('fluo_metrics_registry_mode{mode="isolated"} 1');
+    expect(metricsText).not.toContain('fluo_component_ready{');
+    expect(metricsText).not.toContain('fluo_component_health{');
+
+    await app.close();
+  });
+
+  it('surfaces unexpected platform shell resolution failures during scrape refresh', async () => {
+    const resolutionFailure = new ContainerResolutionError(
+      `Failed to resolve token ${String(PLATFORM_SHELL)} because the provider factory threw an unexpected error.`,
+      {
+        hint: 'Inspect the PLATFORM_SHELL provider registration and its factory dependencies.',
+        token: PLATFORM_SHELL,
+      },
+    );
+    const unexpectedPlatformShellMiddleware = {
+      async handle(context: MiddlewareContext, next: Next): Promise<void> {
+        const originalResolve = context.requestContext.container.resolve.bind(context.requestContext.container);
+
+        context.requestContext.container.resolve = (async (token: Parameters<typeof originalResolve>[0]) => {
+          if (token === PLATFORM_SHELL) {
+            throw resolutionFailure;
+          }
+
+          return await originalResolve(token);
+        }) as typeof context.requestContext.container.resolve;
+
+        await next();
+      },
+    };
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [MetricsModule.forRoot({ defaultMetrics: false, middleware: [unexpectedPlatformShellMiddleware] })],
+    });
+
+    const app = await bootstrapApplication({
+      rootModule: AppModule,
+    });
+
+    const response = createResponse();
+    await app.dispatch(createRequest('/metrics'), response);
+
+    expect(response.statusCode).toBe(500);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          message: 'Internal server error.',
+          status: 500,
+        }),
+      }),
+    );
 
     await app.close();
   });

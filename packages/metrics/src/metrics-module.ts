@@ -1,4 +1,4 @@
-import type { Provider } from '@fluojs/di';
+import { ContainerResolutionError, type Provider } from '@fluojs/di';
 import { Controller, Get, forRoutes, type Middleware, type MiddlewareLike, type RequestContext } from '@fluojs/http';
 import { defineModule, type ModuleType, PLATFORM_SHELL, type PlatformShellSnapshot } from '@fluojs/runtime';
 import { collectDefaultMetrics, Gauge, Registry as PrometheusRegistry, type Registry } from 'prom-client';
@@ -142,6 +142,8 @@ const PLATFORM_COMPONENT_LABELS = ['component_id', 'component_kind', 'operation'
 const REGISTRY_MODE_LABELS = ['mode'] as const;
 const HEALTH_STATUSES = ['healthy', 'unhealthy', 'degraded'] as const satisfies readonly PlatformHealthStatus[];
 const READINESS_STATUSES = ['ready', 'not-ready', 'degraded'] as const satisfies readonly PlatformReadinessStatus[];
+const PLATFORM_SHELL_TOKEN_NAME = 'PLATFORM_SHELL';
+const PLATFORM_SHELL_TOKEN_NAMES = new Set([PLATFORM_SHELL_TOKEN_NAME, String(PLATFORM_SHELL)]);
 
 function toReadinessValue(status: PlatformShellSnapshot['readiness']['status']): number {
   return status === 'ready' ? 1 : 0;
@@ -325,10 +327,34 @@ class RuntimePlatformTelemetry {
   private async resolvePlatformShell(ctx: RequestContext): Promise<{ snapshot(): Promise<PlatformShellSnapshot> } | undefined> {
     try {
       return await ctx.container.resolve(PLATFORM_SHELL);
-    } catch {
-      return undefined;
+    } catch (error) {
+      if (isMissingPlatformShellResolutionError(error)) {
+        return undefined;
+      }
+
+      throw error;
     }
   }
+}
+
+function isMissingPlatformShellResolutionError(error: unknown): error is ContainerResolutionError {
+  if (!(error instanceof ContainerResolutionError)) {
+    return false;
+  }
+
+  const containerError = error as ContainerResolutionError & { meta?: Record<string, unknown> };
+  const token = typeof containerError.meta?.['token'] === 'string' ? containerError.meta['token'] : undefined;
+  if (token && PLATFORM_SHELL_TOKEN_NAMES.has(token)) {
+    return containerError.message.startsWith(`No provider registered for token ${token}.`);
+  }
+
+  for (const tokenName of PLATFORM_SHELL_TOKEN_NAMES) {
+    if (containerError.message.startsWith(`No provider registered for token ${tokenName}.`)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function resolveHttpOptions(http: MetricsModuleOptions['http']): HttpMetricsMiddlewareOptions | undefined {
