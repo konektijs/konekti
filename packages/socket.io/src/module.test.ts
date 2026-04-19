@@ -504,6 +504,30 @@ describe('@fluojs/socket.io', () => {
     expect(bunOptions.cors).toEqual({ credentials: false, origin: false });
   });
 
+  it('rejects incomplete server-like bridge objects before constructing Socket.IO', () => {
+    const service = new SocketIoLifecycleService(
+      {} as never,
+      [] as never,
+      createLogger([]),
+      {
+        async close() {},
+        getRealtimeCapability() {
+          return createServerBackedHttpAdapterRealtimeCapability({
+            close() {},
+            on() {
+              return this;
+            },
+          });
+        },
+      } as never,
+      {},
+    );
+
+    expect(() => service.getServer()).toThrow(
+      'Socket.IO bootstrap requires the selected realtime capability to expose a Node HTTP/S server instance.',
+    );
+  });
+
   it('forwards configured engine payload bounds into Socket.IO server options', () => {
     const service = new SocketIoLifecycleService(
       {} as never,

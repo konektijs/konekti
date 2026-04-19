@@ -66,6 +66,11 @@ interface ClassProviderLike {
 }
 
 interface NodeHttpServerLike {
+  close(callback?: (error?: Error) => void): unknown;
+  emit(eventName: string | symbol, ...args: unknown[]): boolean;
+  listeners(eventName: string | symbol): Function[];
+  on(eventName: string | symbol, listener: (...args: unknown[]) => void): unknown;
+  removeAllListeners(eventName?: string | symbol): unknown;
 }
 
 interface FetchStyleRealtimeCapability {
@@ -198,7 +203,16 @@ function normalizeGatewayPath(path: string): string {
 }
 
 function isNodeHttpServerLike(value: unknown): value is NodeHttpServerLike {
-  return typeof value === 'object' && value !== null;
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<NodeHttpServerLike>;
+  return typeof candidate.close === 'function'
+    && typeof candidate.emit === 'function'
+    && typeof candidate.listeners === 'function'
+    && typeof candidate.on === 'function'
+    && typeof candidate.removeAllListeners === 'function';
 }
 
 function normalizeCorsForBunEngine(cors: SocketIoModuleOptions['cors']): BunEngineCorsOptions | undefined {
