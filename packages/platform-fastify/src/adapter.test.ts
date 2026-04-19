@@ -451,6 +451,41 @@ describe('@fluojs/platform-fastify', () => {
     await app.close();
   });
 
+  it('keeps explicit cors: false preflight requests outside the CORS contract', async () => {
+    @Controller('/ping')
+    class PingController {
+      @Get('/')
+      ping() {
+        return { ok: true };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [PingController] });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapFastifyApplication(AppModule, {
+      cors: false,
+      port,
+    });
+
+    await app.listen();
+
+    const response = await fetch(`http://127.0.0.1:${String(port)}/ping`, {
+      headers: {
+        'access-control-request-method': 'GET',
+        origin: 'https://my-frontend.com',
+      },
+      method: 'OPTIONS',
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get('access-control-allow-origin')).toBeNull();
+    expect(response.headers.get('access-control-allow-methods')).toBeNull();
+
+    await app.close();
+  });
+
   it('reports the configured host in startup logs', async () => {
     const loggerEvents: string[] = [];
     const logger: ApplicationLogger = {
@@ -742,6 +777,34 @@ describe('@fluojs/platform-fastify', () => {
     }
   });
 
+  it('deduplicates concurrent close() calls against the same Fastify shutdown', async () => {
+    const adapter = new FastifyHttpApplicationAdapter(3000, undefined, 150, 20, undefined, undefined, 1024, false, 20);
+    const deferred = createDeferred<void>();
+    let closeCallCount = 0;
+    const app = {
+      close: () => {
+        closeCallCount += 1;
+        return deferred.promise;
+      },
+      server: {
+        listening: true,
+      },
+    };
+
+    Reflect.set(adapter, 'app', app);
+    Reflect.set(adapter, 'dispatcher', { async dispatch() {} });
+
+    const firstClose = adapter.close();
+    const secondClose = adapter.close();
+
+    expect(closeCallCount).toBe(1);
+
+    deferred.resolve();
+    await Promise.all([firstClose, secondClose]);
+
+    expect(Reflect.get(adapter, 'dispatcher')).toBeUndefined();
+  });
+
   it('marks shutdown timeout via exitCode without forcing process termination', async () => {
     vi.useFakeTimers();
 
@@ -771,7 +834,10 @@ describe('@fluojs/platform-fastify', () => {
     });
 
     const originalExitCode = process.exitCode;
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number | string | null) => undefined as never) as typeof process.exit);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((((code?: number | string | null) => {
+      void code;
+      return undefined as never;
+    }) as typeof process.exit));
     const port = await findAvailablePort();
     const app = await runFastifyApplication(AppModule, {
       cors: false,
