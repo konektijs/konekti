@@ -103,6 +103,10 @@ class AppModule {}
 
 Prometheus metric names must stay unique inside a registry. Shared-registry mode keeps that behavior intact instead of silently shadowing metrics.
 
+### Inspect runtime diagnostics from the metrics scrape
+
+`MetricsModule` now mirrors accumulated runtime platform diagnostics into `fluo_platform_diagnostic_issues` with bounded labels for `component_id`, `severity`, and `code` plus the configured `env` and `instance` labels. This keeps scrape-time telemetry aligned with runtime warnings and failures without exposing free-form diagnostic messages as metric labels.
+
 ### Disable default process and Node metrics
 
 `defaultMetrics` defaults to `true`, so `MetricsModule.forRoot()` registers Prometheus default process and Node.js collectors once per registry unless you opt out.
@@ -127,6 +131,7 @@ MetricsModule.forRoot({
 - `endpointMiddleware` binds route-scoped middleware only to the scrape endpoint.
 - HTTP metrics default to template-normalized path labels.
 - Raw path labels require `allowUnsafeRawPathLabelMode: true` and should stay limited to bounded internal routes.
+- Runtime platform diagnostics are exported as `fluo_platform_diagnostic_issues` with bounded `component_id`, `severity`, and `code` labels.
 
 ## Related Packages
 

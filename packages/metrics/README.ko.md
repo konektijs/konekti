@@ -122,6 +122,10 @@ const ordersTotal = new Counter({
 class AppModule {}
 ```
 
+### 메트릭 스크레이프에서 런타임 진단 정보 확인
+
+`MetricsModule`은 누적된 런타임 플랫폼 diagnostics를 `fluo_platform_diagnostic_issues` 메트릭으로 함께 노출합니다. 라벨은 `component_id`, `severity`, `code`, 그리고 설정한 `env`/`instance`로 제한되며, 자유 형식 메시지나 원인 문자열은 라벨로 올리지 않아 카디널리티 폭증을 방지합니다.
+
 ### 런타임 플랫폼 텔레메트리
 
 이 모듈은 플랫폼 셸 및 등록된 컴포넌트의 내부 상태를 반영하는 fluo 전용 Gauge를 자동으로 생성합니다.
@@ -158,6 +162,13 @@ MetricsModule.forRoot({
 - 카운터, 게이지, 히스토그램 및 레지스트리 접근을 위한 Prometheus 기반 헬퍼
 
 ### 운영 기본값
+
+- `path`의 기본값은 `'/metrics'`이며, `path: false`를 주면 스크레이프 엔드포인트를 완전히 비활성화합니다.
+- `defaultMetrics`의 기본값은 `true`이며, `defaultMetrics: false`를 주면 해당 Registry의 Prometheus 기본 프로세스/Node.js collector를 비활성화합니다.
+- `endpointMiddleware`는 스크레이프 엔드포인트에만 route-scoped middleware를 바인딩합니다.
+- HTTP 메트릭은 기본적으로 템플릿 기반 경로 라벨을 사용합니다.
+- Raw path 라벨은 `allowUnsafeRawPathLabelMode: true`를 명시한 경우에만 허용되며, 유한한 내부 경로 집합에서만 사용해야 합니다.
+- 런타임 플랫폼 diagnostics는 `fluo_platform_diagnostic_issues`로 노출되며 `component_id`, `severity`, `code`처럼 제한된 라벨만 사용합니다.
 
 ## 관련 패키지
 
