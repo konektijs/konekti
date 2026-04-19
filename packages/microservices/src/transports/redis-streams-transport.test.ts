@@ -1126,4 +1126,23 @@ describe('RedisStreamsMicroserviceTransport', () => {
 
     await transport.close();
   });
+
+  it('does not fall back to console.error when no logger is configured', async () => {
+    const bus = new InMemoryStreamBus();
+    const { transport } = createTransport(bus, {
+      requestTimeoutMs: 1_000,
+    });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await transport.listen(async () => {
+      throw new Error('redis streams event handler failed without logger');
+    });
+
+    await expect(transport.emit('audit.login', { message: 'ok' })).resolves.toBeUndefined();
+    await sleep(30);
+
+    expect(consoleError).not.toHaveBeenCalled();
+
+    await transport.close();
+  });
 });
