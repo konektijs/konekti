@@ -111,7 +111,7 @@ dependency가 dependent보다 먼저 append됩니다.
 
 ```text
 compileModule(AppModule)
-  compile imports first (recursive)
+  compile imports first
   create compiled record for current module
   append current module to ordered list last
 ```
@@ -119,7 +119,6 @@ compileModule(AppModule)
 즉 반환 배열은 임의의 discovery order가 아닙니다.
 도달 가능한 import graph에 대한 post-order traversal입니다.
 이것이 나중 registration 단계가 필요로 하는 순서와 정확히 맞습니다.
-`path:packages/runtime/src/bootstrap.test.ts:13-39`는 `SharedModule -> AppModule` 구조에서 결과가 `['SharedModule', 'AppModule']`임을 확인해 줍니다.
 
 compiled record는 `path:packages/runtime/src/module-graph.ts:219-226`에서 `providerTokens`도 미리 계산합니다.
 이 역시 작은데 중요한 선택입니다.
@@ -141,6 +140,10 @@ enter module
   unmark visiting
   append to ordered output
 ```
+
+`path:packages/runtime/src/bootstrap.test.ts:13-39`가 positive case를 고정합니다.
+negative case는 runtime source 자체에 문서화되어 있고,
+error hint가 의도된 recovery path를 직접 알려 줍니다.
 
 핵심 결과는 deterministic initialization order입니다.
 `bootstrapModule()`이 compiled array를 받을 때,
@@ -205,16 +208,17 @@ constructor metadata validation도 필수 계층입니다.
 `path:packages/runtime/src/module-graph.ts:103-129`의 `validateClassInjectionMetadata()`는 required constructor arity와 configured injection token 개수를 비교합니다.
 metadata가 부족하면,
 provider instantiation이 시작되기 전에 `ModuleInjectionMetadataError`를 던집니다.
-`path:packages/runtime/src/bootstrap.test.ts:61-75`는 `@Inject(Logger)` 없이 Logger를 생성자 인자로 받는 provider를 조기에 거부하는 사례를 보여 줍니다.
 
 테스트가 이 규칙들을 고정합니다.
 `path:packages/runtime/src/bootstrap.test.ts:41-59`는 export되지 않은 provider가 module 경계를 넘지 못함을 보여 줍니다.
+`path:packages/runtime/src/bootstrap.test.ts:61-75`는 `@Inject(...)` metadata 누락을 거부합니다.
 `path:packages/runtime/src/bootstrap.test.ts:105-120`은 같은 규칙을 controller에도 적용합니다.
 
 export validation은 `path:packages/runtime/src/module-graph.ts:333-358`의 `createExportedTokenSet()`에서 수행됩니다.
 규칙은 엄격합니다.
 module은 token이 local provider이거나,
 import한 module에서 re-export된 경우에만 export할 수 있습니다.
+그 외는 허용되지 않습니다.
 
 이 규칙은 미묘한 문서 drift를 막습니다.
 module이 실제로 등록하지 않은 token을 자기 public surface처럼 주장할 수 없게 합니다.
@@ -266,7 +270,12 @@ map에 나중 write가 이전 write를 덮어쓰기 때문에,
 마지막에 만난 provider token이 승리합니다.
 즉 설계가 좋지 않을 수는 있어도,
 동작은 deterministic합니다.
-`path:packages/runtime/src/bootstrap.test.ts:319-343`이 이를 증명합니다. ModuleB가 ModuleA를 import하거나 뒤에 배치될 경우, 같은 토큰에 대해 ModuleB의 provider가 최종 등록됩니다.
+
+테스트가 이를 분명하게 보여 줍니다.
+`path:packages/runtime/src/bootstrap.test.ts:291-317`은 warning path를 검증합니다.
+`path:packages/runtime/src/bootstrap.test.ts:319-343`은 warning mode에서 나중 provider가 실제로 승리함을 증명합니다.
+runtime은 duplicate를 merge하지 않습니다.
+token당 selected provider 하나만 남깁니다.
 
 selection 이후,
 `bootstrapModule()`은 `createRuntimeTokenSet()`과 `providerToken()`을 사용해 module provider 목록에서 runtime provider token을 제거합니다.
@@ -296,11 +305,17 @@ compiled module list는 dependency-first이므로,
 provider selection은 importer보다 imported module을 먼저 봅니다.
 따라서 duplicate policy가 허용할 경우,
 나중의 importer module이 imported token을 의도적으로 덮어쓸 수 있습니다.
+runtime은 임의가 아닙니다.
+dependency-ordered traversal 위에서 last-write-wins를 수행합니다.
+
+따라서 8장의 중간 결론은 이렇습니다.
+graph compiler가 합법적인 topology를 결정하고,
+`bootstrapModule()`은 그 topology를 explicit duplicate semantics와 함께 container에 재생합니다.
 
 ## 8.5 Initialization order continues after registration through lifecycle resolution and hook execution
 module graph order는 initialization order의 절반에 불과합니다.
 registration 이후 runtime은 어떤 singleton instance를 eager하게 만들지,
- 어떤 hook을 실행할지,
+어떤 hook을 실행할지,
 언제 app이 ready해지는지도 결정해야 합니다.
 
 이 연속 단계는 `path:packages/runtime/src/bootstrap.ts:920-1029`의 `bootstrapApplication()`과,
@@ -340,10 +355,10 @@ compiled module 로그를 남깁니다.
 모든 `onModuleInit()` hook이 먼저 실행됩니다.
 그 pass가 끝난 뒤에야 모든 `onApplicationBootstrap()` hook이 실행됩니다.
 즉 전역적인 phase barrier가 있습니다.
-`path:packages/runtime/src/bootstrap.test.ts:543-582`는 `module:init` 후 `app:bootstrap`이 실행되는 정확한 순서를 보여 줍니다.
+instance별 interleave가 아닙니다.
 
 shutdown ordering은 거울상입니다.
-`path:packages/runtime/src/bootstrap.test.ts:710-722`의 `runShutdownHooks()`는 instance를 역순으로 순회하면서,
+`path:packages/runtime/src/bootstrap.ts:710-722`의 `runShutdownHooks()`는 instance를 역순으로 순회하면서,
 먼저 모든 `onModuleDestroy()`를 실행하고,
 그 다음 모든 `onApplicationShutdown()`을 실행합니다.
 
@@ -366,23 +381,87 @@ compile module graph
   -> run all onModuleInit hooks
   -> run all onApplicationBootstrap hooks
   -> start platform shell
-  -> create dispatcher/application shell
-  -> later: listen() binds adapter
-```
+`path:packages/runtime/src/bootstrap.test.ts:522-629`의 application-context 테스트는 HTTP adapter가 없어도 같은 lifecycle sequence가 유지됨을 보여 줍니다. 즉 initialization order는 transport startup에 속한 것이 아니라, runtime shell 자체에 속합니다. 이 구분이 바로 8장의 진짜 마무리입니다. Fluo에서 "module initialization order"는 단순한 topological sorting이 아닙니다. 더 구체적인 계층화된 모델입니다.
 
-`path:packages/runtime/src/bootstrap.test.ts:522-629`의 application-context 테스트는 HTTP adapter가 없어도 같은 lifecycle sequence가 유지됨을 보여 줍니다.
-즉 initialization order는 transport startup에 속한 것이 아니라,
-runtime shell 자체에 속합니다.
+첫째, **모듈 그래프의 컴파일 타임 순서**가 있습니다. 여기서 순환 의존성이 거부되고 가시성 경계가 그려집니다. 단 하나의 생성자도 호출되기 전에 애플리케이션이 여기서 실패한다면, `@Module()` 임포트의 구조적 결함을 보고 있을 가능성이 높습니다. `compileModule()` 알고리즘은 모듈의 전체 의존성 하위 트리가 완전히 이해되고 검증될 때까지 어떤 모듈도 컨테이너에 들어가지 않도록 보장합니다. 이는 일부 모듈은 자신의 익스포트를 알고 있지만 다른 모듈은 그렇지 못한 "부분적 그래프" 상태를 방지하여, 후속 등록 단계에 대해 일관된 세계관을 유지합니다. 이 단계에서 `providerTokens`와 `exportedTokens`를 미리 계산하는 것은 전체 컨테이너 설정의 청사진 역할을 합니다.
 
-이 구분이 바로 8장의 진짜 마무리입니다.
-Fluo에서 "module initialization order"는 단순한 topological sorting이 아닙니다.
-먼저 module의 compile-time order가 있고,
-그 다음 token registration order가 있으며,
-그 다음 singleton lifecycle bootstrap order가 있고,
-그 모든 것이 끝난 뒤에야 transport readiness가 옵니다.
+둘째, **토큰 등록 순서**가 있습니다. 런타임이 컴파일된 모듈 레코드를 순회하면서 프로바이더 정의를 DI 컨테이너에 공급합니다. 이는 평면적이고 추가적인 프로세스이지만, 컴파일 중에 설정된 위상 순서(topological order)에 의해 제어됩니다. 등록 단계는 중복 프로바이더 정책이 강제되고 컨테이너의 내부 룩업 테이블이 채워지는 곳입니다. 이 작업이 단일하고 순차적인 패스로 발생하기 때문에, Fluo는 일부 다른 프레임워크에서 발견되는 "지연 등록(lazy registration)"의 복잡성을 피하고 컨테이너의 최종 상태를 결정론적이며 진단 도구를 통해 감사하기 쉽게 만듭니다. 또한 이 단계는 별칭 프로바이더(alias providers)의 정규화를 처리하여 모든 `useExisting` 리디렉션이 컨테이너의 내부 맵에 올바르게 등록되도록 보장합니다.
 
-고급 디버깅에서는 이 layered model을 머릿속에 유지해야 합니다.
-container가 생기기 전에 실패하면 module graph compilation을 보십시오.
-`listen()` 전에 실패하면 lifecycle resolution이나 platform start를 보십시오.
-`listen()` 중에 실패했다면,
-graph와 lifecycle phase는 이미 성공한 상태입니다.
+셋째, **싱글톤 라이프사이클 부트스트랩 순서**입니다. 이는 생성자와 `OnModuleInit` 훅의 형태로 사용자 코드가 실제로 실행되는 첫 번째 지점입니다. Fluo는 의존성을 존중하는 순서대로 라이프사이클을 가진 싱글톤들을 꼼꼼하게 해결합니다. 서비스 A가 서비스 B에 의존한다면, 서비스 B가 완전히 초기화되고 그 `onModuleInit` 훅이 완료된 후에야 서비스 A의 훅이 시작됨이 보장됩니다. 이러한 "깊이 우선 초기화(depth-first initialization)"는 여러분의 비즈니스 로직이 실행되기 시작할 때, 의존하는 모든 리소스가 알려진 준비 상태에 있음을 보장합니다. `resolveBootstrapLifecycleInstances()`를 통한 이러한 인스턴스 해결은 정적 그래프에 생명을 불어넣어 프로바이더 정의를 실제 운영 가능한 객체로 전환합니다.
+
+넷째, 이전 계층들이 모두 완료된 후에야 **전송 준비(transport readiness)** 단계가 시작됩니다. 여기서 HTTP 어댑터가 포트에서 리스닝을 시작하거나 메시지 큐 소비자가 태스크를 가져오기 시작할 수 있습니다. 전체 내부 런타임 셸이 건강하고 초기화될 때까지 전송 시작을 지연함으로써, Fluo는 "절반만 준비된" 애플리케이션이 트래픽을 수락하고 즉시 실패하는 것을 방지합니다. 또한 부트스트랩 단계에서 등록된 헬스 체크 엔드포인트가 애플리케이션 준비 상태의 진정한 상태를 정확하게 반영하도록 보장합니다. 이러한 분리는 애플리케이션의 내부 상태가 항상 외부 가용성보다 우선시되도록 보장합니다.
+
+고급 아키텍트에게 이 계층화된 모델은 강력한 진단 도구입니다. 애플리케이션 시작에 실패했을 때 단순히 "왜?"라고 묻지 않고 "어느 계층에서?"라고 묻게 됩니다.
+- 서비스의 로그가 나타나기 전에 실패한다면, **모듈 그래프 컴파일** 단계를 확인하십시오.
+- `ScopeMismatchError`나 `CircularDependencyError`와 함께 실패한다면, **토큰 등록** 및 DI 분석을 확인하십시오.
+- 서비스 초기화 중에 실패한다면(예: 데이터베이스 연결 타임아웃), **라이프사이클 부트스트랩** 단계를 확인하십시오.
+- 첫 번째 요청을 받을 때만 실패한다면, **전송 어댑터** 및 미들웨어 등록을 확인하십시오.
+
+이러한 수준의 구조적 규율은 시작 과정을 불투명한 마법의 "블랙박스"로 취급하는 프레임워크와 Fluo를 차별화하는 요소입니다. `bootstrap.ts`와 `module-graph.ts`의 명시적인 코드를 통해 이러한 이산적인 단계들을 노출함으로써, Fluo는 개발자가 자신의 애플리케이션이 어떻게 생겨나는지 정확히 이해할 수 있도록 힘을 실어줍니다. 이는 "의존성 그래프"를 정적인 데이터 구조에서 백엔드의 전체 라이프사이클을 지배하는 동적이고 살아있는 계약으로 바꿉니다.
+
+궁극적으로 모듈 그래프는 Fluo 런타임의 두뇌입니다. 단순히 데이터를 보유하는 것이 아니라, 원시 구성에서 기능적이고 회복력 있는 애플리케이션으로의 전환을 오케스트레이션합니다. 그 뉘앙스를 마스터하는 것은 Fluo를 "사용하는" 개발자에서 Fluo로 "구축하는" 아키텍트로 나아가는 마지막 단계입니다. 이러한 이해는 프레임워크의 핵심 약속인 명시성과 신뢰성을 유지하면서도 동적 모듈 오케스트레이션 및 복잡한 멀티 호스트 배포와 같은 정교한 아키텍처 패턴을 생성할 수 있게 해줍니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

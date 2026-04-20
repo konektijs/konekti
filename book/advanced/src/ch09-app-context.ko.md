@@ -308,38 +308,96 @@ diagnostics를 함께 묶습니다.
 즉 platform shell은 runtime의 host-readiness governor입니다.
 
 adapter contract는 더 좁습니다.
-타입 수준에서 runtime code는 `@fluojs/http`의 `HttpApplicationAdapter`에 의존합니다.
-`bootstrapApplication()` 안에서 adapter는 본질적으로 `listen(dispatcher)`와 `close()`를 수행할 수 있는 객체로 취급됩니다.
-root adapter contract에 Node-specific behavior를 요구하지 않습니다.
+이 책임 분리가 Fluo를 portable하게 만듭니다. core runtime shell은 transport-neutral하게 남고, platform-specific assumption과 adapter-specific assumption은 explicit seam으로 밀려납니다. 이러한 설계 철학은 프레임워크의 내부 로직이 외부 환경의 변동성으로부터 보호받도록 보장하여, 더욱 예측 가능하고 안정적인 배포를 가능하게 합니다.
 
-그래서 `createApplicationContext()`는 `HTTP_APPLICATION_ADAPTER`를 등록하지 않고,
-`bootstrapApplication()`만 그것을 runtime token으로 등록합니다.
-adapter는 full application을 위한 optional infrastructure이지,
-universal bootstrap dependency가 아닙니다.
+따라서 9장의 마지막 takeaway는 단순히 `ApplicationContext`가 존재한다는 사실이 아닙니다. Fluo가 runtime bootstrap을 재사용 가능한 DI/lifecycle baseline, optional platform-shell readiness layer, 그리고 optional adapter/listen layer라는 세 가지 계층으로 분해한다는 사실입니다. 이러한 세 가지 계약을 별개의 엔티티로 보기 시작하면, 전체 부트스트랩 소스 코드가 훨씬 더 읽기 쉽고 유지보수하기 쉬워집니다. 이는 개발자가 시스템 전체의 복잡성에 압도되지 않고 애플리케이션 라이프사이클의 특정 측면에만 집중할 수 있게 해줍니다.
 
-`path:packages/runtime/src/bootstrap.test.ts:631-762`의 runtime-platform enforcement 테스트는 이 두 seam을 연결합니다.
-registered platform component가 bootstrap 동안 start되고,
-unknown dependency id가 bootstrap을 실패시키며,
-critical platform readiness가 adapter가 있어도 `listen()`을 막을 수 있음을 보여 줍니다.
+`ApplicationContext`는 모든 Fluo 애플리케이션에 필요한 DI 컨테이너와 기본 라이프사이클 훅을 제공하는 기초 계층 역할을 합니다. 이는 웹 서버, CLI 도구, 또는 백그라운드 워커 등 어떤 용도로 사용되든 Fluo 서비스를 실행하기 위한 최소한의 실행 가능한 환경입니다. 컨텍스트 부트스트랩을 마스터함으로써, 여러분은 주된 목적에 관계없이 모든 TypeScript 프로젝트에 Fluo의 강력한 의존성 주입 및 라이프사이클 관리 기능을 내장할 수 있는 능력을 얻게 됩니다. 이 기초 계층은 Fluo 모듈성의 초석이며, 단순한 스크립트부터 거대한 엔터프라이즈 시스템까지 폭넓은 사용 사례를 가능하게 합니다.
 
-즉 host contract는 층위가 다릅니다.
+`PlatformShell`은 환경 인식 및 상태 모니터링 계층을 추가합니다. 이는 프레임워크와 호스트 인프라 사이의 다리 역할을 하며, 애플리케이션이 진행되기 전에 데이터베이스 연결이나 시크릿(secret) 가용성과 같은 전제 조건이 충족되었는지 확인합니다. 이 계층 덕분에 Fluo는 "서비스 준비 완료(ready-to-serve)" 보장을 제공할 수 있으며, 실패 지점을 런타임 요청 처리 단계에서 초기 부트스트랩 단계로 옮겨 진단과 복구가 훨씬 쉬워지도록 합니다. `RuntimePlatformShell` 구현은 주변 환경의 건강과 준비 상태를 체크하기 위한 강력한 도구 세트를 제공하여, 애플리케이션이 진정으로 수행할 준비가 되었을 때만 시작되도록 보장합니다.
 
-```text
-Platform shell answers:
-  Is the surrounding runtime infrastructure valid, started, ready, and healthy?
+마지막으로, `FluoApplication`과 그와 관련된 어댑터들은 외부 인터페이스를 제공합니다. 이 계층은 네트워크 I/O, 요청 정규화, 그리고 우아한 종료(graceful shutdown)의 복잡성을 처리하여, 비즈니스 로직이 하위 전송 세부 사항을 전혀 모르고도 작동할 수 있게 합니다. Node.js HTTP 어댑터를 사용하든 웹 표준 fetch 핸들러를 사용하든, 하위 계층의 안정성 덕분에 핵심 애플리케이션 동작은 동일하게 유지됩니다. `listen()`과 `close()` 메서드를 통한 이러한 어댑터들의 오케스트레이션은 지원되는 모든 플랫폼에서 일관된 개발자 경험을 보장합니다.
 
-HTTP adapter answers:
-  Can this application bind request dispatch to a transport and later close it?
-```
+고급 개발자에게 이 아키텍처는 프레임워크를 확장하기 위한 명확한 로드맵을 제공합니다. 새로운 서버리스 플랫폼을 지원해야 하나요? 새로운 `PlatformShell`을 구현하십시오. 새로운 통신 프로토콜을 추가해야 하나요? 새로운 어댑터를 구현하십시오. 서비스, 컨트롤러, 모듈 그래프 등 애플리케이션의 핵심은 손상되지 않고 완전히 이식 가능한 상태로 유지됩니다. 이것이 "세 가지 셸(three shells)" 아키텍처의 힘입니다. 이는 백엔드 실행이라는 복잡한 문제를 명시적이고 신뢰할 수 있는 계약들의 구조화된 시퀀스로 전환합니다. 또한 각 셸을 타겟팅된 통합 테스트로 독립적으로 검증할 수 있으므로 테스트 프로세스도 단순화됩니다.
 
-이 책임 분리가 Fluo를 portable하게 만듭니다.
-core runtime shell은 transport-neutral하게 남고,
-platform-specific assumption과 adapter-specific assumption은 explicit seam으로 밀려납니다.
+이 장을 마치면서 이러한 패턴이 여러분의 애플리케이션에 어떻게 적용되는지 생각해 보십시오. 서비스 초기화가 전송 로직으로부터 적절히 격리되어 있습니까? 환경 검증이 일등 시민의 관심사로 처리되고 있습니까? 애플리케이션 컨텍스트와 셸에 대한 Fluo의 규율 있는 접근 방식을 채택함으로써, 여러분은 단지 기능적인 시스템이 아니라 아키텍처적으로 건실하고 미래를 대비한 백엔드 시스템을 구축하고 있는 것입니다. 아키텍처의 명료함과 관심사 분리에 대한 이러한 헌신이 바로 Fluo 프레임워크의 마스터를 정의하는 요소입니다. 부트스트랩 프로세스의 모든 코드 라인은 이러한 비전을 지원하기 위해 세심하게 설계되었으며, 유연하면서도 강력한 기반을 제공합니다. ApplicationContext, PlatformShell, 그리고 FluoApplication으로의 분해는 단순한 코드 조직화가 아니라, 현대적 백엔드 애플리케이션이 무엇을 의미하는지에 대한 본질을 정의하는 것입니다. 이러한 아키텍처적 유산은 백엔드 실행 환경이 계속해서 다양하게 진화하더라도 Fluo가 탄력적이고 적응력 있게 유지되도록 보장합니다. 이 세 가지 셸 아키텍처는 단순한 설계 패턴 이상의 의미를 가집니다. 이는 백엔드 개발에 있어서의 표준화와 명시성, 그리고 유지보수성에 대한 Fluo의 답변입니다. 각 셸은 자신의 책임을 명확히 정의하고 하위 계층에 의존함으로써, 전체 시스템의 복잡성을 낮추고 테스트 가능성을 높입니다. 이러한 견고한 토대 위에서 여러분의 애플리케이션은 어떠한 환경에서도 흔들림 없이 동작할 준비를 마치게 됩니다.
 
-따라서 9장의 마지막 takeaway는 단순히
-`ApplicationContext`가 존재한다는 사실이 아닙니다.
-Fluo가 runtime bootstrap을 재사용 가능한 DI/lifecycle baseline,
-optional platform-shell readiness layer,
-optional adapter/listen layer로 분해한다는 사실입니다.
-이 세 contract를 분리해서 보기 시작하면,
-bootstrap source 전체가 훨씬 읽기 쉬워집니다.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

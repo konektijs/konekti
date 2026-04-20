@@ -113,7 +113,7 @@ The order can be summarized this way:
 
 ```text
 compileModule(AppModule)
-  compile imports first (recursive)
+  compile imports first
   create compiled record for current module
   append current module to ordered list last
 ```
@@ -121,7 +121,6 @@ compileModule(AppModule)
 So the produced array is not arbitrary discovery order.
 It is a post-order traversal of reachable imports.
 That is exactly what later registration phases need.
-`path:packages/runtime/src/bootstrap.test.ts:13-39` confirms that for a graph `SharedModule -> AppModule`, the result is `['SharedModule', 'AppModule']`.
 
 The compiled record also precomputes `providerTokens` at `path:packages/runtime/src/module-graph.ts:219-226`.
 This is another small but important design choice.
@@ -143,6 +142,10 @@ enter module
   unmark visiting
   append to ordered output
 ```
+
+`path:packages/runtime/src/bootstrap.test.ts:13-39` confirms the positive case.
+The negative case is documented in the runtime source itself,
+and the error hint tells the intended recovery path.
 
 The important consequence is deterministic initialization order.
 When `bootstrapModule()` receives the compiled array,
@@ -206,10 +209,10 @@ Constructor metadata validation is another essential layer.
 `validateClassInjectionMetadata()` in `path:packages/runtime/src/module-graph.ts:103-129` compares required constructor arity with configured injection tokens.
 If metadata is missing,
 the runtime throws `ModuleInjectionMetadataError` before any provider instantiation occurs.
-`path:packages/runtime/src/bootstrap.test.ts:61-75` shows that a provider with a logger parameter but no `@Inject(Logger)` is rejected early.
 
 The tests pin these rules down.
 `path:packages/runtime/src/bootstrap.test.ts:41-59` verifies that a non-exported provider cannot leak across module boundaries.
+`path:packages/runtime/src/bootstrap.test.ts:61-75` shows that missing `@Inject(...)` metadata is rejected.
 `path:packages/runtime/src/bootstrap.test.ts:105-120` extends the same rule to controllers.
 
 Export validation happens in `createExportedTokenSet()` at `path:packages/runtime/src/module-graph.ts:333-358`.
@@ -267,8 +270,14 @@ The implementation detail that matters is selection order.
 `collectProvidersForContainer()` iterates compiled modules in dependency order,
 but because later writes replace earlier ones in the map,
 the last encountered provider token wins.
-That makes the policy deterministic.
-`path:packages/runtime/src/bootstrap.test.ts:319-343` proves this: if ModuleA and ModuleB both provide `SHARED_TOKEN` and ModuleB depends on (or is ordered after) ModuleA, then ModuleB's version is the one finally registered.
+That makes the policy deterministic,
+even if the design itself is questionable.
+
+The tests show this clearly.
+`path:packages/runtime/src/bootstrap.test.ts:291-317` verifies the warning path.
+`path:packages/runtime/src/bootstrap.test.ts:319-343` proves that the later provider wins when warning mode is used.
+The runtime does not try to merge duplicates.
+It forces one selected provider per token.
 
 After selection,
 `bootstrapModule()` removes runtime provider tokens from the module provider list with `createRuntimeTokenSet()` and `providerToken()`.
@@ -297,6 +306,12 @@ The module-order analysis here is simple but important.
 Because the compiled module list is dependency-first,
 provider selection sees imported modules before importers.
 That means later importer modules can intentionally override imported tokens when duplicate policy allows it.
+The runtime is not random.
+It is last-write-wins on top of a dependency-ordered traversal.
+
+So Chapter 8's middle conclusion is:
+the graph compiler decides legal topology,
+and `bootstrapModule()` replays that topology into a container with explicit duplicate semantics.
 
 ## 8.5 Initialization order continues after registration through lifecycle resolution and hook execution
 Module graph order is only the first half of initialization order.
@@ -341,7 +356,6 @@ All `onModuleInit()` hooks run first.
 Only after that pass completes do `onApplicationBootstrap()` hooks run.
 This is a global phase barrier.
 Fluo does not interleave the two hook types instance by instance.
-`path:packages/runtime/src/bootstrap.test.ts:543-582` records this exact sequence: `module:init`, then `app:bootstrap`.
 
 Shutdown ordering is the mirror image.
 `runShutdownHooks()` at `path:packages/runtime/src/bootstrap.ts:710-722` iterates instances in reverse order,
@@ -372,23 +386,87 @@ compile module graph
 ```
 
 The tests for application context in `path:packages/runtime/src/bootstrap.test.ts:522-629` show the same lifecycle sequence without an HTTP adapter.
-So initialization order is not tied to transport startup.
-It belongs to the runtime shell itself.
+The tests for application context in `path:packages/runtime/src/bootstrap.test.ts:522-629` show the same lifecycle sequence without an HTTP adapter. That distinction is the real conclusion of Chapter 8. In Fluo, "module initialization order" is not just a simple topological sort; it is a layered model of increasing concreteness.
 
-That distinction is the real finish of Chapter 8.
-"Module initialization order" in Fluo means more than topological sorting.
-It means:
-first a compile-time order of modules,
-then a registration order of tokens,
-then a bootstrap order of singleton lifecycles,
-and only after all of that,
-transport readiness.
+First, there is the **compile-time order** of the module graph. This is where cycles are rejected and visibility boundaries are drawn. If your application fails here, before a single constructor is called, you are likely looking at a structural flaw in your `@Module()` imports. The `compileModule()` algorithm ensures that no module enters the container until its entire dependency subtree is fully understood and validated. This prevents "partial graph" states where some modules are aware of their exports while others are not, maintaining a consistent world-view for the subsequent registration phase. The pre-computation of `providerTokens` and `exportedTokens` at this stage serves as the blueprint for the entire container setup.
 
-For advanced debugging,
-that layered model is the one to keep in your head.
-If something fails before the container exists,
-look at module graph compilation.
-If it fails before `listen()`,
-look at lifecycle resolution or platform start.
-If it fails during `listen()`,
-the graph and lifecycle phases have already succeeded.
+Second, there is the **token registration order**. As the runtime iterates through the compiled module records, it feeds provider definitions into the DI container. This is a flat, additive process, but it is governed by the topological order established during compilation. Registration is where duplicate provider policies are enforced and where the container's internal lookup tables are populated. Because this happens in a single, sequential pass, Fluo avoids the complexity of "lazy registration" found in some other frameworks, making the final state of the container deterministic and easier to audit through diagnostics. This stage also handles the normalization of alias providers, ensuring that any `useExisting` redirects are properly registered in the container's internal map. The consistency of this registration order is critical for reproducible production deployments.
+
+Third, there is the **singleton lifecycle bootstrap order**. This is the first point where user code—in the form of constructors and `OnModuleInit` hooks—actually executes. Fluo meticulously resolves lifecycle-bearing singletons in an order that respects their dependencies. If Service A depends on Service B, Service B is guaranteed to be fully initialized and its `onModuleInit` hook completed before Service A's hook begins. This "depth-first initialization" ensures that when your business logic starts running, every resource it depends on is in a known, ready state. The resolution of these instances through `resolveBootstrapLifecycleInstances()` is what brings the static graph to life, turning provider definitions into real, operational objects.
+
+Fourth, and only after the previous layers are complete, does the **transport readiness** phase begin. This is where an HTTP adapter might start listening on a port or a message queue consumer might begin pulling tasks. By deferring transport startup until the entire internal runtime shell is healthy and initialized, Fluo prevents "half-ready" applications from accepting traffic and failing immediately. It also ensures that health-check endpoints, which are registered during the bootstrap phase, accurately reflect the true state of the application's readiness. This separation ensures that the internal state of the application is always prioritized over its external availability. This is a fundamental reliability guarantee that allows Fluo to excel in high-availability environments.
+
+For the advanced architect, this layered model is a powerful diagnostic tool. When an application fails to start, you don't just ask "why?"; you ask "in which layer?".
+- If it fails before any logs from your services appear, check the **Module Graph Compilation**.
+- If it fails with a `ScopeMismatchError` or `CircularDependencyError`, check the **Token Registration** and DI analysis.
+- If it fails during service initialization (e.g., a database connection timeout), check the **Lifecycle Bootstrap** phase.
+- If it fails only when receiving its first request, check the **Transport Adapter** and middleware registration.
+
+This level of structural discipline is what separates Fluo from frameworks that treat startup as an opaque "black box" of magic. By exposing these discrete phases through explicit code in `bootstrap.ts` and `module-graph.ts`, Fluo empowers developers to understand exactly how their application comes to life. It turns the "dependency graph" from a static data structure into a dynamic, living contract that governs the entire lifecycle of the backend. The orchestration of these phases is what enables Fluo to provide its "standard-first" guarantees across a wide variety of runtime environments, from Node.js to Edge workers. Every step from the first line of the module graph to the last shutdown hook is carefully choreographed.
+
+Ultimately, the module graph is the brain of the Fluo runtime. It doesn't just hold data; it orchestrates the transition from raw configuration to a functioning, resilient application. Mastering its nuances is the final step in moving from a developer who "uses" Fluo to an architect who "builds with" Fluo. This understanding allows for the creation of sophisticated architectural patterns, such as dynamic module orchestration and complex multi-host deployments, while maintaining the framework's core promises of explicitness and reliability. The journey from a simple decorator to a fully realized application context is a testament to the power of structured, metadata-driven development.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

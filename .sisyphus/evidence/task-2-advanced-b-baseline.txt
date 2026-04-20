@@ -1,115 +1,16 @@
-     240 book/advanced/src/ch06-circular-deps.md
-     266 book/advanced/src/ch06-circular-deps.ko.md
-     247 book/advanced/src/ch07-dynamic-modules.md
-     262 book/advanced/src/ch07-dynamic-modules.ko.md
-     408 book/advanced/src/ch08-module-graph.md
-     403 book/advanced/src/ch08-module-graph.ko.md
-     348 book/advanced/src/ch09-app-context.md
-     345 book/advanced/src/ch09-app-context.ko.md
-     325 book/advanced/src/ch10-runtime-branching.md
-     318 book/advanced/src/ch10-runtime-branching.ko.md
-     216 book/advanced/src/ch11-request-pipeline.md
-     216 book/advanced/src/ch11-request-pipeline.ko.md
-    3594 total
-book/advanced/src/ch06-circular-deps.md:# 6. Circular Dependency Detection and Escape Hatches
-book/advanced/src/ch06-circular-deps.md:## 6.1 The container detects cycles with an active-token set plus a readable chain
-book/advanced/src/ch06-circular-deps.md:## 6.2 What forwardRef actually solves and what it does not
-book/advanced/src/ch06-circular-deps.md:## 6.3 Alias chains and scope validation can also surface cycles
-book/advanced/src/ch06-circular-deps.md:## 6.4 Provider cycles and module import cycles are separate failure phases
-book/advanced/src/ch06-circular-deps.md:## 6.5 Practical strategies for breaking cycles without hiding design problems
-book/advanced/src/ch06-circular-deps.ko.md:# 6. Circular Dependency Detection and Escape Hatches
-book/advanced/src/ch06-circular-deps.ko.md:## 6.1 The container detects cycles with an active-token set plus a readable chain
-book/advanced/src/ch06-circular-deps.ko.md:## 6.2 What forwardRef actually solves and what it does not
-book/advanced/src/ch06-circular-deps.ko.md:## 6.3 Alias chains and scope validation can also surface cycles
-book/advanced/src/ch06-circular-deps.ko.md:## 6.4 Provider cycles and module import cycles are separate failure phases
-book/advanced/src/ch06-circular-deps.ko.md:## 6.5 Practical strategies for breaking cycles without hiding design problems
-book/advanced/src/ch07-dynamic-modules.md:# 7. Dynamic Modules and Factory Providers
-book/advanced/src/ch07-dynamic-modules.md:## 7.1 In Fluo, a dynamic module is just a module type produced by code
-book/advanced/src/ch07-dynamic-modules.md:## 7.2 Static forRoot helpers are factories for metadata plus providers
-book/advanced/src/ch07-dynamic-modules.md:## 7.3 Async module helpers are factory providers with memoized option resolution
-book/advanced/src/ch07-dynamic-modules.md:## 7.4 Global exports, named registrations, and alias-based public surfaces
-book/advanced/src/ch07-dynamic-modules.md:## 7.5 A practical checklist for authoring Fluo dynamic modules
-book/advanced/src/ch07-dynamic-modules.ko.md:# 7. Dynamic Modules and Factory Providers
-book/advanced/src/ch07-dynamic-modules.ko.md:## 7.1 In Fluo, a dynamic module is just a module type produced by code
-book/advanced/src/ch07-dynamic-modules.ko.md:## 7.2 Static forRoot helpers are factories for metadata plus providers
-book/advanced/src/ch07-dynamic-modules.ko.md:## 7.3 Async module helpers are factory providers with memoized option resolution
-book/advanced/src/ch07-dynamic-modules.ko.md:## 7.4 Global exports, named registrations, and alias-based public surfaces
-book/advanced/src/ch07-dynamic-modules.ko.md:## 7.5 A practical checklist for authoring Fluo dynamic modules
-book/advanced/src/ch08-module-graph.md:# 8. Module Graph Compilation and Initialization Order
-book/advanced/src/ch08-module-graph.md:## 8.1 The bootstrap pipeline starts by freezing module topology before constructing anything
-book/advanced/src/ch08-module-graph.md:## 8.2 Graph compilation is a depth-first walk with explicit cycle rejection
-book/advanced/src/ch08-module-graph.md:## 8.3 Validation is where visibility, exports, and constructor metadata become runtime law
-book/advanced/src/ch08-module-graph.md:## 8.4 Container registration replays the compiled order and applies duplicate-provider policy
-book/advanced/src/ch08-module-graph.md:## 8.5 Initialization order continues after registration through lifecycle resolution and hook execution
-book/advanced/src/ch08-module-graph.ko.md:# 8. Module Graph Compilation and Initialization Order
-book/advanced/src/ch08-module-graph.ko.md:## 8.1 The bootstrap pipeline starts by freezing module topology before constructing anything
-book/advanced/src/ch08-module-graph.ko.md:## 8.2 Graph compilation is a depth-first walk with explicit cycle rejection
-book/advanced/src/ch08-module-graph.ko.md:## 8.3 Validation is where visibility, exports, and constructor metadata become runtime law
-book/advanced/src/ch08-module-graph.ko.md:## 8.4 Container registration replays the compiled order and applies duplicate-provider policy
-book/advanced/src/ch08-module-graph.ko.md:## 8.5 Initialization order continues after registration through lifecycle resolution and hook execution
-book/advanced/src/ch09-app-context.md:# 9. Application Context and Platform Adapter Contracts
-book/advanced/src/ch09-app-context.md:## 9.1 Fluo builds three runtime shells from one bootstrap spine
-book/advanced/src/ch09-app-context.md:## 9.2 Application context is the adapterless baseline and still runs full lifecycle bootstrap
-book/advanced/src/ch09-app-context.md:## 9.3 Full applications add dispatcher state, readiness checks, and adapter-driven listen semantics
-book/advanced/src/ch09-app-context.md:## 9.4 Shutdown and failure cleanup are first-class runtime contracts, not afterthoughts
-book/advanced/src/ch09-app-context.md:## 9.5 The platform shell and adapter seams define what the runtime may assume about the host
-book/advanced/src/ch09-app-context.ko.md:# 9. Application Context and Platform Adapter Contracts
-book/advanced/src/ch09-app-context.ko.md:## 9.1 Fluo builds three runtime shells from one bootstrap spine
-book/advanced/src/ch09-app-context.ko.md:## 9.2 Application context is the adapterless baseline and still runs full lifecycle bootstrap
-book/advanced/src/ch09-app-context.ko.md:## 9.3 Full applications add dispatcher state, readiness checks, and adapter-driven listen semantics
-book/advanced/src/ch09-app-context.ko.md:## 9.4 Shutdown and failure cleanup are first-class runtime contracts, not afterthoughts
-book/advanced/src/ch09-app-context.ko.md:## 9.5 The platform shell and adapter seams define what the runtime may assume about the host
-book/advanced/src/ch10-runtime-branching.md:# 10. Runtime Branching: Node vs Web vs Edge
-book/advanced/src/ch10-runtime-branching.md:## 10.1 Fluo branches by package surface and adapter seams more than by giant runtime conditionals
-book/advanced/src/ch10-runtime-branching.md:## 10.2 The root runtime barrel is intentionally transport-neutral and the export map enforces it
-book/advanced/src/ch10-runtime-branching.md:## 10.3 The Node branch packages server lifecycle, retries, compression, and shutdown behind the ./node subpath
-book/advanced/src/ch10-runtime-branching.md:## 10.4 The Web and Edge branch reuse the Web-standard Request/Response seam instead of inventing separate runtimes
-book/advanced/src/ch10-runtime-branching.md:## 10.5 Shared request/response factories are the narrow bridge that keeps higher runtime behavior identical across hosts
-book/advanced/src/ch10-runtime-branching.ko.md:# 10. Runtime Branching: Node vs Web vs Edge
-book/advanced/src/ch10-runtime-branching.ko.md:## 10.1 Fluo branches by package surface and adapter seams more than by giant runtime conditionals
-book/advanced/src/ch10-runtime-branching.ko.md:## 10.2 The root runtime barrel is intentionally transport-neutral and the export map enforces it
-book/advanced/src/ch10-runtime-branching.ko.md:## 10.3 The Node branch packages server lifecycle, retries, compression, and shutdown behind the ./node subpath
-book/advanced/src/ch10-runtime-branching.ko.md:## 10.4 The Web and Edge branch reuse the Web-standard Request/Response seam instead of inventing separate runtimes
-book/advanced/src/ch10-runtime-branching.ko.md:## 10.5 Shared request/response factories are the narrow bridge that keeps higher runtime behavior identical across hosts
-book/advanced/src/ch11-request-pipeline.md:# Chapter 11. Request Pipeline Anatomy — HTTP 요청의 일생
-book/advanced/src/ch11-request-pipeline.md:## 이 챕터에서 배우는 것
-book/advanced/src/ch11-request-pipeline.md:## 사전 요구사항
-book/advanced/src/ch11-request-pipeline.md:## 11.1 디스패처(Dispatcher): 파이프라인의 사령탑
-book/advanced/src/ch11-request-pipeline.md:## 11.2 요청 파이프라인의 10단계 흐름
-book/advanced/src/ch11-request-pipeline.md:## 11.3 RequestContext와 비동기 격리
-book/advanced/src/ch11-request-pipeline.md:## 11.4 옵저버(Observer) 패턴을 통한 모니터링
-book/advanced/src/ch11-request-pipeline.md:## 11.5 요청 중단(Aborted) 처리의 정교함
-book/advanced/src/ch11-request-pipeline.md:## 11.6 파이프라인 시각화 다이어그램
-book/advanced/src/ch11-request-pipeline.md:## 11.7 DispatchPhaseContext: 단계별 상태 공유
-book/advanced/src/ch11-request-pipeline.md:## 11.8 오류 처리 정책 (Error Policy)
-book/advanced/src/ch11-request-pipeline.md:## 11.9 성능 최적화: WeakMap을 활용한 메타데이터 캐싱
-book/advanced/src/ch11-request-pipeline.md:## 11.10 리소스 정리: DI 스코프 소멸
-book/advanced/src/ch11-request-pipeline.md:## 요약
-book/advanced/src/ch11-request-pipeline.md:## 다음 챕터 예고
-book/advanced/src/ch11-request-pipeline.ko.md:# Chapter 11. Request Pipeline Anatomy — HTTP 요청의 일생
-book/advanced/src/ch11-request-pipeline.ko.md:## 이 챕터에서 배우는 것
-book/advanced/src/ch11-request-pipeline.ko.md:## 사전 요구사항
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.1 디스패처(Dispatcher): 파이프라인의 사령탑
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.2 요청 파이프라인의 10단계 흐름
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.3 RequestContext와 비동기 격리
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.4 옵저버(Observer) 패턴을 통한 모니터링
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.5 요청 중단(Aborted) 처리의 정교함
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.6 파이프라인 시각화 다이어그램
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.7 DispatchPhaseContext: 단계별 상태 공유
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.8 오류 처리 정책 (Error Policy)
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.9 성능 최적화: WeakMap을 활용한 메타데이터 캐싱
-book/advanced/src/ch11-request-pipeline.ko.md:## 11.10 리소스 정리: DI 스코프 소멸
-book/advanced/src/ch11-request-pipeline.ko.md:## 요약
-book/advanced/src/ch11-request-pipeline.ko.md:## 다음 챕터 예고
-book/advanced/src/ch06-circular-deps.md:10
-book/advanced/src/ch06-circular-deps.ko.md:10
-book/advanced/src/ch07-dynamic-modules.md:8
-book/advanced/src/ch07-dynamic-modules.ko.md:8
-book/advanced/src/ch08-module-graph.md:12
-book/advanced/src/ch08-module-graph.ko.md:12
-book/advanced/src/ch09-app-context.md:10
-book/advanced/src/ch09-app-context.ko.md:10
-book/advanced/src/ch10-runtime-branching.md:10
-book/advanced/src/ch10-runtime-branching.ko.md:10
-book/advanced/src/ch11-request-pipeline.md:10
-book/advanced/src/ch11-request-pipeline.ko.md:10
+# T2 Advanced B Baseline Evidence (Regenerated Truthful)
+
+| File Path | Baseline Lines | Baseline Fences | Target Lines (max(b*1.15, b+40)) |
+| :--- | :--- | :--- | :--- |
+| book/advanced/src/ch06-circular-deps.md | 240 | 10 | 280 |
+| book/advanced/src/ch06-circular-deps.ko.md | 266 | 10 | 306 |
+| book/advanced/src/ch07-dynamic-modules.md | 247 | 8 | 287 |
+| book/advanced/src/ch07-dynamic-modules.ko.md | 262 | 8 | 302 |
+| book/advanced/src/ch08-module-graph.md | 408 | 12 | 470 |
+| book/advanced/src/ch08-module-graph.ko.md | 403 | 12 | 464 |
+| book/advanced/src/ch09-app-context.md | 348 | 10 | 401 |
+| book/advanced/src/ch09-app-context.ko.md | 345 | 10 | 397 |
+| book/advanced/src/ch10-runtime-branching.md | 325 | 10 | 374 |
+| book/advanced/src/ch10-runtime-branching.ko.md | 318 | 10 | 366 |
+| book/advanced/src/ch11-request-pipeline.md | 216 | 10 | 256 |
+| book/advanced/src/ch11-request-pipeline.ko.md | 216 | 10 | 256 |
