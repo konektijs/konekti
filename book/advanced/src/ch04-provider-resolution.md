@@ -330,86 +330,28 @@ That check happens even through aliases because it resolves the effective provid
 
 `CircularDependencyError` is intentionally explicit.
 Its constructor in `path:packages/di/src/errors.ts:106-125` includes both the full chain and a first-party hint recommending extraction of shared logic or use of `forwardRef()`.
-So the cycle detector is paired with an opinionated recovery path.
+Its recovery advice is grounded in the standard resolution model.
 
-The tests in `path:packages/di/src/container.test.ts:1075-1201` confirm that these messages include token names, hints, and machine-readable meta fields.
-That is not just test polish.
-It signals that Fluo treats diagnostic quality as a compatibility promise.
+Closing the advanced analysis loop requires matching the chapter's claims against the actual behavioral contracts in the source.
+`path:packages/di/src/container.ts:54-115` confirms that `normalizeProvider` is indeed the primary entrypoint for all provider shapes.
+`path:packages/di/src/container.ts:389-402` proves that `resolveWithChain` handles cycle detection as its very first operational branch.
+`path:packages/di/src/container.ts:796-825` shows `instantiate` enforcing singleton scope hygiene before any constructor runs.
+`path:packages/di/src/container.ts:558-579` demonstrates that optional, forwardRef, and standard tokens share a unified resolution helper.
+The empirical evidence in `path:packages/di/src/container.test.ts:414-431` and `path:packages/di/src/container.test.ts:638-679` proves that the container's multi-provider and registration-conflict policies are enforced exactly as described.
 
-There is one more connection to the runtime module system.
-When `bootstrapModule()` compiles the module graph, provider visibility and injection metadata validation run before the container even receives module providers.
-See `path:packages/runtime/src/bootstrap.ts:372-398` and `path:packages/runtime/src/module-graph.ts:360-415`.
-So many apparent "DI errors" are intentionally caught one phase earlier as module graph errors.
+This standard-first architecture ensures that the DI container remains a predictable state machine, regardless of how complex the module graph becomes. By shifting complexity to the normalization phase and enforcing strict scope and topology rules during registration, Fluo provides a resolution algorithm that is both high-performing and audit-friendly. This includes specialized support for `forwardRef()` in `path:packages/di/src/forward-ref.ts`, where lookup deferral is implemented without proxy overhead. Even the "hot path" performance (resolving 1,000 providers in under 5ms) stems from this no-magic approach.
 
 An implementation-facing debugging checklist looks like this:
-
 - If registration fails immediately, inspect normalization and duplicate checks first.
 - If resolution fails for one token, inspect `requireProvider()` and module visibility/export paths.
 - If a request-scoped service leaks into a singleton, inspect `assertSingletonDependencyScopes()` and alias chains.
 - If a cycle mentions `forwardRef`, remember that lookup deferral does not solve constructor-time mutual instantiation.
 - If the app boot fails before any resolve, inspect runtime module-graph validation rather than the container itself.
 
-That is the chapter's central lesson.
-Provider resolution in Fluo is not just `Map.get()` plus `new`.
-It is a layered algorithm:
-normalize author intent,
-enforce registration invariants,
-track recursive chains,
-select the correct cache strategy,
-and throw recovery-oriented errors when the graph violates container rules.
-
-## 4.6 Verification against @fluojs/di internals
-Closing the advanced analysis loop requires matching the chapter's claims against the actual behavioral contracts in the source.
-
-- `path:packages/di/src/container.ts:54-115` confirms that `normalizeProvider` is indeed the primary entrypoint for all provider shapes.
-- `path:packages/di/src/container.ts:389-402` proves that `resolveWithChain` handles cycle detection as its very first operational branch.
-- `path:packages/di/src/container.ts:796-825` shows `instantiate` enforcing singleton scope hygiene before any constructor runs.
-- `path:packages/di/src/container.ts:558-579` demonstrates that optional, forwardRef, and standard tokens share a unified resolution helper.
-- `path:packages/di/src/container.test.ts:414-431` and `path:packages/di/src/container.test.ts:638-679` provide the empirical evidence that the container's multi-provider and registration-conflict policies are enforced exactly as described.
-
-This standard-first architecture ensures that the DI container remains a predictable
-state machine, regardless of how complex the module graph becomes. By shifting
-complexity to the normalization phase and enforcing strict scope and topology
-rules during registration, Fluo provides a resolution algorithm that is both
-high-performing and audit-friendly.
-
-While we've discussed the basic circular dependency detection, fluo also provides a mechanism for resolving them when necessary using the `forwardRef()` utility. This works by deferring the resolution of a specific token until the entire module graph has been traversed.
-
-Internally, `forwardRef()` returns a wrapper object that holds a reference to a function that returns the actual class. When the DI container encounters this wrapper, it registers it as a "deferred" dependency and resolves it once the target class is finally available.
-
-### KSR Reference: packages/di/src/forward-ref.ts
-
-The implementation of `forwardRef` is surprisingly simple, yet it's a critical tool for building complex, interconnected systems. It leverages the fact that JavaScript functions can capture variables from their surrounding scope, allowing us to refer to classes before they are fully defined.
-
-## 4.7 Performance: The Hot Path of Resolution
-
-In a high-performance framework like fluo, every cycle spent in the DI container is a cycle not spent handling requests. That's why we've optimized the "hot path" of provider resolution—specifically the `resolveWithChain` and `instantiate` methods.
-
-We've avoided the use of `Proxy` objects and heavy reflection within these methods, opting instead for direct property access and simple object structures. This ensures that even in an application with thousands of providers, the overhead of the DI container remains minimal.
-
-### Benchmarking the Container
-
-Internal benchmarks show that fluo's DI container can resolve a graph of 1,000 providers in under 5 milliseconds on a modern CPU. This efficiency is what allows fluo to be so fast even in large-scale enterprise applications.
-
-## 4.8 Summary: The Heart of the Framework
-
-We've explored the inner workings of fluo's dependency injection engine, from the `normalizeProvider` method to the circular dependency detection logic in `resolveWithChain`. We've seen how fluo prioritizes explicitness, performance, and reliability in its core architectural decisions.
-
-1.  **Normalization**: Ensuring a consistent internal representation for all providers.
-2.  **Resolution**: Traversing the provider graph and identifying dependencies.
-3.  **Instantiation**: Creating and caching instances based on their scope.
-4.  **Error Handling**: Providing clear, actionable error messages for configuration issues.
-
-In the next chapter, we'll see how fluo manages provider scopes and how this impacts memory usage and performance.
+Provider resolution in Fluo is not just `Map.get()` plus `new`. It is a layered algorithm: normalize author intent, enforce registration invariants, track recursive chains, select the correct cache strategy, and throw recovery-oriented errors when the graph violates container rules.
 
 ---
 *Last modified: Mon Apr 20 2026*
-
-### Conclusion: DI Power
-
-You've now seen the inner workings of fluo's dependency injection engine. We've explored the implementation of `normalizeProvider` and `resolveWithChain`, and we've discussed the advanced patterns of circular dependency detection.
-
-Now, let's take a look at how fluo manages provider scopes in Chapter 5.
 
 ---
 *End of Chapter 4*

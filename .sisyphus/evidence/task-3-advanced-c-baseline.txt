@@ -1,0 +1,31 @@
+     208 book/advanced/src/ch12-execution-chain.md
+     208 book/advanced/src/ch12-execution-chain.ko.md
+     231 book/advanced/src/ch13-custom-adapter.md
+     231 book/advanced/src/ch13-custom-adapter.ko.md
+     202 book/advanced/src/ch14-portability-testing.md
+     202 book/advanced/src/ch14-portability-testing.ko.md
+     203 book/advanced/src/ch15-studio.md
+     203 book/advanced/src/ch15-studio.ko.md
+     282 book/advanced/src/ch16-custom-package.md
+     282 book/advanced/src/ch16-custom-package.ko.md
+     282 book/advanced/src/ch17-contributing.md
+     201 book/advanced/src/ch17-contributing.ko.md
+    2735 total
+book/advanced/src/ch12-execution-chain.md:# Chapter 12. Execution Chain & Exception Chain — 가드, 인터셉터, 예외 처리
+book/advanced/src/ch12-execution-chain.ko.md:# Chapter 12. Execution Chain & Exception Chain — 가드, 인터셉터, 예외 처리
+book/advanced/src/ch13-custom-adapter.md:# Chapter 13. Custom Adapter Implementation — 독자적인 전송 계층 구축
+book/advanced/src/ch13-custom-adapter.ko.md:# Chapter 13. Custom Adapter Implementation — 독자적인 전송 계층 구축
+book/advanced/src/ch14-portability-testing.md:# Chapter 14. Portability Testing and Conformance — 이식성 테스트와 적합성 검증
+book/advanced/src/ch14-portability-testing.ko.md:# Chapter 14. Portability Testing and Conformance — 이식성 테스트와 적합성 검증
+book/advanced/src/ch15-studio.md:# Chapter 15. Studio — 시각적 진단과 관찰성
+book/advanced/src/ch15-studio.ko.md:# Chapter 15. Studio — 시각적 진단과 관찰성
+book/advanced/src/ch16-custom-package.md:# Chapter 16. Creating Custom Packages
+book/advanced/src/ch16-custom-package.ko.md:# Chapter 16. Creating Custom Packages
+book/advanced/src/ch17-contributing.md:# Chapter 17. fluo Contributing Guide
+book/advanced/src/ch17-contributing.md:# Clone the repository
+book/advanced/src/ch17-contributing.md:# Install dependencies
+book/advanced/src/ch17-contributing.md:# Run verification
+book/advanced/src/ch17-contributing.ko.md:# Chapter 17. fluo Contributing Guide
+book/advanced/src/ch17-contributing.ko.md:# Clone the repository
+book/advanced/src/ch17-contributing.ko.md:# Install dependencies
+book/advanced/src/ch17-contributing.ko.md:# Run verification

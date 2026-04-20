@@ -8,9 +8,13 @@ The power of any framework lies in its extensibility, and in Fluo, this extensib
 
 Unlike legacy decorators, standard decorators are not just functions that receive a target; they are highly structured transformers. A standard decorator for a class, for instance, has the signature `(value: Function, context: ClassDecoratorContext) => void | Function`. This structure allows you to not only observe the class but also to replace it entirely or register initializers that run when the class is defined.
 
-This formal structure eliminates the guesswork associated with legacy decorators. You no longer need to worry about the order in which decorators are applied to different elements, as the TC39 specification defines a clear and predictable evaluation order. For custom decorator authors, this means your transformations are more reliable and easier to reason about, even when used in complex combinations.
+This formal structure eliminates the guesswork associated with legacy decorators. You no longer need to worry about the order in which decorators are applied to different elements, as the TC39 specification defines a clear and predictable evaluation order. For custom decorator authors, this means your transformations are more reliable and easier to reason about, even when used in complex combinations. For instance, class decorators are always evaluated after all member decorators (methods, accessors, fields) have been processed, providing a consistent "final view" of the class structure for framework-level registration.
 
-Another advantage of the standard approach is the `context.addInitializer` method. This allows your custom decorator to perform setup tasks—like registering a class with a central registry or setting up a database connection—exactly once per class or instance. This provides a cleaner and more integrated alternative to the global state management often required by legacy decorator implementations.
+Furthermore, standard decorators operate within a well-defined "kind" system (`class`, `method`, `getter`, `setter`, `field`, `accessor`). Your custom decorator can use the `context.kind` property to provide specific logic depending on where it's applied, or even throw an informative error if it's used on an unsupported element. This self-validating nature of standard decorators is a significant improvement over the "anything goes" approach of legacy systems, leading to more robust and developer-friendly extension APIs.
+
+Another advantage of the standard approach is the `context.addInitializer` method. This allows your custom decorator to perform setup tasks—like registering a class with a central registry or setting up a database connection—exactly once per class or instance. This provides a cleaner and more integrated alternative to the global state management often required by legacy decorator implementations. Initializers registered via `context.addInitializer` are guaranteed to run in the order they were added, providing a deterministic setup sequence that is essential for complex framework integrations.
+
+In the case of method decorators, `addInitializer` can be used to perform validation or setup logic that depends on the instance being fully constructed. This "deferred initialization" pattern allows your decorators to interact with the runtime state of the application without having to resort to expensive proxies or complex lifecycle hooks. It's a pragmatic solution to the challenge of bridging the gap between static class definitions and dynamic instance-level behavior.
 
 ## 3.2 Metadata-driven custom logic
 The core utility of a custom decorator is often its ability to record metadata that will be consumed later by a guard, an interceptor, or a custom provider. By using Fluo's internal metadata helpers, you can create decorators that attach specific configuration payloads to classes, methods, or properties. This metadata-driven approach keeps your business logic clean and declarative, moving infrastructural concerns into specialized framework hooks.
@@ -231,9 +235,6 @@ By mastering custom decorators, you are effectively building your own domain-spe
 5.  **Verify**: Use unit tests to ensure the metadata is correctly applied.
 
 In the next chapter, we'll see how fluo's DI container uses these principles to resolve complex provider graphs. You've now seen how to build custom decorators that leverage fluo's standard-first metadata system. We've explored the implementation of `@CurrentUser()` and `@Roles()`, and we've discussed the advanced patterns of guard and interceptor integration. Now, let's take a look at how fluo's DI container uses these principles in Chapter 4.
-
----
-*Last modified: Mon Apr 20 2026*
 
 ---
 *End of Chapter 3*

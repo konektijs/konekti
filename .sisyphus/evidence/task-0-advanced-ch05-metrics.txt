@@ -1,0 +1,5 @@
+     393 book/advanced/src/ch05-scopes.md
+     414 book/advanced/src/ch05-scopes.ko.md
+     807 total
+Code fences EN: 20
+Code fences KO: 20

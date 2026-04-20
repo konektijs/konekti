@@ -230,21 +230,11 @@ TC39 표준을 엄격히 준수함으로써 우리는 fluo가 진화하는 JavaS
 
 여정이 쉽지는 않겠지만, 그 끝에서 얻는 보상은 충분히 가치가 있을 것입니다.
 
----
-*End of Introduction*
-
-우리는 `path:packages/core/src/metadata/shared.ts:13-32`에서 처리되는 캡슐화된 `metadataSymbol`을 통해 전역 상태에서 벗어나는 과정이 어떻게 프레임워크의 보안과 격리성을 강화하는지 실증할 것입니다. 또한 `path:packages/core/src/decorators/class.ts`에서 볼 수 있는 최신 데코레이터 표준의 활용은 우리가 왜 이토록 표준에 집착하는지에 대한 답을 제시할 것입니다.
-
-이 아키텍처적 여행은 여러분에게 단순히 도구를 사용하는 법을 넘어, 도구를 만드는 법을 가르쳐 줄 것입니다. `path:packages/di/src/container.ts`의 핵심 해석 알고리즘을 이해하는 것은 그 자체로 훌륭한 알고리즘 학습이 될 것이며, `path:packages/runtime/src/module-graph.ts`에서의 그래프 구축 과정은 대규모 시스템을 추상화하는 통찰력을 제공할 것입니다.
-
-우리는 또한 `path:packages/core/src/metadata/provider-registry.ts`에서 볼 수 있는 정적 레지스트리 시스템이 런타임 성능에 어떤 이득을 주는지에 대해서도 수치적으로 접근할 예정입니다. 또한 `path:packages/core/src/metadata/weak-map-store.ts`의 구현을 통해 대규모 메타데이터 환경에서의 성능 저하를 방지하는 실질적인 엔지니어링 기법을 공개할 것입니다. 이러한 모든 노력이 모여 fluo는 고성능과 유연성을 동시에 갖춘 현대적인 프레임워크로 자리 잡았습니다. 여러분이 이 책을 통해 얻을 통찰력은 단순히 하나의 프레임워크를 이해하는 것을 넘어, 자바스크립트 생태계의 거대한 변화를 읽어내는 능력이 될 것입니다. 우리는 `path:packages/core/src/utils/performance.ts`를 활용하여 실제 런타임에서의 최적화 효과를 직접 측정해 보며, 아키텍처적 결단이 실질적인 지표로 어떻게 나타나는지 실증할 것입니다.
-
-또한 `path:packages/di/src/resolution/cycle-detector.ts`를 통해 복잡한 의존성 그래프에서 발생할 수 있는 순환 참조를 어떻게 효율적으로 감지하고 해결하는지 그 내부 알고리즘을 상세히 분석할 것입니다.
-
-마지막으로, `path:packages/runtime/src/platform/`에 위치한 플랫폼 어댑터들은 fluo가 어떻게 단일 코드베이스로 Node.js부터 Edge Workers까지 아우르는 범용성을 확보했는지 보여주는 기술적 결정체입니다. 이 모든 것이 여러분의 지식이 될 것입니다.
+앞으로의 여정은 단순한 사용자에서 아키텍트로 거듭나는 심오한 변화의 과정입니다. 마지막 장에 다다를 때쯤이면, 여러분은 더 이상 `@Module()`이나 `@Inject()`를 마법 같은 명령어로 보지 않고, `moduleMetadataStore`와 `injectionMetadataStore`에 기록되는 정밀한 데이터로 이해하게 될 것입니다. "해석(resolution)"은 신비로운 현상이 아니라 모듈 그래프를 따라가는 결정론적인 순회이며, "실행(execution)"은 일련의 행동 계약을 통해 실행 컨텍스트를 조율하는 과정임을 깨닫게 될 것입니다. 이러한 통찰의 수준이 바로 고급 개발자를 정의합니다. 즉, 시스템을 가장 기초적인 원칙부터 가장 높은 수준의 추상화까지 일관되게 추론할 수 있는 능력입니다.
 
 ---
 *End of Introduction*
+
 
 우리는 또한 `path:packages/core/src/metadata/module.ts`를 분석하며 fluo가 어떻게 수많은 모듈 간의 메타데이터 격리를 보장하고, 메모리 누수를 방지하기 위한 `WeakMap` 전략을 수립했는지 세부적으로 확인할 것입니다. 이러한 심층적인 분석은 여러분이 엔터프라이즈급 애플리케이션을 설계할 때 직면할 수 있는 다양한 기술적 도전 과제에 대한 명확한 해법을 제시해 줄 것입니다. 또한 `path:packages/di/src/container.ts`의 핵심 로직을 통해 의존성 주입이 단순한 편의 기능을 넘어 시스템의 전체적인 결합도를 어떻게 낮추고 유지보수성을 극대화하는지 실제 코드로 입증할 것입니다. 특히 `path:packages/di/src/provider-resolution.ts`에 정의된 동적 프로바이더 해석 알고리즘은 fluo의 지능적인 의존성 관리가 어떻게 작동하는지 보여주는 결정적인 사례입니다.
 

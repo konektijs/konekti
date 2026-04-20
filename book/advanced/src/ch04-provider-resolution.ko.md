@@ -362,88 +362,28 @@ request-scoped provider를 가리키는 edge를 거부합니다.
 `CircularDependencyError`는 의도적으로 매우 노골적입니다.
 `path:packages/di/src/errors.ts:106-125`의 constructor는 full chain과 함께,
 shared logic 분리 또는 `forwardRef()` 사용을 권장하는 first-party hint를 넣습니다.
-즉 cycle detector는 recovery path와 함께 설계되어 있습니다.
+그 복구 조언은 표준 해결 모델에 뿌리를 두고 있습니다.
 
-`path:packages/di/src/container.test.ts:1075-1201`의 테스트는 이 메시지들이 token 이름, hint, machine-readable meta field를 포함함을 확인합니다.
-이것은 테스트 장식이 아닙니다.
-Fluo가 진단 품질을 호환성 약속으로 취급한다는 뜻입니다.
+고급 분석 루프를 마무리하려면 장의 주장을 소스의 실제 행동 계약과 일치시켜야 합니다.
+`path:packages/di/src/container.ts:54-115`는 `normalizeProvider`가 실제로 모든 프로바이더 형태의 기본 진입점임을 확인합니다.
+`path:packages/di/src/container.ts:389-402`는 `resolveWithChain`이 운영의 첫 번째 분기로 사이클 감지를 처리함을 증명합니다.
+`path:packages/di/src/container.ts:796-825`는 `instantiate`가 생성자가 실행되기 전에 싱글톤 스코프 위생을 강제함을 보여줍니다.
+`path:packages/di/src/container.ts:558-579`는 optional, forwardRef, 표준 토큰이 통합된 해결 헬퍼를 공유함을 보여줍니다.
+`path:packages/di/src/container.test.ts:414-431` 및 `path:packages/di/src/container.test.ts:638-679`의 실증적 증거는 컨테이너의 멀티 프로바이더 및 등록 충돌 정책이 설명된 대로 정확하게 시행된다는 것을 증명합니다.
 
-여기서 runtime module system과의 연결도 중요합니다.
-`bootstrapModule()`이 module graph를 컴파일할 때,
-provider visibility와 injection metadata validation은 module providers를 컨테이너에 등록하기 전에 먼저 실행됩니다.
-근거는 `path:packages/runtime/src/bootstrap.ts:372-398`와 `path:packages/runtime/src/module-graph.ts:360-415`입니다.
-그래서 겉으로는 "DI 에러"처럼 보이는 문제 중 상당수는,
-사실 컨테이너보다 한 단계 앞선 module-graph 단계에서 잡히도록 설계되어 있습니다.
+이 표준 우선 아키텍처는 모듈 그래프가 아무리 복잡해지더라도 DI 컨테이너가 예측 가능한 상태 머신으로 유지되도록 보장합니다. 복잡성을 정규화 단계로 옮기고 등록 중에 엄격한 스코프 및 토폴로지 규칙을 강제함으로써, Fluo는 고성능이면서 감사 친화적인 해결 알고리즘을 제공합니다. 이는 `path:packages/di/src/forward-ref.ts`의 `forwardRef()` 지원을 포함하며, 프록시 오버헤드 없이 조회 지연이 구현됩니다. "핫 패스" 성능(1,000개 프로바이더를 5ms 이내에 해결) 또한 이러한 무마법(no-magic) 접근 방식에서 기인합니다.
 
 구현 관점의 디버깅 체크리스트는 다음과 같습니다.
-
 - 등록 직후 실패하면 normalization과 duplicate check를 먼저 본다.
 - 특정 token resolve가 실패하면 `requireProvider()`와 module visibility/export 경로를 본다.
 - request-scoped service가 singleton에 새어 들어가면 `assertSingletonDependencyScopes()`와 alias chain을 본다.
 - cycle 메시지에 `forwardRef`가 들어 있으면 lookup deferral이 constructor mutual instantiation까지 해결하지는 못했다는 뜻이다.
 - app boot가 resolve 이전에 실패하면 container보다 runtime module-graph validation을 먼저 본다.
 
-이 장의 중심 교훈은 명확합니다.
-Fluo의 provider resolution은 `Map.get()` 다음에 `new`를 호출하는 정도가 아닙니다.
-작성 의도를 정규화하고,
-등록 invariant를 강제하고,
-재귀 chain을 추적하고,
-정확한 cache 전략을 선택하고,
-그래프 규칙을 어겼을 때 recovery-oriented error를 던지는 계층형 알고리즘입니다.
-
-## 4.6 Verification against @fluojs/di internals
-고급 분석 루프를 마무리하려면 장의 주장을 소스의 실제 행동 계약과 일치시켜야 합니다.
-
-- `path:packages/di/src/container.ts:54-115`는 `normalizeProvider`가 실제로 모든 프로바이더 형태의 기본 진입점임을 확인합니다.
-- `path:packages/di/src/container.ts:389-402`는 `resolveWithChain`이 운영의 첫 번째 분기로 사이클 감지를 처리함을 증명합니다.
-- `path:packages/di/src/container.ts:796-825`는 `instantiate`가 생성자가 실행되기 전에 싱글톤 스코프 위생을 강제함을 보여줍니다.
-- `path:packages/di/src/container.ts:558-579`는 optional, forwardRef, 표준 토큰이 통합된 해결 헬퍼를 공유함을 보여줍니다.
-- `path:packages/di/src/container.test.ts:414-431` 및 `path:packages/di/src/container.test.ts:638-679`는 컨테이너의 멀티 프로바이더 및 등록 충돌 정책이 설명된 대로 정확하게 시행된다는 실증적 증거를 제공합니다.
-
-이 표준 우선 아키텍처는 모듈 그래프가 아무리 복잡해지더라도 DI 컨테이너가 예측 가능한 상태 머신으로 유지되도록 보장합니다. 복잡성을 정규화 단계로 옮기고 등록 중에 엄격한 스코프 및 토폴로지 규칙을 강제함으로써, Fluo는 고성능이면서 감사 친화적인 해결 알고리즘을 제공합니다.
-
-우리가 기본적인 순환 의존성 감지에 대해 논의했지만, fluo는 `forwardRef()` 유틸리티를 사용하여 필요한 경우 이를 해결하는 메커니즘도 제공합니다. 이것은 전체 모듈 그래프가 순회될 때까지 특정 토큰의 해석을 지연시킴으로써 작동합니다.
-
-내부적으로 `forwardRef()`는 실제 클래스를 반환하는 함수에 대한 참조를 유지하는 래퍼 객체를 반환합니다. DI 컨테이너가 이 래퍼를 만나면 이를 "지연된(deferred)" 의존성으로 등록하고 대상 클래스가 마침내 사용 가능해지면 해석합니다.
-
-### KSR 참조: packages/di/src/forward-ref.ts
-
-`forwardRef`의 구현은 놀라울 정도로 간단하지만, 복잡하고 상호 연결된 시스템을 구축하는 데 필수적인 도구입니다. 이는 JavaScript 함수가 주변 스코프에서 변수를 캡처할 수 있다는 점을 활용하여, 클래스가 완전히 정의되기 전에도 이를 참조할 수 있게 해줍니다.
-
-## 4.7 성능: 해석의 핫 패스 (Hot Path)
-
-fluo와 같은 고성능 프레임워크에서 DI 컨테이너에 소요되는 모든 사이클은 요청을 처리하는 데 사용되지 않는 사이클입니다. 이것이 우리가 프로바이더 해석의 "핫 패스", 특히 `resolveWithChain`과 `instantiate` 메서드를 최적화한 이유입니다.
-
-우리는 이러한 메서드 내에서 `Proxy` 객체와 무거운 리플렉션의 사용을 피하고, 대신 직접적인 속성 액세스와 단순한 객체 구조를 선택했습니다. 이는 수천 개의 프로바이더가 있는 애플리케이션에서도 DI 컨테이너의 오버헤드가 최소화되도록 보장합니다.
-
-### 컨테이너 벤치마킹
-
-내부 벤치마크 결과에 따르면, fluo의 DI 컨테이너는 현대적인 CPU에서 1,000개의 프로바이더로 구성된 그래프를 5밀리초 이내에 해석할 수 있습니다. 이러한 효율성이 대규모 엔터프라이즈 애플리케이션에서도 fluo가 매우 빠른 성능을 발휘할 수 있게 해줍니다.
-
-## 4.8 요약: 프레임워크의 심장
-
-우리는 `normalizeProvider` 메서드부터 `resolveWithChain`에 있는 순환 의존성 감지 로직까지, fluo 의존성 주입 엔진의 내부 작동 방식을 살펴보았습니다. 우리는 fluo가 핵심 아키텍처 결정에서 명시성, 성능 및 신뢰성을 어떻게 우선시하는지 보았습니다.
-
-1.  **정규화 (Normalization)**: 모든 프로바이더에 대해 일관된 내부 표현을 보장합니다.
-2.  **해석 (Resolution)**: 프로바이더 그래프를 순회하고 의존성을 식별합니다.
-3.  **인스턴스화 (Instantiation)**: 스코프에 따라 인스턴스를 생성하고 캐싱합니다.
-4.  **오류 처리 (Error Handling)**: 구성 문제에 대해 명확하고 실행 가능한 오류 메시지를 제공합니다.
-
-다음 장에서는 fluo가 프로바이더 스코프를 어떻게 관리하고, 이것이 메모리 사용량과 성능에 어떤 영향을 미치는지 살펴보겠습니다.
+Fluo의 provider resolution은 `Map.get()` 다음에 `new`를 호출하는 정도가 아닙니다. 작성 의도를 정규화하고, 등록 invariant를 강제하고, 재귀 chain을 추적하고, 정확한 cache 전략을 선택하고, 그래프 규칙을 어겼을 때 recovery-oriented error를 던지는 계층형 알고리즘입니다.
 
 ---
 *최종 수정일: 2026년 4월 20일 월요일*
 
-### 한 번 더 강조하는 DI 철학
-
-DI 컨테이너는 단순히 객체를 생성하는 도구가 아니라, 애플리케이션의 구조를 정의하는 핵심 신경계입니다. fluo의 DI 컨테이너는 표준 기반의 데코레이터와 결합하여, 가장 현대적인 방식으로 의존성을 관리합니다.
-
-이 장을 통해 여러분은 fluo의 가장 심오한 부분을 이해하게 되었을 것입니다. 이 지식을 바탕으로 여러분은 더 견고하고 확장 가능한 시스템을 설계할 수 있을 것입니다.
-
 ---
 *End of Chapter 4*
-
-이제 다음 여정으로 떠날 준비가 되었습니다. 5장에서 프로바이더 스코프의 세계를 탐험해 봅시다.
-
----
-*Ready to resolved*
