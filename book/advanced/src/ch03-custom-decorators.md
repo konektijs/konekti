@@ -215,3 +215,52 @@ That is the important advanced pattern: successful custom decorators in Fluo are
 small, composable metadata writers. The runtime power comes later, when other
 packages read those records and turn them into HTTP behavior, documentation, or
 DI policy.
+## 3.6 Advanced: Guard and Interceptor Integration
+
+The true power of custom decorators in fluo comes from their integration with guards and interceptors. By combining a metadata-recording decorator with a guard that reads that metadata, you can build complex, domain-specific logic that is both performant and easy to use.
+
+For example, consider an `@AuditLog()` decorator that records which methods should be logged to a database. You can create a global interceptor that checks for the `AUDIT_LOG_METADATA_KEY` and, if present, records the request and response details.
+
+### Pattern: The "Metadata-Guard Pair"
+
+This pattern involves two components:
+1.  **The Decorator**: Records a specific intent or configuration on a class or method.
+2.  **The Guard/Interceptor**: Reads that intent at runtime and acts accordingly.
+
+This decoupling ensures that your business logic (the controller) doesn't need to know anything about the implementation details of the guard or interceptor. It only needs to declare its intent through the decorator.
+
+## 3.7 Debugging Custom Decorators
+
+When your custom decorator isn't working as expected, the first step is to verify that the metadata is being recorded correctly. You can use the `getModuleMetadata` or `getClassDiMetadata` helpers (as discussed in Chapter 2) within a unit test to inspect the metadata bag of your decorated class.
+
+If the metadata is there, the issue likely lies within the component that is supposed to read it (the guard, interceptor, or DI container). Tracing the execution from the metadata retrieval point is the fastest way to identify the bottleneck.
+
+### Common Pitfalls
+
+- **Symbol Mismatch**: Ensure that you are using the exact same Symbol for both recording and retrieving metadata.
+- **Timing Issues**: Remember that decorators are evaluated at class definition time. If your metadata depends on runtime values, you may need to reconsider your approach or use a different integration point.
+- **Inheritance**: By default, metadata recorded on a method is not inherited by subclasses unless you explicitly handle the inheritance logic (as seen in `path:packages/core/src/metadata/class-di.ts`).
+
+## 3.8 Summary: Building Your Own Language
+
+By mastering custom decorators, you are effectively building your own domain-specific language within fluo. You are creating a set of abstractions that make your code more expressive, more readable, and more maintainable.
+
+1.  **Identify the intent**: What should this decorator represent?
+2.  **Define the metadata shape**: What information needs to be stored?
+3.  **Choose the integration point**: Where should this information be consumed?
+4.  **Implement the decorator**: Use the fluo metadata primitives to record the data.
+5.  **Verify**: Use unit tests to ensure the metadata is correctly applied.
+
+In the next chapter, we'll see how fluo's DI container uses these principles to resolve complex provider graphs.
+
+---
+*Last modified: Mon Apr 20 2026*
+
+### Conclusion: Custom Power
+
+You've now seen how to build custom decorators that leverage fluo's standard-first metadata system. We've explored the implementation of `@CurrentUser()` and `@Roles()`, and we've discussed the advanced patterns of guard and interceptor integration.
+
+Now, let's take a look at how fluo's DI container uses these principles in Chapter 4.
+
+---
+*End of Chapter 3*

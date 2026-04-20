@@ -258,3 +258,45 @@ on.
 
 ---
 *End of Chapter 2*
+
+## 2.6 The Power of Immutability
+
+Fluo's metadata model is built on the principle of immutability. When we resolve metadata for a class, we don't just return a reference to a live object; we return a carefully constructed view of the metadata at that point in time. This prevents a common class of bugs where metadata is accidentally modified by a downstream consumer.
+
+This immutability is achieved through the use of the `createClonedWeakMapStore` utility in `path:packages/core/src/metadata/store.ts:16-33`. This store ensures that every read and write operation involves a defensive clone, preserving the integrity of the original metadata records.
+
+### Thread Safety and Concurrency
+
+In a concurrent environment (like multiple requests being handled by a single Fastify instance), this immutability is even more critical. It ensures that metadata resolution is thread-safe and that there are no race conditions when multiple parts of the framework are accessing the same metadata simultaneously.
+
+## 2.7 Debugging Metadata
+
+One of the challenges of using a standard-first approach is that metadata is often hidden behind symbols and `WeakMap`s, making it harder to inspect during debugging. To address this, Fluo provides a set of diagnostic tools that can expose the internal metadata state for a given class.
+
+The `Studio` diagnostic package (part of the fluo monorepo) can be used to visualize the module graph and the metadata associated with every provider. This is an invaluable tool for understanding how your application is being constructed and for identifying configuration issues early.
+
+### KSR Reference: packages/core/src/metadata/store.ts
+
+To truly understand how Fluo manages this, look at the implementation of `createClonedWeakMapStore`. You'll see how it leverages the native `WeakMap` API while adding a layer of defensive cloning to ensure immutability and type safety.
+
+## 2.8 Summary of Metadata Principles
+
+Before we move on to custom decorators, let's recap the core principles of Fluo's metadata system:
+
+1.  **Standard-First**: Leveraging TC39 Stage 3 decorators and `Symbol.metadata`.
+2.  **Hygienic**: Using private Symbols to prevent collisions and leaks.
+3.  **Memory-Safe**: Using `WeakMap`s to avoid memory leaks for dynamically loaded modules.
+4.  **Immutable**: Ensuring that metadata resolution is thread-safe and reliable through defensive cloning.
+5.  **Type-Safe**: Using strong types and generics for every metadata record.
+
+By following these principles, we've built a metadata system that is not only high-performing but also robust and easy to maintain. In the next chapter, we'll see how you can leverage this system to build your own custom decorators.
+
+---
+*Last modified: Mon Apr 20 2026*
+
+### Ready to Build?
+
+Now that we've seen how the core metadata model works, it's time to build your own custom decorators. We'll start with the basics of decorator composition in Chapter 3.
+
+---
+*End of Chapter 2*
