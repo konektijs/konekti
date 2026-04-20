@@ -8,7 +8,7 @@ This chapter dissects the internal package structure of the fluo monorepo, explo
 
 ## Monorepo Package Structure
 
-The fluo monorepo follows a strict organizational pattern that ensures high cohesion and low coupling. Every official package follows a predictable layout that you should emulate for your custom packages.
+The fluo monorepo follows a strict organizational pattern that ensures high cohesion and low coupling. Every official package follows a predictable layout that you should emulate for your custom packages. This structure is not just for organization; it is enforced by our build tools to ensure consistent quality across the ecosystem.
 
 ### Public Surface and Internal Seams
 
@@ -197,8 +197,51 @@ Creating a custom package for fluo is about respecting the boundaries defined by
 
 In the next and final chapter, we will look at how you can contribute these packages and improvements back to the fluo core repository itself, following the official contributing guide and behavioral contract policies.
 
+
 ---
-<!-- lines: 212 -->
+<!-- lines: 325 -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -190,38 +190,93 @@ function readSourceValue(request: FrameworkRequest, source: MetadataSource) {
 
 ## 13.12 실습: 초경량 HTTP 어댑터 스켈레톤
 
-학습을 위해 Node.js 내장 `http` 모듈을 사용하는 가장 단순한 형태의 어댑터 구조를 짜봅시다.
+학습을 위해 Node.js 내장 `http` 모듈을 사용하는 가장 단순한 형태의 어댑터 구조를 짜봅시다. 이 예제는 어댑터가 어떻게 네이티브 요청을 `FrameworkRequest`로 변환하고, 디스패처의 결과를 다시 네이티브 응답으로 되돌리는지 보여줍니다.
 
 ```typescript
 import * as http from 'http';
+import { Dispatcher, FrameworkRequest, FrameworkResponse, HttpApplicationAdapter } from '@fluojs/http';
 
 export class TinyNodeAdapter implements HttpApplicationAdapter {
   private server = http.createServer();
 
   async listen(dispatcher: Dispatcher) {
     this.server.on('request', async (req, res) => {
-      // 1. 요청 매핑
+      // 1. 요청 매핑: Node.js IncomingMessage를 FrameworkRequest로 변환
       const frameworkReq = this.mapRequest(req);
-      // 2. 응답 매핑
+      
+      // 2. 응답 매핑: Node.js ServerResponse를 FrameworkResponse로 변환
       const frameworkRes = this.mapResponse(res);
-      // 3. 디스패처 실행
-      await dispatcher.dispatch(frameworkReq, frameworkRes);
+      
+      // 3. 디스패처 실행: fluo의 핵심 파이프라인 가동
+      try {
+        await dispatcher.dispatch(frameworkReq, frameworkRes);
+      } catch (err) {
+        // 최후방 방어선: 디스패처 내부에서 처리되지 못한 치명적 에러 대응
+        if (!res.headersSent) {
+          res.statusCode = 500;
+          res.end('Internal Server Error');
+        }
+      }
     });
-    this.server.listen(8080);
+    
+    return new Promise((resolve) => {
+      this.server.listen(8080, () => resolve());
+    });
   }
 
   async close() {
-    this.server.close();
+    return new Promise((resolve) => {
+      this.server.close(() => resolve());
+    });
   }
 
-  private mapRequest(req: http.IncomingMessage): FrameworkRequest { /* ... */ }
-  private mapResponse(res: http.ServerResponse): FrameworkResponse { /* ... */ }
+  private mapRequest(req: http.IncomingMessage): FrameworkRequest {
+    return {
+      method: req.method || 'GET',
+      url: req.url || '/',
+      headers: req.headers as Record<string, string>,
+      body: (req as any).body, // 실제 구현 시 바디 파싱 로직 필요
+      query: {}, // URL 파싱 필요
+      params: {},
+      signal: new AbortController().signal, // 실제로는 req.on('close')와 연동 권장
+    };
+  }
+
+  private mapResponse(res: http.ServerResponse): FrameworkResponse {
+    return {
+      get committed() { return res.headersSent; },
+      setHeader(name, value) { res.setHeader(name, value); return this; },
+      status(code) { res.statusCode = code; return this; },
+      send(body) { res.end(body); },
+    };
+  }
 }
 ```
 
-이 스켈레톤에 앞서 배운 `FrameworkRequest`와 `FrameworkResponse` 인터페이스 구현을 채워 넣으면, 여러분만의 Fluo 플랫폼 패키지가 완성됩니다.
+이 스켈레톤은 비록 단순하지만 어댑터의 핵심 메커니즘을 모두 포함하고 있습니다. 실제 상용 어댑터(예: FastifyAdapter)는 여기에 더해 정교한 버퍼링, 멀티파트 처리, 압축, 그리고 HTTP/2와 같은 프로토콜 최적화 로직이 추가됩니다.
 
-## 13.13 요약
+## 13.13 어댑터 테스트와 무결성 검증
+
+커스텀 어댑터를 구현한 후에는 반드시 `@fluojs/testing` 패키지에서 제공하는 적합성 테스트(Conformance Test)를 통과해야 합니다. 이 테스트 스위트는 어댑터가 `FrameworkRequest`와 `FrameworkResponse` 계약을 완벽히 준수하는지, 특히 스트리밍 응답이나 대용량 바디 처리 시 메모리 누수가 발생하지 않는지 등을 엄격하게 검증합니다.
+
+어댑터 저자는 다음과 같이 테스트를 구성할 수 있습니다:
+
+```typescript
+import { runAdapterConformanceTests } from '@fluojs/testing';
+import { TinyNodeAdapter } from './tiny-node-adapter';
+
+describe('TinyNodeAdapter Conformance', () => {
+  runAdapterConformanceTests({
+    adapterFactory: () => new TinyNodeAdapter(),
+    // 특정 에지 케이스에 대한 추가 검증 설정
+  });
+});
+```
+
+이러한 자동화된 검증 과정을 통해 여러분이 만든 어댑터가 fluo 생태계의 다른 패키지들과 아무런 문제 없이 협력할 수 있음을 증명할 수 있습니다. 무결성이 증명된 어댑터는 커뮤니티에 공유되어 더 많은 개발자들에게 런타임 선택의 자유를 제공하게 됩니다.
+
+## 13.14 요약
+
 - 어댑터는 특정 플랫폼의 API를 Fluo의 표준 계약으로 변환합니다.
 - `HttpApplicationAdapter`는 프레임워크의 시작과 종료를 관리합니다.
 - `FrameworkRequest/Response` 매핑이 어댑터 구현의 핵심입니다.
