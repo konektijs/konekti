@@ -3,14 +3,14 @@
 
 # Chapter 13. Custom Adapter Implementation — 독자적인 전송 계층 구축
 
-## 이 챕터에서 배우는 것
+## What You Will Learn in This Chapter
 - `HttpApplicationAdapter` 인터페이스의 구조와 역할
 - `listen()`과 `close()` 메서드를 통한 서버 생명주기 관리
 - `FrameworkRequest`와 `FrameworkResponse` 인터페이스 준수 방법
 - Fastify 기반 어댑터 구현 사례 분석
 - 서버리스(Serverless) 및 엣지(Edge) 환경을 위한 어댑터 전략
 
-## 사전 요구사항
+## Prerequisites
 - Ch11~12의 HTTP 디스패처 및 실행 파이프라인 지식
 - 특정 HTTP 서버 라이브러리(Node.js http, Fastify, Express 등)에 대한 기초 지식
 
@@ -73,7 +73,7 @@ const fluoRequest: FrameworkRequest = {
 
 ## 13.4 실전: Fastify 어댑터 핵심 로직 분석
 
-`@fluojs/platform-fastify` 패키지는 이 인터페이스를 어떻게 구현하고 있을까요? Fastify는 이미 고도로 최적화된 라우팅과 플러그인 시스템을 갖추고 있지만, fluo 어댑터는 이를 단순한 "전송 계층"으로만 사용합니다.
+`@fluojs/platform-fastify` 패키지는 이 인터페이스를 어떻게 구현하고 있을까요? Fastify은 이미 고도로 최적화된 라우팅과 플러그인 시스템을 갖추고 있지만, fluo 어댑터는 이를 단순한 "전송 계층"으로만 사용합니다.
 
 ```typescript
 // packages/platform-fastify/src/adapter.ts (개념적 코드)
@@ -229,3 +229,5 @@ export class TinyNodeAdapter implements HttpApplicationAdapter {
 ## 13.14 다음 챕터 예고
 이것으로 Part 4 HTTP 파이프라인 해부 편을 마칩니다. 다음 파트에서는 데이터 지속성을 담당하는 데이터베이스 레이어와의 통합 전략을 심도 있게 다룹니다. Prisma, Drizzle 등 현대적인 ORM들이 fluo와 어떻게 만나는지 기대해 주세요.
 
+---
+<!-- lines: 153 -->

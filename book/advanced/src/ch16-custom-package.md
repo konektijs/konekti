@@ -12,7 +12,7 @@ The fluo monorepo follows a strict organizational pattern that ensures high cohe
 
 ### Public Surface and Internal Seams
 
-In fluo, visibility is a first-class citizen. A package typically exposes its functionality through a specific set of entry points defined in `package.json` under the `exports` field.
+In fluo, visibility is a first-class citizen. A package typically exposes its functionality through a specific set of entry points defined in `package.json` under the `exports` field. This prevents "deep imports" into internal files, ensuring that consumers only rely on stable, public APIs.
 
 ```json
 {
@@ -35,7 +35,7 @@ fluo packages generally depend on three core pillars:
 - `@fluojs/di`: Provides the token-based container and provider models.
 - `@fluojs/runtime`: Needed only if your package performs manual bootstrapping or graph manipulation.
 
-When building a library, always prefer depending on `@fluojs/core` and `@fluojs/di` as `peerDependencies` to avoid version conflicts in the user's dependency graph.
+When building a library, always prefer depending on `@fluojs/core` and `@fluojs/di` as `peerDependencies` to avoid version conflicts in the user's dependency graph. This is particularly important for `@fluojs/di`, as having multiple instances of the injection engine can lead to unexpected behavior during token resolution.
 
 ## Designing DynamicModules
 
@@ -79,7 +79,7 @@ Following the community standard, fluo libraries use `forRoot` for static config
    }
    ```
 4. **The Factory-based `forRootAsync`**:
-   This requires `AsyncModuleOptions` which allows users to provide a factory function and an `inject` array.
+    This requires `AsyncModuleOptions` which allows users to provide a `useFactory`, `useClass`, or `useExisting` strategy. The `inject` array is critical here for resolving dependencies like `ConfigService` before the factory runs.
 
 ## The exports Field and Visibility Contract
 
@@ -90,7 +90,7 @@ In fluo, the `exports` field in a `@Module` is not just a hint—it is a strictl
 1. **Local Visibility**: Every provider is visible within the module it is defined in.
 2. **Exported Visibility**: A provider becomes visible to modules that `import` the defining module ONLY if it is listed in the `exports` array.
 3. **Re-exports**: A module can re-export another module. This makes the exports of the imported module available to whoever imports the "proxy" module.
-4. **Global Modules**: Modules decorated with `@Global()` bypass the need for explicit imports, but their providers still need to be exported to be visible.
+4. **Global Modules**: Modules decorated with `@Global()` bypass the need for explicit imports, but their providers still need to be exported to be visible across the entire application graph.
 
 ## Practical Example: Feature-Flags Mini-Package
 
@@ -119,7 +119,7 @@ export interface FeatureFlagsOptions {
 }
 
 // constants.ts
-export const FEATURE_FLAGS_OPTIONS = Symbol('FEATURE_FLAGS_OPTIONS');
+export const FEATURE_FLAGS_OPTIONS = Symbol.for('@fluojs/feature-flags:options');
 ```
 
 ### 3. The Service
@@ -177,25 +177,25 @@ export class FeatureFlagsModule {
 
 ### Minimize Core Dependencies
 
-Your package should ideally only depend on `@fluojs/core`. Avoid pulling in `@fluojs/platform-*` unless you are specifically writing a platform adapter. This keeps your library portable across Node.js, Bun, and Workers.
+Your package should ideally only depend on `@fluojs/core`. Avoid pulling in `@fluojs/platform-*` unless you are specifically writing a platform adapter. This ensures that your library remains truly platform-agnostic, running equally well on Node.js, Bun, or Cloudflare Workers.
 
 ### Explicit Token Naming
 
-When defining injection tokens for configuration, use a clear and unique naming convention to avoid collisions with other libraries. `Symbol.for('@fluojs/feature-flags:options')` is a good pattern.
+When defining injection tokens for configuration, use a clear and unique naming convention to avoid collisions with other libraries. `Symbol.for('@fluojs/feature-flags:options')` is the recommended pattern. It ensures that the symbol is unique within the global symbol registry while remaining descriptive.
 
 ### Normalization of Metadata
 
-The fluo runtime normalizes missing metadata fields (like `exports: []` if omitted). However, as a library author, being explicit improves readability and helps tools like fluo Studio visualize your module graph correctly.
+The fluo runtime normalizes missing metadata fields (like `exports: []` if omitted). However, as a library author, being explicit improves readability and helps tools like **fluo Studio** visualize your module graph correctly. A clear `exports` array is the best way to communicate the "public surface" of your module.
 
 ### Handling Circular Dependencies
 
-In complex ecosystems, circular module dependencies can occur. Use `forwardRef()` both in `imports` and `inject` arrays to allow the DI container to resolve these cycles gracefully.
+In complex ecosystems, circular module dependencies can occur. Use `forwardRef()` both in `imports` and `inject` arrays to allow the DI container to resolve these cycles gracefully. This is a common requirement when two modules need to share providers while maintaining strict encapsulation.
 
 ## Conclusion
 
 Creating a custom package for fluo is about respecting the boundaries defined by the module system. By following the patterns found in `@fluojs/core` and `@fluojs/di`, and by implementing the `forRootAsync` pattern, you ensure that your library integrates seamlessly into any fluo application.
 
-In the next and final chapter, we will look at how you can contribute these packages and improvements back to the fluo core repository itself.
+In the next and final chapter, we will look at how you can contribute these packages and improvements back to the fluo core repository itself, following the official contributing guide and behavioral contract policies.
 
 ---
 <!-- lines: 212 -->

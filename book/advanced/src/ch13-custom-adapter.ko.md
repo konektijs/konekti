@@ -3,20 +3,22 @@
 
 # Chapter 13. Custom Adapter Implementation — 독자적인 전송 계층 구축
 
-## 이 챕터에서 배우는 것
+## What You Will Learn in This Chapter
 - `HttpApplicationAdapter` 인터페이스의 구조와 역할
 - `listen()`과 `close()` 메서드를 통한 서버 생명주기 관리
 - `FrameworkRequest`와 `FrameworkResponse` 인터페이스 준수 방법
 - Fastify 기반 어댑터 구현 사례 분석
 - 서버리스(Serverless) 및 엣지(Edge) 환경을 위한 어댑터 전략
+- 실시간 통신 역량(Realtime Capability) 보고 및 No-op 어댑터 활용
 
-## 사전 요구사항
-- Ch11~12의 HTTP 디스패처 및 실행 파이프라인 지식
+## Prerequisites
+- 11~12장의 HTTP 디스패처 및 실행 파이프라인 지식
 - 특정 HTTP 서버 라이브러리(Node.js http, Fastify, Express 등)에 대한 기초 지식
+- Fluo의 인터페이스 기반 다형성에 대한 이해
 
 ## 13.1 어댑터(Adapter): 프레임워크와 런타임의 교량
 
-fluo의 강점 중 하나는 런타임 중립성입니다. 이를 가능하게 하는 핵심 요소가 바로 어댑터 패턴입니다. 어댑터는 특정 플랫폼(Node.js, Bun, Cloudflare Workers 등)의 요청 객체를 fluo가 이해할 수 있는 `FrameworkRequest`로 변환하고, 디스패처의 실행 결과를 다시 플랫폼의 응답 객체로 되돌려줍니다.
+Fluo의 강점 중 하나는 런타임 중립성입니다. 이를 가능하게 하는 핵심 요소가 바로 어댑터 패턴입니다. 어댑터는 특정 플랫폼(Node.js, Bun, Cloudflare Workers 등)의 요청 객체를 Fluo가 이해할 수 있는 `FrameworkRequest`로 변환하고, 디스패처의 실행 결과를 다시 플랫폼의 응답 객체로 되돌려줍니다.
 
 어댑터 덕분에 개발자는 `Controller`나 `Service` 로직을 한 번만 작성하면, 성능 요구사항에 따라 Fastify에서 Bun으로, 또는 AWS Lambda로 코드 수정 없이 옮겨갈 수 있습니다.
 
@@ -54,7 +56,7 @@ export interface HttpApplicationAdapter {
 
 ## 13.3 요청/응답 매핑: FrameworkRequest와 FrameworkResponse
 
-어댑터의 가장 중요한 임무는 매핑입니다. fluo는 어댑터가 제공하는 `FrameworkRequest`를 기반으로 모든 파이프라인을 가동하며, 응답은 `FrameworkResponse`를 통해 추상화됩니다.
+어댑터의 가장 중요한 임무는 매핑입니다. Fluo는 어댑터가 제공하는 `FrameworkRequest`를 기반으로 모든 파이프라인을 가동하며, 응답은 `FrameworkResponse`를 통해 추상화됩니다.
 
 ```typescript
 // 어댑터 내부에서 수행되는 매핑 예시
@@ -73,7 +75,7 @@ const fluoRequest: FrameworkRequest = {
 
 ## 13.4 실전: Fastify 어댑터 핵심 로직 분석
 
-`@fluojs/platform-fastify` 패키지는 이 인터페이스를 어떻게 구현하고 있을까요? Fastify는 이미 고도로 최적화된 라우팅과 플러그인 시스템을 갖추고 있지만, fluo 어댑터는 이를 단순한 "전송 계층"으로만 사용합니다.
+`@fluojs/platform-fastify` 패키지는 이 인터페이스를 어떻게 구현하고 있을까요? Fastify는 이미 고도로 최적화된 라우팅과 플러그인 시스템을 갖추고 있지만, Fluo 어댑터는 이를 단순한 "전송 계층"으로만 사용합니다.
 
 ```typescript
 // packages/platform-fastify/src/adapter.ts (개념적 코드)
@@ -81,7 +83,7 @@ export class FastifyAdapter implements HttpApplicationAdapter {
   constructor(private instance = fastify()) {}
 
   async listen(dispatcher: Dispatcher) {
-    // 모든 경로를 fluo 디스패처로 위임
+    // 모든 경로를 Fluo 디스패처로 위임
     this.instance.all('*', async (req, reply) => {
       await dispatcher.dispatch(
         this.mapRequest(req),
@@ -97,7 +99,7 @@ export class FastifyAdapter implements HttpApplicationAdapter {
 }
 ```
 
-Fastify의 와일드카드 핸들러(`all('*')`)를 사용하여 모든 경로에 대한 제어권을 fluo 디스패처로 넘기는 것이 전형적인 패턴입니다.
+Fastify의 와일드카드 핸들러(`all('*')`)를 사용하여 모든 경로에 대한 제어권을 Fluo 디스패처로 넘기는 것이 전형적인 패턴입니다.
 
 ## 13.5 FrameworkResponse와 응답 쓰기 위임
 
@@ -166,21 +168,20 @@ export function createNoopHttpApplicationAdapter(): HttpApplicationAdapter {
 
 ## 13.10 어댑터의 진화: HTTP/3와 QUIC 지원
 
-fluo의 어댑터 구조는 전송 계층의 변화에 유연하게 대응합니다. 하부 서버 라이브러리가 HTTP/3를 지원하도록 업그레이드되더라도, 어댑터가 `FrameworkRequest`와 `FrameworkResponse` 계약만 유지해준다면 상위의 비즈니스 로직은 단 한 줄도 고칠 필요가 없습니다. 이는 진정한 의미의 플랫폼 독립성을 실현합니다.
+Fluo의 어댑터 구조는 전송 계층의 변화에 유연하게 대응합니다. 하부 서버 라이브러리가 HTTP/3를 지원하도록 업그레이드되더라도, 어댑터가 `FrameworkRequest`와 `FrameworkResponse` 계약만 유지해준다면 상위의 비즈니스 로직은 단 한 줄도 고칠 필요가 없습니다. 이는 진정한 의미의 플랫폼 독립성을 실현합니다.
 
 ## 13.11 어댑터와 바인더(Binder)의 협력
 
 어댑터가 요청을 디스패처에 전달하면, 디스패처는 내부적으로 바인더를 사용하여 요청 데이터를 DTO로 변환합니다. `DefaultBinder`는 어댑터가 채워준 `FrameworkRequest`의 각 필드를 훑으며 필요한 값을 추출합니다.
 
 ```typescript
-// packages/http/src/adapters/binding.ts:L32-L62
-function readSourceValue(request: FrameworkRequest, source: MetadataSource, ...) {
+// packages/http/src/adapters/binding.ts (의사 코드)
+function readSourceValue(request: FrameworkRequest, source: MetadataSource) {
   switch (source) {
     case 'path': return request.params[key];
     case 'query': return request.query[key];
     case 'header': return request.headers[key];
     case 'body': return request.body[key];
-    // ...
   }
 }
 ```
@@ -218,14 +219,16 @@ export class TinyNodeAdapter implements HttpApplicationAdapter {
 }
 ```
 
-이 스켈레톤에 앞서 배운 `FrameworkRequest`와 `FrameworkResponse` 인터페이스 구현을 채워 넣으면, 여러분만의 fluo 플랫폼 패키지가 완성됩니다.
+이 스켈레톤에 앞서 배운 `FrameworkRequest`와 `FrameworkResponse` 인터페이스 구현을 채워 넣으면, 여러분만의 Fluo 플랫폼 패키지가 완성됩니다.
 
 ## 13.13 요약
-- 어댑터는 특정 플랫폼의 API를 fluo의 표준 계약으로 변환합니다.
+- 어댑터는 특정 플랫폼의 API를 Fluo의 표준 계약으로 변환합니다.
 - `HttpApplicationAdapter`는 프레임워크의 시작과 종료를 관리합니다.
 - `FrameworkRequest/Response` 매핑이 어댑터 구현의 핵심입니다.
 - 바인더와의 협력을 통해 데이터가 흐르는 파이프라인이 완성됩니다.
 
 ## 13.14 다음 챕터 예고
-이것으로 Part 4 HTTP 파이프라인 해부 편을 마칩니다. 다음 파트에서는 데이터 지속성을 담당하는 데이터베이스 레이어와의 통합 전략을 심도 있게 다룹니다. Prisma, Drizzle 등 현대적인 ORM들이 fluo와 어떻게 만나는지 기대해 주세요.
+이것으로 Part 4 HTTP 파이프라인 해부 편을 마칩니다. 다음 파트에서는 데이터 지속성을 담당하는 데이터베이스 레이어와의 통합 전략을 심도 있게 다룹니다. Prisma, Drizzle 등 현대적인 ORM들이 Fluo와 어떻게 만나는지 기대해 주세요.
 
+---
+<!-- lines: 153 -->

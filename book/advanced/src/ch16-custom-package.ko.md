@@ -12,7 +12,7 @@ fluo 모노레포는 높은 응집도와 낮은 결합도를 보장하는 엄격
 
 ### Public Surface and Internal Seams
 
-fluo에서 가시성(visibility)은 일급 시민입니다. 패키지는 일반적으로 `package.json`의 `exports` 필드에 정의된 특정 엔트리 포인트 세트를 통해 기능을 노출합니다.
+fluo에서 가시성(visibility)은 일급 시민입니다. 패키지는 일반적으로 `package.json`의 `exports` 필드에 정의된 특정 엔트리 포인트 세트를 통해 기능을 노출합니다. 이는 내부 파일에 대한 "심층 임포트(deep imports)"를 방지하여, 소비자가 안정적인 공개 API에만 의존하도록 보장합니다.
 
 ```json
 {
@@ -35,7 +35,7 @@ fluo 패키지는 일반적으로 세 가지 핵심 기둥에 의존합니다.
 - `@fluojs/di`: 토큰 기반 컨테이너와 프로바이더 모델을 제공합니다.
 - `@fluojs/runtime`: 수동 부트스트랩이나 그래프 조작을 수행하는 경우에만 필요합니다.
 
-라이브러리를 구축할 때, 사용자의 의존성 그래프에서 버전 충돌을 피하기 위해 항상 `@fluojs/core`와 `@fluojs/di`를 `peerDependencies`로 설정하는 것이 좋습니다.
+라이브러리를 구축할 때, 사용자의 의존성 그래프에서 버전 충돌을 피하기 위해 항상 `@fluojs/core`와 `@fluojs/di`를 `peerDependencies`로 설정하는 것이 좋습니다. 특히 `@fluojs/di`의 경우, 여러 주입 엔진 인스턴스가 존재하면 토큰 확인 중에 예상치 못한 동작이 발생할 수 있으므로 주의해야 합니다.
 
 ## Designing DynamicModules
 
@@ -79,7 +79,7 @@ export interface DynamicModule extends ModuleMetadata {
    }
    ```
 4. **팩토리 기반 `forRootAsync`**:
-   이는 사용자가 팩토리 함수와 `inject` 배열을 제공할 수 있도록 하는 `AsyncModuleOptions`가 필요합니다.
+   이는 사용자가 `useFactory`, `useClass`, 또는 `useExisting` 전략을 제공할 수 있도록 하는 `AsyncModuleOptions`가 필요합니다. `inject` 배열은 팩토리가 실행되기 전에 `ConfigService`와 같은 의존성을 해결하는 데 중요합니다.
 
 ## The exports Field and Visibility Contract
 
@@ -90,7 +90,7 @@ fluo에서 `@Module`의 `exports` 필드는 단순히 힌트가 아니라 엄격
 1. **로컬 가시성**: 모든 프로바이더는 정의된 모듈 내에서 가시적입니다.
 2. **내보낸 가시성**: 프로바이더는 정의 모듈을 `import`하는 모듈에 대해서만 `exports` 배열에 나열된 경우에 가시적입니다.
 3. **재노출 (Re-exports)**: 모듈은 다른 모듈을 다시 내보낼 수 있습니다. 이를 통해 임포트된 모듈의 내보내기 항목을 "프록시" 모듈을 임포트하는 누구에게나 사용 가능하게 만듭니다.
-4. **전역 모듈**: `@Global()` 데코레이터가 지정된 모듈은 명시적인 임포트가 필요 없지만, 그 프로바이더들이 가시적이려면 여전히 내보내기(export)가 필요합니다.
+4. **전역 모듈**: `@Global()` 데코레이터가 지정된 모듈은 명시적인 임포트가 필요 없지만, 그 프로바이더들이 전체 애플리케이션 그래프에서 가시적이려면 여전히 내보내기(export)가 필요합니다.
 
 ## Practical Example: Feature-Flags Mini-Package
 
@@ -119,7 +119,7 @@ export interface FeatureFlagsOptions {
 }
 
 // constants.ts
-export const FEATURE_FLAGS_OPTIONS = Symbol('FEATURE_FLAGS_OPTIONS');
+export const FEATURE_FLAGS_OPTIONS = Symbol.for('@fluojs/feature-flags:options');
 ```
 
 ### 3. The Service
@@ -177,25 +177,25 @@ export class FeatureFlagsModule {
 
 ### Minimize Core Dependencies
 
-여러분의 패키지는 이상적으로 `@fluojs/core`에만 의존해야 합니다. 플랫폼 어댑터를 직접 작성하는 경우가 아니라면 `@fluojs/platform-*`을 가져오지 마세요. 이는 라이브러리가 Node.js, Bun, Workers 전반에서 이식성을 유지하도록 도와줍니다.
+여러분의 패키지는 이상적으로 `@fluojs/core`에만 의존해야 합니다. 플랫폼 어댑터를 직접 작성하는 경우가 아니라면 `@fluojs/platform-*`을 가져오지 마세요. 이는 라이브러리가 Node.js, Bun, Cloudflare Workers 전반에서 진정한 플랫폼 독립성을 유지하도록 도와줍니다.
 
 ### Explicit Token Naming
 
-설정을 위한 주입 토큰을 정의할 때, 다른 라이브러리와의 충돌을 피하기 위해 명확하고 고유한 명명 규칙을 사용하세요. `Symbol.for('@fluojs/feature-flags:options')`와 같은 패턴이 좋습니다.
+설정을 위한 주입 토큰을 정의할 때, 다른 라이브러리와의 충돌을 피하기 위해 명확하고 고유한 명명 규칙을 사용하세요. `Symbol.for('@fluojs/feature-flags:options')` 패턴을 권장합니다. 이는 전역 심볼 레지스트리 내에서 심볼이 고유함을 보장하면서도 서술적인 이름을 유지합니다.
 
 ### Normalization of Metadata
 
-fluo 런타임은 누락된 메타데이터 필드(예: 생략된 경우 `exports: []`)를 정규화합니다. 그러나 라이브러리 저자로서 이를 명시적으로 작성하는 것은 가독성을 높이고 fluo Studio와 같은 도구가 모듈 그래프를 올바르게 시각화하는 데 도움이 됩니다.
+fluo 런타임은 누락된 메타데이터 필드(예: 생략된 경우 `exports: []`)를 정규화합니다. 그러나 라이브러리 저자로서 이를 명시적으로 작성하는 것은 가독성을 높이고 **fluo Studio**와 같은 도구가 모듈 그래프를 올바르게 시각화하는 데 도움이 됩니다. 명확한 `exports` 배열은 모듈의 "공개 표면(public surface)"을 소통하는 가장 좋은 방법입니다.
 
 ### Handling Circular Dependencies
 
-복잡한 생태계에서는 모듈 간 순환 의존성이 발생할 수 있습니다. DI 컨테이너가 이러한 사이클을 우아하게 해결할 수 있도록 `imports`와 `inject` 배열 모두에서 `forwardRef()`를 사용하세요.
+복잡한 생태계에서는 모듈 간 순환 의존성이 발생할 수 있습니다. DI 컨테이너가 이러한 사이클을 우아하게 해결할 수 있도록 `imports`와 `inject` 배열 모두에서 `forwardRef()`를 사용하세요. 이는 두 모듈이 엄격한 캡슐화를 유지하면서 프로바이더를 공유해야 할 때 흔히 발생하는 요구사항입니다.
 
 ## Conclusion
 
 fluo를 위한 커스텀 패키지를 만드는 것은 모듈 시스템에 의해 정의된 경계를 존중하는 것입니다. `@fluojs/core` 및 `@fluojs/di`에서 발견되는 패턴을 따르고 `forRootAsync` 패턴을 구현함으로써, 여러분의 라이브러리가 모든 fluo 애플리케이션에 완벽하게 통합되도록 보장할 수 있습니다.
 
-다음이자 마지막 장에서는 이러한 패키지와 개선 사항을 fluo 코어 레포지토리 자체에 다시 기여하는 방법을 살펴보겠습니다.
+다음이자 마지막 장에서는 공식 기여 가이드와 행동 계약 정책에 따라 이러한 패키지와 개선 사항을 fluo 코어 레포지토리 자체에 다시 기여하는 방법을 살펴보겠습니다.
 
 ---
 <!-- lines: 212 -->
