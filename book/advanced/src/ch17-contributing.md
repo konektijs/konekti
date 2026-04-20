@@ -123,8 +123,6 @@ Furthermore, we maintain a strict "Public Export Baseline" which requires that e
 
 In addition to our standards-first approach, we also enforce a "Minimalist Dependency" policy. Every new dependency added to a package must be justified in the PR and should ideally be a zero-dependency or low-dependency module. This keeps our supply chain secure and our bundle sizes predictable. We also favor native Node.js and Web APIs over specialized libraries whenever possible, further aligning with our goal of long-term maintainability and platform portability.
 
-#### Maintenance Friday and Technical Debt
-
 Every Friday, the core team and contributors dedicate time to "Maintenance Friday". This is a focused session where we do not work on new features, but instead focus on:
 - **Dependency Upgrades**: Keeping our workspace up-to-date with the latest security patches and library versions.
 - **Refactoring**: Improving code clarity and reducing complexity in older modules.
@@ -154,10 +152,8 @@ pnpm verify
 ```
 4. **Development Loop**: When working on a specific package, use the filter command to keep your watch processes lean. You can also run tests in watch mode for a faster feedback loop.
 ```bash
-# Watch for changes in a specific package
 pnpm --filter @fluojs/core dev
 
-# Run tests in watch mode for a package
 pnpm --filter @fluojs/core test:watch
 ```
 
@@ -170,7 +166,7 @@ The strength of fluo lies in its community and its unwavering commitment to stan
 Remember that you are joining a group of developers who care deeply about the quality and predictability of software. Your efforts here not only improve fluo but also influence the broader TypeScript ecosystem towards better practices and higher standards. We look forward to your first PR, your insights in discussions, and your unique perspective on how to make fluo even better! If you find any part of this guide confusing or if you see room for improvement, please open an issue or start a discussion so we can improve the contributor experience for everyone who follows in your footsteps. Let's build the future of TypeScript backends together, one standard-compliant commit at a time! We are excited to see what you will build and how you will help fluo grow. Happy coding! We hope to see you in the community soon. Your contribution matters greatly to us. Thank you for being part of the fluo journey and helping us set a new standard for modern backend development across all runtimes. Welcome aboard! We are truly honored to have you with us on this journey. Let's make fluo the best it can be, together. We are one community, one goal, one future. Join us today. See you online! We are waiting for you. Let's go! Together, we are strong and united in our shared mission to evolve the web and empower developers everywhere. The future is ours to build, and we are just getting started. Let's create something extraordinary.
 
 ---
-<!-- lines: 337 -->
+<!-- lines: 333 -->
 
 
 
