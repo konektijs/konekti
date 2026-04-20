@@ -242,4 +242,4 @@ As you move forward, keep the "Studio-first" mindset in your diagnostics workflo
 Finally, remember that observability is a continuous process. As your platform evolves, so too must your diagnostic tools and workflows. By leveraging the power of `@fluojs/studio`, you can ensure that your team always has the visibility and insights needed to build and maintain world-class TypeScript backends.
 
 ---
-<!-- lines: 258 -->
+<!-- lines: 245 -->
