@@ -718,6 +718,36 @@ describe('Container', () => {
       expect(a1[0]).toBe(a2[0]);
       expect(a1[0]).not.toBe(b1[0]);
     });
+
+    it('does not let request-scope overrides poison a root multi-provider dependency graph', async () => {
+      const PLUGINS = Symbol('Plugins');
+
+      class ConfigService {
+        constructor(readonly value: string) {}
+      }
+
+      class RootPlugin {
+        constructor(readonly config: ConfigService) {}
+      }
+
+      const root = new Container().register(
+        { provide: ConfigService, useFactory: () => new ConfigService('root-config') },
+        { provide: PLUGINS, useClass: RootPlugin, inject: [ConfigService], multi: true },
+      );
+
+      const requestScope = root.createRequestScope();
+      requestScope.override({ provide: ConfigService, useFactory: () => new ConfigService('request-config') });
+
+      const requestResolved = await requestScope.resolve<RootPlugin[]>(PLUGINS);
+      const rootResolved = await root.resolve<RootPlugin[]>(PLUGINS);
+      const secondRequestResolved = await root.createRequestScope().resolve<RootPlugin[]>(PLUGINS);
+
+      expect(requestResolved).toHaveLength(1);
+      expect(requestResolved[0]).toBe(rootResolved[0]);
+      expect(rootResolved[0]).toBe(secondRequestResolved[0]);
+      expect(rootResolved[0]?.config.value).toBe('root-config');
+      expect(requestResolved[0]?.config.value).not.toBe('request-config');
+    });
   });
 
   describe('dispose', () => {

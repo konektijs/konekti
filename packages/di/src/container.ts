@@ -482,28 +482,38 @@ export class Container {
     const instances: unknown[] = [];
 
     for (const provider of providers) {
-      if (provider.type === 'existing') {
-        instances.push(await this.resolveWithChain(provider.useExisting as Token, chain, activeTokens));
-        continue;
-      }
-
-      if (provider.scope === 'transient') {
-        instances.push(await this.instantiate(provider, chain, activeTokens));
-        continue;
-      }
-
-      const cache = this.multiCacheFor(provider);
-
-      if (!cache.has(provider)) {
-        const promise = this.instantiate(provider, chain, activeTokens);
-        cache.set(provider, promise);
-        promise.catch(() => cache.delete(provider));
-      }
-
-      instances.push(await cache.get(provider)!);
+      instances.push(await this.resolveMultiProviderInstance(provider, chain, activeTokens));
     }
 
     return instances;
+  }
+
+  private async resolveMultiProviderInstance(
+    provider: NormalizedProvider,
+    chain: Token[],
+    activeTokens: Set<Token>,
+  ): Promise<unknown> {
+    if (provider.type === 'existing') {
+      return await this.resolveWithChain(provider.useExisting as Token, chain, activeTokens);
+    }
+
+    if (provider.scope === 'transient') {
+      return await this.instantiate(provider, chain, activeTokens);
+    }
+
+    if (this.shouldResolveMultiProviderFromRoot(provider)) {
+      return await this.root().resolveMultiProviderInstance(provider, chain, activeTokens);
+    }
+
+    const cache = this.multiCacheFor(provider);
+
+    if (!cache.has(provider)) {
+      const promise = this.instantiate(provider, chain, activeTokens);
+      cache.set(provider, promise);
+      promise.catch(() => cache.delete(provider));
+    }
+
+    return await cache.get(provider)!;
   }
 
   private resolveExistingProviderTarget(provider: NormalizedProvider): Token | undefined {
@@ -539,6 +549,10 @@ export class Container {
 
   private shouldResolveFromRoot(provider: NormalizedProvider): boolean {
     return provider.scope === Scope.DEFAULT && this.requestScopeEnabled && !this.registrations.has(provider.provide);
+  }
+
+  private shouldResolveMultiProviderFromRoot(provider: NormalizedProvider): boolean {
+    return provider.scope === Scope.DEFAULT && this.requestScopeEnabled && !this.hasLocalMultiProvider(provider);
   }
 
   private async resolveDepToken(
@@ -632,9 +646,7 @@ export class Container {
 
   private multiCacheFor(provider: NormalizedProvider): Map<NormalizedProvider, Promise<unknown>> {
     if (provider.scope === Scope.DEFAULT) {
-      const localMultiProviders = this.multiRegistrations.get(provider.provide);
-
-      if (this.requestScopeEnabled && localMultiProviders?.includes(provider)) {
+      if (this.requestScopeEnabled && this.hasLocalMultiProvider(provider)) {
         return this.multiRequestCache;
       }
 
@@ -653,6 +665,10 @@ export class Container {
     }
 
     return this.multiRequestCache;
+  }
+
+  private hasLocalMultiProvider(provider: NormalizedProvider): boolean {
+    return this.multiRegistrations.get(provider.provide)?.includes(provider) ?? false;
   }
 
   private disposalCacheEntries(): Array<[NormalizedProvider | Token, Promise<unknown>]> {
