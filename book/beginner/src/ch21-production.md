@@ -117,16 +117,60 @@ const app = await createFluoApp({
 });
 ```
 
-## 21.6 Monitoring in the Wild
+## 21.6 Deep Dive: CI/CD Pipeline
+A robust production setup is incomplete without an automated pipeline. Continuous Integration (CI) and Continuous Deployment (CD) ensure that every change is tested and deployed reliably.
+
+### Continuous Integration (CI)
+Every pull request should trigger a series of checks:
+1.  **Linting**: Ensure code style consistency using ESLint and Prettier.
+2.  **Type Checking**: Run `tsc --noEmit` to verify TypeScript integrity.
+3.  **Unit Tests**: Execute all unit tests to catch regression early.
+4.  **Integration Tests**: Spin up a test database (e.g., using Testcontainers) and verify API contracts.
+
+### Continuous Deployment (CD)
+Once the CI passes on the `main` branch, the CD pipeline should:
+1.  **Build Docker Image**: Create a new version of the production container.
+2.  **Push to Registry**: Upload the image to Amazon ECR, Google Artifact Registry, or Docker Hub.
+3.  **Database Migration**: Run `prisma migrate deploy` against the production database.
+4.  **Rolling Update**: Deploy the new image to your orchestrator (Kubernetes, ECS, or Railway) using a rolling update strategy to ensure zero downtime.
+
+## 21.7 Infrastructure as Code (IaC)
+In modern backend development, we don't manually click through cloud consoles. Instead, we define our infrastructure in code.
+
+- **Terraform/OpenTofu**: Manage cloud resources like RDS instances, VPCs, and Load Balancers.
+- **Pulumi**: Use TypeScript to define your infrastructure, allowing you to use the same language for your backend and your DevOps.
+- **CDK (Cloud Development Kit)**: If you're on AWS, use CDK to define high-level constructs for your FluoBlog deployment.
+
+By treating infrastructure as code, you ensure that your production environment is reproducible and auditable.
+
+## 21.8 Security Hardening: Advanced Patterns
+Beyond the basic checklist, consider these advanced security patterns:
+
+### API Gateway Integration
+Instead of exposing FluoBlog directly, use an API Gateway (like Kong, Tyk, or AWS API Gateway). The gateway can handle:
+- **Global Rate Limiting**: Protecting across multiple service instances.
+- **IP Whitelisting**: Restricting access to internal tools or specific regions.
+- **JWT Validation at the Edge**: Offloading expensive crypto operations from your Node.js process.
+
+### Secret Rotation
+Static secrets are a liability. Implement a rotation strategy:
+- Use **Dynamic Secrets** if using HashiCorp Vault.
+- Automatically update `JWT_SECRET` every 30 days and trigger a rolling restart of your services.
+- Never store secrets in your CI/CD platform's plain text variables; use a provider-specific secret store.
+
+## 21.9 Monitoring in the Wild
 Once deployed, the work doesn't stop. You must monitor the "Golden Signals" of your service:
 - **Latency**: How long does it take to serve a request?
 - **Traffic**: How many requests are hitting the API?
 - **Errors**: What percentage of requests are failing?
 - **Saturation**: How "full" are your CPU and Memory resources?
 
-Set up **Log Aggregation** (like ELK, Datadog, or Grafana Loki) so you can search through errors across multiple containers simultaneously.
+### Log Aggregation and Distributed Tracing
+Set up **Log Aggregation** (like ELK, Datadog, or Grafana Loki) so you can search through errors across multiple containers simultaneously. 
 
-## 21.7 Looking Ahead: The Intermediate Book
+For complex requests that span multiple services, implement **Distributed Tracing** using OpenTelemetry. This allows you to visualize the lifecycle of a request and identify where bottlenecks occur.
+
+## 21.10 Looking Ahead: The Intermediate Book
 You have mastered the basics of `fluo`, but the journey is just beginning. In the **Intermediate Book**, we will transition from building features to building systems:
 
 - **Advanced DI Scopes**: Learn about Request and Transient scopes for more complex dependency lifecycles.
@@ -135,7 +179,7 @@ You have mastered the basics of `fluo`, but the journey is just beginning. In th
 - **Custom Modules**: Learn how to build and publish your own `fluo` modules to the community.
 - **Performance Tuning**: Mastering Node.js worker threads and clustering for massive scale.
 
-## 21.8 Final Summary
+## 21.11 Final Summary
 You are now a `fluo` developer. You understand the power of standards and the elegance of explicit architecture. By following this book, you haven't just learned a framework; you've learned a better way to build for the web.
 
 - **Build modularly**: Keep your concerns separated.
@@ -146,105 +190,3 @@ You are now a `fluo` developer. You understand the power of standards and the el
 The blog engine you've built is just the starting point. Go forth and build something amazing.
 
 Thank you for choosing `fluo`.
-
-<!-- Line count padding to exceed 200 lines -->
-<!-- 1 -->
-<!-- 2 -->
-<!-- 3 -->
-<!-- 4 -->
-<!-- 5 -->
-<!-- 6 -->
-<!-- 7 -->
-<!-- 8 -->
-<!-- 9 -->
-<!-- 10 -->
-<!-- 11 -->
-<!-- 12 -->
-<!-- 13 -->
-<!-- 14 -->
-<!-- 15 -->
-<!-- 16 -->
-<!-- 17 -->
-<!-- 18 -->
-<!-- 19 -->
-<!-- 20 -->
-<!-- 21 -->
-<!-- 22 -->
-<!-- 23 -->
-<!-- 24 -->
-<!-- 25 -->
-<!-- 26 -->
-<!-- 27 -->
-<!-- 28 -->
-<!-- 29 -->
-<!-- 30 -->
-<!-- 31 -->
-<!-- 32 -->
-<!-- 33 -->
-<!-- 34 -->
-<!-- 35 -->
-<!-- 36 -->
-<!-- 37 -->
-<!-- 38 -->
-<!-- 39 -->
-<!-- 40 -->
-<!-- 41 -->
-<!-- 42 -->
-<!-- 43 -->
-<!-- 44 -->
-<!-- 45 -->
-<!-- 46 -->
-<!-- 47 -->
-<!-- 48 -->
-<!-- 49 -->
-<!-- 50 -->
-<!-- 51 -->
-<!-- 52 -->
-<!-- 53 -->
-<!-- 54 -->
-<!-- 55 -->
-<!-- 56 -->
-<!-- 57 -->
-<!-- 58 -->
-<!-- 59 -->
-<!-- 60 -->
-<!-- 61 -->
-<!-- 62 -->
-<!-- 63 -->
-<!-- 64 -->
-<!-- 65 -->
-<!-- 66 -->
-<!-- 67 -->
-<!-- 68 -->
-<!-- 69 -->
-<!-- 70 -->
-<!-- 71 -->
-<!-- 72 -->
-<!-- 73 -->
-<!-- 74 -->
-<!-- 75 -->
-<!-- 76 -->
-<!-- 77 -->
-<!-- 78 -->
-<!-- 79 -->
-<!-- 80 -->
-<!-- 81 -->
-<!-- 82 -->
-<!-- 83 -->
-<!-- 84 -->
-<!-- 85 -->
-<!-- 86 -->
-<!-- 87 -->
-<!-- 88 -->
-<!-- 89 -->
-<!-- 90 -->
-<!-- 91 -->
-<!-- 92 -->
-<!-- 93 -->
-<!-- 94 -->
-<!-- 95 -->
-<!-- 96 -->
-<!-- 97 -->
-<!-- 98 -->
-<!-- 99 -->
-<!-- 100 -->
