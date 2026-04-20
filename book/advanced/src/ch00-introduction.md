@@ -192,6 +192,18 @@ Each package in the fluo monorepo has a clear responsibility. This decoupling is
 
 We also use several shared utilities across the monorepo. These internal tools help us maintain consistency and reduce code duplication. We'll take a look at some of these utilities and see how they contribute to the overall efficiency of the framework.
 
+As we conclude this introduction, consider that the biggest challenge in any large-scale project is not the initial development, but long-term maintenance. By understanding the internals of fluo, you are equipping yourself with the tools to build systems that are not only high-performing today but also easy to maintain and upgrade tomorrow. Our commitment to standards is a commitment to your future. We don't want you to learn "fluo magic"; we want you to learn "modern JavaScript and TypeScript." This knowledge will serve you long after you've moved on to your next project. Fluo is more than just a codebase; it's a living ecosystem. The patterns and practices we discuss in this book are the result of countless hours of collaboration between developers from all over the world. Your voice is a critical part of this evolution. As you dive into the engine room, remember that you have a seat at the table.
+
+To get the most out of this book, try to build a mental model of how data and control flow through the framework. Don't just look at the code; try to see the architecture behind it. Think of fluo as a series of interlocking mechanisms, each designed to perform a specific task with maximum efficiency and minimum overhead. This architectural intuition is what separates a good developer from a great one. It's the ability to see the system as a whole, while still being able to dive into the minutiae when necessary. Welcome to the journey. Let's make something amazing together.
+
+Before we move on, let's establish a shared vocabulary for some of the more advanced concepts we'll be discussing:
+- **Metadata Symbol**: The unique symbol used to store and retrieve metadata on a class or its members, as defined in `path:packages/core/src/metadata/shared.ts`.
+- **Module Graph**: The directed graph that represents the relationships between different modules in a fluo application.
+- **Provider Resolution**: The process by which fluo determines how to instantiate and inject a specific dependency.
+- **Execution Context**: The object that carries information about the current request as it moves through the HTTP pipeline.
+- **Platform Adapter**: The interface that allows fluo to run on different runtimes like Node.js, Bun, or Deno.
+Having these terms in mind will make the subsequent chapters much easier to follow. Now, with the foundation laid and the tools ready, let's open Chapter 1 and explore the heart of the decorator system. By choosing standard decorators, we've invested in the future. The TC39 decorator standard is still evolving, but its core is already solid. Mastering this standard with fluo means you'll have a foundation that won't be swept away by framework trends. The journey won't be easy, but the reward at the end is well worth it.
+
 ## Future-Proofing with Standards
 
 By adhering strictly to TC39 standards, we ensure that fluo remains compatible with the evolving JavaScript landscape. This "Standard-First" approach is not just a marketing slogan; it's a fundamental engineering principle that guides every decision we make.
@@ -204,48 +216,6 @@ As we embark on this journey, keep the following goals in mind:
 3.  **Hands-on Application**: Apply what you learn by exploring the monorepo and experimenting with the code.
 
 Welcome to the engine room. Let's get to work.
-
----
-*End of Introduction*
-
-## The Road to Maintenance
-
-As we conclude this introduction, consider that the biggest challenge in any large-scale project is not the initial development, but long-term maintenance. By understanding the internals of fluo, you are equipping yourself with the tools to build systems that are not only high-performing today but also easy to maintain and upgrade tomorrow.
-
-Our commitment to standards is a commitment to your future. We don't want you to learn "fluo magic"; we want you to learn "modern JavaScript and TypeScript." This knowledge will serve you long after you've moved on to your next project.
-
-### Community-Driven Evolution
-
-Fluo is more than just a codebase; it's a living ecosystem. The patterns and practices we discuss in this book are the result of countless hours of collaboration between developers from all over the world. Your voice is a critical part of this evolution. As you dive into the engine room, remember that you have a seat at the table.
-
-## Final Note on Mental Models
-
-To get the most out of this book, try to build a mental model of how data and control flow through the framework. Don't just look at the code; try to see the architecture behind it. Think of fluo as a series of interlocking mechanisms, each designed to perform a specific task with maximum efficiency and minimum overhead.
-
-This architectural intuition is what separates a good developer from a great one. It's the ability to see the system as a whole, while still being able to dive into the minutiae when necessary.
-
-Welcome to the journey. Let's make something amazing together.
-
-## Technical Glossary for the Advanced Developer
-
-Before we move on, let's establish a shared vocabulary for some of the more advanced concepts we'll be discussing:
-
-- **Metadata Symbol**: The unique symbol used to store and retrieve metadata on a class or its members, as defined in `path:packages/core/src/metadata/shared.ts`.
-- **Module Graph**: The directed graph that represents the relationships between different modules in a fluo application.
-- **Provider Resolution**: The process by which fluo determines how to instantiate and inject a specific dependency.
-- **Execution Context**: The object that carries information about the current request as it moves through the HTTP pipeline.
-- **Platform Adapter**: The interface that allows fluo to run on different runtimes like Node.js, Bun, or Deno.
-
-Having these terms in mind will make the subsequent chapters much easier to follow. Now, with the foundation laid and the tools ready, let's open Chapter 1 and explore the heart of the decorator system.
-
----
-*Last modified: Mon Apr 20 2026*
-
-### Reinforcing Standard-First
-
-By choosing standard decorators, we've invested in the future. The TC39 decorator standard is still evolving, but its core is already solid. Mastering this standard with fluo means you'll have a foundation that won't be swept away by framework trends.
-
-The journey won't be easy, but the reward at the end is well worth it.
 
 ---
 *End of Introduction*

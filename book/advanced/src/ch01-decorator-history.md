@@ -220,48 +220,11 @@ to developer-authored metadata,
 to standard class-evaluation hooks that runtimes can eventually understand
 without framework-specific folklore.
 
----
-*End of Chapter 1*
+As we look toward the future, specifically in `path:packages/core/src/metadata/registry.ts`, we see how this standard-first architecture allows for features like ahead-of-time (AOT) compilation and static analysis that were previously brittle or impossible. By making the dependency graph explicit, we've paved the way for a more reliable and performant TypeScript ecosystem.
 
-## 1.15 The Future: Beyond Stage 3
+Furthermore, the lessons learned from the "experimental decade" have informed our approach to new language features. We now prioritize features that have a clear path to standardization, ensuring that Fluo remains a stable and predictable platform for developers. This commitment to the standard is what makes Fluo not just a framework, but a partner in your long-term software engineering goals.
 
-As of late 2025 and early 2026, we are seeing the final polish of the decorator specification as it moves toward Stage 4. This means that the patterns established in fluo are not just "current" but "future-proof." By aligning with the standard, we have ensured that our developers are learning skills that will be relevant for the next decade of JavaScript development.
-
-The journey from "experimental" to "standard" has been long, but it has resulted in a much cleaner, safer, and more performant way to build applications. We hope that this history provides the necessary context to appreciate the engineering decisions made in fluo.
-
-### Architectural Resilience
-
-Building on standards is an exercise in architectural resilience. While other frameworks may need to undergo massive breaking changes to adapt to the official specification, fluo was born in it. This stability allows us to focus on higher-level features and developer experience rather than fighting the underlying platform.
-
-## 1.16 Standard API Checklist
-
-When building with fluo, always ask yourself if you are leveraging the standard APIs correctly:
-
-1.  **Is this a standard decorator?** (Does it follow the `(value, context) => ...` signature?)
-2.  **Are we using `context.addInitializer` for side effects?** (Instead of manual constructor hacks.)
-3.  **Is metadata being stored in `context.metadata`?** (To ensure scoping and isolation.)
-4.  **Are we avoiding global `Reflect` state?** (To maximize performance and compatibility.)
-
-If you can answer yes to these questions, you are writing standard-first code that will stand the test of time.
-
-### The Ecosystem Perspective
-
-The move to standard decorators also opens the door for better interoperability between different frameworks and libraries. Imagine a world where a `@Validate()` decorator works the same way in fluo as it does in any other standard-compliant framework. This is the future we are building toward.
-
-## 1.17 Final Thoughts on the Legacy Trap
-
-The "Legacy Trap" is the hidden cost of using experimental features that deviate from the final standard. It manifests as technical debt, performance bottlenecks, and a fragmented ecosystem. Fluo was built to liberate developers from this trap.
-
-By embracing the Stage 3 standard early, we have created a framework that is fast, explicit, and truly standard-first. In the next chapter, we will dive deeper into how this standard-first approach manifests in our metadata system.
-
----
-*Last modified: Mon Apr 20 2026*
-
-### Conclusion: The New Standard
-
-We've explored the history of decorators from the early Stage 1 experiments to the robust Stage 3 standard. We've seen how this evolution has been a direct response to the needs of developers and the performance requirements of the modern web. In fluo, we've taken these lessons to heart to build a framework that is ready for the future.
-
-Now, let's take a look at how this history informs our metadata system in Chapter 2.
+Finally, the shift toward standard decorators has fostered a more collaborative ecosystem. By using the same primitives as the rest of the JavaScript language, we can share tools, patterns, and expertise more effectively with the broader community. This synergy is what will drive the next wave of innovation in web development.
 
 ---
 *End of Chapter 1*

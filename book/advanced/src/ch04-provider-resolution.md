@@ -373,8 +373,6 @@ complexity to the normalization phase and enforcing strict scope and topology
 rules during registration, Fluo provides a resolution algorithm that is both
 high-performing and audit-friendly.
 
-## 4.6 Advanced: Circular Dependency Resolution in Depth
-
 While we've discussed the basic circular dependency detection, fluo also provides a mechanism for resolving them when necessary using the `forwardRef()` utility. This works by deferring the resolution of a specific token until the entire module graph has been traversed.
 
 Internally, `forwardRef()` returns a wrapper object that holds a reference to a function that returns the actual class. When the DI container encounters this wrapper, it registers it as a "deferred" dependency and resolves it once the target class is finally available.
