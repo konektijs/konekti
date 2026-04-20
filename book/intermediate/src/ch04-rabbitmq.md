@@ -1,0 +1,347 @@
+<!-- packages: @fluojs/microservices, amqplib -->
+<!-- project-state: FluoShop v1.3.0 -->
+
+# 4. RabbitMQ
+
+RabbitMQ is the first broker in this part that feels unapologetically queue-centric.
+
+Redis Streams already gave FluoShop durable delivery.
+
+RabbitMQ changes the conversation by making queue topology itself the primary design tool.
+
+That matters when one service must own work, another service must retry it, and a third service must stay out of the way until the broker decides delivery is ready.
+
+In FluoShop v1.3.0, we move the post-payment fulfillment handoff onto RabbitMQ.
+
+The Order Service still accepts customer traffic through the earlier transports.
+
+The new RabbitMQ path begins after payment succeeds.
+
+At that point the business no longer needs immediate user-facing latency.
+
+It needs dependable work queues for picking, packing, and downstream notification.
+
+## 4.1 Why RabbitMQ in FluoShop
+
+RabbitMQ is a strong fit when the topology is about queues rather than logs.
+
+The Fulfillment Service should own packaging work.
+
+The Notification Service should hear about fulfillment milestones without becoming the main worker.
+
+Operations should be able to inspect queue depth and know whether a delay is real or only transient.
+
+That style is more natural in RabbitMQ than in a generic request path.
+
+For FluoShop, Chapter 4 adds three concrete goals.
+
+1. Preserve the customer-facing order flow from the previous chapters.
+2. Push warehouse work into broker-backed queues after payment confirmation.
+3. Keep the programming model identical to earlier handlers even though the transport is different.
+
+RabbitMQ is not replacing TCP or Redis everywhere.
+
+It is taking over the handoff where explicit queue ownership improves clarity.
+
+The moment a package must be packed by exactly one worker, queues become more informative than fan-out topics.
+
+## 4.2 Bootstrapping RabbitMQ with caller-owned collaborators
+
+The fluo transport does not hide RabbitMQ behind a magical connection manager.
+
+Like the package README describes, broker clients remain caller-owned collaborators.
+
+That means the application is responsible for creating channels, declaring queues, and passing publish or consume functions into the transport.
+
+This is a deliberate design choice.
+
+The framework owns message routing.
+
+The application still owns infrastructure wiring.
+
+### 4.2.1 Publisher and consumer collaborators
+
+`RabbitMqMicroserviceTransport` expects two collaborators.
+
+- `publisher.publish(queue, message)` sends a serialized frame.
+- `consumer.consume(queue, handler)` and `consumer.cancel(queue)` manage queue listeners.
+
+The transport also exposes queue-level options that matter to book examples.
+
+- `eventQueue`
+- `messageQueue`
+- `responseQueue`
+- `requestTimeoutMs`
+
+If you do not override them, fluo uses defaults for the event, message, and response queues.
+
+The response queue is especially important.
+
+By default it is instance-scoped and includes a random UUID.
+
+That prevents reply collisions when multiple service instances are active at the same time.
+
+### 4.2.2 Module wiring
+
+In FluoShop, the Fulfillment Service boots RabbitMQ as a dedicated microservice boundary.
+
+```typescript
+import { Module } from '@fluojs/core';
+import { MicroservicesModule, RabbitMqMicroserviceTransport } from '@fluojs/microservices';
+
+const transport = new RabbitMqMicroserviceTransport({
+  consumer: rabbitConsumer,
+  publisher: rabbitPublisher,
+  eventQueue: 'fluoshop.fulfillment.events',
+  messageQueue: 'fluoshop.fulfillment.messages',
+  requestTimeoutMs: 8_000,
+});
+
+@Module({
+  imports: [
+    MicroservicesModule.forRoot({
+      transport,
+    }),
+  ],
+  providers: [FulfillmentHandler],
+})
+export class FulfillmentModule {}
+```
+
+This code should look familiar by now.
+
+The handler model remains steady.
+
+Only the transport bootstrap changes.
+
+That continuity is what makes the intermediate book cumulative instead of repetitive.
+
+## 4.3 Queue topology for request and event traffic
+
+RabbitMQ encourages explicit queue names because queues are not just pipes.
+
+They are operational objects.
+
+Teams inspect them.
+
+They redrive them.
+
+They decide who owns them.
+
+In FluoShop we use separate queues for command-like messages and event-like broadcasts.
+
+### 4.3.1 Message, event, and response queues
+
+The transport models three frame kinds internally.
+
+- `message`
+- `event`
+- `response`
+
+That leads to a practical RabbitMQ topology.
+
+- `fluoshop.fulfillment.messages` carries request-reply commands such as `fulfillment.reserve-packers`.
+- `fluoshop.fulfillment.events` carries fire-and-forget signals such as `payment.settled`.
+- `fluoshop.fulfillment.responses.<instance>` carries replies back to the sender.
+
+This split keeps intent readable.
+
+When operators see a backlog in the message queue, they know request-style work is waiting.
+
+When they see volume in the event queue, they know broadcast-style side effects are active.
+
+### 4.3.2 Instance-scoped response queues
+
+The RabbitMQ tests in the repository verify an important safety detail.
+
+Concurrent instances should not steal each other's replies.
+
+That is why the default `responseQueue` includes `crypto.randomUUID()`.
+
+For FluoShop, this means we can safely scale the Order Service horizontally while still allowing each instance to await its own fulfillment reply.
+
+If you override `responseQueue`, you are explicitly taking ownership of a shared reply topology.
+
+That can be valid.
+
+It also means you must coordinate correlation and lifecycle policies yourself.
+
+The safe default is to leave the response queue instance-scoped.
+
+## 4.4 Request-response workflows on RabbitMQ
+
+RabbitMQ is often introduced as if it were only for background jobs.
+
+fluo supports more than that.
+
+You can still use `send()` and receive a correlated response.
+
+The transport serializes a request frame, includes `requestId` and `replyTo`, then resolves or rejects the caller when a response frame arrives.
+
+### 4.4.1 FluoShop packer reservation
+
+In FluoShop, the Order Service sometimes needs a quick broker-backed answer from Fulfillment.
+
+For example, it may ask whether a warehouse wave has enough packer capacity before promising same-day dispatch.
+
+```typescript
+import { Inject } from '@fluojs/core';
+import { MICROSERVICE, type Microservice } from '@fluojs/microservices';
+
+export class FulfillmentClient {
+  constructor(@Inject(MICROSERVICE) private readonly microservice: Microservice) {}
+
+  async reservePackers(orderId: string, warehouseId: string) {
+    return await this.microservice.send('fulfillment.reserve-packers', {
+      orderId,
+      warehouseId,
+    });
+  }
+}
+```
+
+The business benefit is subtle.
+
+The Order Service does not need a direct TCP socket into warehouse internals.
+
+It needs a transport that still supports replies while fitting the queue-oriented operational model the warehouse team already uses.
+
+RabbitMQ provides that bridge.
+
+### 4.4.2 Timeouts, correlation, and handler failures
+
+The transport rejects if a response does not arrive before `requestTimeoutMs`.
+
+It also round-trips handler errors back to the caller.
+
+That means FluoShop can distinguish three conditions.
+
+1. Fulfillment accepted and answered the request.
+2. Fulfillment handled the request but rejected it with a domain error.
+3. No reply arrived before the timeout budget expired.
+
+Those states should not be collapsed into one generic failure.
+
+If the warehouse actively rejects same-day dispatch, the API can explain that policy choice.
+
+If the broker path times out, the API should surface a transient dependency error instead.
+
+## 4.5 Event-driven workflows on RabbitMQ
+
+RabbitMQ also supports fire-and-forget event delivery through `emit()`.
+
+This is where FluoShop v1.3.0 becomes more realistic.
+
+After Payment emits `payment.settled`, the event can drive multiple reactions.
+
+Fulfillment schedules picking.
+
+Notification prepares customer messaging.
+
+Risk systems can record a checkpoint.
+
+The payment path no longer needs to wait for every downstream side effect.
+
+### 4.5.1 Payment settled to fulfillment requested
+
+The simplest version of the handoff looks like this.
+
+```typescript
+@EventPattern('payment.settled')
+async onPaymentSettled(event: { orderId: string; warehouseId: string }) {
+  await this.fulfillmentPlanner.enqueuePickWave(event.orderId, event.warehouseId);
+}
+```
+
+Notice what does not change.
+
+The handler is still just a provider method.
+
+The transport owns the queue frame.
+
+The domain service owns the business decision.
+
+This is the recurring fluo pattern throughout the book.
+
+### 4.5.2 Dead-letter and redrive policy
+
+The transport intentionally stays focused on frame routing.
+
+Queue declaration policy belongs to the caller-owned RabbitMQ setup.
+
+That means dead-letter exchanges, TTLs, max delivery attempts, and redrive tooling should be configured alongside the application's `amqplib` channels.
+
+For FluoShop, warehouse events are a good place to define those policies.
+
+If `pickwave.created` fails repeatedly, operators should be able to quarantine the poisoned message without losing the original order context.
+
+RabbitMQ shines when those recovery mechanics are explicit.
+
+## 4.6 Delivery safety and operations
+
+The repository tests document several behaviors worth carrying into production guidance.
+
+- `send()` requires `listen()` first.
+- timeouts reject the caller clearly.
+- concurrent requests stay correlated by `requestId`.
+- instance-scoped response queues prevent reply theft.
+
+That gives us a stable mental model for FluoShop.
+
+RabbitMQ is not magical durability.
+
+It is durable enough only when topology, retries, and queue ownership are defined responsibly.
+
+### 4.6.1 Operational signals to watch
+
+For the fulfillment queues, the team should watch:
+
+- ready message count
+- unacked or in-flight work
+- redeliveries after deploys
+- response queue churn per instance
+- growth in dead-letter queues
+
+Those metrics tell different stories.
+
+A rising ready count suggests workers are under-provisioned.
+
+A rising redelivery count suggests unstable handlers.
+
+Rapid response queue churn may indicate instances are restarting too often.
+
+### 4.6.2 FluoShop rollout plan
+
+In v1.3.0, only the fulfillment handoff moves to RabbitMQ.
+
+The rest of FluoShop remains intentionally mixed.
+
+- API reads can stay on TCP.
+- payment durability can stay on Redis Streams.
+- warehouse work moves onto RabbitMQ queues.
+
+That hybrid state is healthy.
+
+Architectures usually evolve one boundary at a time.
+
+The practical lesson is to move the link that benefits most from a queue-owned operational model.
+
+Do not migrate every transport merely for symmetry.
+
+## 4.7 Summary
+
+- RabbitMQ fits queue-oriented ownership better than direct request paths.
+- fluo keeps RabbitMQ bootstrap explicit through caller-owned publisher and consumer collaborators.
+- request-reply flows remain available through `send()` with `requestId` and `replyTo` correlation.
+- instance-scoped response queues are the safe default for concurrent service instances.
+- FluoShop now routes post-payment fulfillment work through RabbitMQ, giving warehouse operations a clearer queue model.
+
+At this point in the book, FluoShop has three distinct communication styles.
+
+TCP handles simple direct reads.
+
+Redis Streams protects money-sensitive durability.
+
+RabbitMQ owns warehouse queues where work assignment matters more than stream replay.
+
+That transport diversity is a strength, not a mess.
