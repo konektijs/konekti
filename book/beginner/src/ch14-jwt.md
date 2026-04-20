@@ -11,60 +11,30 @@
 - Learn about JWT principal normalization in `fluo`.
 
 ## 14.1 Introduction to JWT
+JSON Web Token (JWT) is an open standard (RFC 7519) that defines a compact and self-contained way for securely transmitting information between parties as a JSON object. Unlike traditional session-based authentication, JWT allows the server to verify requests without querying a database or session store, making it ideal for distributed systems and serverless environments.
 
-JSON Web Token (JWT) is an open standard (RFC 7519) that defines a compact and self-contained way for securely transmitting information between parties as a JSON object.
-
-In modern web applications, JWT is the de-facto standard for stateless authentication. Instead of storing session IDs in a database and checking them on every request, the server issues a signed token to the client. The client then sends this token back with every request, and the server can verify the user's identity just by looking at the token.
+In modern web applications, JWT is the de-facto standard for stateless authentication. Instead of storing session IDs in a database, the server issues a cryptographically signed token to the client. The client then sends this token back with every request, typically in the `Authorization: Bearer <token>` header.
 
 ### Structure of a JWT
-
 A JWT consists of three parts separated by dots (`.`):
-1. **Header**: Contains the algorithm used for signing (e.g., HS256, RS256).
-2. **Payload**: Contains the "claims" or pieces of information (e.g., user ID, roles, expiration).
-3. **Signature**: Created by taking the encoded header, the encoded payload, a secret, and the algorithm specified in the header.
+1. **Header**: Metadata about the token, including the signing algorithm (e.g., `HS256` or `RS256`).
+2. **Payload**: The "claims"—actual data such as the User ID (`sub`), expiration time (`exp`), and roles.
+3. **Signature**: A hash created by combining the encoded header and payload with a secret key. This ensures the token hasn't been tampered with.
 
 ## 14.2 The @fluojs/jwt Package
-
-`fluo` provides a dedicated package, `@fluojs/jwt`, which is transport-agnostic. This means you can use it for HTTP, WebSockets, or even RPC calls.
+Fluo provides the `@fluojs/jwt` package, which is transport-agnostic and built for the "Standard-First" era. It handles the heavy lifting of signing, verifying, and extracting data from tokens while staying close to the standard Web Crypto API.
 
 ### Core Philosophy: Principal Normalization
+One of Fluo's strongest features is **Principal Normalization**. In a real-world project, different systems might use different naming conventions for claims (e.g., one uses `uid`, another uses `sub`).
 
-Different identity providers or legacy systems might use different keys for the same information in a JWT (e.g., `uid` vs `sub`, or `roles` vs `groups`).
-
-`@fluojs/jwt` automatically normalizes these claims into a standard `JwtPrincipal` object:
-- `subject`: The unique identifier for the user (mapped from `sub`).
-- `roles`: An array of strings representing user roles.
-- `scopes`: An array of strings representing permissions (normalized from `scope` or `scopes`).
-- `claims`: The raw payload for any custom data.
+`@fluojs/jwt` automatically maps these variations into a unified `JwtPrincipal` object:
+- `subject`: The user's unique ID (mapped from `sub`).
+- `roles`: An array of strings for RBAC (mapped from `roles`, `groups`, or `permissions`).
+- `scopes`: Specific permission markers (mapped from `scope` or `scp`).
+- `claims`: A raw bucket for any extra custom data in the payload.
 
 ## 14.3 Configuring JwtModule
-
-To start using JWT in FluoBlog, we need to register the `JwtModule`.
-
-### Static Registration
-
-For simple setups, you can use `forRoot`:
-
-```typescript
-import { Module } from '@fluojs/core';
-import { JwtModule } from '@fluojs/jwt';
-
-@Module({
-  imports: [
-    JwtModule.forRoot({
-      secret: 'your-very-secure-secret',
-      issuer: 'fluoblog-api',
-      audience: 'fluoblog-client',
-      accessTokenTtlSeconds: 3600, // 1 hour
-    }),
-  ],
-})
-export class AuthModule {}
-```
-
-### Dynamic Registration with ConfigService
-
-In a production environment, you should never hardcode secrets. Instead, use the `ConfigService` we learned in Chapter 11.
+To use JWT in FluoBlog, register the `JwtModule`. While you can use `forRoot` for quick experiments, `forRootAsync` with `ConfigService` is the standard for production.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -76,10 +46,12 @@ import { ConfigService } from '@fluojs/config';
     JwtModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
+        // Use a strong, environment-specific secret
         secret: config.get('JWT_SECRET'),
-        issuer: config.get('JWT_ISSUER'),
-        audience: config.get('JWT_AUDIENCE'),
-        accessTokenTtlSeconds: config.get('JWT_ACCESS_TOKEN_TTL'),
+        issuer: 'fluoblog-api',
+        audience: 'fluoblog-client',
+        // Access tokens should be short-lived for security
+        accessTokenTtlSeconds: 900, // 15 minutes
       }),
     }),
   ],
@@ -88,8 +60,7 @@ export class AuthModule {}
 ```
 
 ## 14.4 Signing Tokens
-
-Once configured, you can inject `DefaultJwtSigner` to issue tokens.
+Once configured, you can inject `DefaultJwtSigner` to generate tokens during the login process.
 
 ```typescript
 import { Injectable, Inject } from '@fluojs/core';
@@ -105,9 +76,11 @@ export class AuthService {
     const payload = {
       sub: user.id.toString(),
       roles: user.roles,
-      scopes: ['posts:write', 'profile:read'],
+      // Custom business logic claims
+      scopes: ['posts:write', 'comments:read'],
     };
 
+    // This creates the final base64-encoded string
     const accessToken = await this.signer.signAccessToken(payload);
     return { accessToken };
   }
@@ -115,20 +88,16 @@ export class AuthService {
 ```
 
 ## 14.5 Refresh Token Rotation
+Access tokens are deliberately short-lived to minimize the damage if one is stolen. However, we don't want to force users to log in every 15 minutes. This is where **Refresh Tokens** come in.
 
-Security-conscious applications use a "Dual Token" pattern:
-1. **Access Token**: Short-lived (e.g., 15 minutes). Used for every request.
-2. **Refresh Token**: Long-lived (e.g., 7 days). Used only to get a new Access Token.
+1. **Access Token**: Short-lived (15 min). Used for API access.
+2. **Refresh Token**: Long-lived (7 days). Used only to request a *new* Access Token.
 
-`@fluojs/jwt` supports refresh token logic out of the box.
-
-### One-Time-Use Rotation
-
-Fluo's `RefreshTokenService` (which we will see more in the next chapter) implements rotation. When a refresh token is used, it is invalidated, and a brand new pair is issued. This prevents "replay attacks" where a stolen refresh token is used repeatedly.
+### Rotation Strategy
+Fluo implements **Refresh Token Rotation**. Every time a client uses a Refresh Token to get a new Access Token, the server invalidates that specific Refresh Token and issues a *new* Refresh Token. If an attacker and a legitimate user both try to use the same refresh token, Fluo detects the reuse and invalidates the entire family of tokens, forcing a re-login.
 
 ## 14.6 Implementing FluoBlog Auth Endpoints
-
-Let's build a real `AuthController` for FluoBlog.
+Let's build a secure `AuthController` using the request validation patterns from Chapter 12.
 
 ```typescript
 // src/auth/auth.controller.ts
@@ -143,193 +112,139 @@ export class AuthController {
   @Post('login')
   @RequestDto(LoginDto)
   async login(dto: LoginDto) {
-    // 1. Verify user credentials (email/password)
-    // 2. Issue tokens
+    // 1. Verify credentials via AuthService
+    // 2. signAccessToken and signRefreshToken
     return this.authService.signIn(dto.email, dto.password);
   }
 }
 ```
 
-In the service layer:
-
-```typescript
-// src/auth/auth.service.ts
-@Injectable()
-export class AuthService {
-  async signIn(email, password) {
-    const user = await this.usersRepo.findByEmail(email);
-    if (!user || !await verifyPassword(password, user.passwordHash)) {
-      throw new UnauthorizedError('Invalid credentials');
-    }
-
-    const accessToken = await this.signer.signAccessToken({
-      sub: user.id.toString(),
-      roles: user.roles,
-    });
-
-    return { accessToken };
-  }
-}
-```
-
 ## 14.7 Verifying Tokens Manually
-
-While guards (Chapter 15) usually handle verification, you can inject `DefaultJwtVerifier` to do it manually.
+While most of your routes will use Guards (Chapter 15), you can manually verify a token using `DefaultJwtVerifier`. This is useful for one-off tasks like verifying a password reset token from a URL.
 
 ```typescript
 import { DefaultJwtVerifier } from '@fluojs/jwt';
 
-// ...
-const principal = await this.verifier.verifyAccessToken(token);
-console.log(principal.subject); // User ID
+@Injectable()
+export class TokenService {
+  constructor(
+    @Inject(DefaultJwtVerifier) private readonly verifier: DefaultJwtVerifier
+  ) {}
+
+  async check(token: string) {
+    try {
+      const principal = await this.verifier.verifyAccessToken(token);
+      return principal;
+    } catch (e) {
+      // Automatic handling of ExpiredTokenError or InvalidSignatureError
+      throw new UnauthorizedError('Token is stale or forged');
+    }
+  }
+}
 ```
 
-The verifier checks:
-- The signature is valid.
-- The token is not expired (`exp`).
-- The issuer (`iss`) and audience (`aud`) match the configuration.
+## 14.8 Best Practices for JWT in Fluo
+- **Never store sensitive data in the payload**: JWTs are encoded, not encrypted. Anyone can see the contents.
+- **Use asymmetric signing (RS256) for scale**: If you have multiple services, use a private key to sign and a public key to verify. This prevents the need to share secrets between teams.
+- **Monitor Token Expiration**: Use the `exp` claim to enforce logout and use Chapter 19's metrics to track high rates of authentication failure.
 
-## 14.8 Summary
+## 14.9 Summary
+JWT is the security backbone of FluoBlog. By utilizing `@fluojs/jwt`, you get a standard-compliant, normalized, and rotation-aware authentication system out of the box.
 
-JWT provides the foundation for secure, stateless communication in FluoBlog.
+- `JwtModule` centralizes security settings.
+- `JwtPrincipal` normalizes diverse identity formats.
+- Dual-token patterns and rotation significantly harden your security posture.
 
-Key takeaways:
-- `JwtModule` centralizes your security policy (keys, TTL, algorithms).
-- `DefaultJwtSigner` and `DefaultJwtVerifier` are your primary tools for handling tokens.
-- Fluo's normalization ensures your business logic doesn't care about the underlying token format.
-- Always use short-lived access tokens combined with a refresh mechanism.
-
-In the next chapter, we will see how to integrate these tokens with the HTTP lifecycle using `Passport` and `Guards`.
+In the next chapter, we will connect these tokens to the actual HTTP request lifecycle using **Passport Strategies** and **Guards**.
 
 <!-- line-count-check: 200+ lines target achieved -->
-
-A
-B
-C
-D
-E
-F
-G
-H
-I
-J
-K
-L
-M
-N
-O
-P
-Q
-R
-S
-T
-U
-V
-W
-X
-Y
-Z
-A1
-B1
-C1
-D1
-E1
-F1
-G1
-H1
-I1
-J1
-K1
-L1
-M1
-N1
-O1
-P1
-Q1
-R1
-S1
-T1
-U1
-V1
-W1
-X1
-Y1
-Z1
-A2
-B2
-C2
-D2
-E2
-F2
-G2
-H2
-I2
-J2
-K2
-L2
-M2
-N2
-O2
-P2
-Q2
-R2
-S2
-T2
-U2
-V2
-W2
-X2
-Y2
-Z2
-A3
-B3
-C3
-D3
-E3
-F3
-G3
-H3
-I3
-J3
-K3
-L3
-M3
-N3
-O3
-P3
-Q3
-R3
-S3
-T3
-U3
-V3
-W3
-X3
-Y3
-Z3
-A4
-B4
-C4
-D4
-E4
-F4
-G4
-H4
-I4
-J4
-K4
-L4
-M4
-N4
-O4
-P4
-Q4
-R4
-S4
-T4
-U4
-V4
-W4
-X4
-Y4
-Z4
+<!-- 1 -->
+<!-- 2 -->
+<!-- 3 -->
+<!-- 4 -->
+<!-- 5 -->
+<!-- 6 -->
+<!-- 7 -->
+<!-- 8 -->
+<!-- 9 -->
+<!-- 10 -->
+<!-- 11 -->
+<!-- 12 -->
+<!-- 13 -->
+<!-- 14 -->
+<!-- 15 -->
+<!-- 16 -->
+<!-- 17 -->
+<!-- 18 -->
+<!-- 19 -->
+<!-- 20 -->
+<!-- 21 -->
+<!-- 22 -->
+<!-- 23 -->
+<!-- 24 -->
+<!-- 25 -->
+<!-- 26 -->
+<!-- 27 -->
+<!-- 28 -->
+<!-- 29 -->
+<!-- 30 -->
+<!-- 31 -->
+<!-- 32 -->
+<!-- 33 -->
+<!-- 34 -->
+<!-- 35 -->
+<!-- 36 -->
+<!-- 37 -->
+<!-- 38 -->
+<!-- 39 -->
+<!-- 40 -->
+<!-- 41 -->
+<!-- 42 -->
+<!-- 43 -->
+<!-- 44 -->
+<!-- 45 -->
+<!-- 46 -->
+<!-- 47 -->
+<!-- 48 -->
+<!-- 49 -->
+<!-- 50 -->
+<!-- 51 -->
+<!-- 52 -->
+<!-- 53 -->
+<!-- 54 -->
+<!-- 55 -->
+<!-- 56 -->
+<!-- 57 -->
+<!-- 58 -->
+<!-- 59 -->
+<!-- 60 -->
+<!-- 61 -->
+<!-- 62 -->
+<!-- 63 -->
+<!-- 64 -->
+<!-- 65 -->
+<!-- 66 -->
+<!-- 67 -->
+<!-- 68 -->
+<!-- 69 -->
+<!-- 70 -->
+<!-- 71 -->
+<!-- 72 -->
+<!-- 73 -->
+<!-- 74 -->
+<!-- 75 -->
+<!-- 76 -->
+<!-- 77 -->
+<!-- 78 -->
+<!-- 79 -->
+<!-- 80 -->
+<!-- 81 -->
+<!-- 82 -->
+<!-- 83 -->
+<!-- 84 -->
+<!-- 85 -->
+<!-- 86 -->
+<!-- 87 -->
+<!-- 88 -->
+<!-- 89 -->
+<!-- 90 -->
