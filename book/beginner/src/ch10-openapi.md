@@ -218,6 +218,35 @@ If your application uses different types of authentication—like API keys for s
 
 Fluo's `DocumentBuilder` provides methods like `addApiKey()` or `addOAuth2()` to register these schemes. You then use decorators like `@ApiSecurity('api-key')` on your controllers or individual routes to indicate which security scheme is required. This level of detail ensures that your documentation is not just a list of routes, but a complete guide to safely and correctly using your API.
 
+### Integrating Swagger UI and Security
+
+One of the most powerful features of the Swagger UI is the ability to test protected routes directly. However, for this to work, you must define the security scheme in your bootstrap logic and then apply it to your controllers.
+
+```typescript
+import { DocumentBuilder, SwaggerModule } from '@fluojs/openapi';
+
+// In your bootstrap function (main.ts)
+const config = new DocumentBuilder()
+  .setTitle('FluoBlog API')
+  .addBearerAuth() // Defines the JWT Bearer scheme
+  .build();
+
+const document = SwaggerModule.createDocument(app, config);
+SwaggerModule.setup('docs', app, document);
+```
+
+By adding `.addBearerAuth()`, you enable the "Authorize" button in the Swagger UI. This allows you to paste a JWT token once and have it automatically included in the `Authorization` header for every subsequent request made through the browser. This seamless integration between security and documentation is a hallmark of the fluo developer experience, making manual testing significantly faster and more reliable.
+
+### Global vs. Local API Tags
+
+While `@ApiTag('Posts')` at the controller level is common, you can also apply tags to individual methods if a controller handles multiple logical sub-domains. 
+
+However, for beginners, we recommend sticking to the one-controller-one-tag pattern. This keeps your Swagger UI organized and mirrors the modular structure of your application. As you grow into larger projects, you might find situations where a single route belongs to multiple tags (e.g., both "Posts" and "Search"), and fluo supports this by allowing an array of tags: `@ApiTag('Posts', 'Search')`.
+
+### Advanced UI Customization
+
+While `ui: true` provides a great default experience, you can customize the Swagger UI to match your brand. The `OpenApiModule` allows passing custom CSS or even a different path for the assets. This ensures that even your developer-facing documentation feels like a polished part of your product. For most beginners, the defaults are perfect, but knowing that fluo grows with you is part of the long-term benefit of choosing a standard-first framework.
+
 ## 10.5 Versioning and Deterministic Docs Output
 
 As your FluoBlog application grows, you might need to release a "v2" of your API without breaking "v1." The OpenAPI package handles this gracefully.

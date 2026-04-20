@@ -218,7 +218,34 @@ export class PostResponseDto {
 
 fluo의 `DocumentBuilder`는 이러한 체계를 등록하기 위해 `addApiKey()`나 `addOAuth2()`와 같은 메서드를 제공합니다. 그런 다음 컨트롤러나 개별 경로에서 `@ApiSecurity('api-key')`와 같은 데코레이터를 사용하여 어떤 보안 체계가 필요한지 표시합니다. 이러한 상세한 정보는 문서가 단순한 경로 목록을 넘어, API를 안전하고 올바르게 사용하기 위한 완벽한 가이드가 되도록 보장합니다.
 
-## 10.5 Versioning and Deterministic Docs Output
+### Swagger UI와 보안 통합
+
+Swagger UI의 가장 강력한 기능 중 하나는 보호된 라우트를 직접 테스트할 수 있는 기능입니다. 하지만 이를 위해서는 부트스트랩 로직에서 보안 스키마를 정의한 다음 컨트롤러에 적용해야 합니다.
+
+```typescript
+import { DocumentBuilder, SwaggerModule } from '@fluojs/openapi';
+
+// bootstrap 함수 (main.ts) 내에서
+const config = new DocumentBuilder()
+  .setTitle('FluoBlog API')
+  .addBearerAuth() // JWT Bearer 체계 정의
+  .build();
+
+const document = SwaggerModule.createDocument(app, config);
+SwaggerModule.setup('docs', app, document);
+```
+
+`.addBearerAuth()`를 추가하면 Swagger UI에서 "Authorize" 버튼이 활성화됩니다. 이를 통해 JWT 토큰을 한 번만 붙여넣으면 이후 브라우저를 통해 이루어지는 모든 요청의 `Authorization` 헤더에 해당 토큰이 자동으로 포함됩니다. 보안과 문서화 사이의 이러한 매끄러운 통합은 fluo 개발자 경험의 핵심이며, 수동 테스트를 훨씬 더 빠르고 안정적으로 만들어 줍니다.
+
+### 전역 vs 지역 API 태그
+
+컨트롤러 수준에서의 `@ApiTag('Posts')`가 일반적이지만, 하나의 컨트롤러가 여러 논리적 하위 도메인을 처리하는 경우 개별 메서드에 태그를 적용할 수도 있습니다.
+
+하지만 초보자에게는 '하나의 컨트롤러-하나의 태그' 패턴을 유지하는 것을 권장합니다. 이렇게 하면 Swagger UI가 체계적으로 유지되고 애플리케이션의 모듈식 구조가 잘 반영됩니다. 더 큰 프로젝트로 성장하다 보면 단일 라우트가 여러 태그(예: "Posts"와 "Search" 모두)에 속해야 하는 상황이 발생할 수 있으며, fluo는 `@ApiTag('Posts', 'Search')`와 같이 배열 형태로 태그를 지정하는 것을 지원합니다.
+
+### 고급 UI 커스터마이징
+
+`ui: true`는 훌륭한 기본 경험을 제공하지만, 브랜드에 맞게 Swagger UI를 커스터마이징할 수 있습니다. `OpenApiModule`을 사용하면 사용자 정의 CSS를 전달하거나 자산(assets)의 경로를 다르게 지정할 수 있습니다. 이를 통해 개발자용 문서조차도 제품의 잘 다듬어진 일부처럼 느껴지게 할 수 있습니다. 대부분의 초보자에게는 기본값이 완벽하지만, fluo가 여러분의 성장과 함께할 수 있다는 점을 아는 것은 이 표준 중심 프레임워크를 선택하는 장기적인 이점 중 하나입니다.
 
 FluoBlog 애플리케이션이 커지면 기존의 "v1"을 유지하면서 "v2" API를 출시해야 할 수도 있습니다. OpenAPI 패키지는 이를 우아하게 처리합니다.
 
