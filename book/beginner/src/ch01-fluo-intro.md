@@ -130,6 +130,18 @@ export class UsersService {
 }
 ```
 
+### Understanding the Standard Decorator Signature
+
+Unlike legacy decorators, standard TC39 decorators receive a context object that provides information about the member being decorated. While fluo hides most of this complexity, it's useful to know that this is what enables the "no-magic" behavior.
+
+```typescript
+// A conceptual look at a standard decorator call
+function MyDecorator(value, context) {
+  console.log(`Decorating ${context.name} of type ${context.kind}`);
+  // ... framework logic
+}
+```
+
 This code communicates two facts immediately.
 
 1. `UsersService` is a managed dependency.

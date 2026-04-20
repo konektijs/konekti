@@ -232,6 +232,20 @@ export class PostsController {
 }
 ```
 
+### The Importance of Explicit Registration
+
+In fluo, every provider must be registered in a module. This ensures that the dependency graph is always auditable and easy to follow.
+
+```typescript
+@Module({
+  providers: [
+    PostsService,
+    { provide: 'API_KEY', useValue: 'secret-key-123' } // A non-class provider
+  ],
+})
+export class PostsModule {}
+```
+
 ### Separation of Concerns
 
 The controller should coordinate, not dominate. It acts as a traffic controller, directing incoming requests to the appropriate service and then returning the results.

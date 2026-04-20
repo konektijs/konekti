@@ -138,6 +138,14 @@ fluo는 첫 번째 답을 원합니다.
 
 fluo가 클래스 데코레이터를 많이 사용하는 이유는 의도를 짧고 읽기 좋게 선언할 수 있기 때문입니다.
 
+```typescript
+@Injectable()
+export class MyService {}
+
+@Controller('/api')
+export class MyController {}
+```
+
 클래스 첫 줄만 읽어도 그 파일이 무엇인지 알 수 있다면 파일 탐색이 훨씬 쉬워집니다.
 
 이 가독성은 파일 수가 많은 모듈형 코드베이스에서 특히 유용합니다.

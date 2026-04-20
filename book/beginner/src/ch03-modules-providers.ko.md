@@ -222,6 +222,20 @@ export class PostsController {
 }
 ```
 
+### 명시적 등록의 중요성
+
+fluo에서 모든 프로바이더는 모듈에 등록되어야 합니다. 이는 의존성 그래프가 항상 감사 가능하고 추적하기 쉬운 상태를 유지하도록 보장합니다.
+
+```typescript
+@Module({
+  providers: [
+    PostsService,
+    { provide: 'API_KEY', useValue: 'secret-key-123' } // 클래스가 아닌 프로바이더 예시
+  ],
+})
+export class PostsModule {}
+```
+
 ### Separation of Concerns
 
 컨트롤러는 지배자가 아니라 조율자여야 합니다.

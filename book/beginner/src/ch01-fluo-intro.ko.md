@@ -130,6 +130,18 @@ export class UsersService {
 }
 ```
 
+### 표준 데코레이터 시그니처 이해하기
+
+레거시 데코레이터와 달리, 표준 TC39 데코레이터는 데코레이트되는 멤버에 대한 정보를 제공하는 컨텍스트 객체를 받습니다. fluo는 이러한 복잡성을 대부분 숨겨주지만, 이것이 "마법 없는" 동작을 가능하게 한다는 점을 아는 것은 유용합니다.
+
+```typescript
+// 표준 데코레이터 호출의 개념적 예시
+function MyDecorator(value, context) {
+  console.log(`${context.kind} 타입의 ${context.name}을(를) 데코레이트하는 중`);
+  // ... 프레임워크 로직
+}
+```
+
 이 코드는 즉시 두 가지 사실을 전달합니다.
 
 1. `UsersService`는 프레임워크가 관리하는 의존성입니다.

@@ -138,9 +138,16 @@ That role information is foundational because later framework systems depend on 
 
 fluo uses class decorators because they create compact, readable declarations of intent.
 
-Consider how much easier it is to scan a file when the first line of the class already tells you what it is.
+```typescript
+@Injectable()
+export class MyService {}
+
+@Controller('/api')
+export class MyController {}
+```
 
 That readability is especially helpful in a modular codebase with many files.
+
 
 ### Metadata Ownership
 
