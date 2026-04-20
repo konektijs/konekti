@@ -3,6 +3,8 @@
 
 # Chapter 3. Understanding Modules, Providers, and Controllers
 
+The project now exists, so the next question is how its pieces are supposed to fit together. This chapter gives you the first architectural map for FluoBlog by showing how modules define boundaries, how providers hold reusable logic, and how controllers expose that logic to the outside world.
+
 ## Learning Objectives
 - Define the role of a module and the `@Module()` decorator.
 - Understand providers and the `@Injectable()` decorator.
@@ -17,6 +19,8 @@
 - Comfort reading small code snippets.
 
 ## 3.1 What is a Module?
+
+We start with modules because they give the rest of the chapter its shape.
 
 In fluo, a module is a class annotated with `@Module()`. The decorator does not exist only for decoration. It provides the structural metadata the framework uses to understand how the application is assembled.
 
@@ -77,6 +81,8 @@ Use this simple picture.
 If you remember those three ideas, later chapters will feel much more predictable.
 
 ## 3.2 What is a Provider?
+
+Once the boundary is clear, the next question is what kind of logic lives inside it.
 
 A provider is any reusable dependency that fluo manages for you. Services are the most common example, but factories, repositories, helpers, and adapters can all be providers depending on the design.
 
@@ -143,6 +149,8 @@ If you copy the same logic into two controllers, that is often a sign the logic 
 
 ## 3.3 What is a Controller?
 
+If providers hold reusable logic, controllers explain how that logic meets incoming requests.
+
 Controllers receive incoming requests and return responses. They are the transport-facing edge of your feature.
 
 In HTTP-focused code, a controller is where a route path gets mapped to a method.
@@ -199,6 +207,8 @@ That instinct is understandable, but it becomes painful once endpoints multiply.
 
 ## 3.4 Dependency Injection (DI) Flow
 
+At this point, the missing piece is the connection between those classes.
+
 The DI flow in fluo is easier to understand when you describe it as a sequence rather than as magic.
 
 1. Define a class as injectable.
@@ -251,6 +261,8 @@ Knowing this checklist will save you time later.
 
 ## 3.5 Sharing Providers across Modules
 
+After you understand a single module, it becomes easier to see how modules cooperate without dissolving their boundaries.
+
 By default, a provider belongs to the module that declares it. That default is healthy because it forces you to choose when shared logic becomes part of another module's public surface.
 
 To share a provider across modules, two things must happen.
@@ -293,6 +305,8 @@ When you are unsure whether a provider should be exported, ask:
 That question helps protect your architecture from leaking too much.
 
 ## 3.6 FluoBlog: Creating the PostModule Skeleton
+
+Now the chapter can move from vocabulary to application.
 
 Now apply the ideas to FluoBlog. We want a dedicated feature module for posts.
 
@@ -360,6 +374,8 @@ If you can answer those questions, the chapter has done its job.
 - Dependency Injection in fluo follows an explicit, readable flow.
 - `imports` and `exports` control safe sharing between modules.
 - FluoBlog now has a clear path toward its first real domain feature: posts.
+
+That is the main gain from this chapter. You can now look at a fluo feature and explain which file groups the feature, which file owns the reusable logic, which file handles requests, and how the framework wires them together.
 
 ## Next Chapter Preview
 In the next chapter, we will step one layer deeper and examine the decorator model that makes modules, providers, and controllers possible. Understanding TC39 Stage 3 decorators will help you see why fluo's syntax looks modern and why the framework avoids the legacy decorator assumptions common in older TypeScript stacks.

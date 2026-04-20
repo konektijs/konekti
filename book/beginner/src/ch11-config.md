@@ -18,17 +18,11 @@
 
 ## 11.1 The Need for Explicit Configuration
 
-Hardcoding values like database URLs, API keys, or port numbers directly in your code is a recipe for disaster. 
+Hardcoding values like database URLs, API keys, or port numbers directly in your code is a recipe for disaster. Those values change as soon as you move between local development, staging, and production, so keeping them buried in source files quickly turns simple deployment differences into bugs.
 
-In a production environment, these values change depending on whether you are running locally, in a staging environment, or in a live production cluster.
+Most Node.js developers are used to just reaching for `process.env`, and that works at first. The trouble is that direct ambient access makes your code harder to test and your dependencies harder to track because every part of the application can quietly depend on global state.
 
-Most Node.js developers are used to just reaching for `process.env`. 
-
-While `process.env` is available globally, relying on it directly makes your code harder to test and your dependencies harder to track.
-
-`fluo` encourages an **explicit** approach to configuration.
-
-By using the `@fluojs/config` package, you can centralize how your application discovers, merges, and validates its settings.
+`fluo` encourages an **explicit** approach to configuration. By using the `@fluojs/config` package, you can centralize how your application discovers, merges, and validates its settings, which gives the rest of the chapter a clear direction: define the settings once, inject them where needed, and fail early when something important is missing.
 
 ### Why Explicit over Ambient?
 
@@ -45,7 +39,7 @@ Benefits of the explicit approach include:
 
 ## 11.2 Setting up ConfigModule
 
-To start managing configuration, we first need to install and register the `ConfigModule`.
+Once the need for explicit configuration is clear, the next step is to wire that policy into the application itself. To start managing configuration, we first need to install and register the `ConfigModule`.
 
 ```bash
 pnpm add @fluojs/config
@@ -88,11 +82,11 @@ In this example, we are telling `fluo` to:
 3. **Environment File**: Values defined in your `.env` file.
 4. **Defaults**: Hardcoded default values in your module setup (lowest priority).
 
-This hierarchy allows you to define sensible defaults while still allowing environment-specific overrides in CI/CD or production.
+This hierarchy allows you to define sensible defaults while still allowing environment-specific overrides in CI/CD or production. In practice, that means you can keep development friction low without losing control over what happens in real deployments.
 
 ## 11.3 Using ConfigService
 
-Once registered, you don't access configuration through the module—you use the `ConfigService`.
+Once registered, the configuration setup becomes something your application can depend on. Instead of reaching back into the module setup, you read values through the `ConfigService`, which keeps day-to-day application code focused on usage rather than loading details.
 
 ### Injecting the Service
 
@@ -140,13 +134,13 @@ The `ConfigService` provides two main ways to retrieve values:
 - `get(key)`: Returns the value or `undefined` if not found.
 - `getOrThrow(key)`: Returns the value or throws an Error if the key is missing.
 
-Using `getOrThrow()` is highly recommended for critical settings like database credentials. It ensures that your application doesn't try to run in a "broken" state.
+Using `getOrThrow()` is highly recommended for critical settings like database credentials. It ensures that your application doesn't try to run in a "broken" state, and it sets up the next step naturally: validating those critical settings as early as possible.
 
 ## 11.4 Configuration Validation
 
-A common source of production bugs is an application starting up with "partially valid" configuration.
+A common source of production bugs is an application starting up with "partially valid" configuration. If one value is present and another is missing, the app may boot successfully and fail only after a real request touches the broken path.
 
-`fluo` allows you to validate your configuration at bootstrap time.
+`fluo` allows you to validate your configuration at bootstrap time, so the application can reject that half-configured state before it causes confusing runtime behavior.
 
 ### Using a Validation Schema
 
@@ -169,7 +163,7 @@ By validating during `forRoot`, you ensure that the application will **abort** i
 
 ## 11.5 FluoBlog: Moving to Config
 
-Currently, our FluoBlog project might have some hardcoded strings. Let's clean it up.
+At this point, we have the pieces we need. FluoBlog still has a few hardcoded values, so this is where the chapter moves from configuration concepts to a concrete cleanup that the rest of the data-focused part can build on.
 
 ### Creating the .env File
 
@@ -212,11 +206,11 @@ import configuration from './config/configuration';
 export class AppModule {}
 ```
 
-This pattern allows you to group related settings into objects (e.g., `config.get('database.url')`), making the configuration structure much more intuitive as the project grows.
+This pattern allows you to group related settings into objects (e.g., `config.get('database.url')`), making the configuration structure much more intuitive as the project grows. More importantly for our next chapter, it gives the database layer one clear place to read connection details instead of scattering that responsibility across the app.
 
 ## 11.6 Summary
 
-In this chapter, we transitioned from "magic" environment variables to a structured configuration system.
+In this chapter, we transitioned from "magic" environment variables to a structured configuration system that the rest of the application can rely on.
 
 We learned that:
 - Explicit configuration is safer and more testable.
@@ -225,7 +219,7 @@ We learned that:
 - Precedence rules ensure that production environments can override local defaults.
 - Validation at startup prevents unstable application states.
 
-By mastering configuration, you've taken a significant step toward making FluoBlog "production-ready". In the next chapter, we will use these configuration skills to connect FluoBlog to a real database using Prisma.
+By mastering configuration, you've taken a significant step toward making FluoBlog "production-ready". You now have a predictable way to load ports, secrets, and database settings before the app starts, which is exactly the foundation we need next. In the next chapter, we will use these configuration skills to connect FluoBlog to a real database using Prisma.
 
 <!-- line-count-check: 200+ lines target achieved -->
 <!-- Note: This file contains exactly the heading structure required for the KO translation. -->

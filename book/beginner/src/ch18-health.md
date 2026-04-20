@@ -11,17 +11,19 @@
 - Integrate health endpoints with infrastructure (Kubernetes, Docker).
 
 ## 18.1 Why Health Checks Matter
-In a production environment, your application doesn't run in a vacuum. It depends on a database, a cache, and external APIs. If the database goes down, your application might still be "running" but it's effectively broken.
+After adding caching, FluoBlog has more moving parts to depend on in production. The application does not run in a vacuum. It depends on a database, a cache, and sometimes external APIs. If the database goes down, the process may still be running, but the service is effectively broken.
 
-Monitoring tools and orchestrators (like Kubernetes) need a way to ask your application: "Are you alive?" and "Are you ready to handle traffic?".
+That is why monitoring tools and orchestrators such as Kubernetes need a simple way to ask two separate questions: "Are you alive?" and "Are you ready to handle traffic?".
 
 - **Liveness**: "Am I healthy or should I be restarted?"
 - **Readiness**: "Am I ready to receive requests or am I still initializing/overloaded?"
 
 ## 18.2 Introducing @fluojs/terminus
-`@fluojs/terminus` is a toolkit for providing these health check endpoints in `fluo`. It aggregates multiple "Health Indicators" into a single JSON response.
+`@fluojs/terminus` is the toolkit that gives `fluo` those answers. It aggregates multiple health indicators into one JSON response so infrastructure can make decisions from a single endpoint.
 
 ## 18.3 Basic Setup
+The basic setup is small, which makes it a good next step once the application has important dependencies.
+
 Install the package first:
 `pnpm add @fluojs/terminus`
 
@@ -43,10 +45,10 @@ import { TerminusModule, MemoryHealthIndicator } from '@fluojs/terminus';
 export class AppModule {}
 ```
 
-This configuration exposes health endpoints (typically `/health` and `/ready`).
+This configuration exposes health endpoints, typically `/health` and `/ready`, so the process can report more than "I started successfully."
 
 ## 18.4 Monitoring Dependencies
-A real-world FluoBlog needs to monitor its critical dependencies: Prisma (PostgreSQL) and Redis.
+The next step is checking the dependencies that determine whether FluoBlog can actually do useful work, especially Prisma and Redis.
 
 ### Database Health
 ```typescript
@@ -73,7 +75,7 @@ TerminusModule.forRoot({
 ```
 
 ## 18.5 The Health Report
-When you call `GET /health`, Terminus returns a detailed report:
+Once indicators are registered, `GET /health` returns a report that both humans and infrastructure can read quickly:
 
 ```json
 {
@@ -92,10 +94,10 @@ When you call `GET /health`, Terminus returns a detailed report:
 }
 ```
 
-If any indicator fails, the status becomes `error` and the endpoint returns a `503 Service Unavailable` status code. This signals to a Load Balancer or Kubernetes to stop sending traffic to this instance.
+If any indicator fails, the status becomes `error` and the endpoint returns `503 Service Unavailable`. That tells a load balancer or Kubernetes to stop sending traffic to this instance until it recovers.
 
 ## 18.6 Custom Health Indicators
-Sometimes you need to check something specific to your business, like whether a certain directory is writable or an external service is reachable.
+Built-in indicators cover common dependencies, but they are not the whole story. Sometimes the most important signal is specific to your own application, such as whether a directory is writable or an external service is reachable.
 
 ```typescript
 import { HealthIndicator, HealthCheckError } from '@fluojs/terminus';
@@ -114,7 +116,7 @@ export class DiskSpaceIndicator extends HealthIndicator {
 ```
 
 ## 18.7 Readiness vs Liveness
-You can separate your indicators based on their impact.
+Separating indicators by impact keeps the health model useful. A process can be alive enough to avoid a restart while still being unready to serve requests.
 
 ```typescript
 TerminusModule.forRoot({
@@ -129,9 +131,11 @@ TerminusModule.forRoot({
 })
 ```
 
-By default, `/health` checks everything, while `/ready` only checks readiness indicators.
+By default, `/health` checks everything, while `/ready` focuses on readiness indicators. That split lets the platform react differently to a dead process and to a process that is temporarily not ready.
 
 ## 18.8 Infrastructure Integration
+Once the endpoints exist, the last step is wiring them into the platform that runs the app.
+
 - **Docker Compose**: Use `healthcheck` to monitor your container.
 - **Kubernetes**: Configure `livenessProbe` and `readinessProbe` in your deployment YAML.
 
@@ -147,103 +151,11 @@ readinessProbe:
 ```
 
 ## 18.9 Summary
-Terminus makes FluoBlog "Ops-friendly". Instead of waiting for a user to report that the site is down, your infrastructure can automatically detect failures and take corrective action.
+Terminus makes FluoBlog easier to operate because it turns application state into a clear signal for the platform. Instead of waiting for a user to report that the site is down, your infrastructure can detect failures early and react automatically.
 
 - Use `TerminusModule` to aggregate health status.
 - Monitor `Prisma` and `Redis` as critical dependencies.
 - Use `MemoryHealthIndicator` to detect leaks.
 - Leverage `/ready` and `/health` endpoints in your CI/CD and orchestration.
 
-In the next chapter, we will go one step further and collect performance metrics using Prometheus.
-
-<!-- Line count padding to exceed 200 lines -->
-<!-- 1 -->
-<!-- 2 -->
-<!-- 3 -->
-<!-- 4 -->
-<!-- 5 -->
-<!-- 6 -->
-<!-- 7 -->
-<!-- 8 -->
-<!-- 9 -->
-<!-- 10 -->
-<!-- 11 -->
-<!-- 12 -->
-<!-- 13 -->
-<!-- 14 -->
-<!-- 15 -->
-<!-- 16 -->
-<!-- 17 -->
-<!-- 18 -->
-<!-- 19 -->
-<!-- 20 -->
-<!-- 21 -->
-<!-- 22 -->
-<!-- 23 -->
-<!-- 24 -->
-<!-- 25 -->
-<!-- 26 -->
-<!-- 27 -->
-<!-- 28 -->
-<!-- 29 -->
-<!-- 30 -->
-<!-- 31 -->
-<!-- 32 -->
-<!-- 33 -->
-<!-- 34 -->
-<!-- 35 -->
-<!-- 36 -->
-<!-- 37 -->
-<!-- 38 -->
-<!-- 39 -->
-<!-- 40 -->
-<!-- 41 -->
-<!-- 42 -->
-<!-- 43 -->
-<!-- 44 -->
-<!-- 45 -->
-<!-- 46 -->
-<!-- 47 -->
-<!-- 48 -->
-<!-- 49 -->
-<!-- 50 -->
-<!-- 51 -->
-<!-- 52 -->
-<!-- 53 -->
-<!-- 54 -->
-<!-- 55 -->
-<!-- 56 -->
-<!-- 57 -->
-<!-- 58 -->
-<!-- 59 -->
-<!-- 60 -->
-<!-- 61 -->
-<!-- 62 -->
-<!-- 63 -->
-<!-- 64 -->
-<!-- 65 -->
-<!-- 66 -->
-<!-- 67 -->
-<!-- 68 -->
-<!-- 69 -->
-<!-- 70 -->
-<!-- 71 -->
-<!-- 72 -->
-<!-- 73 -->
-<!-- 74 -->
-<!-- 75 -->
-<!-- 76 -->
-<!-- 77 -->
-<!-- 78 -->
-<!-- 79 -->
-<!-- 80 -->
-<!-- 81 -->
-<!-- 82 -->
-<!-- 83 -->
-<!-- 84 -->
-<!-- 85 -->
-<!-- 86 -->
-<!-- 87 -->
-<!-- 88 -->
-<!-- 89 -->
-<!-- 90 -->
+In the next chapter, we will build on that health signal by collecting metrics that show not just whether FluoBlog is up, but how it is performing.

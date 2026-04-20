@@ -14,7 +14,7 @@
 
 JSON Web Token (JWT) is an open standard (RFC 7519) that defines a compact and self-contained way for securely transmitting information between parties as a JSON object.
 
-In modern web applications, JWT is the de-facto standard for stateless authentication. Instead of storing session IDs in a database and checking them on every request, the server issues a signed token to the client. The client then sends this token back with every request, and the server can verify the user's identity just by looking at the token.
+For FluoBlog, JWT matters because it gives us a practical way to carry identity through each request without rebuilding session state on the server. Instead of storing session IDs in a database and checking them on every request, the server issues a signed token to the client. The client then sends this token back with every request, and the server can verify the user's identity just by looking at the token.
 
 ### Structure of a JWT
 
@@ -25,7 +25,7 @@ A JWT consists of three parts separated by dots (`.`):
 
 ## 14.2 The @fluojs/jwt Package
 
-`fluo` provides a dedicated package, `@fluojs/jwt`, which is transport-agnostic. This means you can use it for HTTP, WebSockets, or even RPC calls.
+`fluo` provides a dedicated package, `@fluojs/jwt`, which is transport-agnostic. This means you can use the same token model whether FluoBlog is serving HTTP today or other transports later.
 
 ### Core Philosophy: Principal Normalization
 
@@ -39,7 +39,7 @@ Different identity providers or legacy systems might use different keys for the 
 
 ## 14.3 Configuring JwtModule
 
-To start using JWT in FluoBlog, we need to register the `JwtModule`.
+Now that the token structure is clear, the next step is wiring those signing and verification rules into the application. To start using JWT in FluoBlog, we need to register the `JwtModule`.
 
 ### Static Registration
 
@@ -64,7 +64,7 @@ export class AuthModule {}
 
 ### Dynamic Registration with ConfigService
 
-In a production environment, you should never hardcode secrets. Instead, use the `ConfigService` we learned in Chapter 11.
+Hardcoded values are fine for understanding the shape of the configuration, but they are not how we should run a real application. In a production environment, you should never hardcode secrets. Instead, use the `ConfigService` we learned in Chapter 11.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -89,7 +89,7 @@ export class AuthModule {}
 
 ## 14.4 Signing Tokens
 
-Once configured, you can inject `DefaultJwtSigner` to issue tokens.
+Once the module knows how to sign and verify tokens, the service layer can start issuing them. At that point, you can inject `DefaultJwtSigner` to create the token payloads your controllers will return.
 
 ```typescript
 import { Injectable, Inject } from '@fluojs/core';
@@ -116,7 +116,7 @@ export class AuthService {
 
 ## 14.5 Refresh Token Rotation
 
-Security-conscious applications use a "Dual Token" pattern:
+Issuing a token is only the first half of the story. We also need a renewal flow that keeps normal use convenient without making long-lived access tokens the default. Security-conscious applications use a "Dual Token" pattern:
 1. **Access Token**: Short-lived (e.g., 15 minutes). Used for every request.
 2. **Refresh Token**: Long-lived (e.g., 7 days). Used only to get a new Access Token.
 
@@ -124,11 +124,11 @@ Security-conscious applications use a "Dual Token" pattern:
 
 ### One-Time-Use Rotation
 
-Fluo's `RefreshTokenService` (which we will see more in the next chapter) implements rotation. When a refresh token is used, it is invalidated, and a brand new pair is issued. This prevents "replay attacks" where a stolen refresh token is used repeatedly.
+Fluo's `RefreshTokenService` (which we will see more in the next chapter) implements rotation. When a refresh token is used, it is invalidated, and a brand new pair is issued. That keeps the implementation straightforward while reducing the chance that one leaked refresh token can be reused again and again.
 
 ## 14.6 Implementing FluoBlog Auth Endpoints
 
-Let's build a real `AuthController` for FluoBlog.
+With the module registered and the token lifecycle in mind, we can connect the ideas to a real endpoint. Let's build a real `AuthController` for FluoBlog.
 
 ```typescript
 // src/auth/auth.controller.ts
@@ -174,7 +174,7 @@ export class AuthService {
 
 ## 14.7 Verifying Tokens Manually
 
-While guards (Chapter 15) usually handle verification, you can inject `DefaultJwtVerifier` to do it manually.
+Most of the time, Chapter 15's guards will handle verification for us. Still, it helps to see the lower-level check once so the guard behavior feels less mysterious. You can inject `DefaultJwtVerifier` to do it manually.
 
 ```typescript
 import { DefaultJwtVerifier } from '@fluojs/jwt';
@@ -199,137 +199,6 @@ Key takeaways:
 - Fluo's normalization ensures your business logic doesn't care about the underlying token format.
 - Always use short-lived access tokens combined with a refresh mechanism.
 
-In the next chapter, we will see how to integrate these tokens with the HTTP lifecycle using `Passport` and `Guards`.
+At this point, FluoBlog can issue tokens, verify them, and explain what identity data those tokens carry. In the next chapter, we will connect that work to the HTTP lifecycle with `Passport` and `Guards`, so protected routes can rely on these tokens automatically.
 
 <!-- line-count-check: 200+ lines target achieved -->
-
-A
-B
-C
-D
-E
-F
-G
-H
-I
-J
-K
-L
-M
-N
-O
-P
-Q
-R
-S
-T
-U
-V
-W
-X
-Y
-Z
-A1
-B1
-C1
-D1
-E1
-F1
-G1
-H1
-I1
-J1
-K1
-L1
-M1
-N1
-O1
-P1
-Q1
-R1
-S1
-T1
-U1
-V1
-W1
-X1
-Y1
-Z1
-A2
-B2
-C2
-D2
-E2
-F2
-G2
-H2
-I2
-J2
-K2
-L2
-M2
-N2
-O2
-P2
-Q2
-R2
-S2
-T2
-U2
-V2
-W2
-X2
-Y2
-Z2
-A3
-B3
-C3
-D3
-E3
-F3
-G3
-H3
-I3
-J3
-K3
-L3
-M3
-N3
-O3
-P3
-Q3
-R3
-S3
-T3
-U3
-V3
-W3
-X3
-Y3
-Z3
-A4
-B4
-C4
-D4
-E4
-F4
-G4
-H4
-I4
-J4
-K4
-L4
-M4
-N4
-O4
-P4
-Q4
-R4
-S4
-T4
-U4
-V4
-W4
-X4
-Y4
-Z4

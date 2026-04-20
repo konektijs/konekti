@@ -13,7 +13,7 @@
 
 ## 15.1 The Security Middleware Layer
 
-In the previous chapter, we learned how to issue and verify JWT tokens. But how do we actually "protect" a route? How do we stop a request before it reaches our controller if the token is missing or invalid?
+In the previous chapter, we learned how to issue and verify JWT tokens. That gave FluoBlog a way to represent identity, but it did not yet tell the HTTP layer when to allow or reject a request. How do we actually "protect" a route? How do we stop a request before it reaches our controller if the token is missing or invalid?
 
 In `fluo`, this is handled by **Guards**.
 
@@ -21,7 +21,7 @@ A Guard is a specialized interceptor that runs after middlewares but before the 
 
 ## 15.2 Introducing @fluojs/passport
 
-While you could write manual guards for everything, `@fluojs/passport` provides a structured way to manage authentication "strategies".
+You could write manual guards for everything, but that would quickly mix transport checks, credential parsing, and identity verification into repetitive code. `@fluojs/passport` provides a structured way to manage authentication "strategies" so each piece stays in a clearer place.
 
 ### What is a Strategy?
 
@@ -44,11 +44,11 @@ export interface AuthStrategy {
 }
 ```
 
-The `authenticate` method is where the magic happens. It looks at the request, finds the credentials, verifies them, and returns the "Principal" (the verified user object).
+The `authenticate` method is where the strategy turns a raw request into a verified identity. It looks at the request, finds the credentials, verifies them, and returns the "Principal" (the verified user object).
 
 ## 15.4 Implementing a JWT Strategy
 
-Let's implement the `BearerJwtStrategy` for FluoBlog.
+Since Chapter 14 already taught us how to verify a token, the strategy implementation mostly becomes a question of where to read that token from and how to react when it is missing. Let's implement the `BearerJwtStrategy` for FluoBlog.
 
 ```typescript
 // src/auth/bearer.strategy.ts
@@ -80,7 +80,7 @@ export class BearerJwtStrategy implements AuthStrategy {
 
 ## 15.5 Registering the PassportModule
 
-We need to tell `fluo` about our strategies during module registration.
+Once the strategy exists, `fluo` still needs to know which strategy names are available and which one should be the default. We do that during module registration.
 
 ```typescript
 // src/auth/auth.module.ts
@@ -103,7 +103,7 @@ export class AuthModule {}
 
 ## 15.6 Protecting Routes with @UseAuth
 
-Now we can use the `@UseAuth()` decorator to protect our controllers or specific methods.
+With registration in place, route protection becomes declarative instead of manual. Now we can use the `@UseAuth()` decorator to protect our controllers or specific methods.
 
 ```typescript
 // src/posts/posts.controller.ts
@@ -130,7 +130,7 @@ If a user tries to POST to `/posts` without a valid Bearer token, the `AuthGuard
 
 ## 15.7 Accessing the Current User
 
-Once a user is authenticated, their identity is attached to the `RequestContext`. 
+Once a user is authenticated, their identity is attached to the `RequestContext`. That is the bridge from authentication to ordinary controller code.
 
 You can access it directly from the context:
 
@@ -144,7 +144,7 @@ getProfile(input, ctx: RequestContext) {
 
 ### The @CurrentUser() Custom Decorator
 
-To make our code cleaner, we can create a custom param decorator (as we learned in Chapter 4) called `@CurrentUser`.
+Direct access works, but repeated context plumbing makes controller methods harder to read. To keep the authenticated user easy to reach, we can create a custom param decorator (as we learned in Chapter 4) called `@CurrentUser`.
 
 ```typescript
 // src/common/decorators/current-user.decorator.ts
@@ -165,7 +165,7 @@ getProfile(@CurrentUser() user) {
 
 ## 15.8 Scope-Based Authorization
 
-Authentication is "Who are you?". Authorization is "What can you do?".
+By this point, the request has a verified identity. The next question is what that identity is allowed to do. Authentication is "Who are you?". Authorization is "What can you do?".
 
 `fluo` has built-in support for **Scopes**.
 
@@ -182,7 +182,7 @@ The `AuthGuard` checks the `principal.scopes` array. If the required scope is mi
 
 ## 15.9 RBAC: Role-Based Access Control
 
-While scopes are fine-grained, sometimes you just want to check if someone is an "Admin".
+Scopes work well for precise permissions, but some application rules are easier to express at the role level. Sometimes you just want to check if someone is an "Admin".
 
 You can implement a custom `RolesGuard` that checks `principal.roles`.
 
@@ -208,137 +208,6 @@ Key takeaways:
 - `@RequireScopes()` provides declarative authorization.
 - Custom decorators like `@CurrentUser()` keep your controller methods clean and readable.
 
-In the final chapter of Part 3, we will look at one more security layer: protecting our API from abuse using Throttling.
+At this point, FluoBlog can move from a raw Bearer token to a verified principal and then to route-level authorization rules. In the final chapter of Part 3, we will add one more layer by protecting the API from abuse with Throttling.
 
 <!-- line-count-check: 200+ lines target achieved -->
-
-A
-B
-C
-D
-E
-F
-G
-H
-I
-J
-K
-L
-M
-N
-O
-P
-Q
-R
-S
-T
-U
-V
-W
-X
-Y
-Z
-A1
-B1
-C1
-D1
-E1
-F1
-G1
-H1
-I1
-J1
-K1
-L1
-M1
-N1
-O1
-P1
-Q1
-R1
-S1
-T1
-U1
-V1
-W1
-X1
-Y1
-Z1
-A2
-B2
-C2
-D2
-E2
-F2
-G2
-H2
-I2
-J2
-K2
-L2
-M2
-N2
-O2
-P2
-Q2
-R2
-S2
-T2
-U2
-V2
-W2
-X2
-Y2
-Z2
-A3
-B3
-C3
-D3
-E3
-F3
-G3
-H3
-I3
-J3
-K3
-L3
-M3
-N3
-O3
-P3
-Q3
-R3
-S3
-T3
-U3
-V3
-W3
-X3
-Y3
-Z3
-A4
-B4
-C4
-D4
-E4
-F4
-G4
-H4
-I4
-J4
-K4
-L4
-M4
-N4
-O4
-P4
-Q4
-R4
-S4
-T4
-U4
-V4
-W4
-X4
-Y4
-Z4

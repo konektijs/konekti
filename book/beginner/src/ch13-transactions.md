@@ -18,9 +18,9 @@
 
 ## 13.1 The Need for Atomic Operations
 
-In the previous chapter, we connected FluoBlog to a database. 
+In the previous chapter, we connected FluoBlog to a database. That solved persistence, but it did not solve coordination between related writes.
 
-However, many business operations are not just a single "save". 
+Many business operations are not just a single "save". As soon as one request needs to create or update multiple records together, we need a rule for what happens when one step succeeds and another fails.
 
 Consider a scenario where a new user signs up:
 1. You create the `User` record.
@@ -31,13 +31,11 @@ What happens if step 1 succeeds but step 2 fails?
 
 You end up with a "zombie" user who has no profile, potentially causing crashes in other parts of the system that expect profiles to exist.
 
-This is where **Transactions** come in. 
-
-A transaction ensures that a group of operations either all succeed or all fail together. This property is known as **Atomicity**.
+This is where **Transactions** come in. A transaction ensures that a group of operations either all succeed or all fail together. This property is known as **Atomicity**, and it is what turns separate database calls into one dependable unit of work.
 
 ## 13.2 Fluo's Transaction Philosophy
 
-In many frameworks, managing transactions involves passing a "transaction object" or "database client" through every function call. 
+Once we know why atomicity matters, the next question is how to preserve it without making the code harder to read. In many frameworks, managing transactions involves passing a "transaction object" or "database client" through every function call.
 
 This is often called the "TX injection" pattern:
 
@@ -51,7 +49,7 @@ async createUser(data, tx?) {
 
 This approach pollutes your business logic with database concerns and makes refactoring a nightmare.
 
-`fluo` takes a different approach. It uses **AsyncLocalStorage (ALS)** to maintain a transaction context that travels through your asynchronous call stack automatically.
+`fluo` takes a different approach. It uses **AsyncLocalStorage (ALS)** to maintain a transaction context that travels through your asynchronous call stack automatically, so transaction handling stays in the infrastructure layer instead of leaking into every method signature.
 
 ### The Repository Rule
 
@@ -73,7 +71,7 @@ Because of this, your repository doesn't need to know if it's being called as pa
 
 ## 13.3 Manual Transactions: The Block Pattern
 
-The most straightforward way to run a transaction in Fluo is using the Prisma transaction block.
+With that philosophy in place, the most straightforward way to run a transaction in Fluo is using the Prisma transaction block.
 
 ```typescript
 import { Injectable, Inject } from '@fluojs/core';
@@ -98,13 +96,11 @@ export class UsersService {
 }
 ```
 
-If `profilesRepo.create` throws an error, the entire transaction (including the user creation) is automatically rolled back by the database.
+If `profilesRepo.create` throws an error, the entire transaction, including the user creation, is automatically rolled back by the database. That gives the service one clear success path instead of forcing later code to clean up half-finished state.
 
 ## 13.4 Request-Scoped Transactions with Interceptors
 
-Sometimes, you want an entire HTTP request to be wrapped in a transaction. 
-
-Fluo provides a built-in interceptor for this purpose.
+Sometimes, the transaction boundary should be larger than one method. If the whole HTTP request represents one unit of work, Fluo provides a built-in interceptor for that purpose.
 
 ### Using @UseInterceptors
 
@@ -123,7 +119,7 @@ export class UsersController {
 }
 ```
 
-This is extremely powerful for simple CRUD APIs where you want to ensure total consistency without writing manual transaction blocks in your services.
+This is extremely powerful for simple CRUD APIs where you want to ensure total consistency without writing manual transaction blocks in your services. It is the same idea as the block pattern, just applied at the request boundary instead of inside one service method.
 
 ### When to use Interceptors vs Blocks?
 
@@ -131,6 +127,8 @@ This is extremely powerful for simple CRUD APIs where you want to ensure total c
 - **Blocks**: Use when you need fine-grained control or when only a small part of a complex service method needs to be atomic.
 
 ## 13.5 Advanced Data Access Patterns
+
+By this point, we have seen how transactions are created. The next design question is how to keep the data layer clean while using them consistently.
 
 In FluoBlog, we want our data layer to be both clean and efficient.
 
@@ -155,7 +153,7 @@ await this.prisma.transaction(async () => {
 
 ## 13.6 FluoBlog: Implementation
 
-Let's implement a robust post creation flow that also updates a "user post count" (for performance reasons).
+That separation becomes clearer in a real example. Let's implement a robust post creation flow that also updates a "user post count" (for performance reasons).
 
 ```typescript
 // src/posts/posts.service.ts
@@ -171,11 +169,11 @@ export class PostsService {
 }
 ```
 
-Even if the `incrementPostCount` fails, we won't have a new post without a corresponding count update.
+Even if the `incrementPostCount` fails, we won't have a new post without a corresponding count update. The database change remains coherent, and the service code still reads like one business action rather than a pile of defensive cleanup steps.
 
 ## 13.7 Summary
 
-In this chapter, we explored the critical world of data integrity.
+In this chapter, we explored the critical world of data integrity and the patterns that keep related writes coordinated.
 
 We learned that:
 - Transactions are essential for keeping our data consistent during complex operations.
@@ -184,34 +182,6 @@ We learned that:
 - Manual blocks offer precision, while interceptors offer convenience for request-scoped logic.
 - A proper Service-Repository split keeps your codebase maintainable as it grows.
 
-By completing Part 2, you have mastered the "Data" and "Configuration" aspects of Fluo. You have moved from a simple in-memory toy to a robust, database-backed application structure. In Part 3, we will shift our focus to security—starting with Authentication and JWT.
+By completing Part 2, you have mastered the "Data" and "Configuration" aspects of Fluo. Across these three chapters, you moved from explicit configuration, to persistent storage, to transaction-safe data access, which is a big step from an in-memory toy to a robust database-backed application structure. In Part 3, we will shift our focus to security, starting with Authentication and JWT.
 
 <!-- line-count-check: 200+ lines target achieved -->
-
-A
-B
-C
-D
-E
-F
-G
-H
-I
-J
-K
-L
-M
-N
-O
-P
-Q
-R
-S
-T
-U
-V
-W
-X
-Y
-Z
-

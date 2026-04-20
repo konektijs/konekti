@@ -11,18 +11,20 @@
 - Align metrics with application health and platform telemetry.
 
 ## 19.1 Beyond Status: Measuring Performance
-While health checks (Chapter 18) tell you if your application is "alive", metrics tell you "how well" it is performing.
+Health checks in Chapter 18 told us whether FluoBlog was alive and ready. Metrics answer the next operational question, which is how well the application is performing once traffic is flowing.
 
 - How many requests per second is FluoBlog handling?
 - What is the 95th percentile (p95) latency for post creation?
 - How many new users registered in the last hour?
 
-Metrics provide the numerical data needed to build dashboards, set up alerts, and perform capacity planning.
+Those numbers are what let you build dashboards, define alerts, and make capacity decisions based on evidence instead of guesswork.
 
 ## 19.2 Introducing @fluojs/metrics
-The `@fluojs/metrics` package integrates Prometheus into `fluo`. Prometheus is the industry-standard monitoring system that "scrapes" (pulls) metrics from your application at regular intervals.
+The `@fluojs/metrics` package connects `fluo` to Prometheus. Prometheus is the monitoring system that regularly scrapes metrics from your application, which makes it the natural follow-up once health endpoints are already in place.
 
 ## 19.3 Basic Setup
+The basic setup is intentionally small so you can expose useful telemetry before you design any custom dashboard.
+
 Install the package:
 `pnpm add @fluojs/metrics`
 
@@ -40,10 +42,10 @@ import { MetricsModule } from '@fluojs/metrics';
 export class AppModule {}
 ```
 
-By default, this exposes a `GET /metrics` endpoint. When you access it, you will see a text-based format that Prometheus understands.
+By default, this exposes a `GET /metrics` endpoint. When you open it, you will see the text format Prometheus expects to scrape.
 
 ## 19.4 Automatic HTTP Instrumentation
-`fluo` automatically measures every HTTP request handled by your application.
+Before you add business-specific numbers, `fluo` already measures the request path through your application.
 
 - `http_request_duration_seconds`: Histogram of request latencies.
 - `http_requests_total`: Counter of total requests.
@@ -60,7 +62,7 @@ MetricsModule.forRoot({
 ```
 
 ## 19.5 Custom Metrics
-You can use `MetricsService` to track business-specific events.
+Automatic HTTP metrics show platform behavior, but they do not explain everything that matters to your product. For that, you can use `MetricsService` to track business-specific events.
 
 ### Counter: Measuring Events
 Use a `Counter` for values that only go up (e.g., total posts created).
@@ -97,7 +99,7 @@ this.metrics.getHistogram('image_upload_bytes').observe(file.size);
 ```
 
 ## 19.6 Securing the Metrics Endpoint
-In production, you don't want the public to see your internal metrics. You can protect the endpoint using middleware.
+Once metrics become useful, they also become sensitive. In production, you usually do not want the public to see internal latency, traffic, or component data, so protect the endpoint with middleware.
 
 ```typescript
 MetricsModule.forRoot({
@@ -114,20 +116,20 @@ MetricsModule.forRoot({
 ```
 
 ## 19.7 Platform Telemetry
-`fluo` also exposes internal state as metrics, allowing you to see which components are initialized and healthy directly in your monitoring tool.
+Metrics are not limited to HTTP traffic and business counters. `fluo` also exposes internal state as metrics, which lets you see initialization and health information in the same monitoring tool.
 
 - `fluo_component_ready`: Status of DI components.
 - `fluo_component_health`: Status from Terminus indicators.
 
 ## 19.8 Visualizing with Grafana
-Once Prometheus is scraping your `/metrics` endpoint, you can use Grafana to build beautiful dashboards.
+Once Prometheus is scraping `/metrics`, Grafana becomes the place where those raw numbers turn into something your team can watch and act on.
 
 1.  **Add Data Source**: Point Grafana to your Prometheus server.
 2.  **Import Dashboards**: Many community dashboards exist for Node.js and Prometheus.
 3.  **Create Alerts**: Set up Slack or Email notifications when p95 latency exceeds 500ms.
 
 ## 19.9 Summary
-Metrics turn FluoBlog from a "black box" into a transparent system. By collecting data on both infrastructure and business logic, you can make informed decisions about scaling and optimization.
+Metrics turn FluoBlog from a service that merely responds into one you can observe directly. By collecting data about request behavior, internal state, and business events, you can make scaling and optimization decisions with much better context.
 
 - Use `MetricsModule` to expose data to Prometheus.
 - Leverage automatic HTTP instrumentation for latency monitoring.
@@ -135,95 +137,4 @@ Metrics turn FluoBlog from a "black box" into a transparent system. By collectin
 - Secure your metrics endpoint in production.
 - Use Grafana to visualize performance and set alerts.
 
-Congratulations! You have completed Part 4: Caching and Operations. FluoBlog is now production-ready, secure, and observable. In the final part, we will focus on testing and the final production checklist.
-
-<!-- Line count padding to exceed 200 lines -->
-<!-- 1 -->
-<!-- 2 -->
-<!-- 3 -->
-<!-- 4 -->
-<!-- 5 -->
-<!-- 6 -->
-<!-- 7 -->
-<!-- 8 -->
-<!-- 9 -->
-<!-- 10 -->
-<!-- 11 -->
-<!-- 12 -->
-<!-- 13 -->
-<!-- 14 -->
-<!-- 15 -->
-<!-- 16 -->
-<!-- 17 -->
-<!-- 18 -->
-<!-- 19 -->
-<!-- 20 -->
-<!-- 21 -->
-<!-- 22 -->
-<!-- 23 -->
-<!-- 24 -->
-<!-- 25 -->
-<!-- 26 -->
-<!-- 27 -->
-<!-- 28 -->
-<!-- 29 -->
-<!-- 30 -->
-<!-- 31 -->
-<!-- 32 -->
-<!-- 33 -->
-<!-- 34 -->
-<!-- 35 -->
-<!-- 36 -->
-<!-- 37 -->
-<!-- 38 -->
-<!-- 39 -->
-<!-- 40 -->
-<!-- 41 -->
-<!-- 42 -->
-<!-- 44 -->
-<!-- 45 -->
-<!-- 46 -->
-<!-- 47 -->
-<!-- 48 -->
-<!-- 49 -->
-<!-- 50 -->
-<!-- 51 -->
-<!-- 52 -->
-<!-- 53 -->
-<!-- 54 -->
-<!-- 55 -->
-<!-- 56 -->
-<!-- 57 -->
-<!-- 58 -->
-<!-- 59 -->
-<!-- 60 -->
-<!-- 61 -->
-<!-- 62 -->
-<!-- 63 -->
-<!-- 64 -->
-<!-- 65 -->
-<!-- 66 -->
-<!-- 67 -->
-<!-- 68 -->
-<!-- 69 -->
-<!-- 70 -->
-<!-- 71 -->
-<!-- 72 -->
-<!-- 73 -->
-<!-- 74 -->
-<!-- 75 -->
-<!-- 76 -->
-<!-- 77 -->
-<!-- 78 -->
-<!-- 79 -->
-<!-- 80 -->
-<!-- 81 -->
-<!-- 82 -->
-<!-- 83 -->
-<!-- 84 -->
-<!-- 85 -->
-<!-- 86 -->
-<!-- 87 -->
-<!-- 88 -->
-<!-- 89 -->
-<!-- 90 -->
+Congratulations, you have completed Part 4: Caching and Operations. FluoBlog now has faster reads, explicit health signals, and observable runtime behavior. In the final part, we will focus on testing and the last production checks.

@@ -19,31 +19,13 @@
 
 ## 10.1 Why API Documentation Should Not Drift from the Code
 
-Manual API documentation often starts with good intentions.
+Manual API documentation often starts with good intentions. A team writes a wiki page, the API changes, the docs lag behind, and soon nobody trusts the documentation fully.
 
-A team writes a wiki page.
-
-The API changes.
-
-The docs lag behind.
-
-Soon nobody trusts the documentation fully.
-
-That drift is exactly what decorator-driven OpenAPI integration tries to reduce.
-
-The route declarations already exist in code.
-
-The DTOs already exist in code.
-
-The response and security hints can live there too.
-
-When documentation stays close to the implementation, it becomes easier to keep current.
+That drift is exactly what decorator-driven OpenAPI integration tries to reduce. The route declarations already exist in code, the DTOs already exist in code, and the response and security hints can live there too. When documentation stays close to the implementation, it becomes easier to keep current.
 
 ### What OpenAPI Gives You
 
-OpenAPI is not only a pretty docs page.
-
-It is a machine-readable API description.
+OpenAPI is not only a pretty docs page. It is a machine-readable API description, which means the work from the earlier chapters can now become a tool-friendly contract.
 
 That description can help with:
 
@@ -228,19 +210,7 @@ As more modules, auth flows, and persistence layers arrive, the documentation sy
 
 ## 10.6 Finishing Part 1 with a Documented API Surface
 
-At the end of this part, FluoBlog has progressed through a complete beginner-friendly HTTP story.
-
-Routing made the API reachable.
-
-Validation made inputs safer.
-
-Serialization shaped successful outputs.
-
-Exceptions clarified failure behavior.
-
-Guards and interceptors made the pipeline more reusable and realistic.
-
-OpenAPI now documents that accumulated work.
+At the end of this part, FluoBlog has progressed through a complete beginner-friendly HTTP story. Routing made the API reachable, validation made inputs safer, serialization shaped successful outputs, exceptions clarified failure behavior, and guards and interceptors made the pipeline more reusable and realistic. OpenAPI now documents that accumulated work.
 
 Use this final review checklist.
 
@@ -254,9 +224,7 @@ If the answer is yes, Part 1 has succeeded.
 
 ### The Bigger Beginner Lesson
 
-Documentation automation is not about avoiding thinking.
-
-It is about moving the thinking closer to the code that actually matters.
+Documentation automation is not about avoiding thinking. It is about moving the thinking closer to the code that actually matters, so the whole Part 1 API arc stays visible in both implementation and docs.
 
 When route shape, validation, security, and docs all reinforce each other, the API becomes easier to trust.
 
