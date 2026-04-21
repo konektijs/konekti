@@ -164,3 +164,35 @@ If you see version 18 or higher, you're good to go. Let's dive in!
 Every large system starts with a small, deliberate step. In the next chapter, before we touch the CLI, we will look at the deeper question that drives every design choice in fluo: why this framework is built the way it is.
 
 If that foundation makes sense to you, the rest of the journey becomes much easier to follow. Turn the page and head into Chapter 1.
+
+### A Note on the "Standard-First" Approach
+
+When we say "Standard-First," we are also making a promise about the kind of skills you are building as a developer. Learning fluo means learning the official JavaScript decorator model rather than a framework-only dialect. Even if you move to other tools later, the habits you build here, such as explicit dependency wiring, modular structure, and clear configuration, continue to pay off.
+
+That is one reason fluo stays close to the language. It aims to extend what you already know instead of locking you into a private syntax.
+
+### Why Explicitness Matters
+
+Early web frameworks often treated hidden behavior as a feature. That felt productive at first, but as applications grew into large services, the same magic made debugging and refactoring much harder.
+
+fluo takes the opposite path. We believe explicit structure is better than implicit guessing. When you read a fluo controller, you should be able to tell where data comes from. When you inspect a module, you should be able to tell what it provides. That clarity may cost a few more lines up front, but it saves far more time later.
+
+### Preparing Your Workspace
+
+Before you move on, make sure your environment is ready.
+
+1. Install `pnpm` if you do not already have it: `npm install -g pnpm`
+2. Confirm you are running Node.js 20 or newer.
+3. Create a dedicated folder for the FluoBlog project.
+
+We are about to start a journey that changes how you think about backend architecture. fluo is more than a library; it is a philosophy about clarity and performance.
+
+### Roadmap for the First 5 Chapters
+
+- **Chapter 1**: The philosophy and the big picture.
+- **Chapter 2**: Scaffolding the first project.
+- **Chapter 3**: Learning how modules shape the application.
+- **Chapter 4**: Understanding standard decorators.
+- **Chapter 5**: Building the first controller.
+
+Each step is a foundational building block. Do not rush past the theory. Once you understand why fluo uses these patterns, the how becomes much easier to apply when the project gets more complex.
