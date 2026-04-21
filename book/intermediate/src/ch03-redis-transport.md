@@ -25,7 +25,7 @@ Redis Pub/Sub is a high-performance fire-and-forget mechanism.
 
 It is ideal for scenarios where notification speed matters more than ensuring every subscriber receives the message.
 
-In other words, Pub/Sub is useful when events are informative rather than critical.
+In other words, Pub/Sub is useful when events are informative rather than critical. If the Order Service emits an `inventory.updated` signal for a live stock-ticker UI, missing a single update is fine—the next one will arrive shortly and provide the correct state.
 
 If a subscriber is temporarily offline, the system accepts that some broadcasts may be missed.
 
@@ -73,7 +73,7 @@ If you need a durable request-response contract, you should not pretend Pub/Sub 
 
 For critical operations like order processing and payment coordination, durability is essential.
 
-The `RedisStreamsMicroserviceTransport` uses Redis Streams and consumer groups to provide at-least-once delivery.
+The `RedisStreamsMicroserviceTransport` uses Redis Streams and consumer groups to provide at-least-once delivery. In **FluoShop**, this is the transport of choice for the Order→Payment handoff. When an order is placed, we don't just want a fast answer; we want a guarantee that the Payment Service will eventually see that order, even if it's currently restarting.
 
 That makes Streams a better fit when the business cares more about eventual completion than about immediate synchronous response time.
 
@@ -103,11 +103,11 @@ const transport = new RedisStreamsMicroserviceTransport({
 
 fluo automatically acknowledges the stream entry only after the handler completes successfully.
 
-That timing is one of the most important safety properties in the transport.
+That timing is one of the most important safety properties in the transport. Internally, fluo calls `xack` only after the `await handler()` promise resolves. If your handler throws an error, the `xack` call never happens, and the message stays in the PEL.
 
 Early acknowledgment would reduce duplicate work but increase the risk of silent loss.
 
-Late acknowledgment accepts possible redelivery in exchange for recoverability.
+Late acknowledgment accepts possible redelivery in exchange for recoverability. If the Payment Service crashes mid-transaction, another instance in the `payment-service-group` can take over the pending message.
 
 That is usually the correct trade-off for business-critical workflows.
 
@@ -117,13 +117,13 @@ One of fluo's more advanced features is supporting request-response patterns ove
 
 This allows you to use `send()` while still benefiting from durable delivery behavior.
 
-The resulting system is slower and more operationally complex than raw TCP.
+The resulting system is slower and more operationally complex than raw TCP. In TCP, the socket is the return path. In Streams, we have to create a separate "response stream" to route the answer back.
 
 But it also survives conditions that TCP cannot handle well.
 
 If the consumer is delayed, the request can still be processed later.
 
-If an instance crashes mid-flight, the message can remain pending and be reclaimed.
+If an instance crashes mid-flight, the message can remain pending and be reclaimed. This means a long-running payment validation (e.g., calling an external Stripe/PayPal API) can survive a service restart without the Gateway losing track of the request.
 
 That makes stream-backed request-response useful for workloads where completion matters more than strict immediacy.
 
@@ -131,7 +131,7 @@ That makes stream-backed request-response useful for workloads where completion 
 
 To avoid reply collisions, fluo creates a temporary response stream for each consumer instance.
 
-That gives every requester a private return path for correlated replies.
+That gives every requester a private return path for correlated replies. The stream name follows the pattern `${namespace}:responses:${consumerId}`.
 
 Without that isolation, multiple service instances could interfere with each other's responses.
 
@@ -143,14 +143,15 @@ It is also exactly the kind of transport-level concern that fluo is designed to 
 
 The application code asks for a reply.
 
-The transport decides how to route it safely.
+The transport decides how to route it safely. By default, fluo also cleans up these response streams during `close()` using `del`, ensuring we don't leak thousands of temporary keys in Redis.
 
 ## 3.4 Deep Dive into Delivery Safety
 
 fluo's Redis transport implementation prioritizes safety through a few core principles.
 
 - **Late Acknowledgment**: Stream entries are only acknowledged after handler-side processing finishes. If the service crashes during execution, the message stays pending for recovery.
-- **Conservative Trimming**: fluo avoids aggressive publish-time trimming on active request or event streams so that pending entries remain recoverable until they are explicitly acknowledged.
+- **Conservative Trimming**: By default, fluo disables `messageRetentionMaxLen` and `eventRetentionMaxLen`. While Redis supports trimming streams to a maximum length (e.g., `MAXLEN ~ 1000`), doing this at publish-time could delete a pending message that hasn't been processed yet. fluo prefers to let the stream grow until manual or policy-based cleanup occurs, ensuring no data is lost prematurely.
+- **Bounded Response Retention**: Unlike requests, response streams have a default `responseRetentionMaxLen` of `1,000`. Since responses are usually consumed immediately by the waiting `send()` caller, we can safely bound their retention to prevent memory pressure.
 - **Automatic Cleanup**: Temporary response streams used for request-reply flows are removed during `close()` so they do not pollute the Redis namespace forever.
 
 These choices reveal the framework's stance on distributed failure.
@@ -161,7 +162,7 @@ That preference is usually the right one, provided the application is designed w
 
 For FluoShop, payment handling must assume that a message can be seen more than once.
 
-That means order IDs, payment intents, and reconciliation logic should all be stable enough to absorb replay.
+That means order IDs, payment intents, and reconciliation logic should all be stable enough to absorb replay. If the Payment Service receives the same `order.placed` event twice, it should check if a transaction for that order ID already exists before attempting another charge.
 
 The transport helps, but the domain still carries responsibility.
 
@@ -171,14 +172,14 @@ Running Redis as a microservice transport is not just a coding concern.
 
 It is an operational commitment.
 
-Teams need to watch stream lengths, consumer lag, pending entry counts, and reclaim behavior.
+Teams need to watch stream lengths, consumer lag, pending entry counts, and reclaim behavior. In Redis, you can use `XPENDING` to inspect messages that have been delivered but not yet acknowledged.
 
 If those metrics drift in the wrong direction, the transport may remain technically healthy while business latency quietly degrades.
 
 Useful operational questions include the following.
 
-- Are stream keys growing without bound?
-- Is one consumer group accumulating an unhealthy PEL?
+- Are stream keys growing without bound? (Check `XLEN`).
+- Is one consumer group accumulating an unhealthy PEL? (Check `XPENDING`).
 - Are reclaim attempts increasing after deploys?
 - Are temporary response streams being cleaned up on shutdown?
 
@@ -215,18 +216,18 @@ Order placement and payment coordination belong on Streams.
 
 In FluoShop, we use Redis Streams for the critical link between the Order Service and the Payment Service.
 
-1. **Order Service**: Emits an `order.placed` event via Redis Streams after validating the order request.
+1. **Order Service**: Emits an `order.placed` event via Redis Streams after validating the order request. It uses the `emit()` method on the stream-backed microservice client.
 2. **Payment Service**: A member of the `payment-service-group` consumes the event, attempts the transaction, and emits `payment.success` or `payment.failed` based on the result.
 
 This design changes the system in an important way.
 
-The Order Service no longer needs the Payment Service to be synchronously reachable at the exact moment the order is created.
+The Order Service no longer needs the Payment Service to be synchronously reachable at the exact moment the order is created. If the Payment Service is busy or down, the `order.placed` event simply waits in the Redis Stream.
 
 It needs the broker path to preserve the work.
 
 That increases resilience at the cost of immediacy.
 
-The customer-facing flow must now communicate that some work is in progress rather than already final.
+The customer-facing flow must now communicate that some work is in progress rather than already final. The Gateway might return a `202 Accepted` status with an order ID, and the client-side UI will poll or listen for a WebSocket notification of the final payment result.
 
 This is the first place in the intermediate book where FluoShop starts behaving like a genuinely asynchronous system.
 
@@ -236,12 +237,12 @@ That decoupling is the architectural win Redis introduces.
 
 ## 3.8 Summary
 
-- **Pub/Sub**: Best for non-critical, high-throughput event broadcasting.
-- **Streams**: Essential for durable, reliable communication requiring at-least-once delivery.
-- **Consumer Groups**: Allow multiple service instances to share work and recover from failure.
-- **Durability**: Use Redis Streams for critical inter-service flows like orders and payments.
-- **Decoupling**: Unlike TCP, Redis allows services to interact without direct network connectivity.
-- **Progression**: FluoShop now includes both a synchronous TCP path and an asynchronous durable path.
+- **Pub/Sub**: Best for non-critical, high-throughput event broadcasting where fire-and-forget is acceptable.
+- **Streams**: Essential for durable, reliable communication requiring at-least-once delivery and consumer-group scaling.
+- **Consumer Groups**: Allow multiple service instances to share work and recover from failure via the Pending Entries List (PEL).
+- **Durability**: Use Redis Streams for critical inter-service flows like orders and payments where loss is not an option.
+- **Decoupling**: Unlike TCP, Redis allows services to interact without direct network connectivity, providing a buffer for bursts and downtime.
+- **Progression**: In FluoShop, Redis Streams enables the transition from a synchronous request-response catalog lookup to an asynchronous, reliable order-to-payment workflow.
 
 The deeper lesson is architectural.
 

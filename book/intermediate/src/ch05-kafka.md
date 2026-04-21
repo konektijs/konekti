@@ -17,7 +17,7 @@ By this stage, the company wants more than safe fulfillment queues.
 
 It wants a durable order timeline that analytics, fraud review, and support dashboards can replay.
 
-That is exactly where Kafka starts to feel natural.
+That is exactly where Kafka starts to feel natural. Unlike the "competing consumers" model in RabbitMQ, where a message is gone once acknowledged, Kafka's **Log-based Storage** allows multiple independent systems to "read at their own pace" without affecting each other's state.
 
 The key question for this chapter is simple.
 
@@ -41,7 +41,7 @@ In v1.4.0 we add a durable `order-timeline` stream.
 
 The Order Service, Payment Service, and Fulfillment Service all publish milestones into that stream.
 
-Separate consumers then build projections for analytics and operations.
+Separate consumers then build projections for analytics and operations. This is the **Single Source of Truth** for the order's existence; while individual services have their own databases, the Kafka log is the official audit trail that reconciles what happened across service boundaries.
 
 ## 5.2 Bootstrapping Kafka with explicit producer and consumer wiring
 
@@ -53,7 +53,7 @@ The application passes caller-owned producer and consumer collaborators into `Ka
 
 That keeps broker ownership visible.
 
-It also means group IDs, retry configuration, connection bootstrap, and partition strategy remain application decisions.
+It also means group IDs, retry configuration, connection bootstrap, and partition strategy remain application decisions. This is vital because Kafka is highly sensitive to configuration; a `groupId` determines whether two service instances share a workload or receive duplicate events, and fluo leaves that critical decision in the hands of the developer.
 
 ### 5.2.1 Topic topology
 
@@ -73,7 +73,7 @@ In FluoShop, explicit names are clearer.
 
 The response topic should usually stay per client instance.
 
-That is how fluo avoids reply collisions during concurrent request-reply flows.
+That is how fluo avoids reply collisions during concurrent request-reply flows. By default, the transport generates a UUID-suffixed `responseTopic` (e.g., `fluo.microservices.responses.uuid`), ensuring that each instance has its own unique "mailbox" for replies.
 
 ### 5.2.2 Module wiring
 
@@ -84,8 +84,8 @@ import { Module } from '@fluojs/core';
 import { KafkaMicroserviceTransport, MicroservicesModule } from '@fluojs/microservices';
 
 const transport = new KafkaMicroserviceTransport({
-  consumer: kafkaConsumer,
-  producer: kafkaProducer,
+  consumer: kafkaConsumer, // Provided by kafkajs in bootstrap
+  producer: kafkaProducer, // Provided by kafkajs in bootstrap
   eventTopic: 'fluoshop.timeline.events',
   messageTopic: 'fluoshop.domain.messages',
   requestTimeoutMs: 5_000,
@@ -112,7 +112,7 @@ fluo still exposes `send()` on top of Kafka when you need a request-response con
 
 This is slower and heavier than TCP.
 
-It can still be the right fit when you need broker-mediated decoupling and can accept the extra latency.
+It can still be the right fit when you need broker-mediated decoupling and can accept the extra latency. In FluoShop, we use this for the "Order Audit" request—where we need a specific answer, but we want the request itself to be durable so it can be re-processed if the target service is momentarily restarting.
 
 ### 5.3.1 Per-client response topics
 
@@ -134,10 +134,10 @@ That keeps correlation understandable.
 
 Kafka request-reply can reject in several different ways.
 
-- the caller timed out
-- the caller aborted before publish
-- the caller aborted after publish
-- the remote handler threw an error
+- **Timeout**: The caller waited too long (`requestTimeoutMs`) for an answer.
+- **Abort before publish**: The request was canceled before it even reached Kafka.
+- **Abort after publish**: The request was sent, but the caller stopped waiting before the response arrived.
+- **Handler error**: The remote service threw an exception during processing.
 
 Those distinctions appear in the transport tests and deserve to appear in your architecture thinking.
 
@@ -147,7 +147,7 @@ If the handler rejects because the date range is invalid, that is a domain error
 
 If the topic path times out, that is a dependency error.
 
-Good systems keep those outcomes separate.
+Good systems keep those outcomes separate. FluoShop uses the `requestId` in the message frame to map inbound Kafka responses back to the local `Promise` that triggered the request.
 
 ## 5.4 Event streams and consumer groups
 
@@ -179,6 +179,7 @@ async appendTimelineEntry(event: {
   stage: string;
   source: string;
 }) {
+  // Logic to store this milestone in a queryable DB
   await this.timelineStore.append(event);
 }
 ```
@@ -207,7 +208,7 @@ That is exactly why Kafka is useful here.
 
 The business does not want one queue deciding which department gets the event.
 
-It wants a shared durable history that each department can process independently.
+It wants a shared durable history that each department can process independently. By using **Consumer Offsets**, each group remembers its own position in the log, allowing the Analytics team to process events from last month while the Support team stays focused on events from today.
 
 ## 5.5 Partitioning, ordering, and replay
 
@@ -262,11 +263,11 @@ This division keeps each transport in the role where it is strongest.
 
 Operationally, teams should watch:
 
-- consumer lag by group
-- topic retention and storage growth
-- partition skew by key
-- replay duration for large projections
-- timeout rates on request-reply topics
+- **Consumer lag by group**: How far behind a service is from the latest event.
+- **Topic retention and storage**: When events are pruned due to time or size.
+- **Partition skew**: Whether one partition is receiving significantly more traffic than others.
+- **Replay duration**: How long it takes to "re-read" the log from the beginning.
+- **Timeout rates**: Frequency of failed request-reply flows.
 
 These signals reveal whether Kafka is serving its intended purpose.
 
@@ -280,9 +281,9 @@ At the end of this chapter, FluoShop gains a durable historical spine.
 
 The platform can now answer different classes of questions.
 
-- What is the current customer-facing state?
-- Which warehouse queue is backlogged?
-- What exactly happened across the full lifecycle of this order?
+- What is the current customer-facing state? (TCP/Redis)
+- Which warehouse queue is backlogged? (RabbitMQ)
+- What exactly happened across the full lifecycle of this order? (Kafka)
 
 That third question becomes much easier once Kafka is present.
 
@@ -302,4 +303,4 @@ RabbitMQ taught us how to assign work.
 
 Kafka teaches us how to preserve and reuse business history.
 
-That is why both transports belong in the same system.
+That is why both transports belong in the same system. In FluoShop, the transition from v1.3.0 to v1.4.0 is not about speed; it's about **long-term accountability**.

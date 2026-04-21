@@ -15,7 +15,7 @@ Some connect over unstable networks.
 
 Some need retained last-known state more than rich historical replay.
 
-That is the world where MQTT becomes useful.
+That is the world where MQTT becomes useful. While Kafka is a "firehose" for data-center events, MQTT is a **"sensor tap"** for the physical edge. It prioritizes efficient delivery over high-bandwidth logs, making it the standard for IoT-style interactions.
 
 The main idea of this chapter is simple.
 
@@ -31,16 +31,16 @@ FluoShop uses MQTT for shipping and warehouse edge signals.
 
 Examples include:
 
-- cold-chain temperature probes on perishable shipments
-- smart locker status updates
-- handheld scanner acknowledgments from pickers
-- courier ETA beacons
+- **Cold-chain temperature probes**: Monitoring perishable shipments in real-time.
+- **Smart locker updates**: Notifying the system when a customer collects a package.
+- **Handheld scanners**: Confirming picker movements in the warehouse.
+- **Courier beacons**: Providing live ETA updates for the last-mile delivery.
 
 These signals matter operationally.
 
 They do not all need Kafka-level replay.
 
-They often do need sensible QoS and retained state behavior.
+They often do need sensible QoS and retained state behavior. By using **MQTT Topics** (e.g., `shipments/+/telemetry`), we can route thousands of sensor feeds into a single FluoShop microservice handler without manual connection management for each device.
 
 ## 7.2 MQTT transport setup
 
@@ -56,19 +56,16 @@ Others prefer transport-local ownership.
 
 `MqttMicroserviceTransport` exposes more delivery-shape options than many other transports.
 
-- `namespace`
-- `eventTopic`
-- `messageTopic`
-- `replyTopic`
-- `requestTimeoutMs`
-- `eventQos`, `messageQos`, `responseQos`
-- `eventRetain`, `messageRetain`, `responseRetain`
+- `namespace`: The root prefix for topics.
+- `eventTopic`, `messageTopic`, `replyTopic`: Specific channels for different frame types.
+- `eventQos`, `messageQos`, `responseQos`: Quality of Service levels (0, 1, or 2).
+- `eventRetain`, `messageRetain`: Whether the broker should save the last-known message.
 
 If you only provide a namespace, the transport derives topic names below it.
 
 That is a good default for FluoShop.
 
-The system can use `fluoshop.devices` as a namespace and let the transport derive event, message, and response topics beneath it.
+The system can use `fluoshop.devices` as a namespace and let the transport derive event, message, and response topics beneath it (e.g., `fluoshop.devices.events`).
 
 ### 7.2.2 Module wiring
 
@@ -79,7 +76,7 @@ import { MicroservicesModule, MqttMicroserviceTransport } from '@fluojs/microser
 const transport = new MqttMicroserviceTransport({
   url: process.env.MQTT_URL,
   namespace: 'fluoshop.devices',
-  eventQos: 1,
+  eventQos: 1, // At-least-once for critical telemetry
   messageQos: 1,
   responseQos: 1,
   eventRetain: false,
@@ -88,7 +85,11 @@ const transport = new MqttMicroserviceTransport({
 });
 
 @Module({
-  imports: [MicroservicesModule.forRoot({ transport })],
+  imports: [
+    MicroservicesModule.forRoot({
+      transport,
+    }),
+  ],
   providers: [ShipmentTelemetryHandler],
 })
 export class ShipmentTelemetryModule {}
@@ -119,6 +120,7 @@ It does want a bounded response path.
 ```typescript
 @MessagePattern('locker.open-compartment')
 async openCompartment(input: { lockerId: string; compartmentId: string }) {
+  // Commands the device and waits for the physical hardware ack
   return await this.lockerGateway.open(input);
 }
 ```
@@ -139,7 +141,7 @@ Timeouts matter even more with devices than with server processes.
 
 Connectivity can be unstable.
 
-A locker that does not answer within the request budget should surface as a transient edge failure, not as a hanging web request.
+A locker that does not answer within the request budget should surface as a transient edge failure, not as a hanging web request. In FluoShop, we use a 2,000ms timeout; if the device is offline, the user sees a "Connection issue" instead of a spinning wheel.
 
 ## 7.4 Event delivery for telemetry
 
@@ -159,17 +161,17 @@ If you configure a retained event channel for a state snapshot topic, new observ
 
 This is different from historical replay.
 
-It is a last-known-value strategy.
+It is a **last-known-value** strategy.
 
-That distinction is important.
+That distinction is important. In the warehouse, when a new monitor turns on, it immediately sees the "current picker count" because that message was marked as `retained` on the broker.
 
 ### 7.4.2 QoS trade-offs
 
 QoS settings are business decisions, not just transport toggles.
 
-- QoS 0 favors low overhead and accepts loss.
-- QoS 1 favors at-least-once delivery with possible duplicates.
-- QoS 2 is stricter but more expensive.
+- **QoS 0 (At most once)**: Best for ETA beacons. If a packet is lost, the next one arrives in seconds anyway.
+- **QoS 1 (At least once)**: Best for "Payment received" or "Locker opened." We must know it happened, even if we get a duplicate.
+- **QoS 2 (Exactly once)**: Strictest and slowest. Rarely needed if your handlers are idempotent.
 
 In FluoShop, a rapidly updating courier ETA beacon may fit QoS 0.
 
@@ -215,11 +217,11 @@ That means FluoShop should treat broker auth, topic namespace design, and retain
 
 Operationally, teams should watch:
 
-- publish failure rates from edge clients
-- timeout rates for request-reply commands
-- retained topic sprawl
-- duplicate delivery patterns on QoS 1 paths
-- reconnect churn for device gateways
+- **Edge failure rates**: How often devices fail to publish their telemetry.
+- **Command timeouts**: Which device types are most frequently "unresponsive."
+- **Retained topic sprawl**: Ensuring the broker isn't cluttered with thousands of stale retained messages.
+- **Duplicate delivery**: Monitoring for handlers that aren't handling QoS 1 duplicates correctly.
+- **Reconnect churn**: Identifying "flapping" devices on unstable cellular networks.
 
 These signals tell you whether MQTT is serving as a healthy edge-ingestion layer or quietly accumulating delivery debt.
 
@@ -247,4 +249,4 @@ The broader lesson is architectural again.
 
 A transport choice should reflect the shape of the network and the producers on that network.
 
-MQTT belongs in FluoShop because the system now reaches the physical edge.
+MQTT belongs in FluoShop because the system now reaches the physical edge. It bridges the gap between the binary code of the server and the physical world of the warehouse.
