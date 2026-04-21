@@ -69,7 +69,7 @@ The normalization step also serves as a critical validation boundary. In `path:p
 
 In `path:packages/redis/src/module.ts:45-60`, we see that the `RedisService` is not just a wrapper around the client; it is a managed entity that depends on both the client and the configuration. By registering it within a dynamic module, Fluo ensures that every instance of the `RedisModule` produces a service that is correctly bound to its specific configuration, even if multiple Redis instances are used within the same application. This level of instance isolation is the primary reason why programmatic module manufacturing is so powerful.
 
-`QueueModule.forRoot()` is even more explicit in `path:packages/queue/src/module.ts:9-42`, where it normalizes options and creates providers in separate helper functions before `path:packages/queue/src/module.ts:69-77` returns the final module definition exporting `QueueLifecycleService` and `QUEUE`. 
+`QueueModule.forRoot()` is even more explicit in `path:packages/queue/src/module.ts:9-42`, where it normalizes options and creates providers in separate helper functions before `path:packages/queue/src/module.ts:69-77` returns the final module definition exporting `QueueLifecycleService` and `QUEUE`.
 
 In `path:packages/queue/src/module.ts:15-30`, the normalization logic explicitly handles the creation of a unique connection name if one isn't provided. This is a perfect example of how dynamic modules can use runtime context to influence the dependency graph. By generating a stable name at bootstrap time, the `QueueModule` can ensure that its providers are correctly registered in the container without name collisions, even in complex multi-queue setups.
 
@@ -107,7 +107,7 @@ Furthermore, the programmatic nature of `defineModule` allows for dynamic compos
 
 The asynchronous case is where many frameworks become opaque, often hiding the "how" behind complex state machines. Fluo stays surprisingly direct. An async module helper is still just a module factory, but the options provider is registered as a **factory provider** whose execution is deferred and memoized.
 
-The underlying shared contract comes from `AsyncModuleOptions<T>` in `path:packages/core/src/types.ts:29-37`. It contains `inject?: Token[]` for dependency resolution and `useFactory` for the actual configuration logic. 
+The underlying shared contract comes from `AsyncModuleOptions<T>` in `path:packages/core/src/types.ts:29-37`. It contains `inject?: Token[]` for dependency resolution and `useFactory` for the actual configuration logic.
 
 `EmailModule.forRootAsync()` in `path:packages/email/src/module.ts:114-138` demonstrates the safe pattern:
 1. It stores the user's `useFactory` in a local variable.
@@ -157,7 +157,7 @@ Dynamic modules are also the primary site for public API design. The module fact
 
 This encapsulation is particularly powerful when combined with **peer dependencies**. A dynamic module might import another module, use its services internally, but choose not to re-export them. This allows you to build complex internal hierarchies that look like a single, unified service to the outside world. `path:packages/runtime/src/module-graph.ts:333-358` ensures that even if you try to export a token you don't own, the system will catch it during the compilation phase, maintaining strict graph integrity.
 
-The runtime strictly enforces these boundaries. `createExportedTokenSet()` in `path:packages/runtime/src/module-graph.ts:333-358` rejects any export that is neither a local provider nor a re-export from an imported module. `validateCompiledModules()` in `path:packages/runtime/src/module-graph.ts:360-415` then folds these validated exports into the accessible-token set of consuming modules. 
+The runtime strictly enforces these boundaries. `createExportedTokenSet()` in `path:packages/runtime/src/module-graph.ts:333-358` rejects any export that is neither a local provider nor a re-export from an imported module. `validateCompiledModules()` in `path:packages/runtime/src/module-graph.ts:360-415` then folds these validated exports into the accessible-token set of consuming modules.
 
 When a dynamic module marks itself `global: true`, it is simply participating in the standard module-graph validation flow—the same one used by static `@Global()` modules. The only difference is that the `global` bit was set by code. This consistency means you can use `useExisting` aliases to provide stable public names for internal objects, or use named token helpers to allow multiple module instances (like two separate database connections) to coexist without collisions in the same container.
 

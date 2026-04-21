@@ -46,6 +46,31 @@ provider.scope = explicit provider scope
   or singleton default
 ```
 
+```typescript
+import { Container } from '@fluojs/di';
+import { Scope } from '@fluojs/core';
+
+@Scope('request')
+class RequestBase {}
+
+@Scope('transient')
+class ExplicitTransient {}
+
+class InheritedRequest extends RequestBase {}
+class DefaultSingleton {}
+
+const root = new Container().register(ExplicitTransient, InheritedRequest, DefaultSingleton);
+const request = root.createRequestScope();
+
+// An explicit decorator wins when scope is normalized.
+const transientA = await request.resolve(ExplicitTransient);
+const transientB = await request.resolve(ExplicitTransient);
+// Scope metadata can also come from a base class.
+const inherited = await request.resolve(InheritedRequest);
+// With no scope metadata, the default falls back to singleton.
+const singleton = await root.resolve(DefaultSingleton);
+```
+
 Everything else in this chapter is the consequence of that one assignment.
 
 ## 5.2 Singleton caching and the root container baseline
@@ -96,6 +121,30 @@ if provider.scope is singleton:
   else:
     resolve through local/request-local path defined by cacheFor()
   cache promise by token
+```
+
+```typescript
+import { Container } from '@fluojs/di';
+import { Scope } from '@fluojs/core';
+
+@Scope('singleton')
+class ConfigService {
+  constructor(readonly source: string = 'root') {}
+}
+
+const root = new Container().register(ConfigService);
+const first = await root.resolve(ConfigService);
+const second = await root.resolve(ConfigService);
+
+const request = root.createRequestScope();
+request.override({ provide: ConfigService, useFactory: () => new ConfigService('request') });
+
+// The root keeps reusing the same singleton cache entry.
+const rootValue = await root.resolve(ConfigService);
+// A request-scope override stays local to that child container.
+const requestValue = await request.resolve(ConfigService);
+
+console.log(first === second, rootValue.source, requestValue.source);
 ```
 
 The key implementation detail is that Fluo caches promises, not settled instances.
@@ -149,6 +198,28 @@ request-scoped providers must resolve in child
 each child isolates request-scoped instances from sibling children
 ```
 
+```typescript
+import { Container, RequestScopeResolutionError } from '@fluojs/di';
+import { Scope } from '@fluojs/core';
+
+let created = 0;
+
+@Scope('request')
+class RequestStore {
+  readonly id = ++created;
+}
+
+const root = new Container().register(RequestStore);
+
+// Resolving a request provider from the root throws immediately.
+const rootError = await root.resolve(RequestStore).catch((error: unknown) => error);
+const request = root.createRequestScope();
+const first = await request.resolve(RequestStore);
+const second = await request.resolve(RequestStore);
+
+console.log(rootError instanceof RequestScopeResolutionError, first === second, first.id);
+```
+
 The implementation consequence is powerful.
 Anything that can hold a `Container` reference can create a bounded request lifetime without teaching each provider about HTTP or transport details.
 The DI abstraction stays transport-neutral.
@@ -187,6 +258,34 @@ if provider.scope is transient:
   resolve dependencies now
   instantiate provider now
   return instance without caching
+```
+
+```typescript
+import { Container } from '@fluojs/di';
+import { Inject, Scope } from '@fluojs/core';
+
+@Scope('transient')
+class QueryBuilder {
+  readonly id = Symbol('query-builder');
+}
+
+@Inject(QueryBuilder)
+class ReportService {
+  constructor(private readonly builder: QueryBuilder) {}
+
+  currentBuilder() {
+    return this.builder;
+  }
+}
+
+const container = new Container().register(QueryBuilder, ReportService);
+// A transient token skips caches and creates a fresh instance each time.
+const first = await container.resolve(QueryBuilder);
+const second = await container.resolve(QueryBuilder);
+// A singleton consumer may still hold the transient it got at construction time.
+const report = await container.resolve(ReportService);
+
+console.log(first === second, report.currentBuilder() instanceof QueryBuilder);
 ```
 
 But the architectural implication is not trivial.
@@ -236,6 +335,30 @@ override(token, replacement):
   for each evicted cached promise:
     schedule disposal of resolved stale instance
   register replacement provider
+```
+
+```typescript
+import { Container } from '@fluojs/di';
+
+const CACHE_TOKEN = Symbol('CACHE_TOKEN');
+const events: string[] = [];
+
+class FirstCache {
+  onDestroy() {
+    events.push('first disposed');
+  }
+}
+
+class SecondCache {}
+
+const container = new Container().register({ provide: CACHE_TOKEN, useClass: FirstCache });
+const stale = await container.resolve<FirstCache>(CACHE_TOKEN);
+
+container.override({ provide: CACHE_TOKEN, useClass: SecondCache });
+await Promise.resolve(); // Stale singleton disposal is scheduled right after eviction.
+
+const fresh = await container.resolve<SecondCache>(CACHE_TOKEN);
+console.log(stale instanceof FirstCache, fresh instanceof SecondCache, events);
 ```
 
 This is one of the strongest signs that Fluo treats DI as a lifecycle system, not just a constructor helper.
@@ -289,6 +412,38 @@ dispose(container):
   call onDestroy in reverse order
   clear caches
   throw aggregated disposal errors if any
+```
+
+```typescript
+import { Container } from '@fluojs/di';
+import { Inject, Scope } from '@fluojs/core';
+
+const events: string[] = [];
+
+class RootDatabase {
+  onDestroy() { events.push('root database'); }
+}
+
+@Inject(RootDatabase)
+class RootApi {
+  constructor(private readonly db: RootDatabase) {}
+  onDestroy() { events.push('root api'); }
+}
+
+@Scope('request')
+class RequestContext {
+  onDestroy() { events.push('request context'); }
+}
+
+const root = new Container().register(RootDatabase, RootApi, RequestContext);
+const request = root.createRequestScope();
+await root.resolve(RootDatabase);
+await root.resolve(RootApi);
+await request.resolve(RequestContext);
+await root.dispose();
+
+// Request children are disposed first, then root singletons in reverse creation order.
+console.log(events); // ['request context', 'root api', 'root database']
 ```
 
 From an implementation standpoint, this is the real completion of the scope story.

@@ -51,6 +51,31 @@ provider.scope = explicit provider scope
   or singleton default
 ```
 
+```typescript
+import { Container } from '@fluojs/di';
+import { Scope } from '@fluojs/core';
+
+@Scope('request')
+class RequestBase {}
+
+@Scope('transient')
+class ExplicitTransient {}
+
+class InheritedRequest extends RequestBase {}
+class DefaultSingleton {}
+
+const root = new Container().register(ExplicitTransient, InheritedRequest, DefaultSingleton);
+const request = root.createRequestScope();
+
+// explicit decorator가 있으면 그 scope가 그대로 적용됩니다.
+const transientA = await request.resolve(ExplicitTransient);
+const transientB = await request.resolve(ExplicitTransient);
+// decorator가 없더라도 base class metadata는 상속됩니다.
+const inherited = await request.resolve(InheritedRequest);
+// 아무 scope도 없으면 기본값은 singleton입니다.
+const singleton = await root.resolve(DefaultSingleton);
+```
+
 이 장의 나머지는 사실상 이 한 줄의 결과를 추적하는 과정입니다.
 
 ## 5.2 Singleton caching and the root container baseline
@@ -110,6 +135,30 @@ if provider.scope is singleton:
   cache promise by token
 ```
 
+```typescript
+import { Container } from '@fluojs/di';
+import { Scope } from '@fluojs/core';
+
+@Scope('singleton')
+class ConfigService {
+  constructor(readonly source: string = 'root') {}
+}
+
+const root = new Container().register(ConfigService);
+const first = await root.resolve(ConfigService);
+const second = await root.resolve(ConfigService);
+
+const request = root.createRequestScope();
+request.override({ provide: ConfigService, useFactory: () => new ConfigService('request') });
+
+// root에서는 같은 singleton promise/cache를 계속 재사용합니다.
+const rootValue = await root.resolve(ConfigService);
+// request child override는 자기 child 안에서만 보입니다.
+const requestValue = await request.resolve(ConfigService);
+
+console.log(first === second, rootValue.source, requestValue.source);
+```
+
 핵심 구현 포인트는 Fluo가 settled instance가 아니라 promise를 cache한다는 점입니다.
 `path:packages/di/src/container.ts:538-545`는 await하기 전에 promise를 먼저 저장합니다.
 그래서 같은 singleton token에 대한 동시 construction이 중복 실행되지 않습니다.
@@ -162,6 +211,28 @@ request-scoped providers must resolve in child
 each child isolates request-scoped instances from sibling children
 ```
 
+```typescript
+import { Container, RequestScopeResolutionError } from '@fluojs/di';
+import { Scope } from '@fluojs/core';
+
+let created = 0;
+
+@Scope('request')
+class RequestStore {
+  readonly id = ++created;
+}
+
+const root = new Container().register(RequestStore);
+
+// request provider를 root에서 바로 resolve하면 에러가 납니다.
+const rootError = await root.resolve(RequestStore).catch((error: unknown) => error);
+const request = root.createRequestScope();
+const first = await request.resolve(RequestStore);
+const second = await request.resolve(RequestStore);
+
+console.log(rootError instanceof RequestScopeResolutionError, first === second, first.id);
+```
+
 구현 관점에서 이 구조는 강력합니다.
 `Container` reference만 쥘 수 있다면,
 HTTP든 다른 transport든 상관없이 bounded request lifetime을 만들 수 있습니다.
@@ -204,6 +275,34 @@ if provider.scope is transient:
   resolve dependencies now
   instantiate provider now
   return instance without caching
+```
+
+```typescript
+import { Container } from '@fluojs/di';
+import { Inject, Scope } from '@fluojs/core';
+
+@Scope('transient')
+class QueryBuilder {
+  readonly id = Symbol('query-builder');
+}
+
+@Inject(QueryBuilder)
+class ReportService {
+  constructor(private readonly builder: QueryBuilder) {}
+
+  currentBuilder() {
+    return this.builder;
+  }
+}
+
+const container = new Container().register(QueryBuilder, ReportService);
+// transient token은 resolve할 때마다 새 인스턴스를 만듭니다.
+const first = await container.resolve(QueryBuilder);
+const second = await container.resolve(QueryBuilder);
+// singleton consumer가 transient를 받는 것은 허용됩니다.
+const report = await container.resolve(ReportService);
+
+console.log(first === second, report.currentBuilder() instanceof QueryBuilder);
 ```
 
 하지만 아키텍처적 의미는 결코 사소하지 않습니다.
@@ -257,6 +356,30 @@ override(token, replacement):
   for each evicted cached promise:
     schedule disposal of resolved stale instance
   register replacement provider
+```
+
+```typescript
+import { Container } from '@fluojs/di';
+
+const CACHE_TOKEN = Symbol('CACHE_TOKEN');
+const events: string[] = [];
+
+class FirstCache {
+  onDestroy() {
+    events.push('first disposed');
+  }
+}
+
+class SecondCache {}
+
+const container = new Container().register({ provide: CACHE_TOKEN, useClass: FirstCache });
+const stale = await container.resolve<FirstCache>(CACHE_TOKEN);
+
+container.override({ provide: CACHE_TOKEN, useClass: SecondCache });
+await Promise.resolve(); // stale singleton 정리는 override 직후 예약됩니다.
+
+const fresh = await container.resolve<SecondCache>(CACHE_TOKEN);
+console.log(stale instanceof FirstCache, fresh instanceof SecondCache, events);
 ```
 
 이 부분은 Fluo가 DI를 단순 constructor helper가 아니라 lifecycle system으로 취급한다는 강한 증거입니다.
@@ -318,6 +441,38 @@ dispose(container):
   call onDestroy in reverse order
   clear caches
   throw aggregated disposal errors if any
+```
+
+```typescript
+import { Container } from '@fluojs/di';
+import { Inject, Scope } from '@fluojs/core';
+
+const events: string[] = [];
+
+class RootDatabase {
+  onDestroy() { events.push('root database'); }
+}
+
+@Inject(RootDatabase)
+class RootApi {
+  constructor(private readonly db: RootDatabase) {}
+  onDestroy() { events.push('root api'); }
+}
+
+@Scope('request')
+class RequestContext {
+  onDestroy() { events.push('request context'); }
+}
+
+const root = new Container().register(RootDatabase, RootApi, RequestContext);
+const request = root.createRequestScope();
+await root.resolve(RootDatabase);
+await root.resolve(RootApi);
+await request.resolve(RequestContext);
+await root.dispose();
+
+// request child가 먼저 dispose되고, root singleton은 생성 역순으로 정리됩니다.
+console.log(events); // ['request context', 'root api', 'root database']
 ```
 
 구현 관점에서 이것이 scope 이야기의 진짜 완성입니다.

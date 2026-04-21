@@ -3,23 +3,7 @@
 
 # 7. MQTT
 
-MQTT enters FluoShop when the platform stops talking only to server processes.
-
-By v1.6.0, the system also listens to warehouse devices, smart lockers, and cold-chain sensors attached to the shipping flow.
-
-These producers are not all full backend services.
-
-Some are constrained devices.
-
-Some connect over unstable networks.
-
-Some need retained last-known state more than rich historical replay.
-
-That is the world where MQTT becomes useful. While Kafka is a "firehose" for data-center events, MQTT is a **"sensor tap"** for the physical edge. It prioritizes efficient delivery over high-bandwidth logs, making it the standard for IoT-style interactions.
-
-The main idea of this chapter is simple.
-
-FluoShop can extend beyond service-to-service messaging and still keep the same fluo handler model.
+MQTT enters FluoShop when the platform stops talking only to server processes. By v1.6.0, the system also listens to warehouse devices, smart lockers, and cold-chain sensors attached to the shipping flow. These producers are not all full backend services. Some are constrained devices, some connect over unstable networks, and some need retained last-known state more than rich historical replay. That is the world where MQTT becomes useful. While Kafka is a "firehose" for data-center events, MQTT is a **"sensor tap"** for the physical edge. It prioritizes efficient delivery over high-bandwidth logs, making it the standard for IoT-style interactions. The main idea of this chapter is simple: FluoShop can extend beyond service-to-service messaging and still keep the same fluo handler model.
 
 ## 7.1 Why MQTT in FluoShop
 
@@ -103,19 +87,11 @@ The transport changes how messages move, not how providers express business logi
 
 ## 7.3 Request-reply over MQTT
 
-Many developers think of MQTT only as event pub/sub.
-
-fluo adds request-reply support by publishing message frames with a `replyTopic` and correlating responses by `requestId`.
-
-That lets FluoShop send device commands and await acknowledgments.
+Many developers think of MQTT only as event pub/sub, but fluo adds request-reply support by publishing message frames with a `replyTopic` and correlating responses by `requestId`. That lets FluoShop send device commands and await acknowledgments.
 
 ### 7.3.1 Device command acknowledgments
 
-Suppose a smart locker must confirm that a pickup compartment has opened.
-
-The API does not want to wait forever.
-
-It does want a bounded response path.
+Suppose a smart locker must confirm that a pickup compartment has opened. The API does not want to wait forever, but it does want a bounded response path.
 
 ```typescript
 @MessagePattern('locker.open-compartment')
@@ -125,23 +101,11 @@ async openCompartment(input: { lockerId: string; compartmentId: string }) {
 }
 ```
 
-The locker edge service can process the command and reply through the MQTT response topic.
-
-This pattern is especially useful when devices are MQTT-native but the application still wants a request-style programming model.
+The locker edge service can process the command and reply through the MQTT response topic. This pattern is especially useful when devices are MQTT-native but the application still wants a request-style programming model.
 
 ### 7.3.2 Reply topics and timeouts
 
-The transport uses a per-instance reply topic by default.
-
-The tests verify that the generated topic matches `fluo.microservices.responses.<uuid>` when defaults are used.
-
-That mirrors the reply-isolation story we already saw in RabbitMQ and Kafka.
-
-Timeouts matter even more with devices than with server processes.
-
-Connectivity can be unstable.
-
-A locker that does not answer within the request budget should surface as a transient edge failure, not as a hanging web request. In FluoShop, we use a 2,000ms timeout; if the device is offline, the user sees a "Connection issue" instead of a spinning wheel.
+The transport uses a per-instance reply topic by default. The tests verify that the generated topic matches `fluo.microservices.responses.<uuid>` when defaults are used, which mirrors the reply-isolation story we already saw in RabbitMQ and Kafka. Timeouts matter even more with devices than with server processes because connectivity can be unstable. A locker that does not answer within the request budget should surface as a transient edge failure, not as a hanging web request. In FluoShop, we use a 2,000ms timeout; if the device is offline, the user sees a "Connection issue" instead of a spinning wheel.
 
 ## 7.4 Event delivery for telemetry
 
@@ -151,19 +115,7 @@ FluoShop uses both concepts to model real operational signals.
 
 ### 7.4.1 Retained state snapshots
 
-A cold-chain sensor may publish the latest trailer temperature.
-
-New subscribers often need the most recent reading immediately.
-
-That is exactly what retained messages are for.
-
-If you configure a retained event channel for a state snapshot topic, new observers do not need to wait for the next natural update before seeing the current state.
-
-This is different from historical replay.
-
-It is a **last-known-value** strategy.
-
-That distinction is important. In the warehouse, when a new monitor turns on, it immediately sees the "current picker count" because that message was marked as `retained` on the broker.
+A cold-chain sensor may publish the latest trailer temperature. New subscribers often need the most recent reading immediately, and that is exactly what retained messages are for. If you configure a retained event channel for a state snapshot topic, new observers do not need to wait for the next natural update before seeing the current state. This is different from historical replay. It is a **last-known-value** strategy, and that distinction is important. In the warehouse, when a new monitor turns on, it immediately sees the "current picker count" because that message was marked as `retained` on the broker.
 
 ### 7.4.2 QoS trade-offs
 
@@ -181,23 +133,11 @@ A retained warehouse status snapshot may also use QoS 1 so late subscribers reli
 
 ## 7.5 FluoShop delivery monitoring
 
-MQTT extends the platform beyond the datacenter.
-
-That changes the kinds of stories the system can tell.
+MQTT extends the platform beyond the datacenter. That changes the kinds of stories the system can tell.
 
 ### 7.5.1 Cold-chain alerts
 
-If a refrigerated shipment exceeds the temperature threshold, the edge gateway can emit `shipment.temperature-alert`.
-
-The Notification Service can react.
-
-The Operations Dashboard can react.
-
-A compliance recorder can react.
-
-None of them need to be part of the sensor's direct request path.
-
-That is the same decoupling principle we saw with earlier transports, applied to physical-world telemetry.
+If a refrigerated shipment exceeds the temperature threshold, the edge gateway can emit `shipment.temperature-alert`. The Notification Service can react, the Operations Dashboard can react, and a compliance recorder can react. None of them need to be part of the sensor's direct request path. That is the same decoupling principle we saw with earlier transports, applied to physical-world telemetry.
 
 ### 7.5.2 Order ETA updates
 
@@ -227,15 +167,7 @@ These signals tell you whether MQTT is serving as a healthy edge-ingestion layer
 
 ## 7.7 FluoShop v1.6.0 progression
 
-At the end of this chapter, FluoShop is no longer only a set of server-side services.
-
-It is a platform that can absorb device and telemetry input.
-
-That makes the architecture more realistic.
-
-Modern commerce systems often depend on scanners, lockers, courier apps, and sensor networks.
-
-MQTT gives those integrations a transport that respects their environment.
+At the end of this chapter, FluoShop is no longer only a set of server-side services. It is a platform that can absorb device and telemetry input. That makes the architecture more realistic, because modern commerce systems often depend on scanners, lockers, courier apps, and sensor networks. MQTT gives those integrations a transport that respects their environment.
 
 ## 7.8 Summary
 
