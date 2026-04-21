@@ -186,6 +186,10 @@ compile module graph
   -> run all onModuleInit hooks
   -> run all onApplicationBootstrap hooks
   -> start platform shell
+  -> create dispatcher/application shell
+  -> later: listen() binds adapter
+```
+
 `path:packages/runtime/src/bootstrap.test.ts:522-629`의 application-context 테스트는 HTTP adapter가 없어도 같은 lifecycle sequence가 유지됨을 보여 줍니다. 즉 initialization order는 transport startup에 속한 것이 아니라, runtime shell 자체에 속합니다. 이 구분이 바로 8장의 진짜 마무리입니다. Fluo에서 "module initialization order"는 단순한 topological sorting이 아닙니다. 더 구체적인 계층화된 모델입니다.
 
 첫째, **모듈 그래프의 컴파일 타임 순서**가 있습니다. 여기서 순환 의존성이 거부되고 가시성 경계가 그려집니다. 단 하나의 생성자도 호출되기 전에 애플리케이션이 여기서 실패한다면, `@Module()` 임포트의 구조적 결함을 보고 있을 가능성이 높습니다. `compileModule()` 알고리즘은 모듈의 전체 의존성 하위 트리가 완전히 이해되고 검증될 때까지 어떤 모듈도 컨테이너에 들어가지 않도록 보장합니다. 이는 일부 모듈은 자신의 익스포트를 알고 있지만 다른 모듈은 그렇지 못한 "부분적 그래프" 상태를 방지하여, 후속 등록 단계에 대해 일관된 세계관을 유지합니다. 이 단계에서 `providerTokens`와 `exportedTokens`를 미리 계산하는 것은 전체 컨테이너 설정의 청사진 역할을 합니다.
@@ -205,68 +209,3 @@ compile module graph
 이러한 수준의 구조적 규율은 시작 과정을 불투명한 마법의 "블랙박스"로 취급하는 프레임워크와 Fluo를 차별화하는 요소입니다. `bootstrap.ts`와 `module-graph.ts`의 명시적인 코드를 통해 이러한 이산적인 단계들을 노출함으로써, Fluo는 개발자가 자신의 애플리케이션이 어떻게 생겨나는지 정확히 이해할 수 있도록 힘을 실어줍니다. 이는 "의존성 그래프"를 정적인 데이터 구조에서 백엔드의 전체 라이프사이클을 지배하는 동적이고 살아있는 계약으로 바꿉니다.
 
 궁극적으로 모듈 그래프는 Fluo 런타임의 두뇌입니다. 단순히 데이터를 보유하는 것이 아니라, 원시 구성에서 기능적이고 회복력 있는 애플리케이션으로의 전환을 오케스트레이션합니다. 그 뉘앙스를 마스터하는 것은 Fluo를 "사용하는" 개발자에서 Fluo로 "구축하는" 아키텍트로 나아가는 마지막 단계입니다. 이러한 이해는 프레임워크의 핵심 약속인 명시성과 신뢰성을 유지하면서도 동적 모듈 오케스트레이션 및 복잡한 멀티 호스트 배포와 같은 정교한 아키텍처 패턴을 생성할 수 있게 해줍니다.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
