@@ -1,11 +1,21 @@
 <!-- packages: @fluojs/microservices, amqplib -->
 <!-- project-state: FluoShop v1.3.0 -->
 
-# 4. RabbitMQ
+# Chapter 4. RabbitMQ
 
-RabbitMQ는 이 파트에서 처음으로 노골적으로 큐 중심적이라는 느낌을 주는 브로커입니다. Redis Streams도 이미 FluoShop에 내구성 있는 전달을 제공했지만, RabbitMQ는 큐 토폴로지 자체를 주된 설계 도구로 끌어올립니다. 이 점은 한 서비스가 작업을 소유하고 다른 서비스가 재시도하며 세 번째 서비스는 브로커가 전달 준비가 되었다고 판단할 때까지 기다려야 하는 구조에서 중요합니다. FluoShop v1.3.0에서는 결제 이후의 fulfillment handoff를 RabbitMQ로 옮깁니다. Order Service는 여전히 이전 장들의 트랜스포트로 고객 트래픽을 받지만, 새로운 RabbitMQ 경로는 결제가 성공한 뒤에 시작됩니다. 이 시점의 비즈니스는 더 이상 즉각적인 사용자 지연 시간만을 요구하지 않고, 피킹·포장·후속 알림을 위한 안정적인 작업 큐를 요구합니다.
+이 장은 FluoShop의 결제 이후 handoff를 작업 큐 중심 모델로 옮기기 위해 RabbitMQ를 도입합니다. Chapter 3이 durable stream으로 복원력을 확보했다면, 이제는 큐 소유권과 competing consumer 모델이 중요한 fulfillment 흐름에 맞는 트랜스포트를 살펴봅니다.
 
-아키텍처 관점에서 이는 **스트림 로그**(모두가 모든 것을 보고 스스로 오프셋을 결정함)에서 **작업 큐**(작업이 소비자의 사서함으로 명시적으로 푸시됨)로의 전환을 의미합니다. 피커(packer)나 선반 공간 같은 물리적 자원이 한정된 창고 환경에서는 공유 브로드캐스트보다 작업 큐 모델이 자원 조율 측면에서 훨씬 안전합니다.
+## Learning Objectives
+- RabbitMQ가 작업 큐 중심 워크플로에 적합한 이유를 이해합니다.
+- caller-owned publisher와 consumer collaborator로 RabbitMQ 트랜스포트를 배선하는 방법을 익힙니다.
+- message, event, response queue를 분리해 요청 응답과 이벤트 흐름을 설계합니다.
+- 인스턴스 범위 response queue가 동시 요청 안전성에 어떻게 기여하는지 확인합니다.
+- FluoShop fulfillment handoff를 RabbitMQ로 옮길 때의 운영 신호와 트레이드오프를 분석합니다.
+
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3 완료.
+- 큐 기반 브로커와 competing consumer 패턴의 기본 이해.
+- 비동기 작업 처리와 재시도 정책에 대한 기초 개념.
 
 ## 4.1 Why RabbitMQ in FluoShop
 

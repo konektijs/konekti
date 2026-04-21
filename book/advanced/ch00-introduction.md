@@ -246,6 +246,3 @@ By the end of this volume, you will be able to:
 6.  Contribute meaningfully to the fluo core and its ecosystem of packages.
 
 This isn't just a list of skills; it's a new way of looking at backend development. You will find yourself applying these principles to every project you work on, whether it's built with fluo or another tool. The focus on standards, explicitness, and performance is a universal philosophy of high-quality software. We are honored to be your guides on this journey. The engine is ready, the map is laid out, and the source code is waiting. Let's move forward and begin our exploration of the decorator system in Chapter 1.
-
----
-*End of Introduction*

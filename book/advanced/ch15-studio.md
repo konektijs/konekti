@@ -240,6 +240,3 @@ Visualizing your system is the first step toward mastering its complexity. In a 
 As you move forward, keep the "Studio-first" mindset in your diagnostics workflow. Whenever you hit a complex configuration issue, reach for `fluo inspect` and let the visual data guide your troubleshooting. In the final part of this series, we will look at how to extend the Fluo ecosystem itself by creating custom packages and contributing back to the framework.
 
 Finally, remember that observability is a continuous process. As your platform evolves, so too must your diagnostic tools and workflows. By leveraging the power of `@fluojs/studio`, you can ensure that your team always has the visibility and insights needed to build and maintain world-class TypeScript backends.
-
----
-<!-- lines: 245 -->

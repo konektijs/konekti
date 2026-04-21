@@ -3,6 +3,8 @@
 
 # Chapter 12. Database Integration with Prisma
 
+이 장은 FluoBlog를 메모리 기반 예제에서 실제 데이터베이스를 사용하는 애플리케이션으로 확장하는 방법을 설명합니다. Chapter 11에서 설정 관리를 정리했다면, 이제 그 설정을 바탕으로 Prisma와 데이터 저장소를 연결합니다.
+
 ## Learning Objectives
 - Fluo 애플리케이션에서 ORM으로서의 Prisma의 역할을 이해합니다.
 - Fluo 생태계 내에서 `@fluojs/prisma`를 설치하고 구성합니다.
@@ -10,6 +12,12 @@
 - 데이터베이스를 스키마와 동기화하기 위해 마이그레이션을 실행하는 방법을 배웁니다.
 - `PrismaService`를 사용하여 기본적인 CRUD 작업을 수행합니다.
 - 데이터를 보존하기 위해 Prisma를 FluoBlog 프로젝트에 통합합니다.
+
+## Prerequisites
+- Chapter 11 완료.
+- FluoBlog 모듈 구조와 기본 서비스 분리를 이해합니다.
+- 관계형 데이터베이스와 CRUD의 기초 개념을 알고 있습니다.
+- 터미널에서 패키지 설치와 CLI 명령 실행에 익숙합니다.
 
 ## 12.1 Why Prisma and Fluo?
 이전 장들에서 우리는 견고한 HTTP API를 구축했지만, 모든 데이터는 메모리에만 있었습니다. 그래서 서버를 재시작하면 데이터가 사라지고, FluoBlog는 아직 실제 서비스라기보다 데모에 가까운 상태에 머물게 됩니다.

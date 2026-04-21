@@ -1,15 +1,21 @@
 <!-- packages: @fluojs/microservices -->
 <!-- project-state: FluoShop v1.1.0 -->
 
-# 2. TCP Transport
+# Chapter 2. TCP Transport
 
-TCP (Transmission Control Protocol)는 마이크로서비스를 위한 가장 단순하고 보편적인 트랜스포트 프로토콜입니다.
+이 장은 FluoShop의 첫 실제 서비스 연결을 만들기 위해 TCP 트랜스포트를 설정하고 운영하는 방법을 설명합니다. Chapter 1이 아키텍처 지도를 세웠다면, 이제 그 경계를 가장 단순한 요청 응답 링크로 구현해 보며 이후 브로커 기반 장들과 비교할 기준선을 만듭니다.
 
-fluo에서 TCP 트랜스포트는 로우 소켓 위에서 개행 문자로 구분된 JSON(NDJSON)을 사용해 고성능 점대점 통신 채널을 제공합니다.
+## Learning Objectives
+- `TcpMicroserviceTransport`로 TCP 마이크로서비스를 구성하는 방법을 익힙니다.
+- `MICROSERVICE` 토큰과 `send()`를 사용해 서비스 간 요청 응답 흐름을 구현합니다.
+- NDJSON 프레이밍이 TCP 기반 메시지 전달에 어떻게 쓰이는지 이해합니다.
+- 프레임 크기 제한과 타임아웃이 TCP 운영 안전성에 왜 중요한지 분석합니다.
+- FluoShop에서 Gateway와 Catalog 사이 연결에 TCP가 적합한 이유를 설명합니다.
 
-이 장에서는 **FluoShop** 프로젝트 안에서 TCP 트랜스포트를 사용해 서비스를 설정하고, 보호하고, 확장하는 방법을 살펴봅니다.
-
-1장이 서비스 지도를 정의했다면, 2장은 그 추상적인 지도를 실제 서비스 연결로 바꾸는 단계입니다. 우리가 TCP를 먼저 고르는 이유는 시스템을 이해하기 쉽게 유지하기 위해서입니다. 운영해야 할 브로커가 없고, 고민해야 할 컨슈머 그룹도 없으며, 보내는 쪽 하나와 받는 쪽 하나, 그리고 명확한 요청-응답 흐름만 있습니다. 그 단순함 덕분에 TCP는 훌륭한 기준선이 되고, 동시에 이후 트랜스포트가 해결해야 할 한계도 선명하게 드러납니다.
+## Prerequisites
+- Chapter 1 완료.
+- Node.js 소켓 통신과 요청 응답 패턴에 대한 기초 이해.
+- TypeScript 비동기 처리와 `async`/`await` 문법에 익숙함.
 
 ## 2.1 Setting up a TCP Microservice
 

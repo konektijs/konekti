@@ -1,21 +1,22 @@
 <!-- packages: @fluojs/socket.io, @fluojs/websockets -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 14. Advanced Socket.IO
+# Chapter 14. Advanced Socket.IO
 
-Raw WebSocket은 강력하지만, 저수준의 primitive입니다.
+이 장은 raw WebSocket 위에 Socket.IO 계층을 더해 room, namespace, broadcasting 같은 고수준 실시간 기능을 FluoShop에 연결하는 방법을 설명합니다. Chapter 13이 gateway 기반의 기본 real-time surface를 세웠다면, 이제는 다중 사용자 채팅과 세밀한 메시지 제어를 더 쉽게 운영할 수 있는 Socket.IO 패턴으로 확장합니다.
 
-Room, namespace, 신뢰할 수 있는 broadcasting과 같은 복잡한 실시간 기능이 필요할 때 업계에서는 종종 Socket.IO를 선택합니다.
+## Learning Objectives
+- Socket.IO가 raw WebSocket보다 높은 수준의 협업 기능을 제공하는 이유를 이해합니다.
+- `SocketIoModule.forRoot()`로 CORS와 engine 제한을 명시적으로 구성하는 방법을 익힙니다.
+- `SocketIoRoomService`를 사용해 room 참여와 브로드캐스트를 분리하는 구조를 설명합니다.
+- namespace와 message guard가 실시간 보안 경계를 어떻게 세분화하는지 분석합니다.
+- raw `Server` 접근과 Bun engine 지원이 어떤 확장 지점을 제공하는지 정리합니다.
+- support chat 같은 다중 room 흐름을 테스트 가능하게 유지하는 방법을 설명합니다.
 
-`@fluojs/socket.io` 패키지는 Socket.IO v4를 fluo 생태계에 통합하여, 동일한 gateway decorator를 사용하면서도 Socket.IO engine의 고급 기능을 활용할 수 있게 해줍니다.
-
-FluoShop v2.2.0이 진화함에 따라, 우리는 다채널 고객 지원 채팅을 지원할 방법이 필요합니다.
-
-표준 WebSocket을 사용한다면 수많은 연결 그룹을 수동으로 관리해야 할 것입니다.
-
-Socket.IO는 이 작업을 매우 단순하게 만들어 줍니다.
-
-이 장에서는 room, namespace 및 runtime-specific 최적화를 사용하여 고객 지원 채팅 시스템을 구축하는 방법을 다룹니다.
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7, Chapter 8, Chapter 9, Chapter 10, Chapter 11, Chapter 12, Chapter 13 완료.
+- WebSocket gateway lifecycle과 실시간 메시지 라우팅에 대한 기초 이해.
+- 인증, room 분리, 브로드캐스트 같은 다중 사용자 채팅 요구사항에 대한 기본 감각.
 
 ## 14.1 Why Socket.IO for FluoShop?
 

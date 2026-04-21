@@ -1,15 +1,21 @@
 <!-- packages: @fluojs/microservices, @grpc/grpc-js, @grpc/proto-loader -->
 <!-- project-state: FluoShop v1.7.0 -->
 
-# 8. gRPC
+# Chapter 8. gRPC
 
-gRPC는 메시지 브로커가 아닙니다.
+이 장은 Part 1의 transport 선택을 gRPC까지 확장해, FluoShop에 schema-first RPC와 스트리밍 계약을 어떻게 도입하는지 설명합니다. Chapter 7이 physical edge 입력을 다뤘다면, 이제는 명시적 proto 계약과 저지연 스트리밍이 필요한 서비스 경계로 초점을 옮깁니다.
 
-그래도 Part 1의 끝에 위치하는 이유는 이 파트의 본질이 브로커 브랜드 소개가 아니라 transport choice 전체를 다루기 때문입니다. `fluo` 생태계에서 `GrpcMicroserviceTransport`는 TCP나 NATS 어댑터와 동등한 위상을 가진 transport로 동작하며, 동일한 패턴 매칭 로직을 사용하면서도 스키마 기반의 안전성을 도입합니다.
+## Learning Objectives
+- gRPC가 브로커 기반 transport와 다른 지점 간 계약을 제공하는 이유를 이해합니다.
+- protoPath, packageName, services 같은 핵심 옵션으로 gRPC 트랜스포트를 구성하는 방법을 익힙니다.
+- unary RPC와 event-style unary 호출을 fluo 패턴 모델에 연결하는 방식을 설명합니다.
+- 서버, 클라이언트, 양방향 스트리밍 패턴이 FluoShop 시나리오에 어떻게 쓰이는지 분석합니다.
+- timeout, cancellation, observability 관점에서 gRPC 운영 경계를 정리합니다.
 
-v1.7.0이 되면 FluoShop에는 durable queue, replayable stream, 빠른 control-plane subject, edge telemetry topic이 모두 존재합니다. 그럼에도 아직 필요한 것이 하나 남아 있습니다. 바로 명시적 스키마와 저지연(low-latency) 스트리밍의 이점을 얻을 수 있는 service contract를 위한 strongly typed RPC boundary입니다.
-
-바로 그 지점에서 gRPC가 등장합니다. fluo에서 gRPC는 다른 microservice transport 위에 군림하는 특별한 계층이 아니라, 그들과 나란히 놓이는 transport입니다. DI 모델은 그대로 유지되고 패턴도 계속 사용하지만, 단지 브로커 중심의 프레이밍에서 proto 정의 기반의 RPC 계약으로 이동할 뿐입니다.
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7 완료.
+- request-response와 streaming 계약에 대한 기초 이해.
+- protobuf 기반 스키마와 서비스 경계 설계에 대한 기본 개념.
 
 ## 8.1 Why gRPC in FluoShop
 

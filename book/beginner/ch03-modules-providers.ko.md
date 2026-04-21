@@ -9,14 +9,14 @@
 - 모듈과 `@Module()` 데코레이터의 역할을 정의합니다.
 - 프로바이더와 `@Injectable()` 데코레이터를 이해합니다.
 - 컨트롤러가 무엇을 하는지와 요청을 어떻게 받는지 배웁니다.
-- fluo의 의존성 주입 흐름을 따라갑니다.
+- fluo의 의존성 주입 흐름을 살펴봅니다.
 - `imports`와 `exports`가 모듈 경계를 어떻게 만드는지 이해합니다.
-- FluoBlog를 위한 첫 `PostsModule` 뼈대를 만듭니다.
+- FluoBlog를 위한 첫 `PostsModule` 뼈대를 구현합니다.
 
 ## Prerequisites
-- Chapter 2를 마치고 FluoBlog 프로젝트를 생성한 상태.
+- Chapter 2 완료.
 - TypeScript 클래스와 생성자에 대한 기본 이해.
-- 짧은 코드 예제를 읽는 데 익숙할 것.
+- 짧은 코드 예제를 읽는 데 익숙합니다.
 
 ## 3.1 What is a Module?
 
@@ -464,5 +464,3 @@ export class AppModule {}
 
 ## Next Chapter Preview
 다음 장에서는 모듈, 프로바이더, 컨트롤러를 가능하게 하는 더 깊은 층, 즉 데코레이터 모델을 살펴봅니다. TC39 Stage 3 데코레이터를 이해하면 fluo 문법이 왜 현대적으로 보이는지, 그리고 왜 오래된 TypeScript 스택의 레거시 데코레이터 가정을 피하는지 분명하게 보일 것입니다.
-
-... (Content added for parity)

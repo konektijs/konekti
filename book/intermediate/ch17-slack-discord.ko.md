@@ -1,13 +1,22 @@
 <!-- packages: @fluojs/slack, @fluojs/discord, @fluojs/notifications -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 17. Slack and Discord Integration
+# Chapter 17. Slack and Discord Integration
 
-운영 가시성(Operational awareness)은 성숙한 백엔드의 상징입니다. 이메일이 사용자에게 적합하다면, Slack이나 Discord와 같은 실시간 채팅 플랫폼은 여러분의 팀이 상주하는 곳입니다.
+이 장은 FluoShop의 알림 시스템을 팀 커뮤니케이션 채널까지 확장하는 방법을 설명합니다. Chapter 16이 이메일 전달 기반을 다졌다면, 이 장은 Slack과 Discord로 운영 경고와 실시간 공유 흐름을 연결합니다.
 
-`@fluojs/slack`과 `@fluojs/discord` 패키지는 fluo를 위한 웹훅 기반의, 트랜스포트 불가지론적(transport-agnostic) 전송 기능을 제공합니다. 이 패키지들을 사용하면 특정 런타임이나 SDK에 코드를 결합하지 않고도 채널과 스레드에 풍부한 형식의 메시지를 보낼 수 있습니다.
+## Learning Objectives
+- Slack과 Discord 연동이 이메일 채널과 어떻게 다른지 이해합니다.
+- 웹훅 중심 전송 방식을 사용해 채팅 모듈을 등록하는 방법을 배웁니다.
+- `SlackService`와 `DiscordService`를 독립적으로 사용하는 흐름을 익힙니다.
+- `@fluojs/notifications`에 채팅 채널을 연결하는 방법을 구현합니다.
+- Block Kit과 Embed를 활용해 구조화된 메시지를 구성하는 방법을 살펴봅니다.
+- 재시도 정책과 상태 스냅샷으로 채팅 연동을 운영하는 기준을 정리합니다.
 
-이 장에서는 FluoShop을 위한 채팅 기반 알림 및 경고 시스템을 구현해 보겠습니다.
+## Prerequisites
+- Chapter 15와 Chapter 16 완료.
+- 웹훅 기반 외부 서비스 연동에 대한 기본 이해.
+- 운영 알림과 팀 협업 채널 분리에 대한 기본 감각.
 
 ## 17.1 The Webhook-First Approach
 

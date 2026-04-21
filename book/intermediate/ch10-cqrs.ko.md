@@ -1,9 +1,22 @@
 <!-- packages: @fluojs/cqrs, @fluojs/event-bus -->
 <!-- project-state: FluoShop v1.9.0 -->
 
-# 10. CQRS and Sagas
+# Chapter 10. CQRS and Sagas
 
-이벤트 버스는 FluoShop이 사실에 반응하는 깔끔한 방식을 제공했습니다. CQRS는 한 걸음 더 나아가, 플랫폼에 intent, read, orchestration을 위한 명확한 언어를 제공합니다. `@fluojs/cqrs` 패키지는 command와 query를 분리하고, event bus 위에 event-driven process management를 쌓습니다. 이것은 커머스 워크플로가 하나의 service method보다 커질 때 중요해집니다. v1.9.0의 FluoShop은 로컬 event reaction만으로는 부족합니다. 명시적인 write command가 필요하고, 전용 read model이 필요하며, 모든 것을 하나의 transaction으로 접어 넣지 않고도 긴 비즈니스 단계를 연결할 saga가 필요합니다.
+이 장은 FluoShop의 event-driven 흐름 위에 command, query, saga를 분리해 더 명시적인 write, read, orchestration 모델을 세웁니다. Chapter 9가 business fact에 대한 반응을 정리했다면, 이제는 그 사실을 기준으로 long-running workflow와 read projection을 조직하는 방법으로 초점을 옮깁니다.
+
+## Learning Objectives
+- CQRS가 write, read, orchestration을 왜 분리하는지 이해합니다.
+- command와 query가 각각 하나의 handler를 가져야 하는 이유를 설명합니다.
+- FluoShop write side에 command bus와 query bus를 연결하는 방법을 익힙니다.
+- saga가 event를 받아 다음 command를 dispatch하는 흐름을 분석합니다.
+- in-process saga topology 제한이 queue나 scheduler 같은 다른 boundary 선택으로 이어지는 이유를 정리합니다.
+- read model과 write model을 별도로 진화시키는 설계 원칙을 설명합니다.
+
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7, Chapter 8, Chapter 9 완료.
+- command, query, domain event 개념에 대한 기초 이해.
+- 비동기 workflow와 projection 모델에 대한 기본 감각.
 
 ## 10.1 Why CQRS enters FluoShop now
 

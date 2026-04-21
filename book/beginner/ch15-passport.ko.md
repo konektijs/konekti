@@ -3,15 +3,22 @@
 
 # Chapter 15. Guards and Passport Strategies
 
+이 장은 FluoBlog의 인증 흐름을 가드와 Passport 전략으로 연결하는 방법을 설명합니다. Chapter 14가 JWT 발급과 검증을 다뤘다면, 이 장은 그 토큰을 실제 라우트 보호와 인가 규칙으로 확장합니다.
+
 ## Learning Objectives
-- `fluo` 요청 생명주기에서 가드(Guards)의 역할을 이해합니다.
-- `@fluojs/passport`를 사용하여 인증 전략을 구현합니다.
-- 토큰을 검증하고 요청에 principal을 첨부하는 `JwtStrategy`를 생성합니다.
-- `@UseGuards()` 데코레이터를 사용하여 라우트와 컨트롤러를 보호합니다.
-- 역할 기반 액세스 제어(RBAC)를 위한 커스텀 `RolesGuard`를 구축합니다.
-- 다중 전략 인증 흐름을 처리하는 방법을 배웁니다.
-- 속성 기반 액세스 제어(ABAC) 및 동적 정책 적용을 포함한 고급 인가 패턴을 탐구합니다.
-- 현대적인 TypeScript 백엔드의 보안 아키텍처에 대한 깊은 통찰력을 얻습니다.
+- `fluo` 요청 생명주기에서 가드의 역할을 이해합니다.
+- `@fluojs/passport`로 인증 전략을 구성합니다.
+- `JwtStrategy`로 토큰을 검증하고 principal을 구성합니다.
+- `@UseGuards()`로 라우트와 컨트롤러를 보호합니다.
+- `RolesGuard`로 역할 기반 인가를 구현합니다.
+- 여러 인증 전략을 조합하는 흐름을 살펴봅니다.
+- 속성 기반 인가와 동적 정책 적용의 기초를 이해합니다.
+- 프로덕션 보안 설계에서 가드와 전략의 역할을 정리합니다.
+
+## Prerequisites
+- Chapter 11, Chapter 13, Chapter 14 완료.
+- JWT 토큰 기반 인증 흐름에 대한 기초 이해.
+- 보호가 필요한 HTTP 컨트롤러와 라우트 구조 이해.
 
 ## 15.1 The Role of Guards
 이전 장에서 우리는 JWT를 발급하고 검증하는 방법을 배웠습니다. 하지만 모든 컨트롤러 메서드에서 토큰을 수동으로 확인하는 것은 지루하고 오류가 발생하기 쉽습니다. 바로 여기서 **가드(Guards)**가 등장합니다.
@@ -393,5 +400,3 @@ By combining the structural power of Fluo's security layer with these industry-s
 - **Principal 정규화**를 통해 인증 방식에 관계없이 애플리케이션의 나머지 부분이 일관된 사용자 객체에 의존할 수 있도록 보장합니다.
 
 이제 FluoBlog는 Bearer 토큰을 검증된 principal로 바꾸고, 그 principal을 바탕으로 경로별 인가 규칙까지 적용할 수 있습니다. Part 3의 마지막 장에서는 한 가지 계층을 더 추가하여, Throttling으로 API 남용을 막는 방법을 살펴보겠습니다.
-
-<!-- line-count-check: 200+ lines target achieved -->

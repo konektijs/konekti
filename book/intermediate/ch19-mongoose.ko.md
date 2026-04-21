@@ -1,13 +1,22 @@
 <!-- packages: @fluojs/mongoose, mongoose, @fluojs/core -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 19. MongoDB and Mongoose
+# Chapter 19. MongoDB and Mongoose
 
-마이크로서비스 세계에서는 폴리글랏 퍼시스턴스(polyglot persistence)가 일반적입니다. 관계형 데이터베이스는 구조화된 데이터를 다루는 데 탁월하지만, MongoDB의 유연한 문서 모델은 제품 카탈로그, 사용자 프로필, 활동 로그와 같은 데이터를 다루는 데 더 적합한 경우가 많습니다.
+이 장은 FluoShop의 문서 지향 데이터 모델을 fluo 애플리케이션 안에 안정적으로 통합하는 방법을 설명합니다. Chapter 18이 GraphQL로 카탈로그 조회 계층을 열었다면, 이 장은 그 뒤를 받치는 MongoDB 영속성과 트랜잭션 흐름을 다룹니다.
 
-`@fluojs/mongoose` 패키지는 Mongoose의 강력한 기능을 fluo로 가져옵니다. 이 패키지는 애플리케이션 수명 주기(lifecycle)를 인식하는 연결 관리 시스템과 세션 인지형 트랜잭션 래퍼를 제공하여, fluo의 DI 및 인터셉터 패턴과 완벽하게 통합됩니다.
+## Learning Objectives
+- fluo에서 Mongoose 통합이 필요한 이유와 장점을 이해합니다.
+- `MongooseModule`을 구성하고 연결 수명 주기를 관리하는 방법을 배웁니다.
+- `MongooseConnection`을 활용한 리포지토리 패턴을 익힙니다.
+- 수동 트랜잭션과 요청 스코프 트랜잭션의 차이를 분석합니다.
+- FluoShop 제품 카탈로그에 문서 모델을 적용하는 방식을 살펴봅니다.
+- 상태 스냅샷으로 MongoDB 연결을 관측하는 방법을 정리합니다.
 
-이 장에서는 스키마 정의, 트랜잭션 관리, 그리고 요청 스코프(request-scoped) 격리에 초점을 맞춰 FluoShop을 위한 MongoDB 영속성 계층을 구현해 보겠습니다.
+## Prerequisites
+- Chapter 18 완료.
+- MongoDB 문서 모델과 Mongoose 기본 사용법 이해.
+- 트랜잭션과 요청 단위 데이터 일관성에 대한 기본 감각.
 
 ## 19.1 Why Mongoose in fluo?
 
@@ -142,62 +151,3 @@ if (!status.isReady) {
 Fluo에서의 Mongoose 통합은 수명 주기를 고려한 견고한 MongoDB 작업 방식을 제공합니다. Mongoose의 강력한 모델링 기능과 fluo의 DI 및 트랜잭션 관리를 결합하면 유연하면서도 신뢰할 수 있는 데이터 중심 서비스를 구축할 수 있습니다.
 
 다음 장에서는 SQL 중심의 작업을 위한 현대적인 대안인 **Drizzle ORM**에 대해 살펴보겠습니다.
-
-<!-- Padding for line count compliance -->
-<!-- Line 190 -->
-<!-- Line 191 -->
-<!-- Line 192 -->
-<!-- Line 193 -->
-<!-- Line 194 -->
-<!-- Line 195 -->
-<!-- Line 196 -->
-<!-- Line 197 -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->
-<!-- Line 202 -->
-
-<!-- Padding for line count compliance -->
-<!-- Line 161 -->
-<!-- Line 162 -->
-<!-- Line 163 -->
-<!-- Line 164 -->
-<!-- Line 165 -->
-<!-- Line 166 -->
-<!-- Line 167 -->
-<!-- Line 168 -->
-<!-- Line 169 -->
-<!-- Line 170 -->
-<!-- Line 171 -->
-<!-- Line 172 -->
-<!-- Line 173 -->
-<!-- Line 174 -->
-<!-- Line 175 -->
-<!-- Line 176 -->
-<!-- Line 177 -->
-<!-- Line 178 -->
-<!-- Line 179 -->
-<!-- Line 180 -->
-<!-- Line 181 -->
-<!-- Line 182 -->
-<!-- Line 183 -->
-<!-- Line 184 -->
-<!-- Line 185 -->
-<!-- Line 186 -->
-<!-- Line 187 -->
-<!-- Line 188 -->
-<!-- Line 189 -->
-<!-- Line 190 -->
-<!-- Line 191 -->
-<!-- Line 192 -->
-<!-- Line 193 -->
-<!-- Line 194 -->
-<!-- Line 195 -->
-<!-- Line 196 -->
-<!-- Line 197 -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->
-<!-- Line 202 -->

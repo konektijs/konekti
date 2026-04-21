@@ -1,9 +1,21 @@
 <!-- packages: @fluojs/microservices, mqtt -->
 <!-- project-state: FluoShop v1.6.0 -->
 
-# 7. MQTT
+# Chapter 7. MQTT
 
-MQTT는 FluoShop이 서버 프로세스끼리만 통신하던 단계에서 벗어날 때 등장합니다. v1.6.0이 되면 시스템은 창고 디바이스, 스마트 락커, 배송 흐름에 연결된 냉장 센서의 신호도 듣기 시작합니다. 이 생산자들은 모두 완전한 백엔드 서비스가 아닙니다. 일부는 제약이 큰 디바이스이고, 일부는 불안정한 네트워크 위에서 연결되며, 일부는 풍부한 historical replay보다 retained last-known state가 더 중요합니다. 바로 이런 환경에서 MQTT가 유용해집니다. 이 장의 핵심은 단순합니다. FluoShop은 서비스 간 메시징을 넘어 physical edge까지 확장하면서도 같은 fluo handler model을 유지할 수 있습니다.
+이 장은 FluoShop의 메시징 범위를 서버 간 통신에서 edge device와 telemetry 입력까지 확장하면서 MQTT가 왜 필요한지 설명합니다. Chapter 6이 빠른 내부 coordination을 다뤘다면, 이제는 불안정한 연결과 retained state를 가진 physical edge 환경으로 흐름을 넓힙니다.
+
+## Learning Objectives
+- MQTT가 device 및 telemetry 시나리오에 적합한 이유를 이해합니다.
+- namespace, QoS, retain 설정을 기준으로 MQTT 트랜스포트를 구성하는 방법을 익힙니다.
+- reply topic과 timeout budget을 사용해 MQTT request-reply 흐름을 설계합니다.
+- retained snapshot과 telemetry 이벤트를 FluoShop delivery monitoring에 연결하는 방법을 설명합니다.
+- edge 환경에서 MQTT 운영 지표와 보안 고려사항을 정리합니다.
+
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6 완료.
+- topic 기반 메시징과 request-reply 패턴에 대한 기초 이해.
+- edge device, telemetry, 네트워크 변동성에 대한 기본 개념.
 
 ## 7.1 Why MQTT in FluoShop
 

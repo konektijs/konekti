@@ -1,15 +1,21 @@
 <!-- packages: @fluojs/microservices, kafkajs -->
 <!-- project-state: FluoShop v1.4.0 -->
 
-# 5. Kafka
+# Chapter 5. Kafka
 
-Kafka는 더 나은 RabbitMQ가 아닙니다. 서로 다른 아키텍처적 선택입니다. RabbitMQ는 작업을 큐와 컨슈머 중심으로 조직하고, Kafka는 통신을 append-only topic, replay, 그리고 히스토리를 다시 읽을 수 있는 consumer group 중심으로 조직합니다. 이 차이는 FluoShop v1.4.0에서 중요해집니다. 이 단계의 회사는 안전한 fulfillment queue만 원하는 것이 아니라, analytics·fraud review·support dashboard가 재생할 수 있는 durable order timeline도 원합니다.
+이 장은 FluoShop에 durable shared history를 추가하기 위해 Kafka를 도입하고, 작업 큐와 이벤트 로그가 어디에서 갈라지는지 설명합니다. Chapter 4가 fulfillment 작업 소유권을 다뤘다면, 이제는 replay와 다중 consumer group이 필요한 order timeline을 어떻게 설계할지로 초점을 옮깁니다.
 
-바로 그 지점에서 Kafka가 자연스럽게 느껴집니다. 메시지가 확인(ack)되면 사라지는 RabbitMQ의 "경쟁 소비자(competing consumers)" 모델과 달리, Kafka의 **로그 기반 저장소(Log-based Storage)**는 여러 독립적인 시스템이 서로의 상태에 영향을 주지 않고 "각자의 속도로 읽기"를 수행할 수 있게 해줍니다.
+## Learning Objectives
+- Kafka가 RabbitMQ와 다른 아키텍처적 선택인 이유를 이해합니다.
+- producer와 consumer collaborator를 명시적으로 연결해 Kafka 트랜스포트를 구성하는 방법을 익힙니다.
+- topic 기반 요청 응답과 이벤트 로그 흐름을 구분해 설계합니다.
+- partition key, ordering, replay가 Kafka 운영에 미치는 영향을 분석합니다.
+- FluoShop order timeline에 Kafka를 적용할 때 analytics와 support 흐름이 어떻게 달라지는지 설명합니다.
 
-이 장의 핵심 질문은 단순합니다.
-
-FluoShop의 어떤 링크가 queue-owned work item보다 durable event log의 이점을 더 크게 보는가?
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4 완료.
+- 이벤트 로그, consumer group, replay 개념에 대한 기초 이해.
+- 분산 시스템에서 ordering과 비동기 projection이 왜 중요한지에 대한 기본 감각.
 
 ## 5.1 Why Kafka after RabbitMQ
 

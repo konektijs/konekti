@@ -1,13 +1,22 @@
 <!-- packages: @fluojs/notifications, @fluojs/core -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 15. Notification Orchestration
+# Chapter 15. Notification Orchestration
 
-알림은 현대적인 애플리케이션의 핵심적인 부분입니다. 환영 이메일이든, 비밀번호 초기화 링크든, 운영 경고 알림이든, 백엔드에는 여러 채널을 통해 메시지를 신뢰성 있게 보낼 수 있는 방법이 필요합니다.
+이 장은 FluoShop의 여러 이벤트와 업무 흐름 위에 채널 독립적인 notification orchestration 계층을 세우는 방법을 설명합니다. Chapter 14가 실시간 상호작용을 다뤘다면, 이제는 이메일, Slack, Discord 같은 후속 전달 채널을 하나의 명시적인 dispatch boundary로 묶는 단계로 이어집니다.
 
-`@fluojs/notifications` 패키지는 fluo를 위한 채널에 독립적인 오케스트레이션 계층을 제공합니다. 이 패키지는 알림 채널에 대한 공유 계약을 고정하고, 모듈 기반 API를 제공하며, 선택적인 큐 기반 전송 및 수명 주기 이벤트 게시 심(seam)을 노출합니다.
+## Learning Objectives
+- notification orchestration이 채널별 SDK 호출을 직접 흩뿌리는 방식보다 왜 안전한지 이해합니다.
+- `NotificationChannel` 계약과 `NotificationsService`의 역할을 구분해 설명합니다.
+- `NotificationsModule.forRoot()`로 채널과 dispatch 구성을 등록하는 방법을 익힙니다.
+- queue-backed delivery가 대량 전송을 request path 밖으로 분리하는 이유를 분석합니다.
+- lifecycle event 발행이 알림 관측성과 실패 추적에 어떻게 기여하는지 정리합니다.
+- FluoShop order success flow에서 notification dispatch가 어떤 후속 책임을 맡는지 설명합니다.
 
-이 장을 마칠 때쯤이면, 이메일, Slack, Discord 전반에 걸쳐 확장 가능한 FluoShop을 위한 통합 알림 시스템을 구축하는 방법을 이해하게 될 것입니다.
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7, Chapter 8, Chapter 9, Chapter 10, Chapter 11, Chapter 12, Chapter 13, Chapter 14 완료.
+- event-driven 후속 처리와 channel-based delivery 개념에 대한 기초 이해.
+- queue와 observability를 활용한 비동기 전송 운영 감각.
 
 ## 15.1 The Orchestration Pattern
 
@@ -193,10 +202,3 @@ async onOrderPlaced(event: OrderPlacedEvent) {
 오케스트레이션 계층은 fluo 메시징 전략의 중추입니다. 발송 로직을 중앙 집중화함으로써 관측 가능성, 탄력성, 그리고 깔끔한 관심사 분리를 얻을 수 있습니다.
 
 다음 장에서는 가장 일반적인 알림 채널인 **이메일(Email)**을 구현해 보겠습니다.
-
-<!-- Padding for line count compliance -->
-<!-- Line 197 -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->

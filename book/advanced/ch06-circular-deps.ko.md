@@ -1,7 +1,22 @@
 <!-- packages: @fluojs/di, @fluojs/core, @fluojs/runtime -->
 <!-- project-state: T15 Part 2 source-analysis draft for circular dependency detection and escape hatches -->
 
-# 6. Circular Dependency Detection and Escape Hatches
+# Chapter 6. Circular Dependency Detection and Escape Hatches
+
+이 장은 Fluo 컨테이너가 순환 의존성을 어떻게 탐지하고, 어떤 경우에 `forwardRef()`가 도움이 되며, 어떤 경우에는 구조를 다시 나눠야 하는지를 다룹니다. Chapter 5에서 scope와 캐시 정책을 정리했다면, 이제 DI 그래프가 깨지는 지점을 읽고 복구하는 규칙을 배웁니다.
+
+## Learning Objectives
+- active token 집합과 readable chain으로 순환 의존성을 감지하는 방식을 이해합니다.
+- `forwardRef()`가 해결하는 문제와 해결하지 못하는 문제를 구분합니다.
+- alias chain과 scope validation에서도 cycle이 드러나는 이유를 설명합니다.
+- provider cycle과 module import cycle이 서로 다른 실패 단계임을 정리합니다.
+- 실제 코드베이스에서 순환을 끊는 리팩터링 전략을 도출합니다.
+- 다음 고급 DI 주제로 넘어가기 전에 그래프 안정성 점검 기준을 정리합니다.
+
+## Prerequisites
+- Chapter 4와 Chapter 5 완료.
+- Fluo resolve 파이프라인, alias 처리, scope 검증 흐름에 대한 이해.
+- 생성자 주입 기반 DI 그래프에서 순환 참조가 왜 문제가 되는지에 대한 기본 감각.
 
 ## 6.1 The container detects cycles with an active-token set plus a readable chain
 Fluo의 circular dependency 로직은 의도적으로 단순하고 노골적입니다. constructor proxy, partially initialized instance, reflection trick에 의존하지 않습니다. 대신 재귀 resolution 동안 두 가지 상태를 유지합니다. 순서를 보존하는 `chain` 배열과, 현재 활성 토큰을 추적하는 `activeTokens` 집합입니다.
@@ -159,4 +174,3 @@ if cycle is in module imports:
 마지막으로, 재사용 가능한 라이브러리 모듈을 만드는 사람들에게 조언은 훨씬 더 엄격합니다. `forwardRef()`를 사용하더라도 순환 의존성을 완전히 피하십시오. 소비자가 내부 순환을 이해하고 관리해야 하는 라이브러리는 인지 부하가 높은 라이브러리입니다. "공유 모듈로 추출" 패턴을 따름으로써, 라이브러리 작성자는 자신의 모듈이 구성과 테스트가 쉬운 상태로 유지되도록 보장할 수 있습니다. 이러한 구조적 명료함에 대한 헌신은 Fluo 생태계의 특징이며, 이는 순환 의존성 감지기에 의해 강제되는 규율에서 시작됩니다.
 
 궁극적으로 Fluo의 DI 시스템은 여러분의 아키텍처 멘토가 되도록 설계되었습니다. 프록시나 부분 초기화 뒤에 설계 결함을 숨기기를 거부함으로써, 여러분이 더 모듈화되고 결합도가 낮으며 테스트 가능한 코드베이스를 향하도록 끊임없이 자극합니다. 이러한 규율을 받아들이는 것은 시스템이 "거대한 진흙덩어리(big ball of mud)"가 되지 않고 규모를 확장할 수 있는 진정으로 회복력 있는 백엔드 시스템을 구축하는 첫 걸음입니다.
-

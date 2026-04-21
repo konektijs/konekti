@@ -1,11 +1,22 @@
 <!-- packages: @fluojs/platform-bun, @fluojs/runtime, @fluojs/websockets -->
 <!-- project-state: FluoShop v2.4.0 -->
 
-# 22. Porting to Bun
+# Chapter 22. Porting to Bun
 
-[Bun](https://bun.sh/)은 성능과 개발자 경험에 초점을 맞춘 현대적인 JavaScript 런타임입니다. 자체 번들러, 테스트 러너, 패키지 매니저를 포함하고 있으며, 매우 빠릅니다. fluo 사용자에게 Bun으로의 이식은 단지 속도뿐만 아니라, 배포를 단순화하는 통합 툴체인을 활용하는 것을 의미합니다.
+이 장은 FluoShop을 Bun 런타임으로 옮기며 높은 처리량과 통합 툴체인을 활용하는 방법을 설명합니다. Chapter 21이 Node.js 계열 어댑터 선택을 다뤘다면, 이 장은 같은 애플리케이션을 Bun 위에서 더 가볍게 실행하는 흐름으로 넘어갑니다.
 
-이 장에서는 fluo 아키텍처를 통해 최소한의 노력으로 FluoShop 애플리케이션을 Bun으로 옮기고, `Bun.serve()` 및 고성능 WebSockets와 같은 Bun의 네이티브 기능을 활용하는 방법을 살펴봅니다.
+## Learning Objectives
+- Bun이 fluo 애플리케이션 이식성에 주는 장점을 이해합니다.
+- `@fluojs/platform-bun`으로 부트스트랩 구성을 전환하는 방법을 배웁니다.
+- Bun의 네이티브 WebSocket 처리와 fluo 게이트웨이 연결 방식을 살펴봅니다.
+- `createBunFetchHandler`로 기존 Bun 서버에 fluo를 통합하는 방법을 익힙니다.
+- Node.js에서 Bun으로 이동할 때 확인해야 할 호환성 항목을 정리합니다.
+- FluoShop을 Bun으로 실행할 때 기대할 수 있는 성능상 이점을 분석합니다.
+
+## Prerequisites
+- Chapter 21 완료.
+- Bun 설치와 기본 실행 명령 사용 경험.
+- WebSocket 게이트웨이와 런타임별 진입점 차이에 대한 기본 이해.
 
 ## 22.1 Why Bun for fluo?
 

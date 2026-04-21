@@ -3,16 +3,18 @@
 
 # Chapter 6. Request Data and DTO Validation
 
+Chapter 5가 라우트와 컨트롤러의 뼈대를 세웠다면, 이 장은 그 경계로 들어오는 데이터를 더 안전하게 다룹니다. 이 장은 FluoBlog 요청 입력에 DTO와 검증 규칙을 붙여 전송 계층과 서비스 로직 사이의 계약을 분명하게 만듭니다.
+
 ## Learning Objectives
 - DTO가 느슨한 요청 객체보다 왜 더 나은지 이해합니다.
 - FluoBlog 게시글 생성 입력을 설명하는 검증 데코레이터를 사용합니다.
 - `@RequestDto()`가 HTTP 바인딩과 DTO materialization을 어떻게 연결하는지 배웁니다.
 - 업데이트 작업에 optional 및 partial DTO 패턴을 적용합니다.
 - fluo가 암시적 스칼라 강제 변환을 피하는 이유를 이해합니다.
-- 전송 데이터와 서비스 로직 사이에 더 깔끔한 경계를 만듭니다.
+- 전송 데이터와 서비스 로직 사이의 더 깔끔한 경계를 정리합니다.
 
 ## Prerequisites
-- 5장을 완료했습니다.
+- Chapter 5 완료.
 - `PostsController` 라우트 예제에 대한 기본 이해가 있습니다.
 - TypeScript 클래스와 프로퍼티에 익숙합니다.
 - 짧은 검증 예제를 읽는 데 불편함이 없습니다.

@@ -1,13 +1,22 @@
 <!-- packages: @fluojs/drizzle, drizzle-orm, @fluojs/core -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 20. Drizzle ORM
+# Chapter 20. Drizzle ORM
 
-무거운 ORM들이 고수준의 추상화를 제공하지만, 일부 프로젝트에서는 관계형 모델에 더 가까운 가볍고 SQL과 유사한 경험을 필요로 합니다. **Drizzle ORM**은 바로 이러한 요구를 충족시키는 현대적인 TypeScript 우선 ORM입니다. Drizzle은 대규모 런타임 오버헤드 없이 SQL을 얇게 래핑하여 완전한 타입 안전성을 제공합니다.
+이 장은 FluoShop에서 관계형 데이터와 SQL 중심 워크로드를 다루기 위한 Drizzle 통합 방식을 설명합니다. Chapter 19가 문서 모델 기반 영속성을 다뤘다면, 이 장은 타입 안전한 SQL 계층과 트랜잭션 경계를 fluo 패턴에 맞춰 정리합니다.
 
-`@fluojs/drizzle` 패키지는 Drizzle을 fluo 생태계에 통합합니다. 이 패키지는 트랜잭션을 인지하는 데이터베이스 서비스, 드라이버 리소스(예: 커넥션 풀)를 위한 수명 주기 관리, 그리고 다른 fluo 영속성 모듈과 유사한 패턴의 요청 스코프 트랜잭션 인터셉터를 제공합니다.
+## Learning Objectives
+- fluo에서 Drizzle ORM을 사용할 때의 장점과 적용 위치를 이해합니다.
+- `DrizzleModule`을 구성하고 드라이버 리소스 수명 주기를 관리하는 방법을 배웁니다.
+- `DrizzleDatabase`와 `current()` seam을 활용한 리포지토리 흐름을 익힙니다.
+- 수동 트랜잭션과 요청 스코프 트랜잭션 인터셉터를 비교합니다.
+- FluoShop 주문 관리용 관계형 스키마를 설계하는 접근을 살펴봅니다.
+- 상태 스냅샷으로 SQL 연결 상태를 점검하는 운영 기준을 정리합니다.
 
-이 장에서는 스키마 정의, 리포지토리 패턴, 트랜잭션 관리에 초점을 맞춰 Drizzle ORM을 활용한 FluoShop의 SQL 영속성 계층을 구현해 보겠습니다.
+## Prerequisites
+- Chapter 18과 Chapter 19 완료.
+- SQL 기반 스키마 설계와 관계형 데이터 모델 기본 이해.
+- 트랜잭션 경계와 커넥션 풀 관리에 대한 기본 감각.
 
 ## 20.1 Why Drizzle in fluo?
 

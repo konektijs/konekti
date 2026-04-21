@@ -1,7 +1,22 @@
 <!-- packages: @fluojs/runtime, @fluojs/http, @fluojs/core, @fluojs/di -->
 <!-- project-state: T16 Part 3 source-analysis draft for application context shells, adapter contracts, and runtime lifecycle coordination -->
 
-# 9. Application Context and Platform Adapter Contracts
+# Chapter 9. Application Context and Platform Adapter Contracts
+
+이 장은 Fluo가 하나의 부트스트랩 spine 위에서 application context, full application, microservice shell을 어떻게 조립하는지 설명합니다. Chapter 8이 모듈 그래프와 초기화 순서를 확정했다면, 이 장은 그 결과물이 어떤 런타임 셸 계약으로 노출되는지 이어서 보여 줍니다.
+
+## Learning Objectives
+- `ApplicationContext`, `Application`, `MicroserviceApplication`이 공유하는 공통 부트스트랩 기반을 이해합니다.
+- adapterless context와 full application의 차이를 런타임 토큰 관점에서 설명합니다.
+- readiness, listen, shutdown contract가 어느 계층에서 책임지는지 분석합니다.
+- cleanup과 재시도 가능한 close 동작이 런타임 무결성에 왜 중요한지 정리합니다.
+- platform shell과 HTTP adapter가 서로 다른 호스트 가정을 어떻게 분리하는지 살펴봅니다.
+- 고급 툴링이나 워커 프로세스에서 application context를 언제 선택할지 판단합니다.
+
+## Prerequisites
+- Chapter 8 완료.
+- Fluo 라이프사이클 훅과 런타임 토큰 기본 이해.
+- HTTP 어댑터와 DI 컨테이너 역할에 대한 기초 지식.
 
 ## 9.1 Fluo builds three runtime shells from one bootstrap spine
 Fluo runtime internals를 오해하는 가장 쉬운 방법은 `Application`, `ApplicationContext`, `MicroserviceApplication`이 서로 전혀 다른 bootstrap path에서 나온다고 생각하는 것입니다. 실제 구현은 그렇지 않습니다.

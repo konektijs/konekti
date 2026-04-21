@@ -1,9 +1,22 @@
 <!-- packages: @fluojs/event-bus, @fluojs/redis -->
 <!-- project-state: FluoShop v1.8.0 -->
 
-# 9. Event Bus and Domain Events
+# Chapter 9. Event Bus and Domain Events
 
-Part 2는 Part 1이 끝난 지점에서 바로 이어집니다. FluoShop은 이미 여러 transport를 통해 메시지를 이동시키는 법을 알고 있습니다. 하지만 중요한 비즈니스 사실이 발생한 뒤, 애플리케이션 경계 안에서 깔끔하게 반응하는 방식은 아직 더 필요합니다. 그 역할을 이벤트 버스가 맡습니다. 이 장은 transport choice에서 domain reaction 설계로 관심을 옮깁니다. 이제 핵심은 어떤 broker가 바이트를 운반하느냐가 아닙니다. 하나의 로컬 비즈니스 액션이 여러 후속 동작을 유발하더라도 서비스를 서로 단단히 묶지 않는 방법이 핵심입니다.
+이 장은 Part 1의 transport 선택 위에 domain reaction 모델을 세우기 위해 FluoShop에 이벤트 버스를 도입합니다. Chapter 8이 서비스 간 계약을 정리했다면, 이제는 하나의 비즈니스 사실이 여러 후속 동작으로 퍼질 때도 write 경계를 단단하게 유지하는 방법으로 초점을 옮깁니다.
+
+## Learning Objectives
+- 이벤트 버스가 transport 다양성 이후에 왜 필요한지 이해합니다.
+- domain event와 command의 역할 차이를 구분해 설명합니다.
+- write boundary에서 event를 발행하고 side effect를 분리하는 흐름을 설계합니다.
+- 하나의 business fact에 여러 handler가 독립적으로 반응하는 구조를 분석합니다.
+- in-process delivery와 Redis fan-out 사이의 선택 기준을 정리합니다.
+- FluoShop에서 stable event key와 idempotent handler 규칙이 왜 중요한지 설명합니다.
+
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7, Chapter 8 완료.
+- 비즈니스 이벤트와 비동기 후속 처리에 대한 기초 이해.
+- module boundary와 distributed fan-out 개념에 대한 기본 감각.
 
 ## 9.1 Why the event bus matters after Part 1
 

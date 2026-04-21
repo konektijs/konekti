@@ -1,19 +1,22 @@
 <!-- packages: @fluojs/websockets -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 13. WebSocket Gateways
+# Chapter 13. WebSocket Gateways
 
-API request와 event는 과거에 일어난 일을 설명합니다.
+이 장은 FluoShop에 실시간 연결 계층을 추가해 polling 없이 상태 변화를 즉시 전달하는 gateway 모델을 설명합니다. Chapter 12가 시간 기반 coordination을 다뤘다면, 이제는 domain event와 주문 흐름을 client connection에 직접 연결해 real-time surface를 만드는 단계로 넘어갑니다.
 
-WebSocket은 지금 이 순간 일어나고 있는 일을 설명합니다.
+## Learning Objectives
+- WebSocket gateway가 request-response 흐름과 다른 실시간 계약을 가진다는 점을 이해합니다.
+- `WebSocketModule.forRoot()`로 gateway 기반 실시간 계층을 등록하는 방법을 익힙니다.
+- `@OnConnect`, `@OnMessage`, `@OnDisconnect` lifecycle이 어떤 책임을 갖는지 설명합니다.
+- upgrade guard와 bounded default가 production 안정성에 왜 중요한지 분석합니다.
+- domain event를 gateway 메시지로 변환해 client에게 push하는 흐름을 정리합니다.
+- heartbeat, shared path, server-backed mode가 각각 어떤 운영 문제를 해결하는지 설명합니다.
 
-FluoShop이 v2.2.0으로 나아가면서, 플랫폼은 client가 polling하게 만들지 않고도 backend의 상태 변화와 frontend의 사용자 경험 사이의 간극을 메워야 합니다.
-
-`@fluojs/websockets` 패키지는 우리가 지금까지 만든 HTTP controller나 event handler와 동일하게 느껴지는 decorator-driven 방식으로 WebSocket gateway를 작성할 수 있게 해줍니다.
-
-이 패키지는 다양한 JavaScript runtime에 걸쳐 handshake, message routing, disconnection cleanup의 복잡함을 처리합니다.
-
-이 장에서는 주문이 fulfillment pipeline을 따라 이동할 때 고객에게 실시간으로 정보를 제공하는 order status gateway를 구축하는 방법을 다룹니다.
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7, Chapter 8, Chapter 9, Chapter 10, Chapter 11, Chapter 12 완료.
+- event-driven flow와 persistent connection 개념에 대한 기초 이해.
+- 인증된 client 연결과 실시간 리소스 관리에 대한 기본 감각.
 
 ## 13.1 The shift to real-time
 

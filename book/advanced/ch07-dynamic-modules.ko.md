@@ -1,7 +1,22 @@
 <!-- packages: @fluojs/core, @fluojs/runtime, @fluojs/di, @fluojs/prisma, @fluojs/email, @fluojs/redis, @fluojs/config, @fluojs/queue, @fluojs/socket.io, @fluojs/passport -->
 <!-- project-state: T15 Part 2 source-analysis enrichment for dynamic module authoring, async factories, and runtime composition -->
 
-# 7. Dynamic Modules and Factory Providers
+# Chapter 7. Dynamic Modules and Factory Providers
+
+이 장은 Fluo의 동적 모듈이 별도의 특수 객체가 아니라, 코드가 만들어 내는 일반적인 모듈 타입이라는 사실을 설명합니다. Chapter 6이 순환 의존성과 DI 제약을 정리했다면, 이 장은 그 위에서 구성 가능한 모듈 등록과 팩토리 기반 프로바이더 설계로 넘어갑니다.
+
+## Learning Objectives
+- Fluo의 동적 모듈이 클래스 기반 메타데이터 조합으로 동작하는 이유를 이해합니다.
+- `forRoot()`와 `forRootAsync()` 헬퍼가 옵션 정규화와 프로바이더 조립을 어떻게 수행하는지 분석합니다.
+- 비동기 옵션 팩토리에서 메모이제이션이 필요한 이유를 설명합니다.
+- 전역 export, named registration, alias provider가 공개 API 표면을 어떻게 형성하는지 살펴봅니다.
+- 동적 모듈 작성 시 옵션 토큰, 공개 토큰, 내부 토큰을 어떻게 분리할지 정리합니다.
+- Fluo 저장소의 실제 모듈 구현에서 재사용되는 authoring checklist를 적용합니다.
+
+## Prerequisites
+- Chapter 4부터 Chapter 6까지 완료.
+- Fluo의 모듈 메타데이터와 DI 토큰 기본 구조 이해.
+- 팩토리 프로바이더와 비동기 설정 패턴에 대한 기초 지식.
 
 ## 7.1 In Fluo, a dynamic module is just a module type produced by code
 Fluo의 dynamic module 이야기는 의도적으로 담백합니다. `@fluojs/core` 안에 숨겨진 특별한 "dynamic module object" 프로토콜은 없습니다. 대신 dynamic module은 단지 코드로 메타데이터가 생성된 module class일 뿐입니다.
@@ -255,4 +270,3 @@ describe('PrismaModule', () => {
 마지막으로, 동적 모듈은 특화된 텔레메트리(telemetry) 프로바이더를 등록함으로써 관찰 가능성(observability) 측면에서도 핵심적인 역할을 할 수 있습니다. 이러한 프로바이더들은 고유한 모듈 이름이나 식별자를 사용하도록 구성될 수 있으며, 이를 통해 개별 모듈 인스턴스 수준에서 지표와 로그를 세밀하게 추적할 수 있습니다. 이는 복잡한 시스템의 어떤 구체적인 부분에서 문제가 발생하고 있는지 찾아내는 것을 훨씬 쉽게 만들어 주며, 프로덕션 장애의 평균 복구 시간(MTTR)을 단축시킵니다.
 
 요약하자면, Fluo에서 동적 모듈을 작성한다는 것은 프레임워크의 핵심 프리미티브를 숨기려 하기보다 이를 포용하는 것을 의미합니다. 모듈을 일등 시민이자 제조된 결과물로 취급함으로써, 전통적인 데코레이터 기반 접근 방식으로는 불가능한 수준의 유연성과 투명성을 얻을 수 있습니다. 더 많은 규율이 필요하지만, 그 보상은 시스템이 복잡해짐에 따라 근본적으로 이해하고 테스트하고 유지보수하기 쉬워진다는 점입니다.
-

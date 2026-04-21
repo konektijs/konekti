@@ -1,11 +1,22 @@
 <!-- packages: @fluojs/core, @fluojs/runtime, @fluojs/microservices -->
 <!-- project-state: FluoShop v3.0.0 -->
 
-# 25. FluoShop Completed — Service Mesh Strategy
+# Chapter 25. FluoShop Completed — Service Mesh Strategy
 
-FluoShop 여정의 마지막 장에 오신 것을 환영합니다. 우리는 단순한 모놀리스에서 시작하여 분산된 멀티 런타임 아키텍처로 진화했습니다. 메시지 브로커, 이벤트 기반 패턴, 실시간 통신, 그리고 크로스 플랫폼 이식성을 탐구했습니다. 이제 이 모든 것을 하나로 묶고, **서비스 메시(Service Mesh)** 전략을 사용하여 대규모 환경에서 이 복잡성을 관리하는 방법을 논의할 시간입니다.
+이 장은 Intermediate 볼륨 전체에서 확장해 온 FluoShop 아키텍처를 마무리하며 서비스 메시 전략까지 한 번에 정리합니다. Chapter 24가 엣지 배포까지 이식성을 밀어붙였다면, 이 장은 여러 런타임과 서비스를 함께 운영하는 최종 그림을 회고하고 다음 단계로 연결합니다.
 
-이 장에서는 FluoShop의 최종 아키텍처를 검토하고, fluo의 설계가 Istio나 Linkerd와 같은 현대적인 서비스 메시 기술과 어떻게 원활하게 통합되는지 살펴봅니다.
+## Learning Objectives
+- FluoShop의 최종 멀티 런타임 아키텍처를 서비스별로 설명합니다.
+- 분산 시스템이 커질수록 왜 서비스 메시가 필요한지 이해합니다.
+- fluo의 전송 계층과 서비스 메시가 서로 다른 책임을 나누는 방식을 정리합니다.
+- OpenTelemetry 기반 관측 가능성을 최종 운영 구조와 연결해 살펴봅니다.
+- Intermediate 볼륨 전반에서 배운 이식성, 계약, 명시성 원칙을 회고합니다.
+- FluoShop을 실제 운영 환경으로 확장할 때 점검할 후속 과제를 확인합니다.
+
+## Prerequisites
+- Chapter 21, Chapter 22, Chapter 23, Chapter 24 완료.
+- Intermediate 볼륨 전반의 마이크로서비스, 이벤트, 실시간 통신 흐름 복습.
+- 서비스 디스커버리, 트레이싱, 운영 자동화 같은 분산 시스템 기본 개념 이해.
 
 ## 25.1 The Final FluoShop Architecture
 

@@ -58,8 +58,6 @@ Building microservices is not a silver bullet. It introduces new challenges: net
 
 Fluo is built for this transition. Turn the page to Chapter 1, and let's begin breaking down the monolith.
 
----
-
 ## Glossary of Terms
 
 - **Transport**: The underlying protocol (TCP, Kafka) used for communication.

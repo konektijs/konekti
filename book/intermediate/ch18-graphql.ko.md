@@ -1,13 +1,22 @@
 <!-- packages: @fluojs/graphql, @fluojs/core, @fluojs/http -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 18. GraphQL API
+# Chapter 18. GraphQL API
 
-애플리케이션이 성장함에 따라 클라이언트 측의 데이터 요구사항은 더욱 복잡해집니다. RESTful API는 표준 리소스를 다루는 데 탁월하지만, GraphQL은 클라이언트가 필요한 데이터만 정확하게 요청할 수 있도록 유연하고 타입 안전한 대안을 제공합니다.
+이 장은 FluoShop에 REST 외의 유연한 질의 계층을 추가하는 방법을 설명합니다. Chapter 17까지 알림과 실시간 흐름을 확장했다면, 이 장은 제품 카탈로그를 중심으로 GraphQL API와 실행 가드레일을 구축합니다.
 
-`@fluojs/graphql` 패키지는 fluo를 위한 최상급 데코레이터 기반 통합 기능을 제공합니다. **GraphQL Yoga**를 기반으로 구축된 이 패키지는 프레임워크의 네이티브 DI 시스템과 표준 데코레이터를 활용하여 고성능 실행 파이프라인을 제공합니다.
+## Learning Objectives
+- fluo에서 GraphQL을 도입할 때 얻는 구조적 이점을 이해합니다.
+- `GraphqlModule`을 설정하고 코드 우선 리졸버를 등록하는 방법을 배웁니다.
+- 요청 스코프 DataLoader로 N+1 문제를 줄이는 흐름을 익힙니다.
+- SSE 기본 구독과 선택적 WebSocket 구독 구성을 살펴봅니다.
+- 복잡도 제한과 인트로스펙션 제어 같은 운영 가드레일을 적용합니다.
+- FluoShop 제품 카탈로그에 GraphQL을 연결하는 방식을 정리합니다.
 
-이 장에서는 FluoShop을 위한 GraphQL API를 구현하며, 코드 우선(code-first) 리졸버, 요청 스코프(request-scoped) DataLoader, 그리고 운영 보안에 대해 살펴보겠습니다.
+## Prerequisites
+- Chapter 13, Chapter 14, Chapter 15, Chapter 16, Chapter 17 완료.
+- Resolver, 스키마, 구독 같은 GraphQL 핵심 용어 이해.
+- API 보안과 성능 제한을 함께 설계해야 한다는 운영 감각.
 
 ## 18.1 Why GraphQL in fluo?
 
@@ -183,18 +192,3 @@ export class CatalogResolver {
 Fluo에서의 GraphQL은 단순한 추가 기능이 아니라 생태계의 깊이 통합된 일부입니다. 표준 데코레이터와 네이티브 DI 컨테이너를 활용함으로써 클라이언트에게는 유연하고 개발자에게는 유지보수가 용이한 API를 구축할 수 있습니다.
 
 다음 장에서는 이러한 API를 구동하는 데이터를 **MongoDB와 Mongoose**를 사용하여 영속화하는 방법을 살펴보겠습니다.
-
-<!-- Padding for line count compliance -->
-<!-- Line 190 -->
-<!-- Line 191 -->
-<!-- Line 192 -->
-<!-- Line 193 -->
-<!-- Line 194 -->
-<!-- Line 195 -->
-<!-- Line 196 -->
-<!-- Line 197 -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->
-<!-- Line 202 -->

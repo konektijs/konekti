@@ -1,11 +1,22 @@
 <!-- packages: @fluojs/platform-cloudflare-workers, @fluojs/runtime, @fluojs/websockets -->
 <!-- project-state: FluoShop v2.6.0 -->
 
-# 24. Cloudflare Workers Edge Deployment
+# Chapter 24. Cloudflare Workers Edge Deployment
 
-[Cloudflare Workers](https://workers.cloudflare.com/)는 "엣지(Edge)"에서 실행되는 서버리스 플랫폼으로, 사용자와 지리적으로 가장 가까운 데이터 센터에서 코드가 실행됨을 의미합니다. 이는 지연 시간을 획기적으로 줄이고 복잡한 인프라 관리 없이 전 세계에 서비스를 제공할 수 있게 해줍니다. 전통적인 서버리스 함수(예: AWS Lambda)와 달리, Workers는 V8 Isolate에서 실행되어 1밀리초 미만의 시작 시간을 제공하고 많은 시나리오에서 "콜드 스타트(Cold Start)"를 제거합니다.
+이 장은 FluoShop을 Cloudflare Workers에 배포하며 엣지 환경의 제약과 장점을 fluo 어댑터로 다루는 방법을 설명합니다. Chapter 23이 Deno에서 표준 우선 런타임 이식을 검증했다면, 이 장은 같은 원칙을 전 세계 엣지 실행 환경으로 확장합니다.
 
-fluo를 Cloudflare Workers에 배포하는 것은 이식성의 궁극적인 테스트입니다. 이 장에서는 FluoShop을 엣지에 맞게 조정하고, Worker 환경의 고유한 제약 조건을 처리하며, 최대 성능을 위해 네이티브 엣지 기능을 활용하는 방법을 살펴봅니다.
+## Learning Objectives
+- Cloudflare Workers가 fluo 애플리케이션에 적합한 이유를 이해합니다.
+- `@fluojs/platform-cloudflare-workers`로 Worker 진입점을 구성하는 방법을 배웁니다.
+- `fetch` 기반 실행 모델과 지연 부트스트랩 패턴을 구분해 설명합니다.
+- 파일 시스템 부재, 실행 시간 제한, 메모리 한계 같은 엣지 제약을 정리합니다.
+- Worker `env`, KV, D1, WebSocketPair 같은 네이티브 기능을 fluo와 연결하는 방법을 살펴봅니다.
+- Wrangler 배포 흐름과 FluoShop의 엣지 운영 체크포인트를 확인합니다.
+
+## Prerequisites
+- Chapter 21, Chapter 22, Chapter 23 완료.
+- Cloudflare Workers와 `fetch` 기반 서버리스 실행 모델 기본 이해.
+- 환경 바인딩과 엣지 배포 설정 파일을 읽을 수 있는 운영 감각.
 
 ## 24.1 Why Cloudflare Workers for fluo?
 

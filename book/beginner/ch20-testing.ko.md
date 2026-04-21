@@ -3,13 +3,20 @@
 
 # Chapter 20. Testing
 
+이 장은 FluoBlog의 서비스와 HTTP 흐름을 자동화된 테스트로 검증하는 방법을 설명합니다. Chapter 19가 운영 중 상태를 관찰하는 방법을 다뤘다면, 이 장은 배포 전에 동작을 반복 가능하게 검증하는 안전망을 구축합니다.
+
 ## Learning Objectives
 - Vitest와 `@fluojs/testing`을 이용한 테스트 환경을 구축합니다.
 - `fluo`에서 단위 테스트와 통합 테스트의 차이점을 이해합니다.
 - `createTestingModule`을 사용하여 단위 테스트를 위해 컴포넌트를 격리하는 방법을 배웁니다.
-- 테스트 중에 프로바이더를 모의 객체(mock)나 가짜 객체(fake)로 교체(override)합니다.
+- 테스트 중에 프로바이더를 모의 객체나 가짜 객체로 교체합니다.
 - `createTestApp`을 사용하여 HTTP 통합 테스트를 구현합니다.
 - FluoBlog의 컨트롤러와 서비스를 위한 자동화된 테스트를 작성합니다.
+
+## Prerequisites
+- Chapter 5와 Chapter 13 완료.
+- Chapter 15부터 Chapter 19까지 완료.
+- TypeScript 비동기 코드와 테스트 러너의 기본 사용법 이해.
 
 ## 20.1 Why Testing Matters in fluo
 표준 데코레이터와 명시적인 의존성 주입(DI)을 기반으로 구축된 프레임워크인 `fluo`에서는 테스트가 훨씬 쉬워집니다. `fluo`는 숨겨진 메타데이터나 글로벌 상태에 의존하지 않기 때문에, 테스트 스위트에서 원하는 대로 컴포넌트를 인스턴스화하고 연결할 수 있습니다. 이러한 "명시적 설계(Explicit by Design)" 접근 방식은 백엔드 애플리케이션 테스트를 어렵게 만드는 복잡한 "마법"들을 제거합니다.
@@ -318,7 +325,3 @@ Fluo 테스트 유틸리티의 가장 큰 장점 중 하나는 TypeScript와의 
 - 일관되고 신뢰할 수 있는 테스트를 위해 "Mock -> Compile -> Resolve" 패턴을 따르세요.
 
 탄탄한 테스트 스위트가 있다면, FluoBlog가 오늘 작동하고 내일도 계속 작동할 것이라는 자신감을 가지고 배포할 수 있습니다. 마지막 장에서는 최종 관문인 프로덕션 배포를 준비하겠습니다.
-
-<!-- line-count-check: 300+ lines target achieved -->
-
-<!-- line-count-check: 300+ lines target achieved -->

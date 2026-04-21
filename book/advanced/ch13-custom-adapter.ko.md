@@ -3,17 +3,20 @@
 
 # Chapter 13. Custom Adapter Implementation — 독자적인 전송 계층 구축
 
-## 이 챕터에서 배우는 것
-- `HttpApplicationAdapter` 인터페이스의 구조와 역할
-- `listen()`과 `close()` 메서드를 통한 서버 생명주기 관리
-- `FrameworkRequest`와 `FrameworkResponse` 인터페이스 준수 방법
-- Fastify 기반 어댑터 구현 사례 분석
-- 서버리스(Serverless) 및 엣지(Edge) 환경을 위한 어댑터 전략
+이 장은 fluo의 HTTP 런타임을 새로운 플랫폼으로 확장할 때 필요한 어댑터 계약과 구현 감각을 설명합니다. Chapter 12가 요청 처리 체인의 내부를 다뤘다면, 이 장은 그 체인을 실제 서버와 연결하는 전송 계층으로 넘어갑니다.
 
-## 사전 요구사항
-- 11~12장의 HTTP 디스패처 및 실행 파이프라인 지식
-- 특정 HTTP 서버 라이브러리(Node.js http, Fastify, Express 등)에 대한 기초 지식
-- Fluo의 인터페이스 기반 다형성에 대한 이해
+## Learning Objectives
+- `HttpApplicationAdapter`가 프레임워크와 런타임 사이에서 맡는 책임을 이해합니다.
+- `listen()`과 `close()`가 서버 생명주기와 어떻게 연결되는지 배웁니다.
+- `FrameworkRequest`와 `FrameworkResponse` 매핑 전략을 익힙니다.
+- Fastify 어댑터 구현에서 fluo가 어떤 경계만 소유하는지 분석합니다.
+- 서버리스와 엣지 환경에서 어댑터를 설계할 때의 차이를 살펴봅니다.
+- 테스트용 No-op 어댑터와 커스텀 런타임 확장 지점을 정리합니다.
+
+## Prerequisites
+- Chapter 11과 Chapter 12 완료.
+- Node.js HTTP 서버 또는 Fastify, Express 같은 서버 라이브러리의 기초 이해.
+- fluo의 인터페이스 기반 런타임 추상화에 대한 기본 이해.
 
 ## 13.1 어댑터(Adapter): 프레임워크와 런타임의 교량
 
@@ -268,4 +271,3 @@ export class TinyNodeAdapter implements HttpApplicationAdapter {
 이것으로 Part 4 HTTP 파이프라인 해부 편을 마칩니다. 다음 파트에서는 데이터 지속성을 담당하는 데이터베이스 레이어와의 통합 전략을 심도 있게 다룹니다. Prisma, Drizzle 등 현대적인 ORM들이 Fluo와 어떻게 만나는지 기대해 주세요.
 
 ---
-<!-- lines: 271 -->

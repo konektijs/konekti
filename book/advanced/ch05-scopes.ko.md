@@ -1,7 +1,22 @@
 <!-- packages: @fluojs/di, @fluojs/core, @fluojs/runtime -->
 <!-- project-state: T15 Part 2 source-analysis draft for singleton, request, and transient scope internals -->
 
-# 5. Scopes: Singleton, Request, and Transient
+# Chapter 5. Scopes: Singleton, Request, and Transient
+
+이 장은 Fluo DI 컨테이너가 singleton, request, transient 세 가지 수명 주기를 어떻게 캐시와 소멸 정책으로 구현하는지 설명합니다. Chapter 4에서 provider resolution의 큰 흐름을 봤다면, 이 장은 그 흐름 안에서 scope가 실제 동작을 어떻게 바꾸는지 좁혀서 분석합니다.
+
+## Learning Objectives
+- Fluo가 세 가지 scope만 유지하는 설계 이유를 이해합니다.
+- singleton이 루트 컨테이너 캐시를 기준선으로 삼는 방식을 설명합니다.
+- request scope가 별도 child container로 모델링되는 구조를 분석합니다.
+- transient provider가 캐시를 건너뛰는 의미와 비용을 정리합니다.
+- override, cache invalidation, stale disposal이 scope 정책과 어떻게 연결되는지 살펴봅니다.
+- shutdown 시점의 disposal order와 소유권 모델을 추적합니다.
+
+## Prerequisites
+- Chapter 4 완료.
+- Fluo 컨테이너의 provider normalization과 resolve 파이프라인에 대한 이해.
+- singleton, request, transient 수명 주기의 일반적인 DI 개념 이해.
 
 ## 5.1 The scope vocabulary is small on purpose
 Fluo의 scope 시스템은 의도적으로 작습니다.

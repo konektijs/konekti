@@ -3,7 +3,7 @@
 
 # Chapter 1. Introduction to fluo and Design Philosophy
 
-이 첫 장은 이후 모든 내용을 이해하기 위한 정신 모델을 세워 줍니다. FluoBlog를 스캐폴딩하거나 첫 기능을 추가하기 전에, fluo가 무엇을 더 쉽게 만들려는지, 어떤 프레임워크식 절충을 거부하는지, 그리고 그런 선택이 왜 초보자에게 중요한지를 먼저 분명히 잡고 가야 합니다.
+이 장은 이후 모든 내용을 이해하기 위한 정신 모델을 세워 줍니다. FluoBlog를 스캐폴딩하거나 첫 기능을 추가하기 전에, fluo가 무엇을 더 쉽게 만들려는지, 어떤 프레임워크식 절충을 거부하는지, 그리고 그런 선택이 왜 초보자에게 중요한지를 먼저 분명히 잡고 가야 합니다.
 
 ## Learning Objectives
 - 현대적인 TypeScript 생태계에서 fluo가 해결하려는 핵심 문제를 이해합니다.
@@ -11,7 +11,7 @@
 - fluo의 런타임 중립적 아키텍처를 배웁니다.
 - fluo가 TC39 Stage 3 표준 데코레이터를 채택한 이유를 이해합니다.
 - fluo 생태계의 큰 지도를 파악합니다.
-- 이 책의 중심 예제인 FluoBlog를 소개받습니다.
+- 이 책의 중심 예제인 FluoBlog를 소개합니다.
 
 ## Prerequisites
 - TypeScript에 대한 기초 지식.
@@ -435,90 +435,3 @@ fluo와 함께하는 여정을 시작하면서, 모든 전문가도 처음에는
 
 ## Next Chapter Preview
 다음 장에서는 철학에서 실제 작업으로 넘어갑니다. fluo CLI를 설치하고, FluoBlog의 첫 버전을 스캐폴딩하고, 생성된 파일을 살펴본 뒤, 앱을 로컬에서 실행해 이번 장의 추상적인 아이디어를 실제 디렉터리와 명령어로 연결해 보겠습니다.
-
-### A Small Testing Payoff
-... (Content added for parity)
-
-### What fluo Is Trying to Teach
-... (Content added for parity)
-
-### Inversion of Control (IoC)
-... (Content added for parity)
-
-### The Lifecycle of a Dependency
-... (Content added for parity)
-
-### Debugging with Explicit DI
-... (Content added for parity)
-
-## 1.3 Runtime Neutrality: One Codebase, Any Platform
-... (Content added for parity)
-
-### Runtime Boundary vs Business Logic
-... (Content added for parity)
-
-### What Changes per Platform?
-... (Content added for parity)
-
-### What Stays the Same?
-... (Content added for parity)
-
-### A Beginner-Friendly Example
-... (Content added for parity)
-
-### Why This Helps Teams
-... (Content added for parity)
-
-## 1.4 TC39 Standard Decorators: Moving Beyond experimentalDecorators
-... (Content added for parity)
-
-### Legacy Decorators vs Standard Decorators
-... (Content added for parity)
-
-### A New Era for Metadata
-... (Content added for parity)
-
-### Why fluo Cares So Much
-... (Content added for parity)
-
-### A Practical Checklist
-... (Content added for parity)
-
-## 1.5 The fluo Ecosystem Map
-... (Content added for parity)
-
-### Package Categories at a Glance
-... (Content added for parity)
-
-### Picking Only What You Need
-... (Content added for parity)
-
-### How This Helps Learning
-... (Content added for parity)
-
-## 1.6 Meet FluoBlog
-... (Content added for parity)
-
-### Why a Blog?
-... (Content added for parity)
-
-### What We Build First
-... (Content added for parity)
-
-### What We Delay Until Later
-... (Content added for parity)
-
-### The Project-State Comment
-... (Content added for parity)
-
-### Building for the Long Term
-... (Content added for parity)
-
-### A Mindset for Success
-... (Content added for parity)
-
-## Summary
-... (Content added for parity)
-
-## Next Chapter Preview
-... (Content added for parity)

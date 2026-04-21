@@ -1,7 +1,22 @@
 <!-- packages: @fluojs/runtime, @fluojs/http, @fluojs/core, @fluojs/di -->
 <!-- project-state: T16 Part 3 source-analysis draft for runtime branching across root, Node, and Web-standard execution surfaces -->
 
-# 10. Runtime Branching: Node vs Web vs Edge
+# Chapter 10. Runtime Branching: Node vs Web vs Edge
+
+이 장은 Fluo가 호스트마다 런타임 전체를 복제하지 않고, 패키지 표면과 어댑터 seam에서만 분기하는 방식을 설명합니다. Chapter 9가 런타임 셸 계약을 정리했다면, 이 장은 그 셸이 Node, Web, Edge 환경에서 어떻게 같은 중심부를 공유하는지 보여 줍니다.
+
+## Learning Objectives
+- root runtime surface가 왜 transport-neutral하게 유지되는지 설명합니다.
+- Node 전용 기능이 `./node` 서브패스로 분리되는 이유를 이해합니다.
+- Web 표준 `Request`와 `Response` seam이 Edge 호스트까지 포괄하는 구조를 분석합니다.
+- request/response factory가 호스트별 차이를 좁은 브리지로 제한하는 방식을 정리합니다.
+- export map과 서브패스 설계가 이식성 계약을 어떻게 강제하는지 살펴봅니다.
+- 애플리케이션 코드에서 portability cost를 드러내는 import hygiene 원칙을 설명합니다.
+
+## Prerequisites
+- Chapter 8과 Chapter 9 완료.
+- HTTP 어댑터와 플랫폼 셸 역할에 대한 이해.
+- Node 서버와 Web 표준 Request/Response 모델의 기본 차이 이해.
 
 ## 10.1 Fluo branches by package surface and adapter seams more than by giant runtime conditionals
 Chapter 10에 오면 가장 먼저 봐야 할 사실은, Fluo의 runtime portability가 하나의 거대한 `if (isNode) ... else if (isEdge) ...` 블록으로 구현되지 않는다는 점입니다. branch point는 훨씬 더 좁고, 훨씬 더 아키텍처적입니다.
@@ -152,7 +167,6 @@ host-specific factory
 따라서 10장의 마지막 교훈은 import hygiene보다 더 넓습니다. Fluo의 runtime branching이 성립하는 이유는, framework가 대부분의 bootstrap을 host-agnostic하게 만든 뒤, 아주 늦은 시점의 좁은 transport seam에서만 분기하기 때문입니다. Node는 server lifecycle helper를 받고, Web/Edge host는 Request/Response normalization helper를 받습니다. 하지만 그 seam 위에서는 module graph, container, lifecycle hook, platform shell, dispatcher model이 동일합니다.
 
 이것이 내부 portability contract입니다. "호스트당 하나의 런타임"이 아니라, "가장자리에 명시적인 호스트 어댑터가 있는 하나의 공유 런타임 셸"입니다.
-
 
 
 

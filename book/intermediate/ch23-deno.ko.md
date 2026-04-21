@@ -1,11 +1,22 @@
 <!-- packages: @fluojs/platform-deno, @fluojs/runtime, @fluojs/http -->
 <!-- project-state: FluoShop v2.5.0 -->
 
-# 23. Porting to Deno
+# Chapter 23. Porting to Deno
 
-[Deno](https://deno.com/)은 단순함, 보안, 그리고 표준에 초점을 맞춘 JavaScript 및 TypeScript용 보안 런타임입니다. Node.js와 달리 Deno는 기본적으로 보안이 강화되어 있으며, 명령줄 플래그를 통해 명시적으로 허용하지 않는 한 파일, 네트워크 또는 환경 변수에 접근할 수 없습니다. 또한 외부 컴파일러나 설정 파일 없이 TypeScript를 네이티브로 지원합니다.
+이 장은 FluoShop을 Deno 런타임으로 옮기며 보안 권한 모델과 웹 표준 중심 실행 환경을 다루는 방법을 설명합니다. Chapter 22가 Bun의 고성능 런타임 이식을 보여줬다면, 이 장은 표준 우선 철학을 더 엄격한 보안 모델 위에서 검증합니다.
 
-fluo 애플리케이션의 경우, Deno는 fluo의 "표준 우선(Standard-First)" 철학에 부합하는 견고한 환경을 제공합니다. 이 장에서는 FluoShop을 Deno로 이식하고, Deno 특유의 보안 모델과 네이티브 웹 표준을 처리하는 방법을 살펴봅니다.
+## Learning Objectives
+- Deno가 fluo 아키텍처와 잘 맞는 이유를 이해합니다.
+- `@fluojs/platform-deno`와 `runDenoApplication`으로 애플리케이션을 실행하는 방법을 배웁니다.
+- Deno의 권한 플래그를 FluoShop 운영 요구와 연결해 해석하는 방법을 익힙니다.
+- 웹 표준 `Request`와 `Response` 기반 디스패치 흐름을 살펴봅니다.
+- Deno 네이티브 WebSocket과 fluo 게이트웨이 통합 방식을 확인합니다.
+- Deno 이식 시 임포트 규칙, 권한, 드라이버 호환성 점검 항목을 정리합니다.
+
+## Prerequisites
+- Chapter 21과 Chapter 22 완료.
+- Deno 설치와 `deno run` 기본 사용 경험.
+- 환경 변수, 파일 접근, 네트워크 권한을 분리해서 관리하는 운영 감각.
 
 ## 23.1 Why Deno for fluo?
 

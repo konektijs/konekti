@@ -1,9 +1,21 @@
 <!-- packages: @fluojs/microservices, nats -->
 <!-- project-state: FluoShop v1.5.0 -->
 
-# 6. NATS
+# Chapter 6. NATS
 
-NATS는 이 파트에서 fully brokered하다고 느껴지면서도 가장 가벼운 transport입니다. 기본적으로 거대한 durability 플랫폼이 되려 하지 않고, 낮은 지연, subject 기반 라우팅, 운영 단순성을 목표로 합니다. 이 때문에 FluoShop 내부의 control-plane 스타일 트래픽에 잘 맞습니다. "처리량과 로그 보존"을 위해 설계된 Kafka와 달리, NATS는 **"속도와 다이얼 톤 같은 신뢰성"**을 위해 설계되었습니다. 분주한 FluoShop 시스템에서 NATS는 빠르고 반응성이 좋으며 휘발성인 신경계 역할을 합니다. v1.5.0이 되면 회사에는 Kafka의 무거운 운영 감각이나 RabbitMQ의 queue-centric 의미론 없이도 빠른 서비스 간 조율이 필요한 흐름이 여럿 생기는데, 재고 예약 힌트, 캐시 무효화, 빠른 내부 정책 조회가 좋은 예시입니다. 이 링크에서는 historical replay보다 속도와 명확한 subject routing이 더 중요하므로 NATS가 잘 맞습니다.
+이 장은 FluoShop의 빠른 내부 조율 경로에 NATS를 도입하고, durable 로그나 작업 큐와 다른 control-plane 메시징의 역할을 설명합니다. Chapter 5가 replay 가능한 shared history를 다뤘다면, 이제는 낮은 지연과 subject 기반 라우팅이 중요한 inventory 및 cache coordination으로 초점을 옮깁니다.
+
+## Learning Objectives
+- NATS가 Kafka나 RabbitMQ와 다른 아키텍처적 위치를 차지하는 이유를 이해합니다.
+- caller-owned client와 codec을 기준으로 NATS 트랜스포트를 구성하는 방법을 익힙니다.
+- subject 설계와 request timeout이 빠른 내부 조율 흐름에 어떤 영향을 주는지 설명합니다.
+- inventory preview와 cache invalidation 시나리오에 NATS를 적용하는 방법을 분석합니다.
+- logger-driven failure 처리와 운영 신호를 기준으로 NATS 사용 경계를 정리합니다.
+
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5 완료.
+- request-reply와 event fan-out 패턴에 대한 기초 이해.
+- 분산 시스템에서 지연 시간과 durability 요구사항을 구분하는 기본 감각.
 
 ## 6.1 Why NATS in FluoShop
 

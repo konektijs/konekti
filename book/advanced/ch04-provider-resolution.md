@@ -267,9 +267,3 @@ An implementation-facing debugging checklist looks like this:
 Provider resolution in Fluo is not just `Map.get()` plus `new`. It is a layered algorithm: normalize author intent, enforce registration invariants, track recursive chains, select the correct cache strategy, and throw recovery-oriented errors when the graph violates container rules.
 
 This is the numerical closeout for the resolution engine analysis. Every decision in the resolver—from normalization to instantiation—is governed by the principle of zero-magic explicitness. The resolver's reliability is further anchored by a suite of internal consistency checks that verify the integrity of the dependency graph at every step of the resolution process. This proactive validation, coupled with the container's efficient caching and lookup strategies, ensures that Fluo can handle the most demanding enterprise workloads with predictable performance and rock-solid stability.
-
----
-*Last modified: Mon Apr 20 2026*
-
----
-*End of Chapter 4*

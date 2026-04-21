@@ -3,16 +3,18 @@
 
 # Chapter 9. Guards and Interceptors
 
+이 장은 FluoBlog 요청 파이프라인에 guard와 interceptor를 배치해 재사용 가능한 보호 규칙과 응답 흐름을 만드는 방법을 설명합니다. Chapter 8이 실패 응답을 명확히 했다면, 이 장은 어떤 요청을 통과시키고 어떻게 감쌀지를 정리합니다.
+
 ## Learning Objectives
 - HTTP 파이프라인에서 guard와 interceptor의 차이를 이해합니다.
 - FluoBlog의 쓰기 라우트를 보호하기 위해 guard를 사용합니다.
 - 재사용 가능한 응답 또는 로깅 동작을 적용하기 위해 interceptor를 사용합니다.
 - guard는 “이 요청을 진행시켜도 되는가?”에 답하고 interceptor는 “이 요청 흐름을 어떻게 감쌀 것인가?”에 답한다는 점을 배웁니다.
-- 개별 컨트롤러 메서드 밖으로 인가 검사와 cross-cutting 동작을 밀어냅니다.
+- 개별 컨트롤러 메서드 밖으로 인가 검사와 cross-cutting 동작을 분리합니다.
 - 다음 장에서 더 명확한 OpenAPI 문서를 만들 수 있도록 API를 준비합니다.
 
 ## Prerequisites
-- 8장을 완료했습니다.
+- Chapter 8 완료.
 - FluoBlog 게시글 라우트와 예외 처리 흐름에 익숙합니다.
 - 공개 엔드포인트와 인증된 엔드포인트의 차이를 기본적으로 이해합니다.
 - 데코레이터 중심 예제를 읽는 데 익숙합니다.

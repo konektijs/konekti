@@ -1,13 +1,21 @@
 <!-- packages: @fluojs/microservices -->
 <!-- project-state: FluoShop v1.0.0 -->
 
-# 1. Microservice Architecture and fluo Strategy
+# Chapter 1. Microservice Architecture and fluo Strategy
 
-마이크로서비스는 크고 복잡한 애플리케이션을 네트워크를 통해 통신하는 작고 독립적인 서비스들로 분해합니다. 마이크로서비스가 주는 확장성과 독립적 배포의 이점은 잘 알려져 있지만, 그 결과로 발생하는 네트워크 복잡성을 관리하는 비용은 종종 과소평가되곤 합니다.
+이 장은 intermediate 볼륨 전체의 기준선이 되는 FluoShop 아키텍처와 fluo의 마이크로서비스 전략을 설명합니다. Beginner 볼륨에서 익힌 단일 애플리케이션 감각을 바탕으로, 이제는 서비스 경계와 트랜스포트 선택이 왜 중요한지로 시야를 넓힙니다.
 
-fluo는 비즈니스 로직을 한 번 작성하면 다양한 트랜스포트 프로토콜에 걸쳐 배포할 수 있는 통일된 프로그래밍 모델을 제공합니다. 이 장에서는 fluo 마이크로서비스 전략의 핵심 철학을 소개하고, 이 책 전반에 걸쳐 구축할 **FluoShop** 프로젝트의 기반을 마련합니다. FluoShop은 장을 거듭하며 진화하는 이커머스 백엔드 프로젝트입니다.
+## Learning Objectives
+- FluoShop을 구성하는 핵심 서비스 경계와 역할을 이해합니다.
+- fluo가 트랜스포트 독립적인 마이크로서비스 모델을 어떻게 제공하는지 배웁니다.
+- `@MessagePattern`과 `@EventPattern`이 요청과 이벤트 흐름을 어떻게 나누는지 살펴봅니다.
+- `MicroservicesModule`이 분산 애플리케이션의 기본 배선을 어떻게 구성하는지 확인합니다.
+- 마이크로서비스가 주는 이점과 분산 시스템 비용을 함께 분석합니다.
 
-이 첫 장의 목표는 마이크로서비스를 장밋빛으로 포장하는 것이 아닙니다. 마이크로서비스가 어디에서 도움이 되고 어디에서 비용이 발생하는지 정의하고, fluo가 모듈형 모놀리스에서 네트워크 서비스로 이동할 때 발생하는 "분산 시스템 세금(distributed systems tax)"을 어떻게 낮추는지 설명하는 것이 목표입니다. 이 장을 마칠 때쯤이면 여러분은 FluoShop의 토폴로지를 이해하고, 왜 트랜스포트 독립성이 장기적인 진화를 위한 전략적 요구 사항인지 이해하게 될 것입니다.
+## Prerequisites
+- Beginner 볼륨 완료 또는 이에 준하는 fluo 기초 경험.
+- TypeScript와 의존성 주입, 모듈 구조에 대한 기본 이해.
+- 서비스 간 동기 요청과 비동기 이벤트의 차이에 대한 기초 개념.
 
 ## 1.1 The FluoShop Topology
 

@@ -1,9 +1,22 @@
 <!-- packages: @fluojs/cron, @fluojs/redis -->
 <!-- project-state: FluoShop v2.1.0 -->
 
-# 12. Scheduling and Distributed Locks
+# Chapter 12. Scheduling and Distributed Locks
 
-Queue는 어떤 일이 발생했기 때문에 시작되는 작업을 처리합니다. Scheduler는 시간이 흘렀기 때문에 시작되어야 하는 작업을 처리합니다. FluoShop은 둘 다 필요합니다. `@fluojs/cron` 패키지는 decorator-based scheduling에 lifecycle management와 optional Redis-backed distributed locking을 결합해 제공합니다. 이 조합은 production에서 중요합니다. scheduled task를 작성하는 일은 쉽습니다. 하지만 여러 인스턴스, shutdown, failure 상황에서도 올바르게 동작하는 scheduled task는 훨씬 더 진지한 설계 문제입니다. 이 장이 다루는 경계가 바로 그것입니다.
+이 장은 FluoShop에 시간 기반 작업을 도입해 queue와는 다른 scheduling boundary를 어떻게 설계하는지 설명합니다. Chapter 11이 발생한 일을 background job으로 넘겼다면, 이제는 정해진 시각과 주기에 맞춰 distributed lock까지 포함한 운영 안전한 작업을 실행하는 단계로 이어집니다.
+
+## Learning Objectives
+- scheduler가 event나 queue와 다른 시작 조건을 가진다는 점을 이해합니다.
+- `CronModule.forRoot()`로 cron, interval, timeout 작업을 등록하는 방법을 익힙니다.
+- multi-instance 환경에서 distributed locking이 왜 필요한지 설명합니다.
+- lock TTL과 named Redis client가 운영 신뢰성에 미치는 영향을 정리합니다.
+- runtime registry를 통해 dynamic scheduling을 다뤄야 하는 상황을 분석합니다.
+- bounded shutdown이 장시간 실행 작업과 배포 안정성을 어떻게 함께 지키는지 설명합니다.
+
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7, Chapter 8, Chapter 9, Chapter 10, Chapter 11 완료.
+- Redis coordination과 time-based job 실행 개념에 대한 기초 이해.
+- multi-instance deployment와 graceful shutdown 운영 감각.
 
 ## 12.1 Why FluoShop needs scheduling
 

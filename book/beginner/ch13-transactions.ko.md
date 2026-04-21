@@ -3,6 +3,8 @@
 
 # Chapter 13. Transactions and Data Access Patterns
 
+이 장은 FluoBlog의 여러 데이터 변경을 하나의 안전한 작업 단위로 묶는 트랜잭션 패턴을 설명합니다. Chapter 12에서 Prisma로 영속성을 얻었다면, 이제는 그 쓰기 작업을 일관되게 유지하는 방법을 배웁니다.
+
 ## Learning Objectives
 - 데이터베이스 작업에서 원자성, 일관성, 격리성, 지속성(ACID)의 중요성을 이해합니다.
 - `fluo`가 `AsyncLocalStorage`(ALS)를 사용하여 트랜잭션 컨텍스트를 관리하는 방법을 배웁니다.
@@ -10,6 +12,11 @@
 - 요청 범위 트랜잭션을 위해 `PrismaTransactionInterceptor`를 사용합니다.
 - 트랜잭션 내부와 외부에서 원활하게 작동하는 트랜잭션 중립적 리포지토리를 설계합니다.
 - 초기 프로필 설정과 함께 사용자 등록과 같은 복잡한 작업을 처리하도록 FluoBlog를 리팩토링합니다.
+
+## Prerequisites
+- Chapter 12 완료.
+- Prisma 스키마, 마이그레이션, `PrismaService`의 기본 사용법을 이해합니다.
+- 하나의 요청에서 여러 데이터베이스 작업이 함께 실행되는 상황을 떠올릴 수 있습니다.
 
 ## 13.1 The Need for Atomic Operations
 이전 장에서 우리는 FluoBlog를 데이터베이스에 연결했습니다. 하지만 많은 비즈니스 작업은 단순히 하나의 "저장"으로 끝나지 않습니다. 새 사용자가 가입하는 시나리오를 생각해 보십시오.
@@ -271,5 +278,3 @@ In addition to metrics, structured logging is essential. Every transaction shoul
 As your team grows, maintaining consistent transaction patterns becomes a human challenge. Document your transaction rules clearly and use linting or architectural tests to ensure that every new repository follows the `.current()` pattern. By enforcing these rules at the tooling level, you prevent technical debt from creeping in and ensure that your codebase remains as clean and reliable as the day it was created.
 
 The journey through data patterns is not just about writing code; it's about adopting a mindset of precision and accountability. Every byte you write to the database is a commitment to your users. By using Fluo's transaction tools, you are making that commitment with confidence.
-
-<!-- line-count-check: 260+ lines target achieved -->

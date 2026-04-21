@@ -162,6 +162,3 @@ Maintainers are encouraged to use **git worktrees** for isolated issue work. Thi
 ## Final Words
 
 The strength of fluo lies in its community and its unwavering commitment to standards. By contributing to the framework, you are helping build a future where TypeScript backends are explicit, standard-compliant, and platform-agnostic. We value every contribution, from a simple typo fix to a major architectural enhancement or a new runtime integration.
-
----
-<!-- lines: 333 -->

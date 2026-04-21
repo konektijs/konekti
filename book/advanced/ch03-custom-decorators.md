@@ -246,7 +246,3 @@ By mastering custom decorators, you are effectively building your own domain-spe
 In the next chapter, we'll see how fluo's DI container uses these principles to resolve complex provider graphs. You've now seen how to build custom decorators that leverage fluo's standard-first metadata system. We've explored the implementation of `@CurrentUser()` and `@Roles()`, and we've discussed the advanced patterns of guard and interceptor integration. Now, let's take a look at how fluo's DI container uses these principles in Chapter 4, where we will bridge the gap between static metadata and dynamic dependency resolution.
 
 This custom decorator pattern is more than just syntactic sugar; it acts as a powerful tool to lower the coupling between the framework and domain logic. Developers can hide the complexity of the underlying implementation behind the decorator and expose only a declarative interface, allowing them to build a much more intuitive and robust API.
-
----
-*End of Chapter 3*
-

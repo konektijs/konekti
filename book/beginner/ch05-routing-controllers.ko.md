@@ -3,16 +3,18 @@
 
 # Chapter 5. Routing and Controllers
 
+Chapter 4가 데코레이터의 언어 모델을 설명했다면, 이 장은 그 모델을 실제 HTTP 엔드포인트로 연결합니다. 이 장은 FluoBlog의 첫 `PostsController`를 만들며 라우트 선언, 입력 바인딩, 기능 모듈 연결이 어떻게 하나의 API 표면으로 모이는지 보여 줍니다.
+
 ## Learning Objectives
 - `@Controller()`와 HTTP 메서드 데코레이터가 API 표면을 어떻게 정의하는지 이해합니다.
-- FluoBlog를 위한 첫 번째 실제 `PostsController`를 만듭니다.
+- FluoBlog를 위한 첫 번째 실제 `PostsController`를 구현합니다.
 - 경로 파라미터, 쿼리 파라미터, 요청 본문이 컨트롤러 메서드로 들어오는 방식을 배웁니다.
 - 서비스로 작업을 위임해 컨트롤러를 얇게 유지합니다.
 - Fastify 기반 애플리케이션에 posts 기능을 연결합니다.
 - 더 많은 기능을 추가하기 전에 라우트를 검토하는 초보자 습관을 익힙니다.
 
 ## Prerequisites
-- 1장부터 4장까지 완료했습니다.
+- Chapter 1부터 Chapter 4까지 완료.
 - `AppModule`이 있는 FluoBlog 프로젝트를 생성했습니다.
 - 모듈, 프로바이더, 데코레이터에 대한 기본 이해가 있습니다.
 - 작은 TypeScript 컨트롤러 예제를 읽는 데 익숙합니다.

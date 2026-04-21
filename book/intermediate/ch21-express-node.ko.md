@@ -1,11 +1,22 @@
 <!-- packages: @fluojs/platform-express, @fluojs/platform-nodejs, @fluojs/runtime -->
 <!-- project-state: FluoShop v2.3.0 -->
 
-# 21. Express and Node.js Adapters
+# Chapter 21. Express and Node.js Adapters
 
-fluo는 플랫폼에 구애받지 않도록 설계되었지만, 대부분의 애플리케이션은 Node.js 환경에서 여정을 시작합니다. Express의 방대한 생태계가 필요하든, 가공되지 않은 Node.js HTTP의 가벼운 성능이 필요하든, fluo는 프레임워크의 선언적 데코레이터와 하부 엔진 사이의 간극을 메워주는 전용 어댑터를 제공합니다.
+이 장은 FluoShop을 Node.js 계열 런타임으로 옮기면서 Express와 raw Node.js 어댑터를 선택하는 기준을 설명합니다. Chapter 20이 데이터 계층 선택을 마무리했다면, 이 장은 그 애플리케이션을 어떤 HTTP 엔진 위에 올릴지 정리합니다.
 
-이 장에서는 기본 Fastify 어댑터를 Express나 raw Node.js로 교체하는 방법과, 비즈니스 로직에 구현 세부 사항을 노출하지 않고 플랫폼 전용 기능을 활용하는 방법을 살펴봅니다.
+## Learning Objectives
+- fluo에서 Express 어댑터와 raw Node.js 어댑터가 맡는 역할을 이해합니다.
+- `@fluojs/platform-express`와 `@fluojs/platform-nodejs`로 부트스트랩 구성을 바꾸는 방법을 배웁니다.
+- 어댑터 교체 뒤에도 비즈니스 로직을 그대로 유지하는 이식성 원칙을 확인합니다.
+- 플랫폼 네이티브 요청과 응답 객체에 접근해야 하는 상황을 살펴봅니다.
+- Express 미들웨어와 Node.js 스트림을 fluo 흐름에 맞게 연결하는 방법을 익힙니다.
+- FluoShop을 Express 기반 실행 환경으로 옮길 때 점검할 항목을 정리합니다.
+
+## Prerequisites
+- Chapter 18, Chapter 19, Chapter 20 완료.
+- Node.js HTTP 서버와 Express 미들웨어 기본 이해.
+- 애플리케이션 진입점과 런타임 어댑터 설정을 읽을 수 있는 TypeScript 감각.
 
 ## 21.1 The Express Adapter
 

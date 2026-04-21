@@ -3,16 +3,18 @@
 
 # Chapter 7. Response Serialization
 
+Chapter 6이 입력 경계를 검증했다면, 이 장은 애플리케이션 밖으로 나가는 응답 형태를 정리합니다. 이 장은 FluoBlog의 내부 레코드와 공개 응답 DTO를 분리해 어떤 데이터가 외부 API에 노출되어야 하는지 더 의도적으로 다루게 합니다.
+
 ## Learning Objectives
 - 응답 DTO가 요청 DTO와 왜 다른지 이해합니다.
-- `@Expose()`, `@Exclude()`, `@Transform()`으로 HTTP 출력 형태를 다듬습니다.
-- FluoBlog API에서 내부 필드가 새어 나가지 않도록 막습니다.
+- `@Expose()`, `@Exclude()`, `@Transform()`으로 HTTP 출력 형태를 정리합니다.
+- FluoBlog API에서 내부 필드가 새어 나가지 않도록 확인합니다.
 - `SerializerInterceptor`가 응답 shaping을 자동으로 적용하는 방식을 배웁니다.
 - 내부 엔티티와 전송용 모델의 차이를 인식합니다.
 - 더 나은 예외 처리와 API 문서화를 위한 기반을 준비합니다.
 
 ## Prerequisites
-- 6장을 완료했습니다.
+- Chapter 6 완료.
 - FluoBlog의 create 및 update DTO에 익숙합니다.
 - 클래스 기반 데코레이터에 대한 기본적인 이해가 있습니다.
 - API의 응답 측면을 입력과 분리해서 생각해 볼 준비가 되어 있습니다.

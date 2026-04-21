@@ -1,9 +1,22 @@
 <!-- packages: @fluojs/queue, @fluojs/redis -->
 <!-- project-state: FluoShop v2.0.0 -->
 
-# 11. Background Jobs and Queues
+# Chapter 11. Background Jobs and Queues
 
-CQRS와 saga는 FluoShop을 더 명시적으로 만들었습니다. 하지만 모든 단계를 빠르게 만들지는 못했습니다. 어떤 작업은 본질적으로 customer-facing request path 안에서 처리하면 안 됩니다. 바로 여기서 queue가 등장합니다. `@fluojs/queue` 패키지는 FluoShop에 retries, backoff, dead-letter handling을 갖춘 distributed background job processing을 제공합니다. 이 장은 느리거나 실패 가능성이 높은 작업을 더 명확한 운영 경계 뒤로 옮기는 이야기입니다. 그 경계는 성능만을 위한 것이 아닙니다. 제어를 위한 것이기도 합니다. Queued work는 retry할 수 있고, rate-limit할 수 있으며, 반복 실패 시 inspect할 수 있습니다. 이것은 같은 로직을 API request 안에 묻어 두는 것과 매우 다릅니다.
+이 장은 FluoShop의 event-driven 흐름 위에 queue boundary를 세워 느리고 실패 가능성이 높은 작업을 request path 밖으로 분리하는 방법을 설명합니다. Chapter 10이 long-running workflow를 orchestration했다면, 이제는 그 후속 작업을 retry, backoff, dead-letter policy와 함께 더 운영 가능하게 처리하는 단계로 넘어갑니다.
+
+## Learning Objectives
+- queue가 request path 밖으로 느린 작업을 분리해야 하는 이유를 이해합니다.
+- `QueueModule.forRoot()`와 Redis 연결을 함께 구성하는 방법을 익힙니다.
+- job payload와 worker 구현이 서로 다른 책임을 가진다는 점을 설명합니다.
+- retry와 backoff 정책을 workload 특성에 맞게 고르는 기준을 정리합니다.
+- dead-letter handling이 반복 실패 job을 운영적으로 추적하는 방식을 분석합니다.
+- event handler, saga, queue 중 어떤 boundary를 선택해야 하는지 비교해 설명합니다.
+
+## Prerequisites
+- Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7, Chapter 8, Chapter 9, Chapter 10 완료.
+- Redis 기반 transport와 background processing 개념에 대한 기초 이해.
+- retry 가능한 비동기 작업과 운영 실패 대응에 대한 기본 감각.
 
 ## 11.1 Why FluoShop needs queues
 

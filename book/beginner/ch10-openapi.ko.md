@@ -3,6 +3,8 @@
 
 # Chapter 10. OpenAPI Automation
 
+이 장은 FluoBlog에 자동 API 문서를 연결해 구현과 문서가 함께 움직이도록 만드는 방법을 설명합니다. Chapter 9까지 쌓아 온 라우트, DTO, 예외, 보호 규칙을 이제 기계가 읽는 계약으로 정리합니다.
+
 ## Learning Objectives
 - 생성된 API 문서가 왜 코드와 가까이 있어야 하는지 이해합니다.
 - FluoBlog에 `OpenApiModule`을 등록하고 생성된 문서를 노출합니다.
@@ -12,7 +14,7 @@
 - 문서화된 HTTP API 기반과 함께 Part 1을 마무리합니다.
 
 ## Prerequisites
-- 5장부터 9장까지 완료했습니다.
+- Chapter 5와 Chapter 9 완료.
 - FluoBlog 라우트, DTO, 예외, guard에 익숙합니다.
 - Swagger UI 또는 기계가 읽을 수 있는 API 스펙에 대한 기본적인 이해가 있습니다.
 - 모듈 설정 예제를 읽는 데 익숙합니다.

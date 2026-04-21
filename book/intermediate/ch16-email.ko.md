@@ -1,13 +1,22 @@
 <!-- packages: @fluojs/email, @fluojs/notifications, @fluojs/queue -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 16. Email Systems
+# Chapter 16. Email Systems
 
-이메일은 디지털 통신의 베테랑입니다. 인스턴트 메시징의 부상에도 불구하고, 이메일은 여전히 트랜잭션 영수증, 공식 성명, 그리고 지속적인 사용자 알림을 위한 주요 채널로 남아 있습니다.
+이 장은 FluoShop의 알림 흐름에 안정적인 이메일 채널을 붙이는 방법을 설명합니다. Chapter 15가 채널 오케스트레이션을 다뤘다면, 이 장은 그 위에 트랜잭션 메일 전송과 운영 준비 상태를 얹습니다.
 
-`@fluojs/email` 패키지는 fluo를 위한 트랜스포트 독립적인 이메일 전송 핵심 기능을 제공합니다. 이 패키지는 메시지 스키마를 실제 전송 메커니즘(SMTP, API, 워커 등)과 분리함으로써 프레임워크의 명시적 경계 철학을 따릅니다.
+## Learning Objectives
+- `@fluojs/email` 패키지의 핵심 구성 요소와 역할을 이해합니다.
+- EmailModule을 등록하고 전송 트랜스포트를 구성하는 방법을 배웁니다.
+- Node 전용 SMTP 서브패스를 사용할 때의 경계와 장점을 익힙니다.
+- `EmailService`로 독립적인 이메일 발송 흐름을 구현합니다.
+- 알림 오케스트레이션에 이메일 채널을 연결하는 방법을 살펴봅니다.
+- 대량 발송, 템플릿 렌더링, 상태 점검을 운영 관점에서 정리합니다.
 
-이 장에서는 독립적인 사용과 알림 오케스트레이션 계층과의 통합에 초점을 맞춰 FluoShop을 위한 이메일 전송을 구현해 보겠습니다.
+## Prerequisites
+- Chapter 15 완료.
+- 비동기 작업 처리와 큐 기반 백그라운드 실행 흐름 이해.
+- 이메일 트랜스포트와 외부 서비스 연동에 대한 기본 감각.
 
 ## 16.1 The Architecture of @fluojs/email
 
@@ -194,9 +203,3 @@ async sendOrderConfirmation(order: Order) {
 fluo 이메일 시스템은 트랜잭션 메시징을 위한 강력한 기반을 제공합니다. 서비스에서 트랜스포트를 엄격하게 분리함으로써, 테스트 가능하고 이식성이 뛰어나며 대량 생산 환경에 준비된 시스템을 구축했습니다.
 
 다음 장에서는 알림 시스템을 확장하여 **Slack과 Discord**를 통한 실시간 채팅을 포함해 보겠습니다.
-
-<!-- Padding for line count compliance -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->

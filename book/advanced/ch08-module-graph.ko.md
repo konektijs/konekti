@@ -1,7 +1,22 @@
 <!-- packages: @fluojs/runtime, @fluojs/core, @fluojs/di, @fluojs/http -->
 <!-- project-state: T16 Part 3 source-analysis draft for runtime module-graph compilation, validation, and initialization ordering -->
 
-# 8. Module Graph Compilation and Initialization Order
+# Chapter 8. Module Graph Compilation and Initialization Order
+
+이 장은 Fluo 런타임이 실제 인스턴스를 만들기 전에 모듈 그래프를 먼저 컴파일하고 검증하는 이유를 설명합니다. Chapter 7이 동적 모듈의 생산 방식을 다뤘다면, 이 장은 그렇게 만들어진 모듈들이 어떤 순서와 규칙으로 부트스트랩되는지 연결합니다.
+
+## Learning Objectives
+- `compileModuleGraph()`가 모듈 위상을 확정하는 과정을 설명합니다.
+- 깊이 우선 순회와 순환 import 거부가 초기화 순서를 어떻게 결정하는지 이해합니다.
+- exported token과 accessible token 검증이 런타임 규칙으로 바뀌는 지점을 분석합니다.
+- 중복 프로바이더 정책이 컨테이너 등록 단계에서 어떻게 적용되는지 정리합니다.
+- 라이프사이클 훅 실행 순서가 모듈 그래프 순서와 어떻게 이어지는지 살펴봅니다.
+- 부트스트랩 실패 지점을 그래프 컴파일, 등록, 초기화 계층으로 구분해 해석합니다.
+
+## Prerequisites
+- Chapter 7 완료.
+- Fluo 모듈, provider, export 관계에 대한 이해.
+- 깊이 우선 탐색과 위상 정렬의 기본 개념.
 
 ## 8.1 The bootstrap pipeline starts by freezing module topology before constructing anything
 Part 3는 Part 2가 멈춘 지점에서 다시 시작합니다. DI container가 provider를 해석하려면, 그보다 먼저 runtime이 어떤 module이 존재하는지, 어떤 순서로 visible해지는지, 그리고 어떤 token이 module 경계를 넘어도 되는지를 결정해야 합니다.

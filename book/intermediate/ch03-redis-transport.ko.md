@@ -1,15 +1,21 @@
 <!-- packages: @fluojs/microservices, @fluojs/redis -->
 <!-- project-state: FluoShop v1.2.0 -->
 
-# 3. Redis Transport
+# Chapter 3. Redis Transport
 
-Redis는 다양한 통신 패턴을 지원하는 다재다능한 브로커입니다.
+이 장은 FluoShop에 첫 브로커를 도입하며 Redis Pub/Sub와 Redis Streams가 서로 다른 전달 의미를 어떻게 제공하는지 설명합니다. Chapter 2의 직접 TCP 연결에서 한 걸음 더 나아가, 이제는 복원력과 디커플링이 필요한 흐름을 어떻게 옮길지 판단하는 기준을 세웁니다.
 
-fluo에서 Redis 트랜스포트는 두 가지 뚜렷한 모드를 제공합니다. 가볍고 비지속적인 이벤트 브로드캐스트를 위한 **Pub/Sub**, 그리고 지속성 있는 at-least-once 메시지 및 이벤트 전달을 위한 **Streams**입니다.
+## Learning Objectives
+- Redis Pub/Sub와 Redis Streams의 역할 차이를 이해합니다.
+- `RedisPubSubMicroserviceTransport`와 `RedisStreamsMicroserviceTransport`의 기본 구성을 익힙니다.
+- 컨슈머 그룹과 지연 확인 응답이 durable delivery에 왜 중요한지 분석합니다.
+- Redis Streams 위에서 요청 응답과 이벤트 흐름을 설계하는 방법을 배웁니다.
+- FluoShop의 주문과 결제 연결에 Redis가 적합한 이유를 설명합니다.
 
-이 장에서는 Redis가 **FluoShop**에서 처음으로 실제 브로커 역할을 맡게 되는 방식과, 그 선택이 아키텍처를 어떻게 바꾸는지 설명합니다.
-
-TCP가 직접적인 요청 경로를 제공했다면, Redis는 중간 계층을 추가합니다. 그 중간 계층에는 분명한 비용이 있어 움직이는 부품이 늘어나고 운영 표면적도 넓어집니다. 하지만 동시에 디커플링, 재생 가능한 워크플로, 그리고 서비스 인스턴스 하나가 잘못된 순간에 내려가도 작업이 사라지지 않는 더 나은 복원력을 제공합니다.
+## Prerequisites
+- Chapter 1과 Chapter 2 완료.
+- 브로커 기반 메시징과 이벤트 기반 통신의 기본 개념 이해.
+- Redis의 기본 자료구조와 연결 방식에 대한 기초 지식.
 
 ## 3.1 Redis Pub/Sub for Events
 

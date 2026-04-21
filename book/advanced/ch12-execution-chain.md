@@ -207,6 +207,3 @@ DTO binding happens as part of this step, so the controller method receives data
 
 ## 12.13 Next Chapter Preview
 In the next chapter, we will connect this complex pipeline to specific platforms such as Fastify and Bun by implementing custom adapters. That is where the `HttpApplicationAdapter` contract becomes practical.
-
----
-<!-- lines: 255 -->
