@@ -264,16 +264,6 @@ In this chapter, we transitioned from "magic" environment variables to a structu
 
 By mastering configuration, you've made FluoBlog robust enough for real-world deployments. In the next chapter, we will use these skills to connect FluoBlog to a real database using Prisma.
 
-## 11.7 Summary
-In this chapter, we transitioned from "magic" environment variables to a structured and validated configuration system.
-
-- **Explicit is better than implicit**: Don't use `process.env` directly.
-- **ConfigService** provides a unified, injectable interface for all settings.
-- **Validation** at startup prevents unstable application states.
-- **Precedence** allows flexible overrides across different environments.
-
-By mastering configuration, you've made FluoBlog robust enough for real-world deployments. In the next chapter, we will use these skills to connect FluoBlog to a real database using Prisma.
-
 <!-- line-count-check: 200+ lines target achieved -->
 
 ## 11.8 Detailed Configuration Scenarios

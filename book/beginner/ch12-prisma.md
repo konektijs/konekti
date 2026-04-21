@@ -209,6 +209,8 @@ export class PostsRepository {
 }
 ```
 
+### current() Pattern
+
 Notice the call to `this.prisma.current()`. This is a critical pattern in Fluo because it lets the repository stay focused on queries instead of context management.
 
 `current()` returns the active database client. If you are inside a transaction, which we will cover in the next chapter, it returns the transaction-aware client. If not, it returns the standard client.
@@ -228,7 +230,7 @@ Database operations are inherently unreliable—the network can fail, or the dat
 ### Performance Monitoring and Logging
 To maintain a high-performance backend, you need visibility into your database queries. Prisma allows you to log queries and their execution times, which is invaluable for identifying slow-running operations. By integrating this logging into fluo's global logger, you can see your database activity alongside your HTTP request logs, providing a complete picture of your application's performance. You can even set up alerts for queries that exceed a certain time threshold, allowing you to catch and fix performance regressions before they affect your users.
 
-### Summary
+## 12.7 Summary
 In this chapter, we brought FluoBlog to life by adding a persistent database layer instead of relying on memory alone.
 
 We learned that:
@@ -240,31 +242,9 @@ We learned that:
 
 With a database in place, FluoBlog can now store and retrieve posts reliably. We moved in a clear sequence from configuration, to schema design, to migrations, to runtime integration, and that gives us a solid base for the next problem. Real-world data operations often involve multiple steps that must succeed or fail together, so in the next chapter we will learn how to handle those scenarios using Transactions.
 
-This pattern is especially useful when you start implementing advanced features like row-level security or request-scoped multi-tenancy. By relying on the `current()` client provided by fluo's DI system, you can be sure that your code is both safe and performant.
-
-### Error Handling in Database Operations
-When working with databases, things can go wrong—unique constraint violations, connection timeouts, or foreign key errors. Prisma provides specialized error classes that you can catch in your repository or service layer. fluo encourages you to catch these errors early and transform them into meaningful HTTP exceptions (like `ConflictException` for unique constraints) to provide clear feedback to your API consumers.
-
-By centralizing your error handling within your repositories, you keep your service layer clean and focused on high-level orchestration. For example, if a `PostsRepository` catches a unique constraint error, it can re-throw it as a more specific domain error that the service layer understands. This layered approach to error management is key to building complex systems that are both robust and maintainable.
-
-### Handling Timeouts and Retry Logic
-Database operations are inherently unreliable—the network can fail, or the database server might be temporarily overloaded. In these cases, simply failing is not enough. You should implement sensible timeout and retry strategies. Prisma allows you to specify timeouts for each query, and you can combine this with fluo's interceptors to implement automatic retries for transient failures. This proactive approach to error handling turns a brittle application into a truly resilient one.
-
-### Performance Monitoring and Logging
-To maintain a high-performance backend, you need visibility into your database queries. Prisma allows you to log queries and their execution times, which is invaluable for identifying slow-running operations. By integrating this logging into fluo's global logger, you can see your database activity alongside your HTTP request logs, providing a complete picture of your application's performance. You can even set up alerts for queries that exceed a certain time threshold, allowing you to catch and fix performance regressions before they affect your users.
-
-### Summary
-In this chapter, we brought FluoBlog to life by adding a persistent database layer.
-- **Prisma** provides a type-safe and declarative way to manage your data structure.
-- **Migrations** ensure your database stays in sync with your code.
-- **PrismaModule** integrates the database connection into the Fluo lifecycle.
-- **PrismaService.current()** is the key to flexible, transaction-aware data access.
-
-By mastering database integration, you have taken a massive step toward building production-ready backends with fluo. With a database in place, FluoBlog can now store and retrieve posts reliably. However, real-world data operations often involve multiple steps that must succeed or fail together. In the next chapter, we will learn how to handle these scenarios using **Transactions**.
-
 <!-- line-count-check: 200+ lines target achieved -->
 
-## 12.7 Deep Dive: Prisma and Modular Architecture
+## 12.8 Deep Dive: Prisma and Modular Architecture
 
 ### The Benefits of a Centralized Repository Layer
 As your Fluo application grows, you might find that multiple services need to access the same database models. Instead of duplicating database logic in every service, we recommend building a dedicated repository layer. This layer acts as an abstraction between your database and your business logic, making your code easier to maintain and test.
