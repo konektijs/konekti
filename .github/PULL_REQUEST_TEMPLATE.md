@@ -12,7 +12,7 @@
 
 ## Public export documentation
 
-See [docs/operations/public-export-tsdoc-baseline.md](docs/operations/public-export-tsdoc-baseline.md) for the repo-wide authoring baseline.
+See [docs/contracts/public-export-tsdoc-baseline.md](docs/contracts/public-export-tsdoc-baseline.md) for the repo-wide authoring baseline.
 
 - [ ] Changed public exports include a source-level summary.
 - [ ] Changed exported functions document matching `@param` / `@returns` tags where applicable.
@@ -20,7 +20,7 @@ See [docs/operations/public-export-tsdoc-baseline.md](docs/operations/public-exp
 
 ## Behavioral contract
 
-See [docs/operations/behavioral-contract-policy.md](docs/operations/behavioral-contract-policy.md) for full details.
+See [docs/contracts/behavioral-contract-policy.md](docs/contracts/behavioral-contract-policy.md) for full details.
 
 - [ ] No documented behavioral contracts were removed without migration notes.
 - [ ] New behavioral contracts are documented in the affected package README.
@@ -29,7 +29,7 @@ See [docs/operations/behavioral-contract-policy.md](docs/operations/behavioral-c
 
 ## Platform consistency governance (SSOT)
 
-See [docs/concepts/platform-consistency-design.md](docs/concepts/platform-consistency-design.md) and [docs/operations/release-governance.md](docs/operations/release-governance.md).
+See [docs/architecture/platform-consistency-design.md](docs/architecture/platform-consistency-design.md) and [docs/contracts/release-governance.md](docs/contracts/release-governance.md).
 
 - [ ] SSOT English/Korean mirror structure remains synchronized for changed governance docs.
 - [ ] If platform contract docs changed, companion updates include discoverability/docs index, tooling or CI enforcement, and regression-test evidence.

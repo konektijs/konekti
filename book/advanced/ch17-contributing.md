@@ -108,7 +108,7 @@ While small fixes and documentation updates can be PRed directly, significant ar
 
 ### Behavioral Contract Policy
 
-All contributors must adhere to the `docs/operations/behavioral-contract-policy.md`. This policy is the "Constitution" of fluo. It ensures that fluo remains the "Standard-First" framework by forbidding the use of non-standard TypeScript features that deviate from the JavaScript language path. This commitment to standards is what makes fluo future-proof.
+All contributors must adhere to the `docs/contracts/behavioral-contract-policy.md`. This policy is the "Constitution" of fluo. It ensures that fluo remains the "Standard-First" framework by forbidding the use of non-standard TypeScript features that deviate from the JavaScript language path. This commitment to standards is what makes fluo future-proof.
 
 The policy covers several key areas:
 - **Decorator Standard**: Only TC39 standard decorators (as supported in TypeScript 5.0+) are allowed. Legacy experimental decorators are strictly forbidden.

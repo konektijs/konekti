@@ -2,8 +2,6 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./fluo-new-support-matrix.ko.md"><kbd>한국어</kbd></a></p>
 
-Use this page to distinguish what `fluo new` scaffolds today from the broader runtime and adapter ecosystem that fluo documents elsewhere.
-
 ## current starter coverage vs broader ecosystem support
 
 | surface | status today | what is wired into `fluo new` | where to go next |
@@ -13,11 +11,14 @@ Use this page to distinguish what `fluo new` scaffolds today from the broader ru
 | **Mixed starter** | **Scaffolded now** | Node.js + Fastify HTTP app + attached TCP microservice via `--shape mixed --transport tcp --runtime node --platform fastify` | This is the only published mixed starter variant today. |
 | **Broader adapter/runtime ecosystem** | **Partially scaffolded, partially docs-only** | `@fluojs/platform-fastify`, `@fluojs/platform-express`, `@fluojs/platform-nodejs`, `@fluojs/platform-bun`, `@fluojs/platform-deno`, and `@fluojs/platform-cloudflare-workers` now all have first-class application starter paths. Other runtime/package combinations remain broader ecosystem docs rather than starter presets. | Use the runtime/package docs below to adopt the remaining docs-only adapters after scaffolding or in hand-authored setups. |
 
-## how to read other docs
+## interpretation rules
 
-- Treat `fluo new` docs as a starter contract, not as a promise that every documented adapter already has a starter preset.
-- Treat runtime and package reference docs as the broader ecosystem map for adapters, platforms, and deployment targets you can adopt outside the current starter matrix.
-- When a page mentions Node.js HTTP platforms (Fastify, Express, raw Node.js), Bun, Deno, or Cloudflare Workers, treat the explicit `fluo new --shape application --transport http --runtime ... --platform ...` commands as the runnable starter contract. For microservices, treat the documented `tcp`, `redis-streams`, `nats`, `kafka`, `rabbitmq`, `mqtt`, and `grpc` command variants as the runnable starter contract. Other adapter/package mentions outside those starter rows still describe the broader package ecosystem.
+| rule | meaning |
+| --- | --- |
+| **Starter docs** | Read `fluo new` coverage as the shipped starter contract only. |
+| **Reference docs** | Read runtime and package references as the broader ecosystem map outside the shipped starter presets. |
+| **Application commands** | Treat explicit `fluo new --shape application --transport http --runtime ... --platform ...` commands for Fastify, Express, raw Node.js, Bun, Deno, and Cloudflare Workers as the runnable starter contract. |
+| **Microservice commands** | Treat documented `tcp`, `redis-streams`, `nats`, `kafka`, `rabbitmq`, `mqtt`, and `grpc` variants as the runnable starter contract. Other adapter or package mentions still describe the broader ecosystem. |
 
 ## explicit supported starter values
 

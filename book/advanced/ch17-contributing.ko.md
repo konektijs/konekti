@@ -121,7 +121,7 @@ fluo는 모듈식 생태계 전반에서 높은 안정성을 유지하기 위해
 
 ### Behavioral Contract Policy
 
-모든 기여자는 `docs/operations/behavioral-contract-policy.md`를 준수해야 합니다. 이 정책은 fluo의 "헌법"과 같습니다. 이는 JavaScript 언어 경로에서 벗어나는 비표준 TypeScript 기능의 사용을 금지함으로써 fluo가 "표준 우선" 프레임워크로 남을 수 있도록 보장합니다. 표준에 대한 이러한 약속이 fluo를 미래지향적으로 만듭니다.
+모든 기여자는 `docs/contracts/behavioral-contract-policy.md`를 준수해야 합니다. 이 정책은 fluo의 "헌법"과 같습니다. 이는 JavaScript 언어 경로에서 벗어나는 비표준 TypeScript 기능의 사용을 금지함으로써 fluo가 "표준 우선" 프레임워크로 남을 수 있도록 보장합니다. 표준에 대한 이러한 약속이 fluo를 미래지향적으로 만듭니다.
 
 이 정책은 다음과 같은 몇 가지 핵심 영역을 다룹니다:
 - **데코레이터 표준**: TC39 표준 데코레이터(TypeScript 5.0+에서 지원)만 허용됩니다. 레거시 실험적 데코레이터는 엄격히 금지됩니다.

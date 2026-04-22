@@ -59,6 +59,6 @@ examples/auth-jwt-passport/
 
 - `../README.ko.md` — 공식 examples 인덱스
 - `../../docs/getting-started/first-feature-path.ko.md`
-- `../../docs/concepts/auth-and-jwt.ko.md`
+- `../../docs/architecture/auth-and-jwt.ko.md`
 - `../../packages/jwt/README.ko.md`
 - `../../packages/passport/README.ko.md`

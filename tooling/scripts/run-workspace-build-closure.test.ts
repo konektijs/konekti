@@ -149,4 +149,35 @@ describe('resolveWorkspaceBuildOrder', () => {
     expect(secondStart[1]).toBe(secondEnd[1]);
     expect(firstStart[1]).not.toBe(secondStart[1]);
   });
+
+  it('recovers a stale workspace build lock left behind by a dead process', () => {
+    const root = mkdtempSync(join(tmpdir(), 'fluo-build-closure-stale-lock-'));
+    const packageDirectory = join(root, 'packages', 'app');
+    const fakeManager = join(root, 'fake-pm.sh');
+    const lockDirectory = join(root, '.workspace-build-closure.lock');
+
+    mkdirSync(packageDirectory, { recursive: true });
+    mkdirSync(lockDirectory, { recursive: true });
+
+    writeFileSync(
+      join(root, 'package.json'),
+      JSON.stringify({ private: true, workspaces: ['packages/*'] }, null, 2),
+      'utf8',
+    );
+    writeFileSync(
+      join(packageDirectory, 'package.json'),
+      JSON.stringify({ name: '@test/app', version: '0.0.0', scripts: { build: 'noop' } }, null, 2),
+      'utf8',
+    );
+    writeFileSync(join(lockDirectory, 'owner.json'), JSON.stringify({ pid: 999_999, startedAt: Date.now() - 60_000 }), 'utf8');
+    writeFileSync(fakeManager, '#!/bin/sh\nexit 0\n', 'utf8');
+    chmodSync(fakeManager, 0o755);
+
+    const result = runWorkspaceBuildClosure('@test/app', root, {
+      packageManager: fakeManager,
+      stdio: 'pipe',
+    });
+
+    expect(result.status).toBe(0);
+  });
 });

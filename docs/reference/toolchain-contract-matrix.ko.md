@@ -2,16 +2,14 @@
 
 <p><strong><kbd>한국어</kbd></strong> <a href="./toolchain-contract-matrix.md"><kbd>English</kbd></a></p>
 
-이 매트릭스는 fluo CLI로 생성된 애플리케이션 및 공식 예제를 위한 공개 툴체인 계약을 정의합니다. 버전 고정 및 빌드 구성의 참조로 활용하세요.
-
 ## 생성 앱 기준선
 
 | 항목 | 계약 | 버전 / 비고 |
 | --- | --- | --- |
 | **TypeScript** | `v6.0+` | `strict: true`, `experimentalDecorators: false`, `module: esnext`, 생성 config는 deprecated `baseUrl` aliasing을 피함 |
-| **Babel** | `v7.26+` | `@babel/plugin-proposal-decorators` (`{ version: '2023-11' }`) |
-| **Vite** | `v6.2+` | 개발 번들링 및 빌드 오케스트레이션에 사용. |
-| **Vitest** | `v3.0+` | 유닛 및 E2E 테스트용 표준 테스트 러너. |
+| **Babel** | `v7.26+` | 루트 워크스페이스는 `@babel/core` `^7.26.10`, `@babel/plugin-proposal-decorators` `^7.28.0`, `{ version: '2023-11' }` 구성을 고정합니다. |
+| **Vite** | `v6.2+` | 루트 워크스페이스는 개발 번들링 및 빌드 오케스트레이션용 `vite` `^6.2.1`을 고정합니다. |
+| **Vitest** | `v3.0+` | 루트 워크스페이스는 `vitest` `^3.0.8`을 고정하며, 패키지 로컬 설정은 주로 `^3.2.4`를 사용합니다. |
 | **Node.js** | `v20+` | 루트 워크스페이스와 배포 패키지 매니페스트(manifest)가 선언하는 Node 기반 어댑터의 최소 지원 런타임 기준선. Bun, Deno, Cloudflare Workers 어댑터는 패키지 메타데이터가 비-Node 런타임 계약과 일치하도록 `engines.node`를 의도적으로 생략합니다. |
 
 ## CLI 및 스캐폴딩 계약
@@ -38,14 +36,13 @@
 
 ## 빌드 구성
 
-fluo 생성 애플리케이션은 TC39 표준 데코레이터를 올바르게 처리하기 위해 특수한 빌드 파이프라인을 사용합니다.
+| 단계 | 도구 | 계약 |
+| --- | --- | --- |
+| **변환** | Babel | `@babel/plugin-proposal-decorators`와 `{ version: '2023-11' }` 구성으로 Stage 3 데코레이터 변환을 적용합니다. |
+| **번들링** | Vite | 선택한 런타임 대상에 맞게 생성된 애플리케이션을 번들링합니다. |
+| **검증** | Vitest | 동일한 데코레이터 구성 기준에서 테스트를 실행합니다. |
+| **제약** | 대체 도구 | direct `esbuild` decorator handling 같은 대체 체인은 문서화된 지원 계약 밖에 있습니다. |
 
-1.  **변환**: Babel이 Stage 3 데코레이터 변환을 적용합니다.
-2.  **번들링**: Vite가 대상 런타임에 맞게 애플리케이션을 번들링합니다.
-3.  **검증**: Vitest가 동일한 데코레이터 설정으로 적합성 테스트를 실행합니다.
+## 관련 참조
 
-이 도구를 대체하는 것(예: `esbuild` 직접 사용)은 필수 데코레이터 변환을 우회할 수 있으므로 현재 지원되지 않습니다.
-
----
-
-런타임 지원 세부 사항은 [package-surface.ko.md](./package-surface.ko.md)를 참조하세요.
+- [package-surface.ko.md](./package-surface.ko.md)

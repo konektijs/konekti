@@ -1,157 +1,126 @@
-# quick start
+# Setup Command Reference
 
 <p><strong><kbd>English</kbd></strong> <a href="./quick-start.ko.md"><kbd>한국어</kbd></a></p>
 
-Experience standard decorators and explicit dependency injection in under a minute. No legacy compiler flags, no magic reflection, just clean, verifiable TypeScript.
+## Prerequisites
 
-### target audience
-Developers who want to move beyond legacy decorators and use a modern, high-performance TypeScript framework.
+- Node.js runtime available on the host system.
+- `pnpm` available on the host system.
+- Shell session with permission to install a global package or run `pnpm dlx`.
+- Default generated application path: Node.js runtime, HTTP transport, Fastify platform.
 
-### 1. install the CLI
-The fluo CLI handles project scaffolding and component generation.
+## Installation
 
-```sh
+The fluo CLI is the command entrypoint for project scaffolding and component generation.
+
+Global install:
+
+```bash
 pnpm add -g @fluojs/cli
 ```
 
-### 2. create your project
-Initialize a fresh application. By default, this bootstraps a high-performance Fastify HTTP adapter on Node.js.
+Expected output pattern:
 
-```sh
+```text
+Packages: +1
+dependencies:
++ @fluojs/cli <version>
+Done in <time>
+```
+
+No-install execution path:
+
+```bash
+pnpm dlx @fluojs/cli new my-fluo-app
+```
+
+## Project Creation
+
+Default application starter:
+
+```bash
 fluo new my-fluo-app
 cd my-fluo-app
 ```
 
-While the interactive terminal wizard is the recommended path, you can use explicit flags to select a specific starter.
+Expected output pattern:
 
-| Shape | Transport | Runtime | Platform | Command |
-| :--- | :--- | :--- | :--- | :--- |
-| application | http | node | fastify | `fluo new app --shape application --transport http --runtime node --platform fastify` |
-| application | http | node | express | `fluo new app --shape application --transport http --runtime node --platform express` |
-| application | http | node | nodejs | `fluo new app --shape application --transport http --runtime node --platform nodejs` |
-| application | http | bun | bun | `fluo new app --shape application --transport http --runtime bun --platform bun` |
-| application | http | deno | deno | `fluo new app --shape application --transport http --runtime deno --platform deno` |
-| application | http | cloudflare-workers | cloudflare-workers | `fluo new app --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers` |
-| microservice | tcp | node | none | `fluo new svc --shape microservice --transport tcp --runtime node --platform none` |
-| microservice | redis-streams | node | none | `fluo new svc --shape microservice --transport redis-streams --runtime node --platform none` |
-| microservice | nats | node | none | `fluo new svc --shape microservice --transport nats --runtime node --platform none` |
-| microservice | kafka | node | none | `fluo new svc --shape microservice --transport kafka --runtime node --platform none` |
-| microservice | rabbitmq | node | none | `fluo new svc --shape microservice --transport rabbitmq --runtime node --platform none` |
-| microservice | mqtt | node | none | `fluo new svc --shape microservice --transport mqtt --runtime node --platform none` |
-| microservice | grpc | node | none | `fluo new svc --shape microservice --transport grpc --runtime node --platform none` |
-| mixed | tcp | node | fastify | `fluo new app --shape mixed --transport tcp --runtime node --platform fastify` |
-
-For the full list of available configurations, see the [fluo new support matrix](../reference/fluo-new-support-matrix.md).
-
-### 3. start development
-fluo's starter comes with a pre-configured development environment that handles TypeScript compilation and process restarts automatically.
-
-```sh
-pnpm dev
+```text
+Scaffolding project: my-fluo-app
+Template: application/http/node/fastify
+Installing dependencies: <package-manager-dependent>
+Project ready
 ```
 
-### 4. verify your setup
-Once the server is up on port 3000, check the built-in observability and sample endpoints.
+Representative explicit starters:
 
-- **Health Check**: `curl http://localhost:3000/health`
-  *Expect: {"status":"ok"}*
-- **Greeting**: `curl http://localhost:3000/hello`
-  *Expect: {"message":"Hello, World!"}*
+```bash
+fluo new my-app --shape application --transport http --runtime node --platform fastify
+fluo new my-express-app --shape application --transport http --runtime node --platform express
+fluo new my-node-app --shape application --transport http --runtime node --platform nodejs
+fluo new my-bun-app --shape application --transport http --runtime bun --platform bun
+fluo new my-deno-app --shape application --transport http --runtime deno --platform deno
+fluo new my-worker-app --shape application --transport http --runtime cloudflare-workers --platform cloudflare-workers
+fluo new my-microservice --shape microservice --transport tcp --runtime node --platform none
+fluo new my-redis-streams-service --shape microservice --transport redis-streams --runtime node --platform none
+fluo new my-nats-service --shape microservice --transport nats --runtime node --platform none
+fluo new my-kafka-service --shape microservice --transport kafka --runtime node --platform none
+fluo new my-rabbitmq-service --shape microservice --transport rabbitmq --runtime node --platform none
+fluo new my-mqtt-service --shape microservice --transport mqtt --runtime node --platform none
+fluo new my-grpc-service --shape microservice --transport grpc --runtime node --platform none
+fluo new my-mixed-app --shape mixed --transport tcp --runtime node --platform fastify
+```
 
-### 5. understand your project
-The generated project follows a modular structure designed for clarity and explicit dependencies.
+Generated artifacts for the default application starter:
 
 ```text
 my-fluo-app/
-├── src/
-│   ├── main.ts            # application entry point
-│   ├── app.ts             # root module definition
-│   ├── hello.controller.ts # http route handler
-│   └── hello.service.ts    # business logic provider
-├── tsconfig.json          # standards-first configuration
-└── package.json
+├── package.json
+├── pnpm-lock.yaml
+├── tsconfig.json
+└── src/
+    ├── app.ts
+    ├── hello.controller.ts
+    ├── hello.service.ts
+    └── main.ts
 ```
 
-#### main.ts: entry point
-The entry point initializes the runtime with a chosen platform adapter and the root module.
+Authoritative starter matrix: [fluo new support matrix](../reference/fluo-new-support-matrix.md).
 
-```ts
-import { createFastifyAdapter } from '@fluojs/platform-fastify';
-import { FluoFactory } from '@fluojs/runtime';
-import { AppModule } from './app';
+In an interactive terminal, the `fluo new` wizard resolves the same maintained starter matrix before writing files.
 
-const app = await FluoFactory.create(AppModule, {
-  adapter: createFastifyAdapter({ port: 3000 }),
-});
-await app.listen();
+## Development Server
+
+Generated project start command from the project root:
+
+```bash
+pnpm dev
 ```
 
-#### app.ts: the root module
-The `@Module` decorator defines application boundaries. It aggregates controllers for routing and providers for logic.
+Expected output pattern:
 
-```ts
-import { Module } from '@fluojs/core';
-import { createHealthModule } from '@fluojs/runtime';
-import { HelloController } from './hello.controller';
-import { HelloService } from './hello.service';
-
-const RuntimeHealthModule = createHealthModule();
-
-@Module({
-  imports: [RuntimeHealthModule],
-  controllers: [HelloController],
-  providers: [HelloService],
-})
-export class AppModule {}
+```text
+Server listening on http://localhost:3000
 ```
 
-#### hello.controller.ts: handling requests
-Controllers use `@Controller` and `@Get` decorators to map incoming requests to methods. Dependency injection is explicit through the `@Inject` decorator.
+Default verification endpoints:
 
-```ts
-import { Inject } from '@fluojs/core';
-import { Controller, Get } from '@fluojs/http';
-import { HelloService } from './hello.service';
-
-@Inject(HelloService)
-@Controller('/hello')
-export class HelloController {
-  constructor(private readonly helloService: HelloService) {}
-
-  @Get('/')
-  greet(): { message: string } {
-    return this.helloService.greet('World');
-  }
-}
+```bash
+curl http://localhost:3000/health
+curl http://localhost:3000/hello
 ```
 
-#### hello.service.ts: business logic
-Services are plain classes that handle the heavy lifting. They are registered as providers in a module so they can be injected where needed.
+Expected output:
 
-```ts
-export class HelloService {
-  greet(name: string): { message: string } {
-    return { message: `Hello, ${name}!` };
-  }
-}
+```text
+{"status":"ok"}
+{"message":"Hello, World!"}
 ```
 
-### why this matters
-Open `tsconfig.json` in your new project. You'll notice that fluo works with standard TypeScript defaults.
+## Invariants
 
-```json
-{
-  "compilerOptions": {
-    "experimentalDecorators": false,
-    "emitDecoratorMetadata": false
-  }
-}
-```
-
-By using TC39 standard decorators, you get full IDE support and type safety without relying on experimental legacy flags.
-
-### next steps
-- **Build something real**: Follow the [First Feature Path](./first-feature-path.md) to add your logic.
-- **Master the CLI**: Learn how to generate feature slices with the [Generator Workflow](./generator-workflow.md).
-- **Go beyond Node.js**: Check out [Bootstrap Paths](./bootstrap-paths.md) for Bun, Deno, and Edge runtimes.
-- **Review the CLI contract**: See the [toolchain contract matrix](../reference/toolchain-contract-matrix.md) for the starter matrix.
+- `tsconfig.json` keeps `experimentalDecorators` disabled.
+- `tsconfig.json` keeps `emitDecoratorMetadata` disabled.
+- The default generated application listens on port `3000` during `pnpm dev`.
+- The default generated application exposes `/health` and `/hello`.
+- `fluo new` starter variants map to the maintained starter matrix documented in the CLI README and the support matrix.

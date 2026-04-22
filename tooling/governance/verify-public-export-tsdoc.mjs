@@ -434,7 +434,7 @@ export function enforcePublicExportTSDocBaseline(
     violations.length === 0,
     [
       `${scopeDescription} must include a TSDoc summary and matching @param/@returns tags when applicable.`,
-      'Use docs/operations/public-export-tsdoc-baseline.md for the authoring checklist and golden examples.',
+      'Use docs/contracts/public-export-tsdoc-baseline.md for the authoring checklist and golden examples.',
       ...violations.map(
         (violation) => `${violation.path}:${violation.line} ${violation.kind} ${violation.name} is missing ${violation.reason}`,
       ),

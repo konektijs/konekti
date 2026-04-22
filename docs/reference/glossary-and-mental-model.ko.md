@@ -2,78 +2,56 @@
 
 <p><strong><kbd>한국어</kbd></strong> <a href="./glossary-and-mental-model.md"><kbd>English</kbd></a></p>
 
-이 용어집은 fluo 프레임워크를 지배하는 핵심 용어와 멘탈 모델을 정의합니다. 기술 용어 조회 및 fluo 방식의 백엔드 애플리케이션 구축 이해에 활용하세요.
+fluo 용어, 실행 관점, 부트스트랩 단계를 빠르게 조회하기 위한 참조 문서입니다.
 
-## 핵심 용어
+## glossary
 
-| 용어 | 정의 | 중요한 이유 |
+| term | definition | notes |
 | --- | --- | --- |
-| **Provider** | 모듈에 등록되어 DI 컨테이너가 해결하고 주입할 수 있는 클래스, 값 또는 팩토리. | 모든 서비스와 애플리케이션 로직의 기본 구성 요소입니다. |
-| **Token** | DI 컨테이너에서 프로바이더를 찾는 데 사용되는 고유 식별자(클래스 생성자, 문자열 또는 Symbol). | 주입 시 인터페이스와 구현을 분리할 수 있게 해줍니다. |
-| **Scope** | 프로바이더의 인스턴스화 정책 — Singleton (기본값, 공유), Request (HTTP 요청당), Transient (주입당). | 서비스의 메모리 사용량과 상태 공유 동작을 제어합니다. |
-| **Module** | 의존성 해결의 경계를 정의하는 프로바이더와 컨트롤러의 논리적 컨테이너. | 코드를 응집력 있고 재사용 가능한 단위로 구성하는 구조적 방법을 제공합니다. |
-| **Dispatcher** | 수신 요청을 핸들러로 라우팅하는 중앙 오케스트레이션 레이어. | HTTP 요청-응답 사이클의 핵심입니다. |
-| **Middleware** | `forRoutes()`를 통해 설정되며 라우트 핸들러 이전에 실행되는 함수 또는 클래스. | 로깅, CORS, 바디 파싱 등 횡단 관심사 처리에 사용됩니다. |
-| **Pipe** | 핸들러에 도달하기 전 수신 요청 데이터에 적용되는 변환 또는 검증 단계. | 데이터 무결성을 보장하고 반복적인 검증 로직을 줄입니다. |
-| **Guard** | 핸들러 호출 전 요청 컨텍스트를 평가하는 인가 게이트. | "관리자만 접근 가능" 같은 보안 정책 구현에 필수적입니다. |
-| **Interceptor** | 횡단 관심사를 위해 핸들러 실행을 감싸는 래퍼. | 로깅, 응답 변환, 전역 오류 처리 로직에 적합합니다. |
-| **DTO (Data Transfer Object)** | `@RequestDto()`와 함께 사용되며 요청 데이터의 형상과 검증 규칙을 정의하는 클래스. | 비즈니스 로직 실행 전 타입 안전성과 데이터 무결성을 보장합니다. |
-| **RequestContext** | 파싱된 요청, 응답 핸들, 라우트 파라미터, 인증 정보를 담은 요청별 객체. | 서비스 메서드 시그니처를 오염시키지 않고 요청 범위 메타데이터에 접근할 수 있게 합니다. |
-| **Platform Adapter** | 추상 fluo 런타임을 특정 환경(Fastify, Express, Bun, Deno, Cloudflare Workers)에 연결하는 패키지. | 이 추상화 덕분에 코드가 다양한 런타임에서 이식 가능합니다. |
-| **forRoot / forRootAsync** | 옵션을 받아 동적 모듈 정의를 반환하는 모듈의 정적 메서드. | 데이터베이스나 인증 모듈처럼 사용자 설정이 필요한 모듈을 구축할 때 사용합니다. |
-| **Standard Decorators** | 메타데이터 및 동작 부착에 사용되는 TC39 표준(Stage 3) 데코레이터. | 레거시 컴파일러 플래그가 필요 없어 코드를 최신 JS 표준과 일치시킵니다. |
-| **Class-First DI** | 구체 클래스 자체를 기본 주입 토큰으로 사용하는 DI 스타일. | 보일러플레이트를 줄이고 의존성을 명시적이고 탐색 가능하게 만듭니다. |
-| **Bootstrap Path** | `FluoFactory.create()`에서 애플리케이션 준비 완료까지의 시퀀스. | 시작 문제 디버깅 및 라이프사이클 훅 연결 이해에 도움됩니다. |
-| **Module Graph** | 런타임에서 해결되는 의존성 순서의 모듈 트리. | 프로바이더 공유 방식과 앱의 부팅 순서를 정의합니다. |
-| **Exception Resolver** | 던져진 예외를 포맷된 HTTP 응답으로 매핑하는 컴포넌트. | API가 클라이언트에 오류를 전달하는 방식을 중앙 집중화합니다. |
-| **Dynamic Module** | `forRoot` 등을 통해 런타임에 생성되는 모듈로, 외부 입력에 따라 프로바이더를 동적으로 구성할 수 있습니다. | 애플리케이션의 필요에 맞게 조정되는 범용 라이브러리 모듈을 만드는 데 필수적입니다. |
-| **Circular Dependency** | 두 개 이상의 모듈이나 프로바이더가 서로 의존하는 상황으로, 특별한 처리가 필요합니다. | 이를 조기에 발견하면 런타임 오류를 방지하고 더 깔끔한 아키텍처 경계를 유지할 수 있습니다. |
-| **Injection Point** | `@Inject`를 통해 의존성이 요청되는 위치(예: 생성자 또는 프로퍼티). | 클래스에서 외부 로직이 필요한 지점을 명확하게 식별합니다. |
+| **Provider** | DI 컨테이너가 해결할 수 있도록 등록된 클래스, 값, 또는 팩토리입니다. | 런타임 wiring의 기본 단위입니다. |
+| **Token** | 프로바이더를 조회할 때 사용하는 식별자입니다. | 보통 클래스, 문자열, 또는 `Symbol`을 사용합니다. |
+| **Scope** | 프로바이더 생명주기 정책입니다. | `Singleton`, `Request`, `Transient` 중 하나입니다. |
+| **Module** | 프로바이더, 컨트롤러, imports, exports를 묶는 경계입니다. | 모듈 그래프의 가시성 규칙을 정의합니다. |
+| **Module Graph** | 부트스트랩 시 해결되는 의존성 순서의 모듈 트리입니다. | 프로바이더 가시성과 라이프사이클 순서를 결정합니다. |
+| **Dispatcher** | HTTP 실행을 조정하는 구성 요소입니다. | 미들웨어, 가드, 인터셉터, 바인딩, 핸들러 호출을 순서대로 처리합니다. |
+| **Middleware** | 핸들러 전에 실행되는 요청 처리 단계입니다. | 라우트 또는 모듈 단위로 구성됩니다. |
+| **Pipe** | 입력 변환 또는 검증 단계입니다. | DTO 변환과 검증에 자주 사용됩니다. |
+| **Guard** | 핸들러 실행 전에 접근을 판단하는 게이트입니다. | 비즈니스 로직보다 먼저 요청을 차단합니다. |
+| **Interceptor** | 핸들러 실행을 감싸는 래퍼입니다. | 응답 변환, 타이밍 측정, 횡단 관심사 처리에 사용됩니다. |
+| **DTO** | 요청 페이로드 형상을 설명하는 클래스입니다. | `@RequestDto()` 및 검증 어댑터와 함께 사용됩니다. |
+| **RequestContext** | 요청 단위 런타임 객체입니다. | 요청, 응답 핸들, 파라미터, principal을 담습니다. |
+| **Platform Adapter** | fluo 런타임 계약을 실제 환경에 연결하는 패키지입니다. | 플랫폼 어댑터 계약을 만족해야 합니다. |
+| **forRoot / forRootAsync** | 설정 가능한 모듈용 동적 모듈 진입점입니다. | 옵션을 런타임 프로바이더 등록으로 바꿉니다. |
+| **Standard Decorators** | fluo가 사용하는 TC39 표준 데코레이터입니다. | 레거시 데코레이터 컴파일러 플래그는 계약 밖입니다. |
+| **Class-First DI** | 클래스를 기본 토큰 형태로 삼는 DI 스타일입니다. | 리플렉션 메타데이터 없이도 명시적 주입을 유지합니다. |
+| **Bootstrap Path** | `FluoFactory.create()`부터 앱 준비 완료까지의 순서입니다. | 시작 실패나 readiness 문제를 추적할 때 유용합니다. |
+| **Exception Resolver** | 오류를 HTTP 응답으로 매핑하는 계층입니다. | 던져진 오류를 정규화된 응답으로 바꿉니다. |
+| **Dynamic Module** | 런타임에 생성되는 모듈 정의입니다. | auth, config, persistence, adapter 패키지에서 자주 사용됩니다. |
+| **Circular Dependency** | 프로바이더 또는 모듈 간 상호 의존입니다. | 명시적 처리 또는 경계 정리가 필요합니다. |
+| **Injection Point** | 의존성을 요청하는 생성자 또는 프로퍼티 위치입니다. | 보통 명시적 토큰과 함께 `@Inject(...)`를 사용합니다. |
 
-## 멘탈 모델
+## mental model
 
-### 어댑터 우선 런타임: "한 번 작성, 어디서나 실행"
-fluo는 런타임을 중립적 오케스트레이션 엔진으로 취급합니다. 특정 HTTP 서버나 프로세스 모델을 가정하지 않으며, **Platform Adapter**에 의존하여 연결을 제공합니다. 이는 애플리케이션 로직이 Fastify, Cloudflare Worker, bare Node 리스너 중 어디서 실행되든 분리된 상태를 유지함을 의미합니다.
-```ts
-// 어댑터에 관계없이 로직은 동일하게 유지됩니다
-const app = await FluoFactory.create(RootModule, { adapter: new FastifyAdapter() });
-```
+| model | reference summary |
+| --- | --- |
+| **Adapter-first runtime** | 애플리케이션 로직은 이식성을 유지하고, 환경별 전송 동작은 어댑터가 담당합니다. |
+| **Explicit wiring** | DI, exports, 모듈 경계는 리플렉션 추론이 아니라 코드에 직접 선언됩니다. |
+| **Package isolation** | 애플리케이션은 실제로 사용하는 기능에만 의존하도록 패키지가 세분화됩니다. |
+| **Behavioral contracts** | 지원 플랫폼 전반에서 런타임 동작, 응답 규칙, 패키지 보장이 일관되어야 합니다. |
 
-### 명시적 선언 우선: "매직 없음"
-많은 프레임워크가 "매직"이나 리플렉션에 의존하는 반면, fluo는 명시적 선언을 선호합니다. 주입 의존성은 `@Inject()`로 선언되고, 모듈은 내보내기를 명시적으로 나열해야 합니다. 이를 통해 모듈 그래프가 예측 가능하고, 감사 가능하며, CLI를 사용해 쉽게 디버깅할 수 있습니다.
-```ts
-@Inject(UsersRepository)
-constructor(private users: UsersRepository) {}
-```
+## lifecycle stages
 
-### 단일 책임 패키지: "사용하는 만큼만 비용 지불"
-프레임워크는 세분화된 패키지로 분리되어 있습니다. Redis가 필요 없으면 `@fluojs/redis`를 포함하지 않고, WebSocket을 사용하지 않으면 `@fluojs/websockets`를 포함하지 않습니다. 이를 통해 프로덕션 번들을 가볍게 유지하고 의존성 트리를 관리 가능하게 합니다.
-```ts
-import { HttpModule } from '@fluojs/http'; // 필요한 것만 임포트하여 사용합니다
-```
+| stage | runtime effect |
+| --- | --- |
+| **Resolution** | imports를 순회하며 모듈 그래프를 검증합니다. |
+| **Instantiation** | scope 규칙에 따라 프로바이더 인스턴스를 생성합니다. |
+| **Bootstrap** | 라이프사이클 훅을 실행하고 패키지 초기화를 완료합니다. |
+| **Ready** | 플랫폼 리스너가 실제 트래픽을 받기 시작합니다. |
+| **Shutdown** | 역순으로 파괴 훅을 실행하고 리소스를 정리합니다. |
 
-### 행동 계약: "예측 가능한 실행"
-fluo 생태계의 모든 패키지는 엄격한 신뢰성 규칙을 따릅니다. 이는 플랫폼에 관계없이 서비스나 미들웨어가 일관되게 동작함을 의미합니다. Express, Fastify, Edge 런타임 전반에서 오류 코드, 헤더, 라이프사이클 이벤트가 표준화되어 있음을 신뢰할 수 있습니다.
-```ts
-// 어디서나 동작하는 표준화된 예외 처리를 사용합니다
-throw new UnauthorizedException('Access denied');
-```
+## related docs
 
-## 라이프사이클 단계
-
-1.  **Resolution (해결)**
-    루트 모듈부터 시작하여 임포트 관계를 재귀적으로 탐색하며 모듈 그래프를 구축합니다. Fluo는 모든 의존성을 분석하여 그래프가 유효한지, 모든 토큰을 해결할 수 있는지, 처리되지 않은 순환 참조가 없는지 확인합니다. 이 과정에서 의존성 트리가 확정됩니다.
-2.  **Instantiation (인스턴스화)**
-    DI 컨테이너가 등록된 모든 프로바이더의 인스턴스를 생성합니다. 싱글톤 프로바이더는 즉시 생성되지만, Request 및 Transient 범위는 각각의 트리거(예: HTTP 요청)가 발생할 때 인스턴스화될 준비를 합니다. 이때 생성자 주입이 완료됩니다.
-3.  **Bootstrap (부트스트랩)**
-    프레임워크가 초기화 훅을 트리거합니다. 의존성 순서(리프 모듈부터)에 따라 모든 프로바이더, 컨트롤러, 모듈의 `onModuleInit`이 호출됩니다. 이 단계에서 서비스는 데이터베이스에 연결하거나 캐시를 예열하는 등 비동기 작업을 수행할 수 있습니다.
-4.  **Ready (준비 완료)**
-    Platform Adapter가 내부 서버 리스너를 시작합니다(예: Fastify 인스턴스의 `listen()` 호출). 이제 애플리케이션 초기화가 완료되었으며 건강한 상태로 실제 트래픽을 수신할 수 있습니다. 이 시점부터 모든 라우트 핸들러가 활성화됩니다.
-5.  **Shutdown (종료)**
-    종료 시그널(예: SIGTERM)을 받으면 fluo는 의존성 역순으로 `onModuleDestroy` 훅을 트리거합니다. 이를 통해 프로세스가 종료되기 전 데이터베이스 연결, 메시지 컨슈머, 파일 핸들 등이 우아하게 닫히도록 보장합니다. 연결 드레이닝도 이 단계에서 수행됩니다.
-
-## 추가 읽기
-- [아키텍처 개요](../concepts/architecture-overview.ko.md)
-- [DI 및 모듈](../concepts/di-and-modules.ko.md)
-- [HTTP 런타임](../concepts/http-runtime.ko.md)
-- [라이프사이클 및 종료](../concepts/lifecycle-and-shutdown.ko.md)
+- [Architecture Overview](../architecture/architecture-overview.ko.md)
+- [DI and Modules](../architecture/di-and-modules.ko.md)
+- [HTTP Runtime](../architecture/http-runtime.ko.md)
+- [Lifecycle and Shutdown](../architecture/lifecycle-and-shutdown.ko.md)

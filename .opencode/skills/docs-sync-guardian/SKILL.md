@@ -113,7 +113,7 @@ fluo 저장소의 EN/KO 문서 쌍, docs hub companion update, docs 관련 CI/to
 ### Phase 3 — Surface classification
 changed files를 다음 bucket으로 분류한다.
 
-- governed docs (`docs/operations/*`, `docs/reference/*`, 일부 package README)
+- governed docs (`docs/contracts/*`, `docs/reference/*`, 일부 package README)
 - docs hub / companion pages (`docs/README*`, package chooser/surface)
 - docs contract tests (`packages/testing/src/conformance/*`, CLI/docs contract tests)
 - CI/tooling enforcement (`.github/workflows/*`, `tooling/governance/*`, verifier docs references)
@@ -127,10 +127,10 @@ changed files를 다음 bucket으로 분류한다.
 - 서로 참조하는 anchor/link drift
 
 주요 기준 문서:
-- `docs/operations/release-governance.md` / `.ko.md`
-- `docs/operations/behavioral-contract-policy.md` / `.ko.md`
-- `docs/operations/public-export-tsdoc-baseline.md` / `.ko.md`
-- `docs/operations/platform-conformance-authoring-checklist.md` / `.ko.md`
+- `docs/contracts/release-governance.md` / `.ko.md`
+- `docs/contracts/behavioral-contract-policy.md` / `.ko.md`
+- `docs/contracts/public-export-tsdoc-baseline.md` / `.ko.md`
+- `docs/contracts/platform-conformance-authoring-checklist.md` / `.ko.md`
 - `docs/reference/package-surface.md` / `.ko.md`
 
 ### Phase 5 — Companion update check
@@ -216,7 +216,7 @@ contract-bearing docs 변경은 prose-only로 끝나면 안 된다.
 
 문서화된 behavior와 운영 규칙은 fluo에서 binding contract다.
 
-- `docs/operations/behavioral-contract-policy.md`를 최우선으로 본다.
+- `docs/contracts/behavioral-contract-policy.md`를 최우선으로 본다.
 - package README와 operations docs에 적힌 behavior를 silent narrowing 했으면 `block`이다.
 - 문서 변경이 실제 contract change라면 관련 tests/CI/doc companion이 같이 바뀌어야 한다.
 

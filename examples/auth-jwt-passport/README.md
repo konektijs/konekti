@@ -59,6 +59,6 @@ examples/auth-jwt-passport/
 
 - `../README.md` — official examples index
 - `../../docs/getting-started/first-feature-path.md`
-- `../../docs/concepts/auth-and-jwt.md`
+- `../../docs/architecture/auth-and-jwt.md`
 - `../../packages/jwt/README.md`
 - `../../packages/passport/README.md`

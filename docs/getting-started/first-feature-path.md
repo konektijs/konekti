@@ -1,98 +1,119 @@
-# first feature path
+# Feature Creation Reference
 
 <p><strong><kbd>English</kbd></strong> <a href="./first-feature-path.ko.md"><kbd>한국어</kbd></a></p>
 
-Move from a basic starter to building real-world logic. fluo encourages a **slice-based architecture**, where related logic is grouped by feature rather than technical layer.
+This document defines the minimal feature-slice structure used in fluo applications. The canonical examples in this repository are `examples/minimal/src/hello.*` and `examples/realworld-api/src/users/*`.
 
-### target audience
-Developers who have completed the [Quick Start](./quick-start.md) and are ready to implement their first API endpoint.
+## Required Files
 
-### 1. define the feature boundary
-Create a dedicated directory for your feature slice. We'll build a "catalog" service.
+The smallest HTTP feature slice usually contains these files under a dedicated directory such as `src/users/` or `src/catalog/`.
 
-```sh
-mkdir -p src/catalog
-```
+| File | Role | Required | Notes |
+| --- | --- | --- | --- |
+| `*.module.ts` | Module boundary for the slice | Yes | Declares `controllers`, `providers`, `imports`, and `exports` metadata with `@Module(...)`. |
+| `*.service.ts` | Business logic provider | Yes | Registered in the module `providers` list. Add `@Inject(...)` when the constructor depends on other tokens or classes. |
+| `*.controller.ts` | HTTP route surface | Yes for HTTP features | Uses `@Controller(...)` and route decorators from `@fluojs/http`. |
+| `*.repo.ts` or equivalent | Persistence or data-access provider | No | Common once the service stops being self-contained. `examples/realworld-api/src/users/users.repo.ts` is the current repo pattern. |
+| `*.dto.ts` | Request validation boundary | No | Add when request payload validation or coercion is required, for example `create-user.dto.ts`. |
+| `*.response.dto.ts` or equivalent | Response contract type | No | Used when the feature publishes a stable response shape. |
 
-### 2. create a provider
-Providers handle business logic or data access. In fluo, dependencies are declared explicitly using the `@Inject` decorator on the class.
+`examples/minimal/src/hello.service.ts` shows the smallest service file, while `examples/realworld-api/src/users/` shows the expanded slice with repository and DTO support.
 
-```ts
-// src/catalog/product.service.ts
-import { Scope } from '@fluojs/core';
+## Module Registration
 
-@Scope('singleton')
-export class ProductService {
-  getProducts() {
-    return [{ id: 1, name: 'Standard Decorator', price: 99 }];
-  }
-}
-```
-
-### 3. create a controller
-Controllers define the HTTP interface. Note how we explicitly `@Inject` the `ProductService`.
+Feature modules are declared with `@Module(...)` from `@fluojs/core`. The current repository pattern is a class with explicit metadata arrays.
 
 ```ts
-// src/catalog/product.controller.ts
-import { Controller, Get } from '@fluojs/http';
-import { Inject } from '@fluojs/core';
-import { ProductService } from './product.service';
-
-@Controller('/products')
-@Inject(ProductService)
-export class ProductController {
-  constructor(private readonly service: ProductService) {}
-
-  @Get('/')
-  list() {
-    return this.service.getProducts();
-  }
-}
-```
-
-### 4. bundle into a module
-Modules are the building blocks of the fluo application graph.
-
-```ts
-// src/catalog/catalog.module.ts
 import { Module } from '@fluojs/core';
-import { ProductService } from './product.service';
-import { ProductController } from './product.controller';
+
+import { UsersController } from './users.controller';
+import { UsersRepo } from './users.repo';
+import { UsersService } from './users.service';
 
 @Module({
-  providers: [ProductService],
-  controllers: [ProductController],
-  exports: [ProductService], // Optional: Export if other modules need this service
+  controllers: [UsersController],
+  providers: [UsersRepo, UsersService],
+  exports: [UsersService],
 })
-export class CatalogModule {}
+export class UsersModule {}
 ```
 
-### 5. mount to the application
-Import your new module into the root `AppModule` to activate it.
+Module registration facts used by the runtime:
+
+- `controllers` exposes route handlers for the feature.
+- `providers` registers classes or provider definitions in the slice container.
+- `exports` is required when another imported module needs access to a provider from this slice.
+- `imports` is required when the slice consumes providers exported by another module.
+
+Root activation happens by importing the feature module into the application module.
 
 ```ts
-// src/app.module.ts
 import { Module } from '@fluojs/core';
-import { CatalogModule } from './catalog/catalog.module';
+
+import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [CatalogModule],
+  imports: [UsersModule],
 })
 export class AppModule {}
 ```
 
-### verify the flow
-Check your new endpoint while the dev server is running:
-```sh
-curl http://localhost:3000/products
+The runtime compiles this metadata into the module graph. Invalid visibility or missing export relationships surface as runtime errors such as `ModuleVisibilityError` and `ModuleInjectionMetadataError`.
+
+## DI Wiring
+
+fluo uses explicit constructor token metadata through `@Inject(...)`. `packages/core/src/decorators.ts` defines variadic `@Inject(A, B)` as the canonical API.
+
+```ts
+import { Inject } from '@fluojs/core';
+
+import { UsersRepo } from './users.repo';
+
+@Inject(UsersRepo)
+export class UsersService {
+  constructor(private readonly repo: UsersRepo) {}
+}
 ```
-*Expect: `[{"id":1,"name":"Standard Decorator","price":99}]`*
 
-### why this workflow?
-- **Explicit Wiring**: `@Inject(ProductService)` clarifies what a class depends on without hidden metadata magic.
-- **Slice Ownership**: All logic related to "Catalog" lives in one place, making it easier to maintain and scale.
-- **Standard-Ready**: This entire flow uses native TypeScript decorators that align with future ECMAScript standards.
+```ts
+import { Inject } from '@fluojs/core';
+import { Controller, Get, Post, RequestDto } from '@fluojs/http';
 
-### next steps
-- **Automate the Boilerplate**: Use `fluo g module catalog` to generate this structure in seconds. See [Generator Workflow](./generator-workflow.md).
-- **Add Validation**: Learn how to use DTOs and `@fluojs/validation` for secure, type-safe inputs.
+import { CreateUserDto } from './create-user.dto';
+import { UsersService } from './users.service';
+
+@Inject(UsersService)
+@Controller('/users')
+export class UsersController {
+  constructor(private readonly service: UsersService) {}
+
+  @Get('/')
+  list() {
+    return this.service.listUsers();
+  }
+
+  @Post('/')
+  @RequestDto(CreateUserDto)
+  create(dto: CreateUserDto) {
+    return this.service.createUser(dto.name, dto.email);
+  }
+}
+```
+
+DI wiring rules for feature slices:
+
+- The token order in `@Inject(...)` maps to constructor parameter order.
+- Concrete class tokens are common for feature-local providers such as repositories and services.
+- Abstract tokens or symbols still require explicit `@Inject(TOKEN)` because fluo does not depend on `emitDecoratorMetadata`.
+- A provider must be registered in the current module or exported from an imported module before it can be injected.
+
+## Checklist
+
+- Create a dedicated feature directory, for example `src/users/`.
+- Add a `*.module.ts` file with `@Module(...)` metadata.
+- Register every controller in `controllers`.
+- Register every service, repository, or provider in `providers`.
+- Export only the providers that other modules must consume.
+- Import the feature module into the root application module, or into another parent module that composes it.
+- Add `@Inject(...)` to classes with constructor dependencies.
+- Add DTO or response-contract files only when the feature boundary requires them.

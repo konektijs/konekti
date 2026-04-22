@@ -2,8 +2,6 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./package-surface.ko.md"><kbd>한국어</kbd></a></p>
 
-This page is the source of truth for the fluo public package families and their mapping to runtimes. Use this for authoritative lookup of package responsibilities.
-
 ## public package families
 
 | family | description | packages |
@@ -19,8 +17,6 @@ This page is the source of truth for the fluo public package families and their 
 | **Tooling** | CLI and diagnostics. | `@fluojs/cli`, `@fluojs/studio`, `@fluojs/testing` |
 
 ## canonical runtime package matrix
-
-fluo uses a transport-neutral runtime. Adapters bridge this runtime to specific hosting environments.
 
 | runtime target | adapter package | notes |
 | --- | --- | --- |

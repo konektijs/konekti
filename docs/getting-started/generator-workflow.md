@@ -1,160 +1,71 @@
-# generator workflow
+# CLI Generator Reference
 
 <p><strong><kbd>English</kbd></strong> <a href="./generator-workflow.ko.md"><kbd>한국어</kbd></a></p>
 
-Eliminate manual boilerplate and maintain a consistent project structure using the fluo CLI. The generators create fluo building blocks that follow the framework's module-first conventions.
+`fluo generate` and `fluo g` create feature-slice files under a resolved source directory. The shipped generator set covers modules, HTTP entrypoints, providers, middleware, and DTO stubs.
 
-### target audience
-Developers who want to automate the creation of modules, controllers, and services while ensuring architectural consistency.
+## Available Generators
 
-### 1. generating a complete feature module
-A **module** is the primary unit of organization in fluo. One command gives you a module entry point, and you can add the remaining pieces with focused generators.
-
-```sh
-fluo g module catalog
+```bash
+fluo generate <generator> <name> [--target-directory <path>] [--force]
+fluo g <generator> <name> [--target-directory <path>] [--force]
 ```
 
-This creates the following structure:
+| Generator | Accepted tokens | Example syntax | Wiring | Output scope |
+| --- | --- | --- | --- | --- |
+| Module | `module`, `mo` | `fluo generate module Billing` | Files only | Standalone module file |
+| Controller | `controller`, `co` | `fluo g controller Billing` | Auto-registered | Controller file, test file, module update |
+| Service | `service`, `s` | `fluo g service Billing` | Auto-registered | Service file, test file, module update |
+| Repository | `repo`, `repository` | `fluo g repo Billing` | Auto-registered | Repository file, unit test, slice test, module update |
+| Guard | `guard`, `gu` | `fluo generate guard Billing` | Auto-registered | Guard file, module update |
+| Interceptor | `interceptor`, `in` | `fluo generate interceptor Billing` | Auto-registered | Interceptor file, module update |
+| Middleware | `middleware`, `mi` | `fluo generate middleware Billing` | Auto-registered | Middleware file, module update |
+| Request DTO | `request-dto`, `req` | `fluo generate request-dto CreateBilling` | Files only | Request DTO file |
+| Response DTO | `response-dto`, `res` | `fluo generate response-dto Billing` | Files only | Response DTO file |
 
-```
-src/
-└── catalog/
-    └── catalog.module.ts
-```
+Auto-registered generators create or update the slice module and append the generated class to `controllers`, `providers`, or `middleware`. Files-only generators emit files without parent-module registration.
 
-The generated module file looks like this:
+## Generated Artifacts
 
-```ts
-import { Module } from '@fluojs/core';
+All generator outputs are written under `<resolved-target>/<plural-resource>/`. For `fluo g service Post`, the slice directory is `src/posts/` when the resolved target directory is `src/`.
 
-@Module({
-  controllers: [],
-  providers: [],
-})
-export class CatalogModule {}
-```
+| Generator | Files emitted in the slice directory | Module effect |
+| --- | --- | --- |
+| Module | `post.module.ts` | None. Import into a parent module separately. |
+| Controller | `post.controller.ts`, `post.controller.test.ts` | Creates or updates `post.module.ts`, adds `PostController` to `controllers`. |
+| Service | `post.service.ts`, `post.service.test.ts` | Creates or updates `post.module.ts`, adds `PostService` to `providers`. |
+| Repository | `post.repo.ts`, `post.repo.test.ts`, `post.repo.slice.test.ts` | Creates or updates `post.module.ts`, adds `PostRepo` to `providers`. |
+| Guard | `post.guard.ts` | Creates or updates `post.module.ts`, adds `PostGuard` to `providers`. |
+| Interceptor | `post.interceptor.ts` | Creates or updates `post.module.ts`, adds `PostInterceptor` to `providers`. |
+| Middleware | `post.middleware.ts` | Creates or updates `post.module.ts`, adds `PostMiddleware` to `middleware`. |
+| Request DTO | `create-post.request.dto.ts` | None. Import into controllers manually. |
+| Response DTO | `post.response.dto.ts` | None. Use as a controller return type manually. |
 
-Add controllers, services, and other building blocks as the feature grows.
+Controller and service templates inspect sibling files before rendering. A controller stub imports `post.service.ts` only when that service file already exists in the same slice. A service stub imports `post.repo.ts` only when the repository file already exists in the same slice.
 
-### 2. precise component generation
-Need to add a single building block to an existing feature? Use granular generators.
+## Options
 
-```sh
-fluo g controller catalog
-fluo g service catalog
-```
+| Option | Alias | Applies to | Behavior |
+| --- | --- | --- | --- |
+| `--target-directory <path>` | `-o` | All generators | Writes the slice under the provided source directory. |
+| `--force` | `-f` | All generators | Overwrites existing generated files instead of skipping them. |
+| `--help` | `-h` | `fluo generate`, `fluo g` | Prints generate-command usage and generator metadata. |
 
-After running both, your feature directory looks like this:
+| Resolution rule | Resolved base directory |
+| --- | --- |
+| Current directory contains `package.json` and `src/` | `<cwd>/src` |
+| Current directory contains `apps/` with exactly one app that has `package.json` and `src/` | `<cwd>/apps/<app>/src` |
+| Neither condition matches | `<cwd>` |
 
-```
-src/
-└── catalog/
-    ├── catalog.module.ts
-    ├── catalog.controller.ts
-    └── catalog.service.ts
-```
+## Constraints
 
-The generated controller follows the standard `@Inject` + `@Controller` pattern:
-
-```ts
-import { Inject } from '@fluojs/core';
-import { Controller } from '@fluojs/http';
-
-import { CatalogService } from './catalog.service';
-
-@Inject(CatalogService)
-@Controller('/catalog')
-export class CatalogController {
-  constructor(private readonly catalogService: CatalogService) {}
-}
-```
-
-All available generators:
-
-| command | what it creates |
-| :--- | :--- |
-| `fluo g module name` | Module definition with `@Module` decorator |
-| `fluo g controller name` | HTTP controller with `@Controller` and `@Inject` |
-| `fluo g service name` | Business logic service class |
-| `fluo g repo name` | Data repository pattern class |
-
-### 3. flexible output paths
-By default, the CLI targets `src/`. Use the `--target-directory` (or `-o`) flag to align with your project's directory structure.
-
-```sh
-fluo g module auth --target-directory src/shared
-```
-
-This creates `src/shared/auth/auth.module.ts` instead of `src/auth/auth.module.ts`.
-
-### 4. safe execution with dry runs
-Preview which files will be modified or created before committing to the change.
-
-```sh
-fluo g module shop --dry-run
-```
-
-Output shows the planned operations without touching the filesystem, so you can verify paths and names before generating.
-
-### 5. composing a full feature slice
-In practice, you'll chain generators to build a complete feature. Here's the typical workflow for a new `orders` feature:
-
-```sh
-# 1. Create the module
-fluo g module orders
-
-# 2. Add a controller and service
-fluo g controller orders
-fluo g service orders
-
-# 3. Add a repository for data access
-fluo g repo orders
-```
-
-Result:
-
-```
-src/
-└── orders/
-    ├── orders.module.ts
-    ├── orders.controller.ts
-    ├── orders.service.ts
-    └── orders.repo.ts
-```
-
-Then wire everything together in `orders.module.ts`:
-
-```ts
-import { Module } from '@fluojs/core';
-import { OrdersController } from './orders.controller';
-import { OrdersService } from './orders.service';
-import { OrdersRepo } from './orders.repo';
-
-@Module({
-  controllers: [OrdersController],
-  providers: [OrdersService, OrdersRepo],
-  exports: [OrdersService],
-})
-export class OrdersModule {}
-```
-
-And import the module from your root `AppModule`:
-
-```ts
-import { Module } from '@fluojs/core';
-import { OrdersModule } from './orders/orders.module';
-
-@Module({
-  imports: [OrdersModule],
-})
-export class AppModule {}
-```
-
-### why use the CLI?
-- **Zero Boilerplate**: Skip manual directory creation, repetitive file naming, and import setup.
-- **Consistent Shape**: Generated files follow the naming and placement rules documented in fluo's reference docs.
-- **Composable Workflow**: Start with a module, then add controllers, services, DTOs, events, or repositories as the feature grows.
-
-### next steps
-- **Implement Logic**: Follow the [First Feature Path](./first-feature-path.md) to add logic.
-- **Verification**: Learn how to test your generated components in the [Testing Guide](../operations/testing-guide.md).
+- Resource names must not be empty.
+- Resource names must not start with `-`.
+- Resource names must not contain path separators or `..` traversal segments.
+- Accepted name characters are letters, numbers, spaces, underscores, and hyphens. The generated file stem is normalized to kebab case.
+- A multi-app workspace root with more than one valid `apps/*/src` target requires `--target-directory`.
+- Existing files are skipped by default. `--force` is required for overwrite behavior.
+- Unchanged file content is not rewritten, even when the command resolves auto-registration metadata.
+- Module auto-registration is limited to controller, service, repository, guard, interceptor, and middleware generators.
+- DTO and module generators do not wire parent-module imports automatically.
+- The generate command surface documents `--target-directory`, `--force`, and `--help`. No `--dry-run` option is parsed for `fluo generate` or `fluo g`.

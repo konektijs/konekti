@@ -126,7 +126,7 @@ describe('enforcePublicExportTSDocBaseline', () => {
   it('throws with actionable guidance when changed exports miss the baseline', () => {
     expect(() =>
       enforcePublicExportTSDocBaseline(['packages/http/src/handler.ts'], () => 'export const HTTP_STATUS = 200;\n'),
-    ).toThrowError(/docs\/operations\/public-export-tsdoc-baseline\.md/);
+    ).toThrowError(/docs\/contracts\/public-export-tsdoc-baseline\.md/);
   });
 });
 

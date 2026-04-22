@@ -58,7 +58,7 @@ Use the following repo-local references before inventing a new style:
 - `packages/graphql/src/dataloader/dataloader.ts`
 - `packages/cache-manager/src/decorators.ts`
 - `packages/di/src/container.ts`
-- [docs/operations/public-export-tsdoc-baseline.md](docs/operations/public-export-tsdoc-baseline.md)
+- [docs/contracts/public-export-tsdoc-baseline.md](docs/contracts/public-export-tsdoc-baseline.md)
 
 `pnpm lint` now includes `pnpm verify:public-export-tsdoc`, which keeps PR-time enforcement scoped to changed package source files.
 Use `pnpm verify:public-export-tsdoc:baseline` when you need to audit the full governed `packages/*/src` surface for backlog TSDoc gaps.
@@ -114,7 +114,7 @@ We recommend using `git worktree` for multi-tasking or resolving issues in isola
 
 fluo maintains strict behavioral contracts. Before opening a PR, ensure you have:
 1. Read the affected package `README.md`.
-2. Checked [docs/operations/behavioral-contract-policy.md](docs/operations/behavioral-contract-policy.md).
+2. Checked [docs/contracts/behavioral-contract-policy.md](docs/contracts/behavioral-contract-policy.md).
 3. Updated documentation if runtime behavior or API surface changed.
 4. Added regression tests for any contract-affecting changes.
 

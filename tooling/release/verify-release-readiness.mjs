@@ -435,7 +435,7 @@ function verifySinglePackageReleasePreflight(checks, options, packageManifests, 
     checks,
     'Single-package release intended publish surface membership',
     Boolean(targetPackageRecord) && publicPackageSet.has(targetPackage),
-    `${targetPackage} must be listed in docs/operations/release-governance.md intended publish surface before CI-only publish.`,
+      `${targetPackage} must be listed in docs/contracts/release-governance.md intended publish surface before CI-only publish.`,
   );
   assertCheck(
     checks,
@@ -584,7 +584,7 @@ export function runReleaseReadinessVerification(options = {}, dependencies = {})
 
   const quickStart = readText('docs/getting-started/quick-start.md');
   const contributing = readText('CONTRIBUTING.md');
-  const releaseGovernance = readText('docs/operations/release-governance.md');
+  const releaseGovernance = readText('docs/contracts/release-governance.md');
   const packageSurface = readText('docs/reference/package-surface.md');
   const toolchainContract = readText('docs/reference/toolchain-contract-matrix.md');
   const cliReadme = readText('packages/cli/README.md');

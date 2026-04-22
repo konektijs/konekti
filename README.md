@@ -88,8 +88,8 @@ fluo isn't a monolith. It's a collection of precision-engineered modules:
 
 ## Where to Go Next?
 
-- 📖 **[Documentation Hub](./docs/README.md)**: Deep dives into architecture, DI, and patterns.
-- 🚀 **[Getting Started](./docs/getting-started/quick-start.md)**: Your first 15 minutes with fluo.
+- 📖 **[Documentation Hub](./book/README.md)**: Deep dives into architecture, DI, and patterns.
+- 🚀 **[Getting Started](./book/beginner/ch02-cli-setup.md)**: Your first 15 minutes with fluo.
 - 🧭 **[Canonical Runtime Package Matrix](./docs/reference/package-surface.md)**: The source of truth for official runtime/package coverage.
 - 💡 **[Example Apps](./examples/README.md)**: From minimal setups to complex RealWorld APIs.
 - 🛠️ **[CLI Guide](./packages/cli/README.md)**: Master the `fluo` command for rapid development.
@@ -106,8 +106,8 @@ fluo isn't a monolith. It's a collection of precision-engineered modules:
 
 We believe in **Behavioral Contracts**. Every package in this repo follows strict reliability rules, ensuring that your backend behaves exactly how you expect it to, regardless of the runtime.
 
-- [Release Governance](./docs/operations/release-governance.md)
-- [Behavioral Contract Policy](./docs/operations/behavioral-contract-policy.md)
+- [Release Governance](./docs/contracts/release-governance.md)
+- [Behavioral Contract Policy](./docs/contracts/behavioral-contract-policy.md)
 - [Contributing](./CONTRIBUTING.md)
 - [Support](./SUPPORT.md)
 - [Security](./SECURITY.md)

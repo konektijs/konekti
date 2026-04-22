@@ -1,78 +1,60 @@
-# migrate from nestjs
+# NestJS → fluo Migration Map
 
 <p><strong><kbd>English</kbd></strong> <a href="./migrate-from-nestjs.ko.md"><kbd>한국어</kbd></a></p>
 
-fluo provides a familiar structural home for NestJS developers while moving the framework foundation to **TC39 standard decorators**. You get the same modular benefits without legacy metadata overhead or experimental compiler flags.
+Use this document as a migration contract map. Each row identifies the closest allowed fluo target for a NestJS construct, and each rule below marks the places where the migration is not one-to-one.
 
-### target audience
-Developers with NestJS experience who want to use modern TypeScript standards and explicit, auditable dependency injection.
+## API Correspondence Table
 
-### 1. simplify your tsconfig
-fluo works with standard TypeScript defaults. You can turn off the legacy flags that NestJS requires.
+Apply the fluo construct in the second column, not the NestJS source pattern, when migrating production code.
+
+| NestJS construct | fluo construct | Notes |
+| --- | --- | --- |
+| `@Module({ imports, controllers, providers, exports })` | `@Module({ imports, controllers, providers, exports })` from `@fluojs/core` | Module boundaries and explicit exports remain the primary composition unit. |
+| `@Controller('/users')` | `@Controller('/users')` from `@fluojs/http` | Controller decoration is part of the HTTP package, not the core package. |
+| `@Get()`, `@Post()`, other route decorators | `@Get()`, `@Post()`, other route decorators from `@fluojs/http` | HTTP route decoration remains method-based. |
+| `NestFactory.create(AppModule)` | `FluoFactory.create(AppModule, { adapter })` from `@fluojs/runtime` | Bootstrap requires an explicit platform adapter such as `createFastifyAdapter()`. |
+| `@Injectable()` provider marker | provider class listed in `@Module(...).providers` | fluo does not use `@Injectable()` as a required provider registration step. |
+| constructor type reflection via `emitDecoratorMetadata` | `@Inject(TokenA, TokenB)` from `@fluojs/core` | Constructor dependencies are declared explicitly in decorator argument order. |
+| `class-validator` / decorator-driven DTO validation | `@fluojs/validation` with Standard Schema support | Current validation direction is Standard Schema based, including Zod and Valibot support. |
+| `createApplicationContext()` standalone bootstrap | `FluoFactory.createApplicationContext(AppModule)` | Standalone application context exists in `@fluojs/runtime`. |
+
+## Breaking Differences
+
+- Decorators MUST follow the TC39 standard model. NestJS legacy decorator assumptions do not carry over.
+- Dependency injection is NEVER inferred from constructor types. fluo requires explicit `@Inject(...)` declarations for constructor dependencies.
+- Bootstrap is adapter-first. `FluoFactory.create(...)` REQUIRES an `adapter` option instead of selecting the HTTP platform implicitly.
+- Validation MUST be migrated to the Standard Schema direction instead of keeping a `class-validator`-first contract.
+- Controller decorators MUST be imported from `@fluojs/http`, while structural decorators such as `@Module` come from `@fluojs/core`.
+
+## Removed Concepts
+
+- `@Injectable()` as the default provider marker. Provider registration happens through the module `providers` array.
+- Reflection-driven constructor resolution through `reflect-metadata`.
+- Implicit DI based on emitted design-time types.
+- Legacy decorator compiler mode as a framework requirement.
+- Assuming every documented platform is part of `fluo new`; starter coverage is defined separately in the support matrix.
+
+## tsconfig Changes
+
+Migration MUST remove legacy NestJS-era decorator assumptions from `tsconfig.json`.
 
 ```json
-// tsconfig.json
 {
   "compilerOptions": {
-    "experimentalDecorators": false, // fluo uses standard decorators
-    "emitDecoratorMetadata": false   // No magic reflection metadata
+    "experimentalDecorators": false,
+    "emitDecoratorMetadata": false
   }
 }
 ```
 
-### 2. standard decorators
-Decorators like `@Module` and `@Controller` are built on the **native TC39 decorator standard**. fluo drops `@Injectable()` entirely; classes are registered as providers through the module's `providers` array.
+- `experimentalDecorators` is not part of the required fluo baseline and MUST remain disabled.
+- `emitDecoratorMetadata` is not used for DI wiring and MUST remain disabled.
+- Code that depended on metadata emission or `reflect-metadata` MUST be migrated to explicit tokens and explicit registration.
 
-- **NestJS**: Relies on a legacy TypeScript implementation and `reflect-metadata`.
-- **fluo**: Relies on native language features, ensuring compatibility with the future JavaScript ecosystem.
+## Related Docs
 
-### 3. explicit over implicit injection
-The biggest shift is how dependencies are declared. NestJS uses metadata to guess constructor types. fluo requires an explicit `@Inject` decorator on the class, making your dependency graph visible and auditable.
-
-**NestJS (Implicit):**
-```ts
-@Injectable()
-export class UsersService {
-  constructor(private repo: UsersRepository) {}
-}
-```
-
-**fluo (Explicit):**
-```ts
-import { Inject } from '@fluojs/core';
-
-@Inject(UsersRepository)
-export class UsersService {
-  constructor(private repo: UsersRepository) {}
-}
-```
-
-### 4. adapter-first factory
-Bootstrap feels similar, but fluo makes the platform choice (Fastify, Express, etc.) an explicit part of the factory call.
-
-That broader adapter choice does not mean every documented platform is already wired into `fluo new`. For the current starter contract, see the [fluo new support matrix](../reference/fluo-new-support-matrix.md).
-
-**NestJS:**
-```ts
-const app = await NestFactory.create(AppModule);
-```
-
-**fluo:**
-```ts
-import { FluoFactory } from '@fluojs/runtime';
-import { createFastifyAdapter } from '@fluojs/platform-fastify';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createFastifyAdapter()
-});
-```
-
-### why move to fluo?
-- **No Magic**: Dependencies are declared in code, not hidden in emitted JSON metadata.
-- **Modern Standards**: Move away from experimental features and align with the official ECMAScript spec.
-- **Runtime Flexibility**: Deploy the same code to Node.js, Bun, Deno, or Cloudflare Workers by swapping an adapter.
-
-### next steps
-- **Start Fresh**: Use the [Quick Start](./quick-start.md) to see a fluo project.
-- **Check starter coverage**: Review the [fluo new support matrix](../reference/fluo-new-support-matrix.md) for available presets.
-- **Learn the Graph**: Read [DI and Modules](../concepts/di-and-modules.md) for a deep dive into explicit injection.
+- [NestJS Parity Gaps](../contracts/nestjs-parity-gaps.md)
+- [DI and Modules](../architecture/di-and-modules.md)
+- [Decorators and Metadata](../architecture/decorators-and-metadata.md)
+- [fluo new Support Matrix](../reference/fluo-new-support-matrix.md)

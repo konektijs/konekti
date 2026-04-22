@@ -67,5 +67,5 @@ It is intentionally not a microservice or mixed-topology example. For those `flu
 - `../../docs/getting-started/quick-start.md` — canonical first-run guide
 - `../../docs/getting-started/first-feature-path.md` — path from starter app to first feature
 - `../../docs/reference/package-chooser.md` — pick packages by task
-- `../../docs/operations/testing-guide.md` — testing patterns and recipes
-- `../../docs/concepts/di-and-modules.md` — DI and module system
+- `../../docs/contracts/testing-guide.md` — testing patterns and recipes
+- `../../docs/architecture/di-and-modules.md` — DI and module system

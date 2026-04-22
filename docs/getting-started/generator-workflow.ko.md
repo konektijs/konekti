@@ -1,160 +1,71 @@
-# 제너레이터 워크플로우
+# CLI Generator Reference
 
 <p><strong><kbd>한국어</kbd></strong> <a href="./generator-workflow.md"><kbd>English</kbd></a></p>
 
-fluo CLI를 사용하여 반복적인 코드를 줄이고 일관된 프로젝트 구조를 유지하세요. 제너레이터는 fluo의 module-first 규약을 따르는 구성 요소를 빠르게 만들어 줍니다.
+`fluo generate`와 `fluo g`는 해석된 소스 디렉터리 아래에 기능 슬라이스 파일을 생성합니다. 현재 포함된 생성기 집합은 모듈, HTTP 진입점, 프로바이더, 미들웨어, DTO 스텁을 다룹니다.
 
-### 대상 독자
-아키텍처의 일관성을 유지하면서 모듈, 컨트롤러, 서비스 생성을 자동화하여 생산성을 높이고 싶은 개발자.
+## Available Generators
 
-### 1. 전체 기능 모듈 생성
-**모듈(Module)**은 fluo 조직화의 기본 단위입니다. 한 번의 명령으로 모듈 진입점을 만들고, 필요한 구성 요소를 차례로 추가할 수 있습니다.
-
-```sh
-fluo g module catalog
+```bash
+fluo generate <generator> <name> [--target-directory <path>] [--force]
+fluo g <generator> <name> [--target-directory <path>] [--force]
 ```
 
-이 명령은 다음 구조를 생성합니다:
+| 생성기 | 허용 토큰 | 예시 문법 | 배선 방식 | 출력 범위 |
+| --- | --- | --- | --- | --- |
+| Module | `module`, `mo` | `fluo generate module Billing` | 파일만 생성 | 독립 모듈 파일 |
+| Controller | `controller`, `co` | `fluo g controller Billing` | 자동 등록 | 컨트롤러 파일, 테스트 파일, 모듈 갱신 |
+| Service | `service`, `s` | `fluo g service Billing` | 자동 등록 | 서비스 파일, 테스트 파일, 모듈 갱신 |
+| Repository | `repo`, `repository` | `fluo g repo Billing` | 자동 등록 | 레포지토리 파일, 단위 테스트, 슬라이스 테스트, 모듈 갱신 |
+| Guard | `guard`, `gu` | `fluo generate guard Billing` | 자동 등록 | 가드 파일, 모듈 갱신 |
+| Interceptor | `interceptor`, `in` | `fluo generate interceptor Billing` | 자동 등록 | 인터셉터 파일, 모듈 갱신 |
+| Middleware | `middleware`, `mi` | `fluo generate middleware Billing` | 자동 등록 | 미들웨어 파일, 모듈 갱신 |
+| Request DTO | `request-dto`, `req` | `fluo generate request-dto CreateBilling` | 파일만 생성 | 요청 DTO 파일 |
+| Response DTO | `response-dto`, `res` | `fluo generate response-dto Billing` | 파일만 생성 | 응답 DTO 파일 |
 
-```
-src/
-└── catalog/
-    └── catalog.module.ts
-```
+자동 등록 생성기는 슬라이스 모듈을 생성하거나 갱신한 뒤 생성된 클래스를 `controllers`, `providers`, `middleware` 배열에 추가합니다. 파일만 생성하는 생성기는 부모 모듈 등록 없이 파일만 산출합니다.
 
-생성된 모듈 파일은 다음과 같습니다:
+## Generated Artifacts
 
-```ts
-import { Module } from '@fluojs/core';
+모든 생성 결과는 `<resolved-target>/<plural-resource>/` 아래에 기록됩니다. `fluo g service Post`를 실행하고 해석된 타깃 디렉터리가 `src/`이면 슬라이스 디렉터리는 `src/posts/`입니다.
 
-@Module({
-  controllers: [],
-  providers: [],
-})
-export class CatalogModule {}
-```
+| 생성기 | 슬라이스 디렉터리에 생성되는 파일 | 모듈 영향 |
+| --- | --- | --- |
+| Module | `post.module.ts` | 없음. 상위 모듈 import는 별도로 처리합니다. |
+| Controller | `post.controller.ts`, `post.controller.test.ts` | `post.module.ts`를 생성하거나 갱신하고 `PostController`를 `controllers`에 추가합니다. |
+| Service | `post.service.ts`, `post.service.test.ts` | `post.module.ts`를 생성하거나 갱신하고 `PostService`를 `providers`에 추가합니다. |
+| Repository | `post.repo.ts`, `post.repo.test.ts`, `post.repo.slice.test.ts` | `post.module.ts`를 생성하거나 갱신하고 `PostRepo`를 `providers`에 추가합니다. |
+| Guard | `post.guard.ts` | `post.module.ts`를 생성하거나 갱신하고 `PostGuard`를 `providers`에 추가합니다. |
+| Interceptor | `post.interceptor.ts` | `post.module.ts`를 생성하거나 갱신하고 `PostInterceptor`를 `providers`에 추가합니다. |
+| Middleware | `post.middleware.ts` | `post.module.ts`를 생성하거나 갱신하고 `PostMiddleware`를 `middleware`에 추가합니다. |
+| Request DTO | `create-post.request.dto.ts` | 없음. 컨트롤러에서 수동 import가 필요합니다. |
+| Response DTO | `post.response.dto.ts` | 없음. 컨트롤러 반환 타입으로 수동 사용이 필요합니다. |
 
-여기에 컨트롤러, 서비스 등의 구성 요소를 기능이 커질수록 추가할 수 있습니다.
+컨트롤러와 서비스 템플릿은 렌더링 전에 같은 슬라이스의 형제 파일 존재 여부를 확인합니다. 컨트롤러 스텁은 같은 슬라이스에 서비스 파일이 있을 때만 `post.service.ts` import를 추가합니다. 서비스 스텁은 같은 슬라이스에 레포지토리 파일이 있을 때만 `post.repo.ts` import를 추가합니다.
 
-### 2. 정밀한 컴포넌트 생성
-기존 기능에 단일 구성 요소를 추가해야 하나요? 세분화된 제너레이터를 사용하세요.
+## Options
 
-```sh
-fluo g controller catalog
-fluo g service catalog
-```
+| 옵션 | 별칭 | 적용 범위 | 동작 |
+| --- | --- | --- | --- |
+| `--target-directory <path>` | `-o` | 모든 생성기 | 지정한 소스 디렉터리 아래에 슬라이스를 기록합니다. |
+| `--force` | `-f` | 모든 생성기 | 기존 생성 파일을 건너뛰지 않고 덮어씁니다. |
+| `--help` | `-h` | `fluo generate`, `fluo g` | generate 명령 사용법과 생성기 메타데이터를 출력합니다. |
 
-두 명령 실행 후 기능 디렉토리는 다음과 같습니다:
+| 해석 규칙 | 결정되는 기본 디렉터리 |
+| --- | --- |
+| 현재 디렉터리에 `package.json`과 `src/`가 모두 존재 | `<cwd>/src` |
+| 현재 디렉터리에 `apps/`가 있고, 그 아래에 `package.json`과 `src/`를 가진 앱이 정확히 하나 존재 | `<cwd>/apps/<app>/src` |
+| 어느 조건에도 해당하지 않음 | `<cwd>` |
 
-```
-src/
-└── catalog/
-    ├── catalog.module.ts
-    ├── catalog.controller.ts
-    └── catalog.service.ts
-```
+## Constraints
 
-생성된 컨트롤러는 표준 `@Inject` + `@Controller` 패턴을 따릅니다:
-
-```ts
-import { Inject } from '@fluojs/core';
-import { Controller } from '@fluojs/http';
-
-import { CatalogService } from './catalog.service';
-
-@Inject(CatalogService)
-@Controller('/catalog')
-export class CatalogController {
-  constructor(private readonly catalogService: CatalogService) {}
-}
-```
-
-사용 가능한 전체 제너레이터 목록:
-
-| 명령 | 생성 결과 |
-| :--- | :--- |
-| `fluo g module name` | `@Module` 데코레이터가 포함된 모듈 정의 |
-| `fluo g controller name` | `@Controller`와 `@Inject`가 포함된 HTTP 컨트롤러 |
-| `fluo g service name` | 비즈니스 로직 서비스 클래스 |
-| `fluo g repo name` | 데이터 레포지토리 패턴 클래스 |
-
-### 3. 유연한 출력 경로
-기본적으로 CLI는 `src/`를 타겟으로 합니다. 프로젝트의 디렉토리 구조에 맞게 `--target-directory` (또는 `-o`) 플래그를 사용할 수 있습니다.
-
-```sh
-fluo g module auth --target-directory src/shared
-```
-
-이렇게 하면 `src/auth/auth.module.ts` 대신 `src/shared/auth/auth.module.ts`가 생성됩니다.
-
-### 4. 드라이 런을 통한 안전한 실행
-변경 사항을 실제로 적용하기 전에 어떤 파일이 수정되거나 생성될지 미리 확인해 보세요.
-
-```sh
-fluo g module shop --dry-run
-```
-
-파일 시스템을 건드리지 않고 계획된 작업만 출력하므로, 경로와 이름을 생성 전에 확인할 수 있습니다.
-
-### 5. 전체 기능 슬라이스 조합
-실제로는 제너레이터를 연속 사용하여 완전한 기능을 구성합니다. 새로운 `orders` 기능을 만드는 전형적인 워크플로우는 다음과 같습니다:
-
-```sh
-# 1. 모듈 생성
-fluo g module orders
-
-# 2. 컨트롤러와 서비스 추가
-fluo g controller orders
-fluo g service orders
-
-# 3. 데이터 접근을 위한 레포지토리 추가
-fluo g repo orders
-```
-
-결과:
-
-```
-src/
-└── orders/
-    ├── orders.module.ts
-    ├── orders.controller.ts
-    ├── orders.service.ts
-    └── orders.repo.ts
-```
-
-그런 다음 `orders.module.ts`에서 모든 요소를 연결합니다:
-
-```ts
-import { Module } from '@fluojs/core';
-import { OrdersController } from './orders.controller';
-import { OrdersService } from './orders.service';
-import { OrdersRepo } from './orders.repo';
-
-@Module({
-  controllers: [OrdersController],
-  providers: [OrdersService, OrdersRepo],
-  exports: [OrdersService],
-})
-export class OrdersModule {}
-```
-
-그리고 루트 `AppModule`에서 해당 모듈을 import합니다:
-
-```ts
-import { Module } from '@fluojs/core';
-import { OrdersModule } from './orders/orders.module';
-
-@Module({
-  imports: [OrdersModule],
-})
-export class AppModule {}
-```
-
-### 왜 CLI를 사용해야 하나요?
-- **반복 코드 감소**: 디렉토리 생성, 파일 이름 규칙, 기본 import 구성을 직접 할 필요가 줄어듭니다.
-- **일관된 구조**: 생성된 파일은 fluo 레퍼런스 문서가 설명하는 배치 규칙을 따릅니다.
-- **조합 가능한 워크플로우**: 모듈로 시작한 뒤 기능이 커질수록 컨트롤러, 서비스, DTO, 이벤트, 레포지토리를 추가할 수 있습니다.
-
-### 다음 단계
-- **로직 구현하기**: [첫 번째 기능 구현 경로](./first-feature-path.ko.md)를 따라 로직을 추가해 보세요.
-- **검증**: 생성된 컴포넌트를 테스트하는 방법은 [테스트 가이드](../operations/testing-guide.ko.md)에서 확인할 수 있습니다.
+- 리소스 이름은 비어 있으면 안 됩니다.
+- 리소스 이름은 `-`로 시작할 수 없습니다.
+- 리소스 이름에는 경로 구분자나 `..` 탐색 세그먼트가 포함될 수 없습니다.
+- 허용되는 이름 문자는 영문자, 숫자, 공백, 밑줄, 하이픈입니다. 생성되는 파일 스템은 kebab case로 정규화됩니다.
+- 유효한 `apps/*/src` 타깃이 둘 이상인 멀티 앱 워크스페이스 루트에서는 `--target-directory`가 필요합니다.
+- 기존 파일은 기본적으로 건너뜁니다. 덮어쓰기는 `--force`가 필요합니다.
+- 자동 등록 메타데이터가 해석되더라도 변경되지 않은 파일 내용은 다시 쓰지 않습니다.
+- 모듈 자동 등록은 controller, service, repository, guard, interceptor, middleware 생성기에만 적용됩니다.
+- DTO 생성기와 module 생성기는 상위 모듈 import를 자동으로 연결하지 않습니다.
+- generate 명령이 문서화하는 옵션은 `--target-directory`, `--force`, `--help`입니다. `fluo generate`와 `fluo g`에는 `--dry-run` 파서가 없습니다.

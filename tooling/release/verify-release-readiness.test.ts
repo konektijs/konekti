@@ -11,7 +11,7 @@ function createDependencies() {
     ['docs/getting-started/quick-start.md', 'pnpm add -g @fluojs/cli\nfluo new my-fluo-app\nThe fluo CLI is your central tool for project scaffolding and component generation.'],
     ['CONTRIBUTING.md', 'pnpm sandbox:create\npnpm sandbox:verify\npnpm sandbox:test'],
     [
-      'docs/operations/release-governance.md',
+      'docs/contracts/release-governance.md',
       '## intended publish surface\n- `@fluojs/cli`\n- `@fluojs/core`\n\npnpm verify:release-readiness\npnpm verify:platform-consistency-governance',
     ],
     ['docs/reference/package-surface.md', '## public package families\n| Core | `@fluojs/cli` `@fluojs/core` |'],

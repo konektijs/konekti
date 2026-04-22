@@ -1,125 +1,52 @@
-# bootstrap paths
+# Application Bootstrap Protocol
 
 <p><strong><kbd>English</kbd></strong> <a href="./bootstrap-paths.ko.md"><kbd>한국어</kbd></a></p>
 
-fluo is built on a **runtime-agnostic core**. You can write business logic once and deploy it to any TypeScript-capable environment using dedicated platform adapters.
+## Startup Sequence
 
-> This page describes the adapter ecosystem. For the exact starter choices in `fluo new`, see the [fluo new support matrix](../reference/fluo-new-support-matrix.md).
+1. `FluoFactory.create(rootModule, options)` delegates to `bootstrapApplication(...)` in `packages/runtime/src/bootstrap.ts`.
+2. `bootstrapModule(...)` compiles the reachable module graph from the root module and validates imports, exports, provider visibility, and injection metadata.
+3. `registerRuntimeBootstrapTokens(...)` registers the selected HTTP adapter under `HTTP_APPLICATION_ADAPTER` and the runtime platform shell under `PLATFORM_SHELL`.
+4. `resolveBootstrapLifecycleInstances(...)` resolves runtime providers and module providers that expose lifecycle hooks.
+5. `runBootstrapHooks(...)` executes every `onModuleInit()` hook first, then every `onApplicationBootstrap()` hook.
+6. `platformShell.start()` runs after lifecycle hooks succeed. Readiness is marked only after that start phase completes.
+7. `createRuntimeDispatcher(...)` builds the dispatcher and `bootstrapApplication(...)` returns a `FluoApplication` instance.
+8. Network ingress begins when application code later calls `await app.listen()`. Adapter packages implement the runtime specific listen behavior.
 
-### target audience
-Developers moving beyond the local Fastify starter who need to target specific environments like Bun, Deno, or Edge functions.
+## Entry Points
 
-### 1. the adapter pattern
-Every fluo app starts with `FluoFactory.create()`. The second argument includes a **Platform Adapter**, which bridges the framework to the underlying runtime's HTTP server.
+| Path | Role |
+| --- | --- |
+| `examples/minimal/src/main.ts` | Canonical application entry file for the default HTTP bootstrap shape. It creates the application with `FluoFactory.create(...)` and then calls `app.listen()`. |
+| `packages/runtime/src/bootstrap.ts` | Source of `bootstrapApplication(...)`, `FluoFactory.create(...)`, `FluoFactory.createApplicationContext(...)`, and `FluoFactory.createMicroservice(...)`. |
+| `packages/runtime/src/node.ts` | Public Node specific subpath for raw Node bootstrap helpers and shutdown signal registration helpers. |
+| `packages/platform-fastify/src/adapter.ts` | Exposes `createFastifyAdapter(...)`, `bootstrapFastifyApplication(...)`, and `runFastifyApplication(...)` for the Fastify path. |
+| `packages/platform-cloudflare-workers/src/adapter.ts` | Exposes `createCloudflareWorkerAdapter(...)`, `bootstrapCloudflareWorkerApplication(...)`, and `createCloudflareWorkerEntrypoint(...)` for the Worker fetch path. |
 
-```ts
-import { FluoFactory } from '@fluojs/runtime';
-import { AppModule } from './app';
-import { createFastifyAdapter } from '@fluojs/platform-fastify';
+## Platform Registration
 
-const app = await FluoFactory.create(AppModule, {
-  adapter: createFastifyAdapter({ port: 3000 }),
-});
-await app.listen();
-```
+- Application bootstrap accepts the platform binding through the `adapter` option passed to `FluoFactory.create(...)`.
+- Runtime bootstrap stores that adapter instance under the `HTTP_APPLICATION_ADAPTER` token and stores the platform shell under `PLATFORM_SHELL`.
+- Platform packages live under `@fluojs/platform-*` and provide the adapter factories used at the application boundary, for example `createFastifyAdapter(...)` and `createCloudflareWorkerAdapter(...)`.
+- The platform shell starts after lifecycle hooks complete and stops during shutdown cleanup.
+- `FluoFactory.createApplicationContext(...)` follows the same module graph and lifecycle path but skips HTTP adapter registration and returns an application context instead of an HTTP application.
+- Starter shapes, runtime/platform combinations, and published microservice transport variants are listed in the [fluo new support matrix](../reference/fluo-new-support-matrix.md).
 
-Switching runtimes is a one-line change — replace the adapter import and call. Everything else stays the same.
+## Shutdown Sequence
 
-### 2. standard node.js paths
+1. Shutdown begins when the application closes explicitly or when a host specific helper registers and receives a shutdown signal.
+2. `runShutdownHooks(...)` walks lifecycle instances in reverse order.
+3. Every `onModuleDestroy()` hook runs before any `onApplicationShutdown(signal)` hook.
+4. The platform shell stops through a lifecycle cleanup entry that is appended during bootstrap.
+5. Adapter specific `close()` logic drains or rejects ingress according to the runtime contract, for example Fastify waits for server close completion and Cloudflare Workers drains in flight requests before releasing the dispatcher.
+6. Container disposal runs after shutdown hooks when bootstrap fails before the application is fully returned.
 
-**Fastify** (`@fluojs/platform-fastify`) — the default recommended path for Node.js. High performance and compatible with the Fastify plugin ecosystem.
+## Error States
 
-```ts
-import { createFastifyAdapter } from '@fluojs/platform-fastify';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createFastifyAdapter({ port: 3000 }),
-});
-```
-
-**Express** (`@fluojs/platform-express`) — best for projects that rely on legacy Express middleware.
-
-```ts
-import { createExpressAdapter } from '@fluojs/platform-express';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createExpressAdapter({ port: 3000 }),
-});
-```
-
-**Raw Node** (`@fluojs/platform-nodejs`) — use this for minimum overhead on Node.js using native `http.createServer`.
-
-```ts
-import { createNodeAdapter } from '@fluojs/platform-nodejs';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createNodeAdapter({ port: 3000 }),
-});
-```
-
-### 3. modern runtimes
-Targeting something other than Node.js? Swap the adapter and keep your code.
-
-**Bun** (`@fluojs/platform-bun`) — uses Bun's native high-speed HTTP server.
-
-```ts
-import { createBunAdapter } from '@fluojs/platform-bun';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createBunAdapter({ port: 3000 }),
-});
-```
-
-**Deno** (`@fluojs/platform-deno`) — compatible with Deno's standard library and security model.
-
-```ts
-import { createDenoAdapter } from '@fluojs/platform-deno';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createDenoAdapter({ port: 3000 }),
-});
-```
-
-### 4. edge & serverless
-For "zero-cold-start" environments, fluo provides adapters that handle the fetch-event lifecycle of Edge runtimes.
-
-**Cloudflare Workers** (`@fluojs/platform-cloudflare-workers`) — integrated with the Workers environment and KV/Durable Objects.
-
-```ts
-import { createWorkersAdapter } from '@fluojs/platform-cloudflare-workers';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createWorkersAdapter(),
-});
-export default app.handler;
-```
-
-### choosing your runtime
-The table below is an adapter ecosystem guide, not a list of current `fluo new` presets.
-
-| adapter | package | best for |
-| :--- | :--- | :--- |
-| **Fastify** | `@fluojs/platform-fastify` | Production-grade Node.js apps, default choice. |
-| **Express** | `@fluojs/platform-express` | Legacy migration, maximum middleware compatibility. |
-| **Raw Node** | `@fluojs/platform-nodejs` | Minimum overhead, native `http.createServer`. |
-| **Bun** | `@fluojs/platform-bun` | Maximum local performance and developer speed. |
-| **Deno** | `@fluojs/platform-deno` | Secure-by-default, no-node_modules environments. |
-| **Cloudflare** | `@fluojs/platform-cloudflare-workers` | Global edge distribution, zero-cold-start. |
-
-### what stays the same across runtimes
-Your `AppModule`, controllers, services, DI wiring, guards, interceptors, and middleware all remain identical. The adapter only changes the HTTP ingress layer — everything above it is portable.
-
-```ts
-// This module works on every runtime without modification
-@Module({
-  imports: [RuntimeHealthModule, UsersModule, AuthModule],
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
-```
-
-### next steps
-- **Master the CLI**: See how the [Generator Workflow](./generator-workflow.md) works across runtimes.
-- **Check starter reality**: Review the [fluo new support matrix](../reference/fluo-new-support-matrix.md) for available presets.
-- **Deep Dive**: Read the [Package Surface](../reference/package-surface.md) for a full matrix of adapters and capabilities.
+- `ModuleGraphError`: thrown during module graph compilation or validation, including circular imports and invalid imported modules.
+- `ModuleVisibilityError`: thrown when a provider, controller, or module export references a token that is not visible from the current module.
+- `ModuleInjectionMetadataError`: thrown when constructor injection metadata does not cover required parameters.
+- Lifecycle hook failures: any rejection from `onModuleInit()` or `onApplicationBootstrap()` aborts bootstrap before readiness is marked.
+- Adapter or platform startup failures: errors thrown while starting the platform shell, creating the dispatcher, or later listening on the adapter surface propagate as bootstrap failures.
+- `InvariantError`: thrown by `FluoFactory.createMicroservice(...)` when the resolved runtime token does not implement `listen()`.
+- Bootstrap failure cleanup uses the synthetic signal `bootstrap-failed` and runs shutdown hooks plus container disposal before rethrowing the original error.

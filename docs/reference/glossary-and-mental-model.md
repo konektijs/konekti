@@ -2,78 +2,56 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./glossary-and-mental-model.ko.md"><kbd>한국어</kbd></a></p>
 
-This glossary defines the core terminology and mental models that govern the fluo framework. Use this as a lookup for technical terms and to understand the "fluo way" of building backend applications.
+Lookup reference for fluo terminology, execution framing, and bootstrap stages.
 
-## core terminology
+## glossary
 
-| term | definition | why it matters |
+| term | definition | notes |
 | --- | --- | --- |
-| **Provider** | A class, value, or factory registered in a module that the DI container can resolve and inject. | The building block of all services and application logic. |
-| **Token** | The unique identifier (class constructor, string, or Symbol) used to look up a provider in the DI container. | It decouples the interface from the implementation during injection. |
-| **Scope** | The instantiation policy for a provider — Singleton (default), Request (per-HTTP-request), or Transient (per-injection). | It controls the memory footprint and state sharing behavior of your services. |
-| **Module** | A logical container for providers and controllers that defines boundaries for dependency resolution. | It provides a structured way to organize code into cohesive, reusable units. |
-| **Dispatcher** | The central orchestration layer that routes incoming requests to handlers. | It is the heart of the HTTP request-response cycle. |
-| **Middleware** | A function or class that runs before the route handler, configured via `forRoutes()`. | Used for cross-cutting tasks like logging, CORS, or body parsing. |
-| **Pipe** | A transformation or validation step applied to incoming request data before it reaches the handler. | It ensures data integrity and reduces repetitive validation logic. |
-| **Guard** | An authorization gate evaluating request context before handler invocation. | Essential for implementing security policies like "only admins can access this". |
-| **Interceptor** | A wrapper around handler execution for cross-cutting concerns. | Perfect for logging, response transformation, or global error handling logic. |
-| **DTO (Data Transfer Object)** | A class defining the shape and validation rules for request data, used with `@RequestDto()`. | It ensures type safety and data integrity before your business logic runs. |
-| **RequestContext** | The per-request object carrying the parsed request, response handle, route params, and principal. | Provides access to scoped metadata without polluting service method signatures. |
-| **Platform Adapter** | A package bridging the abstract fluo runtime to specific environments (Fastify, Express, Bun, Deno, Cloudflare Workers). | This abstraction allows your code to remain portable across different runtimes. |
-| **forRoot / forRootAsync** | Static methods on modules that accept options and return a dynamic module definition. | Enables the creation of configurable modules (like database or auth) with custom settings. |
-| **Standard Decorators** | TC39-standard decorators (Stage 3) used for metadata and behavior attachment. | No legacy compiler flags are required, keeping your codebase aligned with the JS standard. |
-| **Class-First DI** | A DI style where concrete classes serve as their own injection tokens by default. | It reduces boilerplate and makes dependencies explicit and discoverable. |
-| **Bootstrap Path** | The sequence from `FluoFactory.create()` to the application being ready. | Understanding this helps in debugging startup issues and wiring lifecycle hooks. |
-| **Module Graph** | The dependency-ordered tree of modules resolved at runtime. | It defines how providers are shared and which parts of the app boot first. |
-| **Exception Resolver** | The component mapping thrown exceptions to formatted HTTP responses. | It centralizes how your API communicates errors to clients. |
-| **Dynamic Module** | A module created at runtime, often via `forRoot`, which can customize its providers based on external input. | Essential for creating generic library modules that adapt to application-specific needs. |
-| **Circular Dependency** | A situation where two or more modules or providers depend on each other, requiring special handling. | Detecting these early prevents runtime errors and leads to cleaner architectural boundaries. |
-| **Injection Point** | A location (like a constructor or property) where a dependency is requested via `@Inject`. | Clearly identifies where external logic is required by a class. |
+| **Provider** | Class, value, or factory registered for DI resolution. | Base unit of runtime wiring. |
+| **Token** | Identifier used to resolve a provider. | Usually a class, string, or `Symbol`. |
+| **Scope** | Provider lifetime policy. | `Singleton`, `Request`, or `Transient`. |
+| **Module** | Boundary that groups providers, controllers, imports, and exports. | Defines visibility rules in the module graph. |
+| **Module Graph** | Dependency-ordered module tree resolved at bootstrap. | Drives provider visibility and lifecycle order. |
+| **Dispatcher** | HTTP execution coordinator. | Runs middleware, guards, interceptors, binding, and handler invocation. |
+| **Middleware** | Pre-handler request processing step. | Configured per route or module. |
+| **Pipe** | Input transformation or validation step. | Commonly used for DTO coercion and validation. |
+| **Guard** | Authorization or access gate before handler execution. | Blocks requests before business logic runs. |
+| **Interceptor** | Wrapper around handler execution. | Used for response shaping, timing, and cross-cutting behavior. |
+| **DTO** | Class describing request payload shape. | Bound through `@RequestDto()` and validation adapters. |
+| **RequestContext** | Per-request runtime object. | Holds request, response handle, params, and principal. |
+| **Platform Adapter** | Package that binds fluo runtime contracts to an actual environment. | Must satisfy the platform adapter contract. |
+| **forRoot / forRootAsync** | Dynamic module entrypoints for configurable modules. | Convert options into runtime provider registration. |
+| **Standard Decorators** | TC39-standard decorators used by fluo. | Legacy decorator compiler flags are out of contract. |
+| **Class-First DI** | DI style where classes are the default token shape. | Keeps injection explicit without reflection metadata. |
+| **Bootstrap Path** | Sequence from `FluoFactory.create()` to ready application state. | Useful when tracing startup or readiness failures. |
+| **Exception Resolver** | Error-to-response mapping layer. | Normalizes thrown errors into HTTP responses. |
+| **Dynamic Module** | Module definition produced at runtime. | Common for auth, config, persistence, and adapter packages. |
+| **Circular Dependency** | Mutual dependency across providers or modules. | Requires explicit handling or boundary cleanup. |
+| **Injection Point** | Constructor or property where a dependency is requested. | Usually paired with `@Inject(...)` when the token is explicit. |
 
-## mental models
+## mental model
 
-### adapter-first runtime: "write once, run anywhere"
-fluo treats the runtime as a neutral orchestration engine. It doesn't assume a specific HTTP server or process model. Instead, it relies on **Platform Adapters** to provide the glue. This means your application logic stays decoupled from whether it's running on Fastify, a Cloudflare Worker, or a bare Node listener.
-```ts
-// Logic remains identical regardless of the adapter
-const app = await FluoFactory.create(RootModule, { adapter: new FastifyAdapter() });
-```
-
-### explicit over implicit: "no magic"
-While many frameworks rely on "magic" or reflection, fluo favors explicit declaration. Injection dependencies are declared via `@Inject()`, and modules must explicitly list their exports. This ensures that the module graph is predictable, auditable, and easy to debug using the CLI.
-```ts
-@Inject(UsersRepository)
-constructor(private users: UsersRepository) {}
-```
-
-### single-responsibility packages: "pay only for what you use"
-The framework is split into granular packages. If you don't need Redis, you don't include `@fluojs/redis`. If you aren't using WebSockets, you don't include `@fluojs/websockets`. This keeps your production bundle lean and your dependency tree manageable.
-```ts
-import { HttpModule } from '@fluojs/http'; // Only import what is necessary
-```
-
-### behavioral contracts: "predictable execution"
-Every package in the fluo ecosystem follows strict reliability rules. This means that a service or middleware will behave consistently regardless of the underlying platform. You can trust that error codes, headers, and lifecycle events are normalized across Express, Fastify, and edge runtimes.
-```ts
-// Use standardized error handling that works everywhere
-throw new UnauthorizedException('Access denied');
-```
+| model | reference summary |
+| --- | --- |
+| **Adapter-first runtime** | Application logic stays portable; the adapter owns environment-specific transport behavior. |
+| **Explicit wiring** | DI, exports, and module boundaries are declared directly rather than inferred from reflection. |
+| **Package isolation** | Packages stay granular so applications depend only on the capabilities they actually use. |
+| **Behavioral contracts** | Runtime behavior, response rules, and package guarantees are expected to stay consistent across supported platforms. |
 
 ## lifecycle stages
 
-1.  **Resolution**
-    The module graph is built by recursively traversing imports starting from the root module. Fluo analyzes all dependencies to ensure the graph is valid, all tokens are resolvable, and no unhandled cyclic dependencies exist.
-2.  **Instantiation**
-    The DI container creates instances of all registered providers. Singleton providers are instantiated immediately. Request-scoped and Transient providers are prepared for instantiation when their respective triggers (like an HTTP request) occur.
-3.  **Bootstrap**
-    The framework triggers the initialization hooks. `onModuleInit` is called for every provider, controller, and module in dependency order (leaf modules first). This is where services connect to databases or warm up caches.
-4.  **Ready**
-    The Platform Adapter starts the underlying server listener (e.g., calling `listen()` on a Fastify instance). The application is now fully initialized, healthy, and accepting incoming traffic.
-5.  **Shutdown**
-    Upon receiving a termination signal (like SIGTERM), fluo triggers `onModuleDestroy` hooks in reverse dependency order. This ensures that database connections, message consumers, and file handles are closed gracefully before the process exits.
+| stage | runtime effect |
+| --- | --- |
+| **Resolution** | Imports are traversed and the module graph is validated. |
+| **Instantiation** | Providers are created according to scope rules. |
+| **Bootstrap** | Lifecycle hooks run and package initialization completes. |
+| **Ready** | The platform listener starts accepting traffic. |
+| **Shutdown** | Destruction hooks run in reverse order and resources are released. |
 
-## further reading
-- [Architecture Overview](../concepts/architecture-overview.md)
-- [DI and Modules](../concepts/di-and-modules.md)
-- [HTTP Runtime](../concepts/http-runtime.md)
-- [Lifecycle & Shutdown](../concepts/lifecycle-and-shutdown.md)
+## related docs
+
+- [Architecture Overview](../architecture/architecture-overview.md)
+- [DI and Modules](../architecture/di-and-modules.md)
+- [HTTP Runtime](../architecture/http-runtime.md)
+- [Lifecycle and Shutdown](../architecture/lifecycle-and-shutdown.md)

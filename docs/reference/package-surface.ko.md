@@ -2,8 +2,6 @@
 
 <p><strong><kbd>한국어</kbd></strong> <a href="./package-surface.md"><kbd>English</kbd></a></p>
 
-이 페이지는 fluo 공개 패키지 패밀리와 런타임 매핑의 기준 문서(source of truth)입니다. 패키지 책임에 대한 권위 있는 조회에 활용하세요.
-
 ## 공개 패키지 패밀리
 
 | 패밀리 | 설명 | 패키지 |
@@ -19,8 +17,6 @@
 | **Tooling** | CLI 및 진단. | `@fluojs/cli`, `@fluojs/studio`, `@fluojs/testing` |
 
 ## canonical runtime package matrix
-
-fluo는 전송 중립(transport-neutral) 런타임을 사용합니다. 어댑터가 이 런타임을 특정 호스팅 환경에 연결합니다.
 
 | 런타임 대상 | 어댑터 패키지 | 비고 |
 | --- | --- | --- |

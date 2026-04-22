@@ -58,7 +58,7 @@ pnpm test
 - `packages/graphql/src/dataloader/dataloader.ts`
 - `packages/cache-manager/src/decorators.ts`
 - `packages/di/src/container.ts`
-- [docs/operations/public-export-tsdoc-baseline.ko.md](docs/operations/public-export-tsdoc-baseline.ko.md)
+- [docs/contracts/public-export-tsdoc-baseline.ko.md](docs/contracts/public-export-tsdoc-baseline.ko.md)
 
 `pnpm lint`에는 이제 `pnpm verify:public-export-tsdoc`이 포함되어 있어, PR 시점에 변경된 패키지 소스 파일에 대해서만 강제 적용됩니다.
 밀린 TSDoc 누락분을 전수 조사해야 할 때는 `pnpm verify:public-export-tsdoc:baseline`을 사용하세요.
@@ -115,7 +115,7 @@ pnpm typecheck
 fluo는 엄격한 동작 계약을 유지합니다. PR을 열기 전에 다음 사항을 확인하세요.
 
 1. 영향을 받는 패키지의 `README.md`를 읽었는지 확인.
-2. [docs/operations/behavioral-contract-policy.ko.md](docs/operations/behavioral-contract-policy.ko.md)를 확인했는지 확인.
+2. [docs/contracts/behavioral-contract-policy.ko.md](docs/contracts/behavioral-contract-policy.ko.md)를 확인했는지 확인.
 3. 런타임 동작이나 API 표면이 변경된 경우 문서를 업데이트했는지 확인.
 4. 계약에 영향을 주는 변경 사항에 대해 회귀 테스트(regression tests)를 추가했는지 확인.
 

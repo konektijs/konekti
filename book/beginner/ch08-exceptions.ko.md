@@ -156,7 +156,7 @@ bad request는 서버 크래시가 아닙니다.
 - 잘못된 길이,
 - 잘못된 페이로드 구조.
 
-`@fluojs/validation`에서 에러를 발견하면 단순히 멈추지 않습니다. 구조화된 예외(주로 `BadRequestException` 계열)를 던지고, HTTP 계층은 이를 읽기 쉬운 응답으로 변환합니다 (`docs/concepts/error-responses.md` 참고).
+`@fluojs/validation`에서 에러를 발견하면 단순히 멈추지 않습니다. 구조화된 예외(주로 `BadRequestException` 계열)를 던지고, HTTP 계층은 이를 읽기 쉬운 응답으로 변환합니다 (`docs/architecture/error-responses.md` 참고).
 
 핵심은 책임 소재입니다.
 

@@ -2,72 +2,61 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./package-folder-structure.ko.md"><kbd>한국어</kbd></a></p>
 
-This reference defines the standard folder structure for packages within the fluo monorepo. Every package in `packages/` should follow these conventions for consistency and maintainability.
+Reference layout for `packages/*/src` and the roles reserved by repository convention.
 
-## standard root files
-
-The following files should be located directly under the `src/` directory:
-
-| file | responsibility |
-| --- | --- |
-| **`index.ts`** | Public API entry point. Reserved for re-exports only; no implementation code here. |
-| **`module.ts`** | Runtime module definition and provider registration. |
-| **`service.ts`** | Primary service for low-complexity packages. |
-| **`types.ts`** | Publicly exported types and interfaces. |
-| **`tokens.ts`** | Dependency injection tokens (symbols or constants). |
-| **`errors.ts`** | Package-specific exception classes. |
-| **`status.ts`** | Health indicators and readiness checks. |
-
-## reserved folder names
-
-If a package requires multiple files for a specific responsibility, use the following reserved folder names:
-
-### `decorators/`
-User-facing decorators and metadata readers.
-- *Examples*: `@fluojs/serialization`, `@fluojs/validation`.
-
-### `transports/`
-Pluggable transport implementations for cross-protocol support.
-- *Examples*: `@fluojs/microservices` (Kafka, RabbitMQ, etc.).
-
-### `stores/`
-Pluggable storage backends.
-- *Examples*: `@fluojs/cache-manager` (Memory, Redis).
-
-### `adapters/`
-Bridges between third-party libraries and internal interfaces.
-- *Examples*: `@fluojs/cli`, `@fluojs/passport`.
-
-### `node/` / `web/`
-Platform-specific code used to separate Node.js-only logic from web-standard logic.
-- *Examples*: `@fluojs/runtime`, `@fluojs/websockets`.
-
-### `internal/`
-Framework-private implementation details. These files **must not** be re-exported from `index.ts`.
-
-## placement decision tree
+## canonical tree
 
 ```text
-Where should a new file go?
-│
-├─ Is it part of the public API?
-│  ├─ YES → Does it match a root file (index, module, types, etc.)?
-│  │        ├─ YES → Place in src/ root.
-│  │        └─ NO  → Check reserved folder names.
-│  └─ NO  → Place in internal/.
-│
-├─ Are there already 2+ files with this responsibility?
-│  ├─ YES → Create or use the corresponding folder.
-│  └─ NO  → Keep in src/ root until complexity grows.
+src/
+├── index.ts
+├── module.ts
+├── service.ts
+├── types.ts
+├── tokens.ts
+├── errors.ts
+├── status.ts
+├── decorators/
+├── transports/
+├── stores/
+├── adapters/
+├── node/
+├── web/
+└── internal/
 ```
 
-## immutable rules
+## path roles
 
-1.  **Stable Public API**: Moving a file within `src/` must not change the `index.ts` re-export signature.
-2.  **Test Proximity**: Test files (`*.test.ts`) must reside in the same folder as the implementation they cover.
-3.  **Snapshots**: `__snapshots__` directories remain co-located with their respective tests.
-4.  **No Single-File Folders**: Do not create a folder if it will only contain one file.
+| path | role |
+| --- | --- |
+| `src/index.ts` | Public export surface only; keep implementation out of the entrypoint. |
+| `src/module.ts` | Module definition, provider registration, and package wiring. |
+| `src/service.ts` | Primary service entry for low-complexity packages. |
+| `src/types.ts` | Public types and interfaces. |
+| `src/tokens.ts` | DI tokens and related constants. |
+| `src/errors.ts` | Package-specific exceptions and error types. |
+| `src/status.ts` | Health, readiness, or package status helpers. |
+| `src/decorators/` | User-facing decorators and decorator helpers. |
+| `src/transports/` | Transport-specific implementations for protocol variants. |
+| `src/stores/` | Storage backend implementations. |
+| `src/adapters/` | Bridges between third-party APIs and fluo contracts. |
+| `src/node/` | Node-only runtime code. |
+| `src/web/` | Web-standard or edge-safe runtime code. |
+| `src/internal/` | Private implementation details that must not be re-exported publicly. |
 
----
+## placement rules
 
-For a complete list of packages, see [package-surface.md](./package-surface.md).
+| condition | placement |
+| --- | --- |
+| Public API file matches a reserved root filename | Keep it in `src/` root. |
+| Public API responsibility needs multiple files | Use the matching reserved folder. |
+| Implementation is private to the package | Place it in `src/internal/`. |
+| Responsibility currently has one small file only | Keep it in root until the group grows. |
+| Code is runtime-specific | Split it into `src/node/` or `src/web/`. |
+| Test or snapshot support files | Keep them next to the implementation they cover. |
+
+## constraints
+
+- Moving files inside `src/` must not change the public re-export contract from `index.ts`.
+- Do not create single-file folders without a clear grouping need.
+- `__snapshots__/` stays next to the tests it supports.
+- Use [package-surface.md](./package-surface.md) for the canonical package inventory.

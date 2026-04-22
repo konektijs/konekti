@@ -2,8 +2,6 @@
 
 <p><a href="./fluo-new-support-matrix.md"><kbd>English</kbd></a> <strong><kbd>한국어</kbd></strong></p>
 
-이 페이지는 현재 `fluo new`가 실제로 스캐폴딩하는 범위와, fluo가 다른 문서에서 설명하는 더 넓은 런타임/어댑터 생태계를 구분하기 위한 기준 문서입니다.
-
 ## 현재 스타터 범위 vs 더 넓은 생태계 지원
 
 | 표면 | 현재 상태 | `fluo new`에 실제로 연결된 항목 | 다음 단계 |
@@ -13,11 +11,14 @@
 | **mixed 스타터** | **지금 스캐폴딩됨** | `--shape mixed --transport tcp --runtime node --platform fastify`로 생성되는 Node.js + Fastify HTTP 앱 + 연결된 TCP microservice | 이것이 현재 공개된 유일한 혼합 스타터 변형입니다. |
 | **더 넓은 어댑터/런타임 생태계** | **일부는 스캐폴딩됨, 일부는 문서 전용** | `@fluojs/platform-fastify`, `@fluojs/platform-express`, `@fluojs/platform-nodejs`, `@fluojs/platform-bun`, `@fluojs/platform-deno`, `@fluojs/platform-cloudflare-workers`는 모두 이제 공식 애플리케이션 스타터 경로를 가집니다. 그 외 런타임/패키지 조합은 여전히 더 넓은 생태계 문서 범주에 남습니다. | 남아 있는 문서 전용 어댑터는 스캐폴딩 이후나 수동 구성에서 아래 런타임/패키지 문서를 사용해 채택하세요. |
 
-## 다른 문서를 읽는 방법
+## 해석 규칙
 
-- `fluo new` 문서는 스타터 계약으로 읽고, 문서화된 모든 어댑터가 이미 스타터 프리셋을 가진다고 해석하지 마세요.
-- 런타임/패키지 참조 문서는 현재 스타터 매트릭스 밖에서 채택 가능한 어댑터, 플랫폼, 배포 대상을 설명하는 더 넓은 생태계 지도입니다.
-- 어떤 페이지가 Node.js HTTP 플랫폼(Fastify, Express, raw Node.js), Bun, Deno, Cloudflare Workers를 언급할 때 명시적인 `fluo new --shape application --transport http --runtime ... --platform ...` 명령이 함께 있다면 그것이 실행 가능한 스타터 계약입니다. 마이크로서비스의 경우 문서화된 `tcp`, `redis-streams`, `nats`, `kafka`, `rabbitmq`, `mqtt`, `grpc` 명령 변형을 runnable starter 계약으로 읽으세요. 그 밖의 어댑터/패키지 언급은 여전히 더 넓은 패키지 생태계를 설명합니다.
+| 규칙 | 의미 |
+| --- | --- |
+| **스타터 문서** | `fluo new` 범위는 현재 제공되는 스타터 계약으로만 읽습니다. |
+| **참조 문서** | 런타임/패키지 참조 문서는 shipped starter preset 바깥의 더 넓은 생태계 지도로 읽습니다. |
+| **애플리케이션 명령** | Fastify, Express, raw Node.js, Bun, Deno, Cloudflare Workers에 대한 명시적 `fluo new --shape application --transport http --runtime ... --platform ...` 명령을 runnable starter 계약으로 읽습니다. |
+| **마이크로서비스 명령** | 문서화된 `tcp`, `redis-streams`, `nats`, `kafka`, `rabbitmq`, `mqtt`, `grpc` 변형을 runnable starter 계약으로 읽습니다. 그 밖의 어댑터/패키지 언급은 더 넓은 생태계를 설명합니다. |
 
 ## 명시적 지원 스타터 값
 

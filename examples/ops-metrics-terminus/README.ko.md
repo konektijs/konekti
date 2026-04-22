@@ -55,6 +55,6 @@ examples/ops-metrics-terminus/
 
 - `../README.ko.md` — 공식 examples 인덱스
 - `../../docs/getting-started/first-feature-path.ko.md`
-- `../../docs/concepts/observability.ko.md`
+- `../../docs/architecture/observability.ko.md`
 - `../../packages/metrics/README.ko.md`
 - `../../packages/terminus/README.ko.md`

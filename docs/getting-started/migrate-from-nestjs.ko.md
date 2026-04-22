@@ -1,78 +1,60 @@
-# NestJS에서 마이그레이션하기
+# NestJS → fluo Migration Map
 
 <p><strong><kbd>한국어</kbd></strong> <a href="./migrate-from-nestjs.md"><kbd>English</kbd></a></p>
 
-fluo는 NestJS 개발자에게 익숙한 모듈형 구조를 제공하면서도, 프레임워크의 기반을 **TC39 표준 데코레이터**로 옮겼습니다. 레거시 메타데이터 오버헤드나 실험적 컴파일러 플래그 없이도 동일한 모듈화의 이점을 누릴 수 있습니다.
+이 문서는 마이그레이션 계약 맵으로 사용한다. 각 행은 NestJS 구성 요소에 대해 허용되는 가장 가까운 fluo 대상 구성을 지정하고, 아래 규칙은 일대일 치환이 되지 않는 지점을 명시한다.
 
-### 대상 독자
-현대적인 TypeScript 표준을 활용하고, 명시적이며 감사(audit) 가능한 의존성 주입 방식을 도입하고 싶은 NestJS 경험자.
+## API Correspondence Table
 
-### 1. tsconfig 단순화
-fluo는 TypeScript 표준 기본 설정에서 동작합니다. NestJS가 요구하던 레거시 플래그들을 드디어 끌 수 있습니다.
+프로덕션 코드를 마이그레이션할 때는 NestJS 원본 패턴이 아니라 두 번째 열의 fluo 구성을 적용한다.
+
+| NestJS 구성 요소 | fluo 구성 요소 | 메모 |
+| --- | --- | --- |
+| `@Module({ imports, controllers, providers, exports })` | `@fluojs/core`의 `@Module({ imports, controllers, providers, exports })` | 모듈 경계와 명시적 export는 그대로 주요 구성 단위다. |
+| `@Controller('/users')` | `@fluojs/http`의 `@Controller('/users')` | 컨트롤러 데코레이터는 코어 패키지가 아니라 HTTP 패키지에 속한다. |
+| `@Get()`, `@Post()` 등 라우트 데코레이터 | `@fluojs/http`의 `@Get()`, `@Post()` 등 | HTTP 라우트 선언은 계속 메서드 기반 데코레이터를 사용한다. |
+| `NestFactory.create(AppModule)` | `@fluojs/runtime`의 `FluoFactory.create(AppModule, { adapter })` | 부트스트랩 시 `createFastifyAdapter()` 같은 명시적 플랫폼 어댑터가 필요하다. |
+| `@Injectable()` 프로바이더 마커 | `@Module(...).providers`에 등록된 프로바이더 클래스 | fluo는 필수 프로바이더 등록 단계로 `@Injectable()`을 사용하지 않는다. |
+| `emitDecoratorMetadata`를 통한 생성자 타입 리플렉션 | `@fluojs/core`의 `@Inject(TokenA, TokenB)` | 생성자 의존성은 데코레이터 인자 순서대로 명시한다. |
+| `class-validator` / 데코레이터 중심 DTO 검증 | Standard Schema를 지원하는 `@fluojs/validation` | 현재 검증 방향은 Zod, Valibot 등을 포함한 Standard Schema 기반이다. |
+| `createApplicationContext()` 단독 부트스트랩 | `FluoFactory.createApplicationContext(AppModule)` | `@fluojs/runtime`에 standalone application context가 존재한다. |
+
+## Breaking Differences
+
+- 데코레이터는 반드시 TC39 표준 모델을 따라야 한다. NestJS의 레거시 데코레이터 가정은 그대로 유지되지 않는다.
+- 의존성 주입은 생성자 타입에서 절대 추론되지 않는다. fluo는 생성자 의존성에 대해 명시적 `@Inject(...)` 선언을 요구한다.
+- 부트스트랩은 adapter-first 방식이다. `FluoFactory.create(...)`는 HTTP 플랫폼을 암묵적으로 고르는 대신 `adapter` 옵션을 반드시 받아야 한다.
+- 검증은 `class-validator` 우선 계약을 유지하지 않고 Standard Schema 방향으로 반드시 옮겨야 한다.
+- 컨트롤러 데코레이터는 반드시 `@fluojs/http`에서 가져오고, `@Module` 같은 구조 데코레이터는 `@fluojs/core`에서 가져온다.
+
+## Removed Concepts
+
+- 기본 프로바이더 마커로서의 `@Injectable()`. 프로바이더 등록은 모듈의 `providers` 배열에서 수행된다.
+- `reflect-metadata`를 통한 리플렉션 기반 생성자 해석.
+- emit된 디자인 타임 타입에 기대는 암묵적 DI.
+- 프레임워크 요구 사항으로서의 레거시 데코레이터 컴파일러 모드.
+- 문서화된 모든 플랫폼이 `fluo new`에 포함된다고 가정하는 방식. 스타터 범위는 별도 지원 매트릭스에서 정의된다.
+
+## tsconfig Changes
+
+마이그레이션 과정에서는 `tsconfig.json`에서 NestJS 시절의 레거시 데코레이터 가정을 반드시 제거해야 한다.
 
 ```json
-// tsconfig.json
 {
   "compilerOptions": {
-    "experimentalDecorators": false, // fluo는 표준 데코레이터를 사용합니다
-    "emitDecoratorMetadata": false   // 더 이상 마법 같은 리플렉션 메타데이터는 필요 없습니다
+    "experimentalDecorators": false,
+    "emitDecoratorMetadata": false
   }
 }
 ```
 
-### 2. 표준 데코레이터
-익숙한 `@Module`, `@Controller`는 모두 존재하며, **네이티브 TC39 데코레이터 표준**을 기반으로 구축되었습니다. fluo에서는 `@Injectable()`이 제거되었으며, 클래스는 모듈의 `providers` 배열을 통해 프로바이더로 등록됩니다.
+- `experimentalDecorators`는 fluo 기준선에서 요구되지 않으며 반드시 비활성 상태를 유지해야 한다.
+- `emitDecoratorMetadata`는 DI 연결에 사용되지 않으므로 반드시 비활성 상태를 유지해야 한다.
+- 메타데이터 emit이나 `reflect-metadata`에 의존하던 코드는 반드시 명시적 토큰과 명시적 등록 방식으로 옮겨야 한다.
 
-- **NestJS**: 레거시 TypeScript 구현체와 `reflect-metadata`에 의존합니다.
-- **fluo**: 네이티브 언어 기능을 사용하여 미래의 JavaScript 생태계와 완벽히 호환됩니다.
+## Related Docs
 
-### 3. 암묵적 주입에서 명시적 주입으로
-가장 큰 변화는 의존성을 선언하는 방식입니다. NestJS는 메타데이터를 사용해 생성자 타입을 추측하지만, fluo는 클래스에 `@Inject` 데코레이터를 명시하도록 요구합니다. 이를 통해 의존성 그래프가 코드에 명확히 드러납니다.
-
-**NestJS (암묵적):**
-```ts
-@Injectable()
-export class UsersService {
-  constructor(private repo: UsersRepository) {}
-}
-```
-
-**fluo (명시적):**
-```ts
-import { Inject } from '@fluojs/core';
-
-@Inject(UsersRepository)
-export class UsersService {
-  constructor(private repo: UsersRepository) {}
-}
-```
-
-### 4. 어댑터 우선 팩토리
-부트스트랩 과정은 비슷하지만, fluo는 팩토리 호출 시 플랫폼 선택(Fastify, Express 등)을 명시적인 과정으로 만듭니다.
-
-문서에 있는 모든 플랫폼이 이미 `fluo new`에 연결되어 있다는 뜻은 아닙니다. 현재 스타터 계약은 [fluo new 지원 매트릭스](../reference/fluo-new-support-matrix.ko.md)를 기준으로 확인하세요.
-
-**NestJS:**
-```ts
-const app = await NestFactory.create(AppModule);
-```
-
-**fluo:**
-```ts
-import { FluoFactory } from '@fluojs/runtime';
-import { createFastifyAdapter } from '@fluojs/platform-fastify';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createFastifyAdapter()
-});
-```
-
-### 왜 fluo로 옮겨야 하나요?
-- **마법은 이제 그만**: 의존성은 숨겨진 메타데이터가 아니라 코드 자체에 선언됩니다.
-- **현대적 표준**: 실험적 기능에서 벗어나 공식 ECMAScript 사양을 따릅니다.
-- **런타임 유연성**: 어댑터만 교체하면 동일한 코드를 Node.js, Bun, Deno, 또는 Cloudflare Workers에 즉시 배포할 수 있습니다.
-
-### 다음 단계
-- **새롭게 시작하기**: [퀵 스타트](./quick-start.ko.md)를 통해 fluo 프로젝트를 확인해 보세요.
-- **스타터 범위 확인하기**: [fluo new 지원 매트릭스](../reference/fluo-new-support-matrix.ko.md)에서 제공되는 프리셋을 확인하세요.
-- **그래프 이해하기**: 명시적 주입에 대해 자세히 알고 싶다면 [DI와 모듈](../concepts/di-and-modules.ko.md)을 읽어보세요.
+- [NestJS Parity Gaps](../contracts/nestjs-parity-gaps.ko.md)
+- [DI and Modules](../architecture/di-and-modules.ko.md)
+- [Decorators and Metadata](../architecture/decorators-and-metadata.ko.md)
+- [fluo new Support Matrix](../reference/fluo-new-support-matrix.ko.md)

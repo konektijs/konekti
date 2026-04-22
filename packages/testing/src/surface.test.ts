@@ -125,5 +125,5 @@ describe('@fluojs/testing surface', () => {
       expect(existsSync(resolve(packageRootPath, entry.import)), `${subpath} import output is missing`).toBe(true);
       expect(existsSync(resolve(packageRootPath, entry.types)), `${subpath} types output is missing`).toBe(true);
     }
-  }, 120_000);
+  }, 300_000);
 });

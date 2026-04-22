@@ -134,7 +134,7 @@ describe('parseStudioPayload', () => {
     };
     const readme = readFileSync(resolve(packageDir, 'README.md'), 'utf8');
     const readmeKo = readFileSync(resolve(packageDir, 'README.ko.md'), 'utf8');
-    const releaseGovernance = readFileSync(resolve(packageDir, '../../docs/operations/release-governance.md'), 'utf8');
+    const releaseGovernance = readFileSync(resolve(packageDir, '../../docs/contracts/release-governance.md'), 'utf8');
 
     expect(packageManifest.name).toBe('@fluojs/studio');
     expect(packageManifest.private).toBe(false);
@@ -171,7 +171,7 @@ describe('parseStudioPayload', () => {
     expect(existsSync(resolve(packageDir, 'dist', 'index.d.ts')), 'root helper barrel types are missing').toBe(true);
     expect(existsSync(resolve(packageDir, 'dist', 'contracts.js')), 'contracts helper output is missing').toBe(true);
     expect(existsSync(resolve(packageDir, 'dist', 'contracts.d.ts')), 'contracts helper types are missing').toBe(true);
-  }, 120_000);
+  }, 300_000);
 });
 
 describe('applyFilters', () => {

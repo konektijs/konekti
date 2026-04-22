@@ -55,6 +55,6 @@ examples/ops-metrics-terminus/
 
 - `../README.md` — official examples index
 - `../../docs/getting-started/first-feature-path.md`
-- `../../docs/concepts/observability.md`
+- `../../docs/architecture/observability.md`
 - `../../packages/metrics/README.md`
 - `../../packages/terminus/README.md`

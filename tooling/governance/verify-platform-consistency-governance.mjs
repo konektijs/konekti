@@ -8,25 +8,25 @@ const repoRoot = resolve(scriptDirectory, '..', '..');
 const directProcessEnvPattern = /\bprocess\s*(?:\?\.|\.)\s*env\b/g;
 
 const ssotPairs = [
-  ['docs/concepts/platform-consistency-design.md', 'docs/concepts/platform-consistency-design.ko.md'],
-  ['docs/operations/behavioral-contract-policy.md', 'docs/operations/behavioral-contract-policy.ko.md'],
-  ['docs/operations/public-export-tsdoc-baseline.md', 'docs/operations/public-export-tsdoc-baseline.ko.md'],
-  ['docs/operations/release-governance.md', 'docs/operations/release-governance.ko.md'],
-  ['docs/operations/platform-conformance-authoring-checklist.md', 'docs/operations/platform-conformance-authoring-checklist.ko.md'],
+  ['docs/architecture/platform-consistency-design.md', 'docs/architecture/platform-consistency-design.ko.md'],
+  ['docs/contracts/behavioral-contract-policy.md', 'docs/contracts/behavioral-contract-policy.ko.md'],
+  ['docs/contracts/public-export-tsdoc-baseline.md', 'docs/contracts/public-export-tsdoc-baseline.ko.md'],
+  ['docs/contracts/release-governance.md', 'docs/contracts/release-governance.ko.md'],
+  ['docs/contracts/platform-conformance-authoring-checklist.md', 'docs/contracts/platform-conformance-authoring-checklist.ko.md'],
   ['docs/reference/package-surface.md', 'docs/reference/package-surface.ko.md'],
 ];
 
 const contractGateTriggers = new Set([
-  'docs/concepts/platform-consistency-design.md',
-  'docs/concepts/platform-consistency-design.ko.md',
-  'docs/operations/behavioral-contract-policy.md',
-  'docs/operations/behavioral-contract-policy.ko.md',
-  'docs/operations/public-export-tsdoc-baseline.md',
-  'docs/operations/public-export-tsdoc-baseline.ko.md',
-  'docs/operations/release-governance.md',
-  'docs/operations/release-governance.ko.md',
-  'docs/operations/platform-conformance-authoring-checklist.md',
-  'docs/operations/platform-conformance-authoring-checklist.ko.md',
+  'docs/architecture/platform-consistency-design.md',
+  'docs/architecture/platform-consistency-design.ko.md',
+  'docs/contracts/behavioral-contract-policy.md',
+  'docs/contracts/behavioral-contract-policy.ko.md',
+  'docs/contracts/public-export-tsdoc-baseline.md',
+  'docs/contracts/public-export-tsdoc-baseline.ko.md',
+  'docs/contracts/release-governance.md',
+  'docs/contracts/release-governance.ko.md',
+  'docs/contracts/platform-conformance-authoring-checklist.md',
+  'docs/contracts/platform-conformance-authoring-checklist.ko.md',
   'docs/reference/package-chooser.md',
   'docs/reference/package-chooser.ko.md',
   'docs/reference/package-surface.md',
@@ -463,8 +463,8 @@ function enforceContractCompanionUpdates(changedFiles) {
   // future contract-boundary edits do not silently bypass the companion checks.
 
   assert(
-    hasChanged(changedFiles, 'docs/README.md') && hasChanged(changedFiles, 'docs/README.ko.md'),
-    'contract-governing doc updates must include docs/README.md and docs/README.ko.md discoverability updates.',
+    hasChanged(changedFiles, 'docs/CONTEXT.md') && hasChanged(changedFiles, 'docs/CONTEXT.ko.md'),
+    'contract-governing doc updates must include docs/CONTEXT.md and docs/CONTEXT.ko.md discoverability updates.',
   );
   assert(
     includesAny(changedFiles, (path) => path.startsWith('.github/workflows/')) ||
@@ -509,8 +509,8 @@ function enforceAlignmentClaimsBackedByHarness(changedFiles) {
 }
 
 function enforceReleaseGovernancePublishSurfaceSync() {
-  const releaseGovernance = readFileSync(join(repoRoot, 'docs/operations/release-governance.md'), 'utf8');
-  const releaseGovernanceKo = readFileSync(join(repoRoot, 'docs/operations/release-governance.ko.md'), 'utf8');
+  const releaseGovernance = readFileSync(join(repoRoot, 'docs/contracts/release-governance.md'), 'utf8');
+  const releaseGovernanceKo = readFileSync(join(repoRoot, 'docs/contracts/release-governance.ko.md'), 'utf8');
 
   const englishPublishSurface = parsePackageListFromSection(releaseGovernance, 'intended publish surface');
   const koreanPublishSurface = parsePackageListFromSection(releaseGovernanceKo, 'intended publish surface');
@@ -524,7 +524,7 @@ function enforceReleaseGovernancePublishSurfaceSync() {
 }
 
 function enforceCanonicalPackageSurfaceSync() {
-  const releaseGovernance = readFileSync(join(repoRoot, 'docs/operations/release-governance.md'), 'utf8');
+  const releaseGovernance = readFileSync(join(repoRoot, 'docs/contracts/release-governance.md'), 'utf8');
   const packageSurface = readFileSync(join(repoRoot, 'docs/reference/package-surface.md'), 'utf8');
   const packageSurfaceKo = readFileSync(join(repoRoot, 'docs/reference/package-surface.ko.md'), 'utf8');
 
@@ -537,7 +537,7 @@ function enforceCanonicalPackageSurfaceSync() {
   assert(koreanPackageSurface.length > 0, 'package-surface.ko.md must enumerate public @fluojs packages in its family table.');
   assert(
     areSameStringArrays(intendedPublishSurface, englishPackageSurface),
-    'docs/reference/package-surface.md must stay synchronized with docs/operations/release-governance.md intended publish surface.',
+    'docs/reference/package-surface.md must stay synchronized with docs/contracts/release-governance.md intended publish surface.',
   );
   assert(
     areSameStringArrays(englishPackageSurface, koreanPackageSurface),
@@ -546,8 +546,8 @@ function enforceCanonicalPackageSurfaceSync() {
 }
 
 function enforceDocsHubOfficialTransportLinks() {
-  const docsReadme = readFileSync(join(repoRoot, 'docs/README.md'), 'utf8');
-  const docsReadmeKo = readFileSync(join(repoRoot, 'docs/README.ko.md'), 'utf8');
+  const docsContext = readFileSync(join(repoRoot, 'docs/CONTEXT.md'), 'utf8');
+  const docsContextKo = readFileSync(join(repoRoot, 'docs/CONTEXT.ko.md'), 'utf8');
   const packageSurface = readFileSync(join(repoRoot, 'docs/reference/package-surface.md'), 'utf8');
 
   for (const packageName of officialTransportDocsPackages) {
@@ -556,12 +556,12 @@ function enforceDocsHubOfficialTransportLinks() {
     }
 
     assert(
-      docsReadme.includes(packageName),
-      `docs/README.md must mention ${packageName} when it is part of the official transport package set.`,
+      docsContext.includes(packageName),
+      `docs/CONTEXT.md must mention ${packageName} when it is part of the official transport package set.`,
     );
     assert(
-      docsReadmeKo.includes(packageName),
-      `docs/README.ko.md must mention ${packageName} when it is part of the official transport package set.`,
+      docsContextKo.includes(packageName),
+      `docs/CONTEXT.ko.md must mention ${packageName} when it is part of the official transport package set.`,
     );
   }
 }
@@ -571,8 +571,8 @@ function enforceCanonicalRuntimeMatrixReferences() {
   const packageSurfaceKo = readFileSync(join(repoRoot, 'docs/reference/package-surface.ko.md'), 'utf8');
   const packageChooser = readFileSync(join(repoRoot, 'docs/reference/package-chooser.md'), 'utf8');
   const packageChooserKo = readFileSync(join(repoRoot, 'docs/reference/package-chooser.ko.md'), 'utf8');
-  const docsReadme = readFileSync(join(repoRoot, 'docs/README.md'), 'utf8');
-  const docsReadmeKo = readFileSync(join(repoRoot, 'docs/README.ko.md'), 'utf8');
+  const docsContext = readFileSync(join(repoRoot, 'docs/CONTEXT.md'), 'utf8');
+  const docsContextKo = readFileSync(join(repoRoot, 'docs/CONTEXT.ko.md'), 'utf8');
   const rootReadme = readFileSync(join(repoRoot, 'README.md'), 'utf8');
   const rootReadmeKo = readFileSync(join(repoRoot, 'README.ko.md'), 'utf8');
   const cliReadme = readFileSync(join(repoRoot, 'packages/cli/README.md'), 'utf8');
@@ -599,12 +599,12 @@ function enforceCanonicalRuntimeMatrixReferences() {
   );
 
   assert(
-    docsReadme.includes('reference/package-surface.md'),
-    'docs/README.md must point readers to the canonical runtime package matrix page.',
+    docsContext.includes('docs/reference/package-surface.md'),
+    'docs/CONTEXT.md must point readers to the canonical runtime package matrix page.',
   );
   assert(
-    docsReadmeKo.includes('reference/package-surface.ko.md'),
-    'docs/README.ko.md must point readers to the canonical runtime package matrix page.',
+    docsContextKo.includes('docs/reference/package-surface.md'),
+    'docs/CONTEXT.ko.md must point readers to the canonical runtime package matrix page.',
   );
   assert(rootReadme.includes('docs/reference/package-surface.md'), 'README.md must point to the canonical runtime package matrix page.');
   assert(

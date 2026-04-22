@@ -154,7 +154,7 @@ Examples include:
 - invalid lengths,
 - malformed payload structure.
 
-When `@fluojs/validation` finds an error, it doesn't just crash. It throws a structured exception (often a `BadRequestException` variant) that the HTTP layer converts into a readable response (see `docs/concepts/error-responses.md`).
+When `@fluojs/validation` finds an error, it doesn't just crash. It throws a structured exception (often a `BadRequestException` variant) that the HTTP layer converts into a readable response (see `docs/architecture/error-responses.md`).
 
 The key idea is responsibility.
 

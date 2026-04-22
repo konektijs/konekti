@@ -1,125 +1,52 @@
-# 부트스트랩 경로
+# Application Bootstrap Protocol
 
 <p><strong><kbd>한국어</kbd></strong> <a href="./bootstrap-paths.md"><kbd>English</kbd></a></p>
 
-fluo는 **런타임에 구애받지 않는 코어(Runtime-agnostic core)**를 기반으로 설계되었습니다. 비즈니스 로직을 한 번만 작성하면 전용 플랫폼 어댑터를 통해 TypeScript가 실행 가능한 거의 모든 환경에 배포할 수 있습니다.
+## Startup Sequence
 
-> 이 페이지는 어댑터 생태계를 설명합니다. 현재 `fluo new`가 어떤 스타터를 스캐폴딩하는지는 [fluo new 지원 매트릭스](../reference/fluo-new-support-matrix.ko.md)를 확인하세요.
+1. `FluoFactory.create(rootModule, options)`는 `packages/runtime/src/bootstrap.ts`의 `bootstrapApplication(...)`으로 위임됩니다.
+2. `bootstrapModule(...)`는 루트 모듈에서 도달 가능한 모듈 그래프를 컴파일하고 import, export, provider visibility, injection metadata를 검증합니다.
+3. `registerRuntimeBootstrapTokens(...)`는 선택된 HTTP 어댑터를 `HTTP_APPLICATION_ADAPTER` 토큰으로 등록하고, 런타임 platform shell을 `PLATFORM_SHELL` 토큰으로 등록합니다.
+4. `resolveBootstrapLifecycleInstances(...)`는 라이프사이클 훅을 노출하는 런타임 provider와 모듈 provider를 resolve합니다.
+5. `runBootstrapHooks(...)`는 모든 `onModuleInit()` 훅을 먼저 실행한 뒤, 모든 `onApplicationBootstrap()` 훅을 실행합니다.
+6. `platformShell.start()`는 라이프사이클 훅이 모두 성공한 뒤에 실행됩니다. readiness는 이 start 단계가 끝난 후에만 표시됩니다.
+7. `createRuntimeDispatcher(...)`가 dispatcher를 만들고, `bootstrapApplication(...)`은 `FluoApplication` 인스턴스를 반환합니다.
+8. 네트워크 ingress는 애플리케이션 코드가 이후 `await app.listen()`를 호출할 때 시작됩니다. 실제 listen 동작은 각 어댑터 패키지가 담당합니다.
 
-### 대상 독자
-로컬 Fastify 스타터를 넘어 Bun, Deno, 또는 Edge 함수와 같은 특정 환경을 타겟팅해야 하는 개발자.
+## Entry Points
 
-### 1. 어댑터 패턴
-모든 fluo 앱은 `FluoFactory.create()`로 시작합니다. 두 번째 인자에 포함된 **플랫폼 어댑터(Platform Adapter)**가 프레임워크와 기반 런타임의 HTTP 서버를 연결하는 다리 역할을 합니다.
+| Path | Role |
+| --- | --- |
+| `examples/minimal/src/main.ts` | 기본 HTTP 부트스트랩 형태를 보여 주는 대표 애플리케이션 진입 파일입니다. `FluoFactory.create(...)`로 애플리케이션을 만들고 `app.listen()`을 호출합니다. |
+| `packages/runtime/src/bootstrap.ts` | `bootstrapApplication(...)`, `FluoFactory.create(...)`, `FluoFactory.createApplicationContext(...)`, `FluoFactory.createMicroservice(...)`의 구현 소스입니다. |
+| `packages/runtime/src/node.ts` | raw Node 부트스트랩 helper와 shutdown signal registration helper를 공개하는 Node 전용 subpath입니다. |
+| `packages/platform-fastify/src/adapter.ts` | Fastify 경로의 `createFastifyAdapter(...)`, `bootstrapFastifyApplication(...)`, `runFastifyApplication(...)`를 노출합니다. |
+| `packages/platform-cloudflare-workers/src/adapter.ts` | Worker fetch 경로의 `createCloudflareWorkerAdapter(...)`, `bootstrapCloudflareWorkerApplication(...)`, `createCloudflareWorkerEntrypoint(...)`를 노출합니다. |
 
-```ts
-import { FluoFactory } from '@fluojs/runtime';
-import { AppModule } from './app';
-import { createFastifyAdapter } from '@fluojs/platform-fastify';
+## Platform Registration
 
-const app = await FluoFactory.create(AppModule, {
-  adapter: createFastifyAdapter({ port: 3000 }),
-});
-await app.listen();
-```
+- 애플리케이션 부트스트랩은 `FluoFactory.create(...)`에 전달되는 `adapter` 옵션으로 플랫폼 바인딩을 받습니다.
+- 런타임 부트스트랩은 그 어댑터 인스턴스를 `HTTP_APPLICATION_ADAPTER` 토큰으로 저장하고, platform shell을 `PLATFORM_SHELL` 토큰으로 저장합니다.
+- 플랫폼 패키지는 `@fluojs/platform-*` 아래에 있으며, 애플리케이션 경계에서 사용하는 어댑터 팩터리를 제공합니다. 예시는 `createFastifyAdapter(...)`, `createCloudflareWorkerAdapter(...)`입니다.
+- platform shell은 라이프사이클 훅이 끝난 뒤 시작되고, 종료 정리 단계에서 중지됩니다.
+- `FluoFactory.createApplicationContext(...)`는 같은 모듈 그래프와 라이프사이클 경로를 따르지만 HTTP 어댑터 등록을 생략하고 HTTP 애플리케이션 대신 application context를 반환합니다.
+- 스타터 shape, runtime/platform 조합, 공개된 microservice transport 변형은 [fluo new 지원 매트릭스](../reference/fluo-new-support-matrix.ko.md)에 정리되어 있습니다.
 
-런타임 전환은 한 줄만 바꾸면 됩니다 — 어댑터 import와 호출만 교체하면 나머지는 그대로 유지됩니다.
+## Shutdown Sequence
 
-### 2. 표준 Node.js 경로
+1. 종료는 애플리케이션이 명시적으로 닫히거나, 호스트 전용 helper가 shutdown signal을 등록하고 수신할 때 시작됩니다.
+2. `runShutdownHooks(...)`는 라이프사이클 인스턴스를 역순으로 순회합니다.
+3. 모든 `onModuleDestroy()` 훅이 실행된 뒤에야 `onApplicationShutdown(signal)` 훅이 실행됩니다.
+4. platform shell은 부트스트랩 중 추가된 라이프사이클 cleanup 항목을 통해 중지됩니다.
+5. 어댑터별 `close()` 로직은 런타임 계약에 따라 ingress를 drain하거나 거부합니다. 예를 들어 Fastify는 서버 close 완료를 기다리고, Cloudflare Workers는 dispatcher를 해제하기 전에 진행 중 요청을 drain합니다.
+6. 부트스트랩이 애플리케이션 반환 전에 실패한 경우에는 shutdown hook 이후 container dispose가 실행됩니다.
 
-**Fastify** (`@fluojs/platform-fastify`) — Node.js를 위한 기본 권장 경로입니다. 높은 성능을 제공하며 Fastify 플러그인 생태계를 활용할 수 있습니다.
+## Error States
 
-```ts
-import { createFastifyAdapter } from '@fluojs/platform-fastify';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createFastifyAdapter({ port: 3000 }),
-});
-```
-
-**Express** (`@fluojs/platform-express`) — 기존의 레거시 Express 미들웨어에 의존하는 프로젝트에 가장 적합합니다.
-
-```ts
-import { createExpressAdapter } from '@fluojs/platform-express';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createExpressAdapter({ port: 3000 }),
-});
-```
-
-**Raw Node** (`@fluojs/platform-nodejs`) — Node.js의 네이티브 `http.createServer`를 사용하여 오버헤드를 최소화하고 싶을 때 사용합니다.
-
-```ts
-import { createNodeAdapter } from '@fluojs/platform-nodejs';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createNodeAdapter({ port: 3000 }),
-});
-```
-
-### 3. 현대적인 런타임
-Node.js 이외의 환경을 타겟팅하시나요? 어댑터만 교체하고 코드는 그대로 유지하세요.
-
-**Bun** (`@fluojs/platform-bun`) — Bun의 고속 네이티브 HTTP 서버를 사용합니다.
-
-```ts
-import { createBunAdapter } from '@fluojs/platform-bun';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createBunAdapter({ port: 3000 }),
-});
-```
-
-**Deno** (`@fluojs/platform-deno`) — Deno의 표준 라이브러리 및 보안 모델과 호환됩니다.
-
-```ts
-import { createDenoAdapter } from '@fluojs/platform-deno';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createDenoAdapter({ port: 3000 }),
-});
-```
-
-### 4. 엣지 및 서버리스
-"콜드 스타트 제로(Zero cold-start)" 환경을 위해, fluo는 엣지 런타임의 fetch-event 라이프사이클을 처리하는 어댑터를 제공합니다.
-
-**Cloudflare Workers** (`@fluojs/platform-cloudflare-workers`) — Workers 환경 및 KV/Durable Objects와 통합됩니다.
-
-```ts
-import { createWorkersAdapter } from '@fluojs/platform-cloudflare-workers';
-
-const app = await FluoFactory.create(AppModule, {
-  adapter: createWorkersAdapter(),
-});
-export default app.handler;
-```
-
-### 런타임 선택 가이드
-아래 표는 어댑터 생태계 가이드이며, 현재 `fluo new` 스타터 프리셋 목록이 아닙니다.
-
-| 어댑터 | 패키지 | 최적의 용도 |
-| :--- | :--- | :--- |
-| **Fastify** | `@fluojs/platform-fastify` | 프로덕션급 Node.js 앱 (기본 선택). |
-| **Express** | `@fluojs/platform-express` | 레거시 마이그레이션, 미들웨어 호환성 최대화. |
-| **Raw Node** | `@fluojs/platform-nodejs` | 최소 오버헤드, 네이티브 `http.createServer`. |
-| **Bun** | `@fluojs/platform-bun` | 로컬 성능 및 개발 속도 극대화. |
-| **Deno** | `@fluojs/platform-deno` | 기본 보안 강화, node_modules 없는 환경. |
-| **Cloudflare** | `@fluojs/platform-cloudflare-workers` | 글로벌 엣지 배포, 콜드 스타트 제로. |
-
-### 런타임과 무관하게 동일한 것들
-`AppModule`, 컨트롤러, 서비스, DI 연결, 가드, 인터셉터, 미들웨어는 어떤 어댑터를 선택하든 모두 동일하게 유지됩니다. 어댑터는 HTTP 진입 계층만 변경하며, 그 위의 모든 것은 이식 가능합니다.
-
-```ts
-// 이 모듈은 어떤 런타임에서도 수정 없이 작동합니다
-@Module({
-  imports: [RuntimeHealthModule, UsersModule, AuthModule],
-  controllers: [AppController],
-  providers: [AppService],
-})
-export class AppModule {}
-```
-
-### 다음 단계
-- **CLI 마스터하기**: [제너레이터 워크플로우](./generator-workflow.ko.md)가 런타임에서 어떻게 동작하는지 확인해 보세요.
-- **스타터 현실 확인**: 어떤 어댑터가 스타터 프리셋인지 [fluo new 지원 매트릭스](../reference/fluo-new-support-matrix.ko.md)를 확인하세요.
-- **심화 탐구**: 사용 가능한 어댑터와 기능을 보려면 [패키지 목록](../reference/package-surface.ko.md)을 참조하세요.
+- `ModuleGraphError`: 순환 import나 잘못된 imported module처럼 모듈 그래프 컴파일 또는 검증 단계에서 발생합니다.
+- `ModuleVisibilityError`: provider, controller, 또는 module export가 현재 모듈에서 보이지 않는 토큰을 참조할 때 발생합니다.
+- `ModuleInjectionMetadataError`: 생성자 주입 metadata가 필수 파라미터를 모두 설명하지 못할 때 발생합니다.
+- 라이프사이클 훅 실패: `onModuleInit()` 또는 `onApplicationBootstrap()`의 rejection은 readiness 표시 전에 부트스트랩을 중단합니다.
+- 어댑터 또는 플랫폼 시작 실패: platform shell 시작, dispatcher 생성, 이후 adapter listen 단계에서 발생한 오류는 부트스트랩 실패로 전파됩니다.
+- `InvariantError`: `FluoFactory.createMicroservice(...)`가 resolve된 런타임 토큰에서 `listen()` 구현을 찾지 못하면 발생합니다.
+- 부트스트랩 실패 정리는 synthetic signal인 `bootstrap-failed`를 사용하며, 원래 오류를 다시 던지기 전에 shutdown hook과 container dispose를 실행합니다.

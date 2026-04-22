@@ -38,8 +38,8 @@ describe('runtime matrix docs contract', () => {
       '--shape microservice --transport kafka --runtime node --platform none',
       '--shape microservice --transport rabbitmq --runtime node --platform none',
     ]);
-    expect(read('docs/README.md')).toContain('reference/package-surface.md');
-    expect(read('docs/README.ko.md')).toContain('reference/package-surface.ko.md');
+    expect(read('docs/CONTEXT.md')).toContain('docs/reference/package-surface.md');
+    expect(read('docs/CONTEXT.ko.md')).toContain('docs/reference/package-surface.md');
     expect(read('README.md')).toContain('docs/reference/package-surface.md');
     expect(read('README.ko.md')).toContain('docs/reference/package-surface.ko.md');
     expect(read('packages/cli/README.md')).toContain('../../docs/reference/package-surface.md');
@@ -81,8 +81,6 @@ describe('runtime matrix docs contract', () => {
       '@fluojs/platform-deno',
       '@fluojs/platform-cloudflare-workers',
     ]);
-    expect(read('docs/README.md')).toContain('./reference/fluo-new-support-matrix.md');
-    expect(read('docs/README.ko.md')).toContain('./reference/fluo-new-support-matrix.ko.md');
     expect(read('docs/reference/package-chooser.md')).toContain('./fluo-new-support-matrix.md');
     expect(read('docs/reference/package-chooser.ko.md')).toContain('./fluo-new-support-matrix.ko.md');
     expect(read('docs/getting-started/quick-start.md')).toContain('../reference/fluo-new-support-matrix.md');

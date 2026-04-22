@@ -57,4 +57,4 @@ This example does not cover the TCP microservice starter or the mixed single-pac
 - `../../docs/getting-started/quick-start.md` — canonical first-run guide
 - `../../docs/getting-started/first-feature-path.md` — path from starter app to first feature
 - `../../docs/reference/package-chooser.md` — pick packages by task
-- `../../docs/operations/testing-guide.md` — testing patterns and recipes
+- `../../docs/contracts/testing-guide.md` — testing patterns and recipes

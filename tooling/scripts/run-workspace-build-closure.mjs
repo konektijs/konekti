@@ -1,16 +1,65 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const WORKSPACE_BUILD_LOCK_DIRECTORY = '.workspace-build-closure.lock';
-const WORKSPACE_BUILD_LOCK_TIMEOUT_MS = 120_000;
+const WORKSPACE_BUILD_LOCK_METADATA_FILE = 'owner.json';
+const WORKSPACE_BUILD_LOCK_TIMEOUT_MS = 300_000;
 const WORKSPACE_BUILD_LOCK_POLL_MS = 50;
+const WORKSPACE_BUILD_LOCK_STALE_GRACE_MS = 5_000;
 
 function sleep(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function getWorkspaceBuildLockMetadataPath(lockDirectory) {
+  return join(lockDirectory, WORKSPACE_BUILD_LOCK_METADATA_FILE);
+}
+
+function writeWorkspaceBuildLockMetadata(lockDirectory) {
+  writeFileSync(
+    getWorkspaceBuildLockMetadataPath(lockDirectory),
+    JSON.stringify({ pid: process.pid, startedAt: Date.now() }),
+    'utf8',
+  );
+}
+
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ESRCH') {
+      return false;
+    }
+
+    return true;
+  }
+}
+
+function shouldRecoverWorkspaceBuildLock(lockDirectory) {
+  const metadataPath = getWorkspaceBuildLockMetadataPath(lockDirectory);
+
+  if (existsSync(metadataPath)) {
+    try {
+      const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'));
+      if (typeof metadata.pid === 'number') {
+        return !isProcessAlive(metadata.pid);
+      }
+    } catch {
+      return true;
+    }
+  }
+
+  try {
+    const ageMs = Date.now() - statSync(lockDirectory).mtimeMs;
+    return ageMs >= WORKSPACE_BUILD_LOCK_STALE_GRACE_MS;
+  } catch {
+    return true;
+  }
 }
 
 function acquireWorkspaceBuildLock(rootDirectory) {
@@ -20,6 +69,7 @@ function acquireWorkspaceBuildLock(rootDirectory) {
   while (true) {
     try {
       mkdirSync(lockDirectory);
+      writeWorkspaceBuildLockMetadata(lockDirectory);
 
       return () => {
         rmSync(lockDirectory, { force: true, recursive: true });
@@ -27,6 +77,11 @@ function acquireWorkspaceBuildLock(rootDirectory) {
     } catch (error) {
       if (!(error instanceof Error) || !('code' in error) || error.code !== 'EEXIST') {
         throw error;
+      }
+
+      if (shouldRecoverWorkspaceBuildLock(lockDirectory)) {
+        rmSync(lockDirectory, { force: true, recursive: true });
+        continue;
       }
 
       if (Date.now() >= deadline) {
