@@ -111,17 +111,21 @@ volumes:
 ## 21.5 Environment Strategy
 엄격한 환경 전략을 사용하세요. 애플리케이션은 "설정에 구애받지 않아야(Config-Agnostic)" 합니다. 즉, 코드는 자신이 스테이징인지 프로덕션인지 신경 쓰지 않아야 하며, 단순히 환경에서 제공되는 설정을 읽기만 해야 합니다.
 
-환경 변수에 대해서도 타입 안전성을 보장하기 위해 항상 `ConfigModule`을 통해 주입하세요:
+부트스트랩은 항상 explicit adapter와 함께 시작하고, 프로세스 기반 설정은 `ConfigModule.forRoot({ processEnv: ... })` 또는 `loadConfig(...)`처럼 명시적인 config 경계로 전달하세요. 문서화되지 않은 최상위 `config` 옵션에 의존하지 말고, 필요한 키만 애플리케이션 경계에서 선택해 주입하는 방식으로 유지하는 편이 안전합니다.
 
 ```typescript
-// main.ts에서의 프로덕션 설정 예시
-const app = await createFluoApp({
-  rootModule: AppModule,
-  config: {
-    // 프로덕션 환경 파일을 명시적으로 로드하거나 환경 변수에 의존합니다
-    envFilePath: '.env.production',
-  }
+import { FluoFactory } from '@fluojs/runtime';
+import { createFastifyAdapter } from '@fluojs/platform-fastify';
+import { AppModule } from './app.module';
+
+// main.ts에서의 프로덕션 부트스트랩 예시
+const app = await FluoFactory.create(AppModule, {
+  adapter: createFastifyAdapter({
+    port: 3000,
+  }),
 });
+
+await app.listen();
 ```
 
 ## 21.6 Deep Dive: CI/CD Pipeline

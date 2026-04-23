@@ -7,7 +7,7 @@
 
 ## Learning Objectives
 - 모듈과 `@Module()` 데코레이터의 역할을 정의합니다.
-- 프로바이더와 `@Injectable()` 데코레이터를 이해합니다.
+- 프로바이더 등록과 `@Inject(...)` 기반 의존성 연결을 이해합니다.
 - 컨트롤러가 무엇을 하는지와 요청을 어떻게 받는지 배웁니다.
 - fluo의 의존성 주입 흐름을 살펴봅니다.
 - `imports`와 `exports`가 모듈 경계를 어떻게 만드는지 이해합니다.
@@ -94,7 +94,7 @@ export class AppModule {}
 - 디버깅을 어렵게 만드는 `reflect-metadata` 같은 라이브러리의 "마법"을 피할 수 있습니다.
 - 특정 컴파일러 해킹 없이도 다양한 런타임(Node.js, Bun, Deno)에서 코드가 더 잘 작동합니다.
 
-`@Module()`이나 `@Injectable()`을 볼 때, 여러분은 독자적인 TypeScript 확장이 아닌 표준 언어 기능을 사용하고 있다는 점을 기억하세요. 표준을 따르는 것은 생태계가 진화하더라도 여러분의 기술이 계속 유효함을 보장합니다.
+`@Module()`이나 `@Inject(...)`를 볼 때, 여러분은 독자적인 TypeScript 확장이 아닌 표준 언어 기능을 사용하고 있다는 점을 기억하세요. 표준을 따르는 것은 생태계가 진화하더라도 여러분의 기술이 계속 유효함을 보장합니다.
 
 ### Common Misconceptions about Modules
 
@@ -124,12 +124,11 @@ export class AppModule {}
 
 프로바이더는 fluo가 대신 관리해 주는 재사용 가능한 의존성입니다. 가장 흔한 예는 서비스지만, 설계에 따라 팩토리, 리포지토리, 헬퍼, 어댑터도 프로바이더가 될 수 있습니다.
 
-`@Injectable()`은 클래스를 DI 시스템이 관리 가능한 의존성으로 취급하도록 표시합니다.
+fluo에서는 클래스를 `@Module(...).providers`에 등록할 때 그 클래스가 프로바이더로서 컨테이너에 참여합니다. 생성자에 다른 토큰이 필요하면 소비하는 쪽에서 `@Inject(...)`로 의존성을 명시합니다.
 
 ```typescript
-import { Injectable } from '@fluojs/di';
+import { Module } from '@fluojs/core';
 
-@Injectable()
 export class PostsService {
   private readonly posts = [];
 
@@ -141,6 +140,12 @@ export class PostsService {
     return this.posts;
   }
 }
+
+@Module({
+  providers: [PostsService],
+  exports: [PostsService],
+})
+export class PostsModule {}
 ```
 
 ### The Singleton Nature
@@ -226,9 +231,11 @@ fluo를 배우는 것은 종종 "프로바이더 단위로 생각하는 법"을 
 HTTP 중심 코드에서 컨트롤러는 라우트 경로가 메서드에 매핑되는 곳입니다.
 
 ```typescript
+import { Inject } from '@fluojs/core';
 import { Controller, Get } from '@fluojs/http';
 import { PostsService } from './posts.service';
 
+@Inject(PostsService)
 @Controller('/posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
@@ -295,10 +302,10 @@ export class PostsModule {}
 
 이제 남은 조각은 이런 클래스들이 서로 어떻게 연결되는가입니다. fluo의 DI 흐름은 마법으로 이해하는 것보다 순서로 이해하는 편이 쉽습니다.
 
-1. **정의**: 클래스를 `@Injectable()` 데코레이터로 표시하여 fluo가 관리할 수 있음을 알립니다.
+1. **정의**: 재사용할 로직을 담은 클래스를 작성합니다.
 2. **등록**: 모듈의 `providers` 배열에 등록하여 프레임워크에 소속을 알립니다.
-3. **요청**: 다른 클래스에서, 보통 생성자 매개변수 목록을 통해 요청합니다.
-4. **제공**: 프레임워크가 필요할 때 관리 인스턴스를 제공하도록 합니다.
+3. **요청**: 다른 클래스에서 `@Inject(...)`로 생성자 토큰을 명시하며 요청합니다.
+4. **제공**: 프레임워크가 등록된 인스턴스를 필요한 곳에 연결합니다.
 
 이 순서는 fluo의 핵심 정신 모델 중 하나입니다. 프레임워크가 이 점들을 어떻게 연결하는지 이해함으로써 복잡하고 잘 구조화된 애플리케이션을 자신 있게 구축할 수 있습니다.
 
@@ -306,10 +313,10 @@ export class PostsModule {}
 
 `PostsController`가 `PostsService`에 의존한다고 상상해 봅시다.
 
-- `PostsService`는 `@Injectable()`로 표시되어 관리 후보가 됩니다.
+- `PostsService`는 재사용 로직을 담은 평범한 클래스입니다.
 - `PostsModule`은 `providers` 배열에 `PostsService`를 등록하여 소유권을 확립합니다.
-- `PostsController`는 생성자에서 `PostsService`를 요청합니다: `constructor(private readonly postsService: PostsService) {}`.
-- fluo는 매개변수의 타입을 인식하고 컨트롤러를 만들 때 이 요소들을 자동으로 연결합니다.
+- `PostsController`는 `@Inject(PostsService)`로 생성자 토큰을 명시한 뒤 `constructor(private readonly postsService: PostsService) {}`로 서비스를 받습니다.
+- fluo는 `@Inject(...)`에 적은 토큰 순서를 생성자 매개변수 순서와 맞춰 검증하고 컨트롤러를 만듭니다.
 
 과정이 명시적이고 명확한 계층 구조를 따르기 때문에, 배후에서 무엇을 추론했는지 추측하지 않고 모듈 정의를 읽는 것만으로 문제를 추적할 수 있습니다.
 

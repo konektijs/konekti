@@ -178,7 +178,7 @@ export class UpdatePostDto extends PartialType(CreatePostDto) {}
 이제 컨트롤러는 두 DTO를 모두 사용할 수 있습니다.
 
 ```typescript
-import { Controller, FromPath, Patch, Post, RequestDto } from '@fluojs/http';
+import { Controller, Patch, Post, RequestContext, RequestDto } from '@fluojs/http';
 import { CreatePostDto } from './create-post.dto';
 import { UpdatePostDto } from './update-post.dto';
 
@@ -192,8 +192,8 @@ export class PostsController {
 
   @Patch('/:id')
   @RequestDto(UpdatePostDto)
-  update(@FromPath('id') id: string, input: UpdatePostDto) {
-    return this.postsService.update(id, input);
+  update(input: UpdatePostDto, requestContext: RequestContext) {
+    return this.postsService.update(requestContext.request.params.id, input);
   }
 }
 ```
@@ -202,7 +202,7 @@ export class PostsController {
 
 생성 라우트는 이제 명시적인 규칙을 갖습니다.
 
-업데이트 라우트는 partial update의 의미를 분명하게 전달합니다.
+업데이트 라우트는 partial update의 의미를 분명하게 전달하면서도 현재 핸들러 계약인 `input + requestContext` 형태를 유지합니다.
 
 원래 규칙과 동작적으로 연결된 상태를 유지합니다.
 
@@ -266,16 +266,22 @@ export class PublicCreateDto extends OmitType(CreatePostDto, ['published']) {}
 
 ### Converting Query Parameters
 
-만약 쿼리 파라미터에서 꼭 숫자를 받아야 한다면, 커스텀 변환 로직과 함께 `@FromQuery()` 데코레이터를 사용할 수 있습니다.
+만약 쿼리 파라미터에서 꼭 숫자를 받아야 한다면, DTO에 먼저 바인딩한 뒤 변환을 코드에서 명시적으로 드러내면 됩니다.
 
 ```typescript
+class ListPostsQueryDto {
+  page = '1';
+}
+
 @Get('/')
-findAll(@FromQuery('page', (v) => parseInt(v, 10)) page: number) {
+@RequestDto(ListPostsQueryDto)
+findAll(input: ListPostsQueryDto) {
+  const page = Number.parseInt(input.page, 10);
   return this.postsService.findAll(page);
 }
 ```
 
-이렇게 하면 변환 과정이 명시적이고 가시적이게 됩니다. 프레임워크가 무엇을 할지 추측하는 것이 아니라, 데이터를 어떻게 처리할지 프레임워크에 정확히 지시하는 방식입니다.
+이렇게 하면 변환 과정이 명시적이고 가시적이게 됩니다. 먼저 DTO 입력 계약을 고정하고, 그 다음 필요한 변환을 코드에서 드러내는 방식입니다.
 
 ## 6.6 What FluoBlog Looks Like After Validation
 
@@ -289,11 +295,9 @@ findAll(@FromQuery('page', (v) => parseInt(v, 10)) page: number) {
 
 ```typescript
 // src/posts/posts.service.ts
-import { Injectable } from '@fluojs/di';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 
-@Injectable()
 export class PostsService {
   create(input: CreatePostDto) {
     return {

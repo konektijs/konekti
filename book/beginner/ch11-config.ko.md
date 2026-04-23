@@ -49,7 +49,7 @@ FluoBlog이 몇 개의 파일에서 수십 개의 모듈로 성장함에 따라 
 예측 가능성은 `AppModule`을 보는 것만으로 애플리케이션이 어떤 외부 서비스와 설정에 의존하는지 정확히 알 수 있음을 의미합니다. 견고함은 로컬 개발 환경에서 클라우드 환경으로, 혹은 단일 인스턴스에서 글로벌 클러스터로 환경이 변하더라도 애플리케이션이 준비되어 있음을 의미합니다. 이러한 구조적 무결성은 전문적인 백엔드 개발의 특징입니다.
 
 ### Understanding the Internal Mechanism of Configuration
-fluo 애플리케이션이 시작될 때, `ConfigModule`은 대부분의 다른 모듈보다 먼저 초기화됩니다. 이 모듈은 환경이 준비되었는지 확인하기 위해 여러 단계의 시퀀스를 수행합니다. 먼저, 여러분이 제공한 `envFile` 경로를 식별합니다. 파일이 존재하면 파서를 사용하여 키-값 쌍을 읽어 비공개 메모리 맵에 저장합니다. 이 맵은 코드에 정의된 `defaults` 및 현재 `process.env`와 병합됩니다.
+fluo 애플리케이션이 시작될 때, `ConfigModule`은 설정 소스를 명시적으로 조합합니다. 먼저, 여러분이 제공한 `envFile` 경로를 식별합니다. 파일이 존재하면 파서를 사용하여 키-값 쌍을 읽어 비공개 메모리 맵에 저장합니다. 그다음 코드에 정의된 `defaults`, 그리고 필요하다면 `forRoot(...)`에 명시적으로 전달한 `processEnv` 스냅샷을 함께 병합합니다.
 
 이 초기화 단계는 프레임워크 핵심의 "OnModuleInit" 라이프사이클 훅 동안 발생하기 때문에 매우 중요합니다. `AppModule`이 완전히 로드될 때쯤이면 `ConfigService`는 이미 설정의 최종 병합 상태로 채워져 있으며, 가장 필요한 곳에 주입될 준비가 된 상태입니다.
 
@@ -101,7 +101,7 @@ export class AppModule {}
 ### Precedence Rules and Conflict Resolution
 `fluo`는 설정 소스를 병합할 때 엄격한 우선순위를 따릅니다. 이 순서는 유연성을 유지하면서도 각 설정에 대해 단일한 진실의 원천을 유지하도록 설계되었습니다.
 1. **런타임 오버라이드(Runtime Overrides)**: 코드에서 직접 전달된 값 (가장 높은 우선순위).
-2. **프로세스 환경 변수(Process Environment)**: `process.env`에 있는 값.
+2. **명시적 프로세스 환경 스냅샷(Explicit ProcessEnv Snapshot)**: `forRoot(...)`의 `processEnv`에 전달한 값.
 3. **환경 파일(Environment File)**: `.env` 파일에 정의된 값.
 4. **기본값(Defaults)**: 모듈 설정에 하드코딩된 기본값 (가장 낮은 우선순위).
 
@@ -162,7 +162,8 @@ async function bootstrap() {
 서비스나 컨트롤러 내부에서는 다음과 같이 사용합니다.
 
 ```typescript
-@Injectable()
+import { Inject } from '@fluojs/core';
+
 export class ApiService {
   constructor(@Inject(ConfigService) private readonly config: ConfigService) {}
 
@@ -172,6 +173,8 @@ export class ApiService {
   }
 }
 ```
+
+이 예시는 `ApiService`가 해당 모듈의 `providers` 배열에 등록되어 있다고 가정합니다.
 
 ## 11.4 Advanced Pattern: Validation Schemas
 프로덕션에서 흔히 발생하는 장애 중 하나는 애플리케이션이 "비어 있거나" "유효하지 않은" 데이터베이스 URL로 시작되는 것입니다. 부트스트랩 시점에 설정을 검증하여 이를 방지할 수 있습니다. 이는 애플리케이션을 더 안정적으로 만들 뿐만 아니라 운영자에게 훨씬 더 명확한 에러 메시지를 제공합니다. 막연한 데이터베이스 연결 에러 대신, 어떤 설정 키가 왜 검증에 실패했는지 정확히 알 수 있게 됩니다.
@@ -265,7 +268,7 @@ ConfigModule.forRoot({
 ```
 
 ### Advanced Precedence: Docker and Kubernetes
-Docker나 Kubernetes와 같은 컨테이너 환경에서 fluo를 실행할 때는 `.env` 파일을 아예 건너뛰고 오케스트레이터의 환경 변수 시스템을 사용하고 싶을 때가 많습니다. fluo의 우선순위 규칙은 이를 위해 설계되었습니다. `process.env`가 `.env` 파일보다 우선순위가 높기 때문에, Kubernetes 배포 매니페스트에 정의된 변수는 로컬 `.env` 파일의 내용을 자동으로 덮어씁니다.
+Docker나 Kubernetes와 같은 컨테이너 환경에서 fluo를 실행할 때는 `.env` 파일을 아예 건너뛰고 오케스트레이터의 환경 변수 시스템을 사용하고 싶을 때가 많습니다. 이 경우에도 `@fluojs/config`가 주변의 `process.env`를 자동으로 스캔하는 것은 아닙니다. 대신 부트스트랩 경계에서 필요한 값을 `processEnv`로 명시적으로 전달하면, 그 스냅샷이 `.env`보다 높은 우선순위로 적용됩니다.
 
 이를 통해 로컬 개발 시에는 편리한 `.env` 파일을 사용하면서도, 프로덕션 설정은 인프라 코드(IaC) 도구에 의해 관리되도록 보장할 수 있습니다. 개발자의 노트북에서 거대한 클라우드 클러스터로의 전환이 매끄럽게 이루어집니다.
 

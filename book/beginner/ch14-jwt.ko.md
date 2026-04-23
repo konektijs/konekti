@@ -51,8 +51,8 @@ Fluo의 가장 강력한 기능 중 하나는 **Principal 정규화(Principal No
 
 `@fluojs/jwt`는 이러한 변형들을 자동으로 통일된 `JwtPrincipal` 객체로 매핑합니다.
 - `subject`: 사용자의 고유 ID (`sub`에서 매핑).
-- `roles`: RBAC를 위한 문자열 배열 (`roles`, `groups`, 또는 `permissions`에서 매핑).
-- `scopes`: 특정 권한 마커 (`scope` 또는 `scp`에서 매핑).
+- `roles`: RBAC를 위한 문자열 배열 (`roles` 클레임에서 매핑).
+- `scopes`: 특정 권한 마커 (`scopes` 배열 또는 공백으로 구분된 `scope` 클레임에서 매핑).
 - `claims`: 페이로드의 추가 커스텀 데이터를 담는 가공되지 않은 바구니.
 
 이러한 정규화 레이어 덕분에 ID 공급자를 변경하거나 토큰 구조를 리팩토링하더라도 비즈니스 로직을 변경할 필요가 없습니다. 가드와 서비스는 단순히 `JwtPrincipal`과 상호작용하므로 코드를 유지 관리하고 이해하기가 훨씬 쉬워집니다. 이는 파편화된 클레임 세트를 신뢰할 수 있고 타입이 지정된 인터페이스로 바꿔줍니다. 이러한 추상화는 여러 OAuth2 또는 OpenID Connect 공급자와 통합되는 시스템에서 매우 중요한데, 소스에 관계없이 사용자 식별을 위한 단일 진입점을 제공하기 때문입니다.
@@ -210,7 +210,7 @@ export class TokenService {
       const principal = await this.verifier.verifyAccessToken(token);
       return principal;
     } catch (e) {
-      // ExpiredTokenError 또는 InvalidSignatureError의 자동 처리
+      // JwtExpiredTokenError 또는 JwtInvalidTokenError의 자동 처리
       throw new UnauthorizedException('토큰이 만료되었거나 위조되었습니다');
     }
   }
@@ -218,9 +218,9 @@ export class TokenService {
 ```
 
 ### Handling Token Errors Gracefully
-검증이 실패하면 `DefaultJwtVerifier`는 적절하게 반응할 수 있도록 구체적인 에러 타입을 던집니다. `ExpiredTokenError`는 토큰이 유효했지만 시간이 초과되었음을 알려주며, `InvalidSignatureError`는 잠재적인 변조 시도나 서명 키 불일치를 나타냅니다.
+검증이 실패하면 `DefaultJwtVerifier`는 적절하게 반응할 수 있도록 구체적인 에러 타입을 던집니다. `JwtExpiredTokenError`는 토큰이 유효했지만 시간이 초과되었음을 알려주며, `JwtInvalidTokenError`는 형식이 잘못되었거나 유효하지 않은 토큰을 나타냅니다.
 
-이러한 구체적인 에러를 잡음으로써 단순히 "접근 거부"라고 말하는 대신 사용자에게 세션을 갱신하라고 알려주는 등 더 나은 피드백을 제공하거나, 모니터링 시스템에서 보안 경보를 트리거할 수 있습니다. 예를 들어 특정 IP 주소에서 `InvalidSignatureError`가 빈번하게 발생하면 방화벽에서 자동으로 차단하도록 할 수 있습니다. Fluo의 명시적인 에러 처리는 모호한 에러 메시지와 씨름하지 않고도 이러한 고급 보안 기능을 구축할 수 있게 해줍니다. 또한 클라이언트 측의 버그(예: 빈 토큰 전송)와 악의적인 활동을 구분할 수 있게 해줍니다.
+이러한 구체적인 에러를 잡음으로써 단순히 "접근 거부"라고 말하는 대신 사용자에게 세션을 갱신하라고 알려주는 등 더 나은 피드백을 제공하거나, 모니터링 시스템에서 보안 경보를 트리거할 수 있습니다. 예를 들어 특정 IP 주소에서 `JwtInvalidTokenError`가 빈번하게 발생하면 방화벽에서 자동으로 차단하도록 할 수 있습니다. Fluo의 명시적인 에러 처리는 모호한 에러 메시지와 씨름하지 않고도 이러한 고급 보안 기능을 구축할 수 있게 해줍니다. 또한 클라이언트 측의 버그(예: 빈 토큰 전송)와 악의적인 활동을 구분할 수 있게 해줍니다.
 
 ## 14.8 Best Practices for JWT in Fluo
 - **페이로드에 민감한 데이터를 저장하지 마세요**: JWT는 인코딩될 뿐 암호화되는 것이 아닙니다. 누구나 내용을 볼 수 있습니다.

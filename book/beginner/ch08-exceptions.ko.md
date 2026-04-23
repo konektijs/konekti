@@ -74,19 +74,21 @@ function requirePost(post: unknown, id: string) {
 
 이 점은 디버깅과 클라이언트 기대치 모두에 중요합니다.
 
-### Global Exception Filter
+### Global Exception Handling
 
-"예외를 던진 후에는 어떤 일이 벌어지는 걸까?"라고 궁금할 수 있습니다. fluo에는 컨트롤러나 서비스에서 던져진 HTTP 예외를 잡아내는 **전역 예외 필터**가 있습니다. 이 필터는 예외를 자동으로 표준 JSON 응답 형식으로 변환합니다.
+"예외를 던진 후에는 어떤 일이 벌어지는 걸까?"라고 궁금할 수 있습니다. fluo의 HTTP 런타임은 `HttpException` 계열 실패를 표준 `{ error: ... }` envelope로 직렬화하고, 알 수 없는 실패는 `INTERNAL_SERVER_ERROR`로 정규화합니다.
 
 ```json
 {
-  "statusCode": 404,
-  "message": "Post 123 was not found.",
-  "error": "Not Found"
+  "error": {
+    "code": "NOT_FOUND",
+    "status": 404,
+    "message": "Post 123 was not found."
+  }
 }
 ```
 
-이러한 자동 포맷팅 덕분에 API가 로우 레벨의 스택 트레이스(stack trace)를 클라이언트에게 그대로 노출하지 않게 됩니다. 이는 보안 위험을 방지하는 동시에, 프론트엔드 개발자가 쉽게 파싱할 수 있는 깔끔한 기계 판독형 에러 객체를 제공합니다.
+이런 직렬화 규칙 덕분에 API가 로우 레벨의 스택 트레이스(stack trace)를 클라이언트에게 그대로 노출하지 않게 됩니다. 또한 클라이언트는 `error.code`를 기계용 키로, `error.message`를 사람용 메시지로 안정적으로 읽을 수 있습니다.
 
 ## 8.3 Making FluoBlog Not-Found Behavior Explicit
 
@@ -97,9 +99,7 @@ function requirePost(post: unknown, id: string) {
 ```typescript
 // src/posts/posts.service.ts
 import { NotFoundException } from '@fluojs/http';
-import { Injectable } from '@fluojs/di';
 
-@Injectable()
 export class PostsService {
   private readonly posts = [
     { id: '1', title: 'Hello fluo', body: 'First post', published: true },

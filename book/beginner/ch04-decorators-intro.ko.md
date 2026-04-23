@@ -127,7 +127,9 @@ fluo는 첫 번째 답을 원합니다.
 클래스 데코레이터는 클래스 전체에 적용됩니다. fluo에서는 가장 눈에 잘 들어오는 프레임워크 개념 중 상당수가 여기에서 시작됩니다.
 
 - `@Module()`
-- `@Injectable()`
+- `@Global()`
+- `@Inject(...)`
+- `@Scope(...)`
 - `@Controller()`
 
 이 데코레이터들은 각 클래스가 애플리케이션 안에서 어떤 역할을 맡는지 프레임워크에 알려 줍니다.
@@ -137,21 +139,32 @@ fluo는 첫 번째 답을 원합니다.
 클래스 데코레이터는 고수준 정체성 질문에 답합니다.
 
 - 이 클래스는 애플리케이션 구성의 일부인가?
-- 컨테이너가 관리하는 재사용 의존성인가?
+- 전역으로 노출되는 모듈인가?
+- 생성자 의존성 토큰을 명시하는가?
 - HTTP 진입점인가?
 
 이 역할 정보는 이후 프레임워크 시스템이 그 위에 쌓이기 때문에 매우 기초적입니다.
+
+프로바이더 자체는 별도 `@Injectable()` 표식이 아니라 모듈의 `providers` 메타데이터로 등록된다는 점도 함께 기억해 두세요.
 
 ### Why fluo Uses Them Heavily
 
 fluo가 클래스 데코레이터를 많이 사용하는 이유는 의도를 짧고 읽기 좋게 선언할 수 있기 때문입니다.
 
 ```typescript
-@Injectable()
+import { Inject, Module } from '@fluojs/core';
+import { Controller } from '@fluojs/http';
+
 export class MyService {}
 
+@Module({ providers: [MyService] })
+export class MyModule {}
+
+@Inject(MyService)
 @Controller('/api')
-export class MyController {}
+export class MyController {
+  constructor(private readonly service: MyService) {}
+}
 ```
 
 클래스 첫 줄만 읽어도 그 파일이 무엇인지 알 수 있다면 파일 탐색이 훨씬 쉬워집니다.

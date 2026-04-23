@@ -7,10 +7,10 @@
 
 ## Learning Objectives
 - Vitest와 `@fluojs/testing`을 이용한 테스트 환경을 구축합니다.
-- `fluo`에서 단위 테스트와 통합 테스트의 차이점을 이해합니다.
-- `createTestingModule`을 사용하여 단위 테스트를 위해 컴포넌트를 격리하는 방법을 배웁니다.
+- `fluo`에서 단위 테스트, 통합 테스트, E2E 스타일 HTTP 테스트의 차이점을 이해합니다.
+- `createTestingModule`을 사용하여 모듈 그래프 컴파일과 프로바이더 오버라이드 중심의 통합 테스트를 구성하는 방법을 배웁니다.
 - 테스트 중에 프로바이더를 모의 객체나 가짜 객체로 교체합니다.
-- `createTestApp`을 사용하여 HTTP 통합 테스트를 구현합니다.
+- `createTestApp`을 사용하여 실제 요청 파이프라인을 검증하는 HTTP 테스트를 구현합니다.
 - FluoBlog의 컨트롤러와 서비스를 위한 자동화된 테스트를 작성합니다.
 
 ## Prerequisites
@@ -79,8 +79,8 @@ export default defineConfig({
 ### 20.2.2 Coverage and Reporting
 작성한 코드가 얼마나 테스트되었는지 아는 것은 매우 중요합니다. Vitest는 `v8`이나 `istanbul` 같은 도구를 사용하여 코드 커버리지를 측정하는 기능을 내장하고 있습니다. `vitest run --coverage` 명령을 실행하면 코드의 어느 라인이 테스트되었는지 보여주는 보고서를 생성할 수 있습니다. 핵심 비즈니스 로직과 보안이 중요한 영역에서는 높은 커버리지를 목표로 하십시오.
 
-## 20.3 Unit Testing with createTestingModule
-단위 테스트는 단일 클래스(주로 서비스)의 격리된 동작에 집중합니다. 이를 위해 해당 클래스의 의존성을 가짜 객체나 모의 객체로 제공해야 합니다. 이렇게 하면 테스트가 실패했을 때 정확히 어느 부분이 문제인지 즉시 알 수 있습니다.
+## 20.3 Integration Testing with createTestingModule
+`createTestingModule`은 한 애플리케이션 슬라이스 안에서 실제 모듈 그래프를 컴파일하고, 필요한 프로바이더만 오버라이드하면서 DI 연결 상태를 검증하는 통합 테스트 표면입니다. 테스트 대역을 주입해 특정 의존성을 제어할 수는 있지만, 이 범주는 순수 단위 테스트가 아니라 모듈 그래프 수준의 통합 범위에 해당합니다.
 
 ### The Service to Test
 우리의 `PostService`를 살펴봅시다:
@@ -145,7 +145,7 @@ describe('PostService', () => {
 });
 ```
 
-이 패턴—**모의(Mock) -> 컴파일 -> 해결(Resolve) -> 실행(Act) -> 단언(Assert)**—은 `fluo` 단위 테스트의 핵심입니다. 이는 테스트가 빠르고 결정론적이며 부수 효과(side effect)로부터 자유로움을 보장합니다.
+이 패턴, **모의(Mock) -> 컴파일 -> 해결(Resolve) -> 실행(Act) -> 단언(Assert)** 는 `createTestingModule` 기반 통합 테스트의 핵심입니다. 실제 모듈 그래프와 DI 해석을 유지하면서도 필요한 의존성만 통제할 수 있어서, 테스트가 결정론적이면서도 현재 애플리케이션 슬라이스의 연결 상태를 함께 검증해 줍니다.
 
 ### 20.3.2 Testing Asynchronous Logic
 비동기 코드는 백엔드 개발의 일반적인 형태입니다. Fluo의 `createTestingModule`과 Vitest의 `async/await` 지원 덕분에 이러한 작업들을 직렬로 테스트하는 것이 매우 간단합니다. 성공적인 완료, 예상된 거부(rejection), 그리고 여러 비동기 작업이 특정 순서대로 완료되어야 하는 복잡한 타이밍 문제까지 쉽게 테스트할 수 있습니다. `vi.useFakeTimers()`를 사용하면 실제로 시간을 기다리지 않고도 타임아웃이나 재시도 로직을 테스트할 수 있습니다.
@@ -196,8 +196,8 @@ const module = await createTestingModule({ providers: [PostService] })
 ### 20.4.4 Dynamic Module Overrides
 때로는 단일 프로바이더가 아닌 모듈 전체를 교체해야 할 때가 있습니다. Fluo의 테스트 프레임워크는 임포트된 모듈을 테스트용 버전으로 교체할 수 있게 해줍니다. 이는 `MailModule`이나 `StripeModule`과 같은 외부 통합 모듈을 테스트할 때 특히 유용한데, 프로바이더 세트 전체를 테스트를 위한 일관된 모의 객체나 가짜 객체 세트로 교체하고 싶을 때 사용합니다.
 
-## 20.5 Integration Testing with createTestApp
-통합 테스트는 HTTP 레이어, 가드, 인터셉터를 포함하여 여러 컴포넌트가 함께 작동하는 방식을 검증합니다. `fluo`에서 이는 실제 네트워크 하드웨어만 제외하고 모든 스택을 실행하기 때문에 "E2E-lite"라고도 불립니다.
+## 20.5 E2E-Style HTTP Testing with createTestApp
+`createTestApp`은 요청 디스패치, 가드, 인터셉터, DTO 검증, 응답 작성을 포함한 실제 HTTP 파이프라인을 실행하는 E2E 스타일 HTTP 테스트 표면입니다. 실제 네트워크 소켓만 열지 않을 뿐, 요청 처리 스택 자체는 프로덕션 경로와 같은 방식으로 검증합니다.
 
 실제 네트워크 서버를 시작하는 대신, 가상 요청 디스패치 시스템을 제공하는 `createTestApp`을 사용합니다. 이는 테스트 속도를 크게 높이고 더 안정적으로 만들어 주면서도 전체 요청 라이프사이클이 올바르게 구성되었는지 확인합니다.
 
@@ -206,7 +206,7 @@ const module = await createTestingModule({ providers: [PostService] })
 import { createTestApp } from '@fluojs/testing';
 import { AppModule } from './app.module';
 
-describe('PostController (Integration)', () => {
+describe('PostController (E2E-style HTTP)', () => {
   let app: any;
 
   beforeAll(async () => {
@@ -319,8 +319,8 @@ Fluo 테스트 유틸리티의 가장 큰 장점 중 하나는 TypeScript와의 
 `fluo`에서의 테스트는 명시적이고 표준 기반이며 추론하기 쉽다는 핵심 철학의 연장선상에 있습니다. "마법"을 제거함으로써 Fluo는 여러분의 테스트 코드가 프로덕션 코드와 똑같이 보이고 동작하도록 만듭니다.
 
 - 현대적인 개발자 경험과 번개처럼 빠른 실행을 위해 **Vitest**를 사용하세요.
-- 정밀한 프로바이더 교체를 통한 격리된 단위 테스트를 위해 `createTestingModule`을 사용하세요.
-- 가드와 인터셉터를 실행하는 풀스택 통합 테스트를 위해 `createTestApp`을 사용하세요.
+- 순수 프로바이더 로직의 단위 테스트는 Vitest와 명시적 모의 객체로 작성하고, 모듈 그래프 통합 범위에는 `createTestingModule`을 사용하세요.
+- 가드와 인터셉터를 포함한 실제 요청 파이프라인 검증에는 `createTestApp` 기반 E2E 스타일 HTTP 테스트를 사용하세요.
 - 복잡한 설정 없이 보호된 경로를 테스트하기 위해 principal 모의(mocking)를 활용하세요.
 - 일관되고 신뢰할 수 있는 테스트를 위해 "Mock -> Compile -> Resolve" 패턴을 따르세요.
 

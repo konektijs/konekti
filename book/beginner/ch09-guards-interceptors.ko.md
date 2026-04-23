@@ -27,15 +27,14 @@
 
 ### The Request Lifecycle
 
-정확한 순서를 이해하는 것은 디버깅과 아키텍처 설계에 필수적입니다. 요청이 fluo 애플리케이션에 도달하면 다음과 같은 여러 계층을 통과합니다.
+정확한 순서를 이해하는 것은 디버깅과 아키텍처 설계에 필수적입니다. 요청이 fluo 애플리케이션에 도달하면 현재 HTTP 런타임은 다음과 같은 흐름으로 요청을 실행합니다.
 
-1.  **Middleware**: CORS나 압축(compression) 같은 로우 레벨 요청/응답 처리.
-2.  **Guards**: 인가(Authorization) 및 인증(Authentication) 검사.
-3.  **Interceptors (Pre-handle)**: 핸들러 실행 전의 변형이나 로깅.
-4.  **Pipes**: 파라미터/본문의 검증 및 변형.
-5.  **Controller Handler**: 비즈니스 로직의 진입점.
-6.  **Interceptors (Post-handle)**: 응답 shaping 또는 타이밍 측정.
-7.  **Exception Filters**: 에러를 잡아내고 형식을 맞춤.
+1.  **Middleware**: 전역 middleware가 먼저 실행되고, 라우트가 매칭되면 해당 핸들러에 연결된 module middleware가 이어집니다.
+2.  **Guards**: guard 체인이 요청 계속 여부를 결정합니다.
+3.  **Interceptors**: interceptor 체인이 핸들러 실행을 감싸는 형태로 구성됩니다.
+4.  **Controller invocation**: 선언된 `@RequestDto(...)`가 있으면 이 단계에서 DTO 바인딩과 validation이 함께 수행됩니다.
+5.  **Controller Handler**: 컨트롤러 메서드는 현재 요청 입력과 `RequestContext`를 기준으로 비즈니스 로직을 실행합니다.
+6.  **Response writing / error normalization**: 성공 응답은 직렬화되어 기록되고, 중간에 발생한 오류는 HTTP 오류 응답으로 정규화됩니다.
 
 이러한 계층적 접근 방식은 요청이 권한이 없는 경우 Guard 단계에서 조기에 실패하게 하여 시스템 리소스를 절약해 줍니다.
 
@@ -47,7 +46,7 @@
 
 질문이 “이 요청을 어떻게 관찰하고 변형하고 감쌀 것인가?”라면 interceptor를 떠올리면 됩니다.
 
-여기서 중요한 파이프라인 규칙이 있습니다: **Guard는 Interceptor보다 먼저 실행됩니다.** 만약 guard가 `false`를 반환하거나 예외를 던지면, 해당 요청에 대해서는 interceptor 계층까지 도달하지도 않습니다.
+여기서 중요한 파이프라인 규칙이 있습니다: **Guard는 Interceptor보다 먼저 실행됩니다.** interceptor는 guard를 통과한 뒤에야 핸들러 실행을 감쌀 수 있고, DTO 바인딩과 validation도 그 내부의 컨트롤러 호출 단계에서 일어납니다.
 
 이 모델이 모든 것을 설명하는 것은 아닙니다.
 
@@ -82,12 +81,13 @@ export class AdminGuard {
 그다음 이 guard를 컨트롤러나 특정 메서드에 적용합니다.
 
 ```typescript
-import { Controller, Post, UseGuards } from '@fluojs/http';
+import { Controller, Post, RequestDto, UseGuards } from '@fluojs/http';
 
 @Controller('/posts')
 export class PostsController {
   @Post('/')
   @UseGuards(AdminGuard)
+  @RequestDto(CreatePostDto)
   create(input: CreatePostDto) {
     return this.postsService.create(input);
   }
@@ -121,6 +121,7 @@ guard는 재사용 가능합니다.
 ```typescript
 @Post('/')
 @UseGuards(AuthGuard, RoleGuard, BlacklistGuard)
+@RequestDto(CreatePostDto)
 create(input: CreatePostDto) {
   return this.postsService.create(input);
 }
@@ -224,6 +225,8 @@ import {
   Get,
   Patch,
   Post,
+  RequestDto,
+  type RequestContext,
   UseGuards,
   UseInterceptors,
 } from '@fluojs/http';
@@ -244,14 +247,16 @@ export class PostsController {
 
   @Post('/')
   @UseGuards(AdminGuard)
+  @RequestDto(CreatePostDto)
   create(input: CreatePostDto) {
     return this.postsService.create(input);
   }
 
   @Patch('/:id')
   @UseGuards(AdminGuard)
-  update(id: string, input: UpdatePostDto) {
-    return this.postsService.update(id, input);
+  @RequestDto(UpdatePostDto)
+  update(input: UpdatePostDto, ctx: RequestContext) {
+    return this.postsService.update(ctx.request.params.id, input);
   }
 }
 ```
