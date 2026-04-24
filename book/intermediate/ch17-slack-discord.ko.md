@@ -3,26 +3,26 @@
 
 # Chapter 17. Slack and Discord Integration
 
-이 장은 FluoShop의 알림 시스템을 팀 커뮤니케이션 채널까지 확장하는 방법을 설명합니다. Chapter 16이 이메일 전달 기반을 다졌다면, 이 장은 Slack과 Discord로 운영 경고와 실시간 공유 흐름을 연결합니다.
+이 장에서는 FluoShop의 알림 시스템을 팀 커뮤니케이션 채널로 확장하는 방식을 다룹니다. Chapter 16에서 이메일 전달 기반을 마련했다면, 여기서는 Slack과 Discord를 사용해 운영 경고와 실시간 공유 흐름을 연결합니다.
 
 ## Learning Objectives
-- Slack과 Discord 연동이 이메일 채널과 어떻게 다른지 이해합니다.
-- 웹훅 중심 전송 방식을 사용해 채팅 모듈을 등록하는 방법을 배웁니다.
-- `SlackService`와 `DiscordService`를 독립적으로 사용하는 흐름을 익힙니다.
-- `@fluojs/notifications`에 채팅 채널을 연결하는 방법을 구현합니다.
-- Block Kit과 Embed를 활용해 구조화된 메시지를 구성하는 방법을 살펴봅니다.
-- 재시도 정책과 상태 스냅샷으로 채팅 연동을 운영하는 기준을 정리합니다.
+- Slack과 Discord 연동이 이메일 채널과 다른 지점을 구분합니다.
+- 웹훅 중심 전송 방식으로 채팅 모듈을 등록하는 절차를 정리합니다.
+- `SlackService`와 `DiscordService`를 독립적으로 사용하는 흐름을 확인합니다.
+- `@fluojs/notifications`에 채팅 채널을 연결하는 방식을 구현합니다.
+- Block Kit과 Embed로 구조화된 메시지를 구성합니다.
+- 재시도 정책과 상태 스냅샷을 기준으로 채팅 연동을 운영합니다.
 
 ## Prerequisites
 - Chapter 15와 Chapter 16 완료.
 - 웹훅 기반 외부 서비스 연동에 대한 기본 이해.
-- 운영 알림과 팀 협업 채널 분리에 대한 기본 감각.
+- 운영 알림과 팀 협업 채널을 분리해 설계해 본 경험.
 
 ## 17.1 The Webhook-First Approach
 
-Fluo는 단순한 전송을 위해 **인커밍 웹훅(Incoming Webhooks)** 방식을 선호합니다. 이는 단순한 알림 작업을 위해 OAuth 토큰이나 복잡한 봇 SDK를 관리해야 하는 번거로움을 피하게 해줍니다.
+Fluo는 단순 전송에는 **인커밍 웹훅(Incoming Webhooks)** 방식을 우선합니다. 알림 발송만 필요한 상황에서 OAuth 토큰, 봇 권한, SDK 수명 주기까지 관리하는 비용을 줄이기 위해서입니다.
 
-두 패키지 모두 `fetch` 구현체만 있으면 작동하는 `createWebhookTransport` 헬퍼를 제공합니다.
+두 패키지는 모두 `fetch` 구현체만 있으면 동작하는 웹훅 트랜스포트 헬퍼를 제공합니다.
 
 ```typescript
 import { createSlackWebhookTransport } from '@fluojs/slack';
@@ -33,11 +33,11 @@ const transport = createSlackWebhookTransport({
 });
 ```
 
-표준 `fetch` API에 의존하기 때문에, 이 트랜스포트는 Node.js 18+, Bun, Deno, Cloudflare Workers에서 네이티브로 작동합니다.
+표준 `fetch` API에 의존하므로 이 트랜스포트는 Node.js 18+, Bun, Deno, Cloudflare Workers에서 별도 어댑터 없이 동작합니다.
 
 ## 17.2 Registering the Chat Modules
 
-등록 방식은 다른 fluo 모듈들과 동일한 패턴을 따릅니다.
+등록 방식은 다른 fluo 모듈과 같은 패턴을 따릅니다. 기본 채널이나 스레드 같은 운영 기본값을 모듈 설정에 고정하고, 트랜스포트에는 런타임별 `fetch`와 웹훅 URL을 넘깁니다.
 
 ### Slack Registration
 ```typescript
@@ -77,7 +77,7 @@ export class AppModule {}
 
 ## 17.3 Standalone Usage: SlackService & DiscordService
 
-운영 로그 기록이나 커스텀 알림을 위해 서비스를 직접 사용할 수 있습니다.
+운영 로그 기록이나 맞춤 알림처럼 오케스트레이션이 과한 경우에는 서비스를 직접 사용할 수 있습니다.
 
 ```typescript
 import { Inject } from '@fluojs/core';
@@ -96,7 +96,7 @@ export class LoggerService {
 
 ## 17.4 Integration with @fluojs/notifications
 
-오케스트레이션된 알림 시스템에 채팅 플랫폼을 포함하려면 `SLACK_CHANNEL` 또는 `DISCORD_CHANNEL` 토큰을 주입합니다.
+오케스트레이션된 알림 시스템에 채팅 플랫폼을 포함하려면 `SLACK_CHANNEL` 또는 `DISCORD_CHANNEL` 토큰을 주입합니다. 이렇게 하면 이벤트 발행자는 채널별 전송 세부 사항을 몰라도 됩니다.
 
 ```typescript
 import { SLACK_CHANNEL } from '@fluojs/slack';
@@ -125,10 +125,10 @@ await this.notifications.dispatch({
 
 ## 17.5 Rich Formatting: Blocks and Embeds
 
-채팅 플랫폼의 강점 중 하나는 풍부한 포맷팅입니다.
+채팅 플랫폼의 강점은 메시지를 사람이 바로 읽고 판단할 수 있는 형태로 구성할 수 있다는 점입니다.
 
 ### Slack Blocks
-Slack 패키지는 **Block Kit** API를 지원합니다.
+Slack 패키지는 **Block Kit** API를 지원해 섹션, 필드, 구분선 등으로 메시지를 구조화할 수 있습니다.
 
 ```typescript
 await this.slack.send({
@@ -152,7 +152,7 @@ await this.slack.send({
 ```
 
 ### Discord Embeds
-Discord 패키지는 구조화된 데이터를 위해 **Embeds**를 지원합니다.
+Discord 패키지는 구조화된 데이터를 표현하기 위해 **Embeds**를 지원합니다.
 
 ```typescript
 await this.discord.send({
@@ -169,9 +169,9 @@ await this.discord.send({
 
 ## 17.6 FluoShop Context: Operational Alerts
 
-FluoShop에서는 개발자 알림을 위해 Slack을, 커뮤니티 주문 알림을 위해 Discord를 사용합니다.
+FluoShop에서는 내부 운영 알림에는 Slack을 사용하고, 공개 커뮤니티에 공유할 주문 알림에는 Discord를 사용합니다.
 
-`NotificationsService`를 사용하면 하나의 이벤트를 필요에 따라 두 플랫폼 모두로 라우팅할 수 있습니다.
+`NotificationsService`를 사용하면 하나의 도메인 이벤트를 정책에 따라 한 플랫폼 또는 여러 플랫폼으로 라우팅할 수 있습니다.
 
 ```typescript
 @OnEvent('order.placed')
@@ -192,14 +192,14 @@ async alertOps(event: OrderPlacedEvent) {
 
 ## 17.7 Error Handling and Retries
 
-내장된 웹훅 트랜스포트는 프로덕션 환경의 안정성을 고려하여 설계되었습니다.
+내장 웹훅 트랜스포트는 운영 환경의 실패 양상을 기준으로 설계되어 있습니다.
 
-- **자동 재시도**: 일시적인 `408`, `429`, `5xx` 오류에 대해 지수 백오프(exponential backoff)를 적용하여 자동으로 재시도합니다.
-- **명시적 에러**: 영구적인 실패(404, 403 등)에 대해서는 `SlackTransportError` 또는 `DiscordTransportError`를 던져 애플리케이션 레벨에서 처리할 수 있게 합니다.
+- **자동 재시도**: 일시적인 `408`, `429`, `5xx` 오류에는 지수 백오프(exponential backoff)를 적용해 다시 시도합니다.
+- **명시적 에러**: 영구적인 실패(404, 403 등)는 `SlackTransportError` 또는 `DiscordTransportError`로 드러내 애플리케이션 레벨에서 처리하게 합니다.
 
 ## 17.8 Status Snapshots
 
-채팅 연동은 웹훅 URL 만료 등으로 인해 중단되는 경우가 많습니다. 상태 스냅샷을 통해 이를 모니터링하세요.
+채팅 연동은 웹훅 URL 만료, 권한 변경, 외부 서비스 장애로 중단될 수 있습니다. 상태 스냅샷을 운영 지표와 알림에 연결해 조기에 감지합니다.
 
 ```typescript
 const slackStatus = await createSlackPlatformStatusSnapshot(slackService);
@@ -210,6 +210,6 @@ if (!slackStatus.isReady) {
 
 ## Conclusion
 
-Slack과 Discord를 fluo 생태계에 통합함으로써, 여러분의 백엔드를 팀 커뮤니케이션의 적극적인 참여자로 탈바꿈시켰습니다. 런타임 이식성을 희생하지 않고도 실시간 관측 가능성과 풍부한 포맷팅 기능을 확보했습니다.
+Slack과 Discord를 fluo 생태계에 통합하면 백엔드가 팀 커뮤니케이션 흐름에 직접 참여할 수 있습니다. 런타임 이식성을 유지하면서도 실시간 관측성과 구조화된 메시지 표현을 확보했습니다.
 
-이것으로 **Part 4: 알림 시스템**을 마칩니다. 이제 여러분은 사용자와 팀 모두와 소통하기 위한 통합되고 확장 가능하며 관측 가능한 전략을 갖추게 되었습니다.
+이것으로 **Part 4: 알림 시스템**을 마칩니다. 지금까지 사용자 알림과 팀 운영 알림을 같은 오케스트레이션 모델 안에서 다루는 전략을 정리했습니다.
