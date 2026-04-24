@@ -20,11 +20,11 @@
 
 ## 24.1 Why Cloudflare Workers for fluo?
 
-- **Extreme Low Latency**: 코드가 사용자 근처에서 실행되어 진정한 전 세계 청중을 위한 글로벌 성능이 향상됩니다.
-- **Cost Efficiency**: 사용한 만큼만 비용을 지불하며, 고주파수의 작은 요청에 대해 전통적인 클라우드 제공업체보다 더 저렴한 가격 모델을 제공하는 경우가 많습니다.
-- **Web APIs**: Workers는 fluo가 기반으로 하는 `fetch`, `Request`, `Response` 표준을 선호하므로 전환이 논리적이고 원활합니다.
-- **Isolate Architecture**: 전통적인 컨테이너나 가상 머신보다 훨씬 가벼운 V8 Isolate를 통한 높은 보안성과 성능.
-- **Native Edge Features**: 내장 Key-Value(KV) 저장소, 상태 저장 로직을 위한 Durable Objects, 엣지에서의 관계형 데이터를 위한 D1(SQL) 지원.
+- **Extreme Low Latency**: 코드를 사용자와 가까운 위치에서 실행해 왕복 지연 시간을 줄일 수 있습니다.
+- **Cost Efficiency**: 요청 단위 과금 모델은 짧고 빈번한 API 호출에 적합한 비용 구조를 제공할 수 있습니다.
+- **Web APIs**: Workers는 fluo가 기반으로 하는 `fetch`, `Request`, `Response` 표준을 중심에 둡니다.
+- **Isolate Architecture**: V8 Isolate 모델은 컨테이너보다 가벼운 실행 단위를 제공하며, 빠른 시작과 격리를 목표로 합니다.
+- **Native Edge Features**: KV, Durable Objects, D1(SQL) 같은 엣지 네이티브 저장소와 상태 관리 기능을 제공합니다.
 
 ## 24.2 The Cloudflare Worker Adapter
 
@@ -40,7 +40,7 @@ npm install @fluojs/platform-cloudflare-workers
 
 ### 24.2.2 Bootstrapping FluoShop as a Worker
 
-Worker 환경에서는 전통적인 Node.js 방식처럼 `app.listen()`을 호출하지 않습니다. 대신, 들어오는 각 요청에 대해 Cloudflare 런타임이 호출하는 `fetch` 핸들러를 내보냅니다. fluo 어댑터가 이러한 매핑을 관리해 줍니다.
+Worker 환경에서는 전통적인 Node.js 방식처럼 장기 실행 서버 소켓을 열지 않습니다. 대신 Cloudflare 런타임이 각 요청마다 호출하는 `fetch` 핸들러를 내보냅니다. fluo 어댑터는 이 핸들러와 애플리케이션 디스패처 사이의 매핑을 담당합니다.
 
 ```typescript
 // src/index.ts
@@ -62,11 +62,11 @@ export default {
 };
 ```
 
-이 구조는 의존성 주입 컨테이너를 부트스트랩하는 무거운 작업이 요청당 한 번이 아니라 Isolate당 한 번만 발생하도록 보장하여, Workers의 특징인 1밀리초 미만의 응답 시간을 유지합니다.
+이 구조는 의존성 주입 컨테이너 부트스트랩을 요청마다 반복하지 않고, 같은 Isolate 안에서 재사용할 수 있게 합니다. 엣지에서는 이런 초기화 경계가 응답 시간과 비용에 직접 영향을 줍니다.
 
 ## 24.3 Lazy Bootstrapping (Zero-Config)
 
-더 간단한 설정을 위해, fluo는 첫 번째 요청 시 부트스트랩 로직을 자동으로 처리하는 진입점 헬퍼를 제공하여 보일러플레이트 없는 경험을 제공합니다.
+더 단순한 설정이 필요하다면 fluo의 진입점 헬퍼를 사용할 수 있습니다. 이 헬퍼는 첫 요청 시 부트스트랩을 처리하므로, Worker 파일에서 반복되는 초기화 코드를 줄일 수 있습니다.
 
 ```typescript
 import { createCloudflareWorkerEntrypoint } from '@fluojs/platform-cloudflare-workers';
@@ -81,16 +81,16 @@ export default {
 
 ## 24.4 Handling Edge Constraints
 
-Cloudflare Workers는 전통적인 Node.js 환경에 비해 fluo 애플리케이션에서 고려해야 할 몇 가지 고유한 제약 사항이 있습니다.
+Cloudflare Workers는 전통적인 Node.js 환경과 다른 제약을 갖습니다. fluo 애플리케이션도 이 제약을 런타임 계약으로 받아들여야 합니다.
 
-1. **No Filesystem**: `fs`를 사용할 수 없습니다. 작은 데이터에는 Cloudflare KV를, 큰 객체 저장소에는 R2를 사용하세요.
-2. **Limited Execution Time**: 요청 처리가 효율적이어야 합니다. Standard 플랜에서는 CPU 시간이 엄격하게 제한됩니다.
-3. **Isolate Memory**: 의존성 그래프를 가볍게 유지하세요. fluo의 명시적 DI는 무거운 리플렉션 라이브러리와 불필요한 메타데이터 생성을 피함으로써 도움이 됩니다.
+1. **No Filesystem**: `fs`를 사용할 수 없습니다. 작은 데이터에는 Cloudflare KV를, 큰 객체 저장소에는 R2를 검토하세요.
+2. **Limited Execution Time**: 요청 처리는 짧고 예측 가능해야 합니다. 플랜에 따라 CPU 시간 제한이 운영 설계의 일부가 됩니다.
+3. **Isolate Memory**: 의존성 그래프를 가볍게 유지하세요. fluo의 명시적 DI는 무거운 리플렉션 라이브러리와 불필요한 메타데이터 생성을 피하는 데 도움이 됩니다.
 4. **Environment Variables**: `fetch` 핸들러에 전달되는 `env` 객체를 통해 변수 및 바인딩에 접근합니다.
 
 ### 24.4.1 Integrating Worker Env into fluo
 
-fluo의 Cloudflare 어댑터는 Worker `env` 객체(KV 네임스페이스 및 시크릿 포함)를 `ConfigService`에 자동으로 매핑합니다.
+fluo의 Cloudflare 어댑터는 Worker `env` 객체(KV 네임스페이스 및 시크릿 포함)를 `ConfigService` 경계로 연결합니다.
 
 ```typescript
 import { ConfigService } from '@fluojs/config';
@@ -107,7 +107,7 @@ export class MyService {
 
 ## 24.5 Edge-Native WebSockets
 
-Cloudflare는 서버 측 WebSockets를 위해 `WebSocketPair`를 지원합니다. fluo의 WebSocket 모듈은 이 환경을 위한 바인딩도 포함하고 있어, FluoShop의 실시간 기능이 엣지에서도 작동할 수 있게 해줍니다.
+Cloudflare는 서버 측 WebSockets를 위해 `WebSocketPair`를 지원합니다. fluo의 WebSocket 모듈은 이 환경을 위한 바인딩을 제공하므로, FluoShop의 실시간 기능을 엣지 제약 안에서 검토할 수 있습니다.
 
 ```typescript
 // 어댑터가 활성화된 경우 게이트웨이가 자동으로 Cloudflare의 WebSocketPair를 사용합니다.
@@ -119,7 +119,7 @@ export class EdgeGateway {
 
 ## 24.6 Deployment with Wrangler
 
-Cloudflare의 CLI 도구인 `wrangler`를 사용하여 fluo 애플리케이션을 배포합니다. 워커 설정을 위해 `wrangler.toml` 파일이 필요합니다.
+Cloudflare의 CLI 도구인 `wrangler`로 fluo 애플리케이션을 배포합니다. Worker 이름, 진입점, 호환성 날짜, 환경 변수는 `wrangler.toml`에서 관리합니다.
 
 ```toml
 # wrangler.toml
@@ -138,25 +138,25 @@ npx wrangler deploy
 
 ## 24.7 Conclusion
 
-FluoShop을 Cloudflare Workers에 배포함으로써 전 세계에 걸친 서버리스 백엔드를 구축했습니다. fluo의 어댑터 중심 아키텍처는 이러한 전환을 원활하게 만들었으며, 한 번 작성한 로직을 Node.js 서버부터 궁극의 엣지까지 어디서나 실행할 수 있음을 입증했습니다.
+FluoShop을 Cloudflare Workers에 배포하면 전 세계 엣지 위치에서 실행되는 서버리스 백엔드 구성을 얻을 수 있습니다. fluo의 어댑터 중심 아키텍처는 애플리케이션 로직을 유지한 채 Node.js 서버와 엣지 실행 환경을 비교할 수 있게 합니다.
 
 마지막으로 25장에서는 전체 FluoShop 아키텍처를 검토하고 서비스 메시 전략을 사용하여 확장하는 방법을 살펴보겠습니다.
 
 ---
 
-*200줄 규칙을 위한 내용 확장.*
+*이후 섹션은 엣지 배포에서 함께 판단해야 할 데이터 배치, 보안, 상태 관리 경계를 보강합니다.*
 
-엣지로의 이동은 데이터 영속성에 대한 사고방식의 변화를 요구합니다. PostgreSQL과 같은 전통적인 데이터베이스도 훌륭하지만, 도쿄에서 실행되는 글로벌 Worker가 (예를 들어 `us-east-1`에 있는) 중앙 집중식 데이터베이스를 호출할 때 발생하는 지연 시간은 엣지의 이점을 상쇄할 수 있습니다. 이것이 Cloudflare D1 및 KV와 같은 서비스가 중요한 이유입니다. 이러한 서비스는 데이터를 실행 지점에 더 가깝게 가져와서 Worker 자체의 철학과 일치시킵니다.
+엣지로 이동하면 데이터 영속성에 대한 판단도 달라집니다. PostgreSQL 같은 중앙 데이터베이스는 여전히 중요하지만, 도쿄에서 실행되는 Worker가 `us-east-1`의 데이터베이스를 매 요청마다 호출하면 엣지의 지연 시간 이점이 줄어듭니다. Cloudflare D1 및 KV 같은 서비스는 데이터를 실행 지점에 더 가깝게 배치하는 선택지를 제공합니다.
 
-FluoShop에서 우리는 세션 관리를 위해 KV를 사용하고 관계형 데이터를 위해 D1을 사용할 수 있습니다. 이를 통해 우리 스택의 모든 부분이 글로벌 성능에 최적화되도록 보장합니다. fluo의 모듈식 프로바이더 시스템 덕분에 비즈니스 로직 컨트롤러를 변경하지 않고도 이러한 엣지 네이티브 저장소 솔루션으로 쉽게 전환할 수 있습니다. 예를 들어, `ProductRepository` 인터페이스를 정의하고 Cloudflare에서 실행될 때 `D1ProductRepository` 구현체를 제공할 수 있습니다.
+FluoShop에서는 세션 관리에 KV를, 관계형 데이터 경로에 D1을 검토할 수 있습니다. fluo의 모듈식 프로바이더 시스템을 사용하면 비즈니스 컨트롤러를 바꾸지 않고 저장소 구현을 교체할 수 있습니다. 예를 들어 `ProductRepository` 인터페이스를 정의하고 Cloudflare에서 실행될 때 `D1ProductRepository` 구현체를 제공하는 방식입니다.
 
-또한 통합 WAF(웹 애플리케이션 방화벽) 및 봇 관리와 같은 Cloudflare의 보안 기능은 FluoShop API에 추가적인 보호 계층을 제공합니다. fluo는 애플리케이션 레벨의 로직을 처리하고 Cloudflare는 엣지 레벨의 보안 및 라우팅을 처리하므로, 자체 Kubernetes 클러스터나 VM 팜을 관리하는 것보다 훨씬 적은 운영 오버헤드로 프로덕션 수준의 시스템을 얻을 수 있습니다.
+Cloudflare의 WAF와 봇 관리 기능은 FluoShop API 앞단의 보호 계층으로 사용할 수 있습니다. fluo는 애플리케이션 레벨의 로직을 담당하고 Cloudflare는 엣지 레벨의 라우팅과 방어를 담당하도록 역할을 나누면, 운영자가 직접 관리해야 하는 인프라 표면을 줄일 수 있습니다.
 
-한 가지 더 고려할 사항은 실행 컨텍스트입니다. Workers에서는 `ctx.waitUntil()`을 사용할 수 있습니다. fluo 어댑터는 백그라운드 작업이나 이벤트 전파 중에 이를 자동으로 처리하여, 사용자에게 HTTP 응답이 전송된 후에도 비동기 로직이 완료되도록 보장합니다. 이는 FluoShop에서 분석 데이터를 보내거나 웹훅을 트리거하는 것과 같은 작업에 매우 중요한 디테일입니다.
+또 하나의 핵심은 실행 컨텍스트입니다. Workers에서는 `ctx.waitUntil()`을 사용해 응답 이후의 비동기 작업을 런타임에 등록할 수 있습니다. fluo 어댑터는 백그라운드 작업이나 이벤트 전파 중 이 경계를 활용할 수 있으며, 분석 데이터 전송이나 웹훅 트리거처럼 요청 응답과 분리된 작업에서 중요합니다.
 
 ## 24.8 Advanced: Durable Objects and State
 
-Cloudflare에서 요청 간에 공유된 상태가 필요한 경우 Durable Objects가 해결책입니다. 이는 상태를 유지할 수 있는 전역적으로 고유한 클래스 인스턴스를 가질 수 있는 방법을 제공합니다. fluo는 Durable Object 클래스 내에 통합되어 이러한 상태 저장 단위 내부에서 DI와 구조화된 로직을 제공할 수 있습니다.
+Cloudflare에서 요청 간에 공유되는 상태가 필요하다면 Durable Objects를 검토합니다. Durable Object는 특정 상태를 담당하는 고유한 인스턴스를 제공하며, fluo는 이 내부에서 DI와 구조화된 로직을 구성하는 방식으로 통합될 수 있습니다.
 
 ```typescript
 import { DurableObject } from 'cloudflare:workers';
@@ -169,7 +169,7 @@ export class MyDurableObject extends DurableObject {
 
 ## 24.9 D1 SQL Database at the Edge
 
-Cloudflare D1은 Worker와 함께 위치한 SQL 데이터베이스를 제공합니다. D1 드라이버와 함께 Drizzle(20장)을 사용하는 것은 fluo 앱에 매우 강력한 조합입니다. 이는 엣지의 성능과 함께 SQL의 익숙함을 제공합니다.
+Cloudflare D1은 Worker와 가까운 위치에서 사용할 수 있는 SQL 데이터베이스입니다. D1 드라이버와 Drizzle(20장)을 함께 쓰면 엣지 배치와 SQL 모델을 같은 fluo 저장소 경계 안에서 다룰 수 있습니다.
 
 ```typescript
 import { drizzle } from 'drizzle-orm/d1';
@@ -189,9 +189,9 @@ export class DatabaseModule {}
 ## 24.10 Summary: The Edge Advantage
 
 - **Global Presence**: 수동 복제 없이 300개 이상의 위치에서 즉시 사용 가능.
-- **Performance**: V8 Isolate를 통한 1밀리초 미만의 콜드 스타트와 극한의 처리량.
+- **Performance**: V8 Isolate 모델을 통해 빠른 시작과 높은 동시 처리량을 목표로 합니다.
 - **Simplicity**: 웹 표준 API(fetch, Request, Response)가 개발 및 테스트를 단순화합니다.
-- **Scalability**: Cloudflare 플랜의 한계 내에서 수백만 개의 요청을 쉽게 처리합니다.
+- **Scalability**: Cloudflare 플랜과 런타임 제한 안에서 대규모 요청을 처리할 수 있습니다.
 - **Unified Logic**: fluo를 사용하면 온프레미스에서와 동일한 컨트롤러와 서비스를 엣지에서도 사용할 수 있습니다.
 
 ## 24.11 Key Takeaways
@@ -199,14 +199,14 @@ export class DatabaseModule {}
 - Cloudflare Workers는 엣지의 V8 Isolate에서 실행되며 전통적인 서버리스에 대한 가벼운 대안을 제공합니다.
 - `@fluojs/platform-cloudflare-workers`는 fluo 생명주기와 통합되는 표준 `fetch` 기반 어댑터를 제공합니다.
 - Worker 런타임에 맞추기 위해 `listen()`을 호출하는 대신 `fetch` 핸들러를 내보내세요.
-- KV, D1, WebSockets와 같은 네이티브 엣지 기능이 전용 fluo 바인딩을 통해 완벽하게 지원됩니다.
+- KV, D1, WebSockets와 같은 네이티브 엣지 기능은 전용 fluo 바인딩과 프로바이더 경계로 연결할 수 있습니다.
 - Worker `env` 객체의 변수와 바인딩에 원활하게 접근하려면 `ConfigService`를 사용하세요.
-- 전문적인 CI/CD 경험을 위해 `wrangler`를 사용하여 배포하세요.
+- 배포와 환경 관리를 일관되게 유지하려면 `wrangler`를 사용하세요.
 - `ctx.waitUntil`은 fluo에 의해 처리되어 엣지에서 백그라운드 작업이 성공적으로 완료되도록 보장합니다.
 - 엣지는 단순한 호스팅 플랫폼이 아니라, 글로벌 애플리케이션 아키텍처에 대해 생각하는 다른 방식입니다.
 
 ## 24.12 Future-Proofing with Cloudflare and Fluo
 
-Cloudflare 플랫폼이 AI (Workers AI) 및 고급 스트리밍과 같은 새로운 기능으로 계속 진화함에 따라, fluo는 모듈식 아키텍처를 통해 이러한 기능을 활용할 수 있는 위치에 있습니다. 비즈니스 로직을 깨끗하게 유지하고 어댑터에서 분리함으로써, 대대적인 재작성 없이도 이러한 미래의 발전 사항을 쉽게 통합할 수 있습니다.
+Cloudflare 플랫폼은 Workers AI, 고급 스트리밍, 새로운 저장소 기능처럼 계속 확장되고 있습니다. fluo에서는 이런 기능을 비즈니스 로직에 직접 흩뿌리지 않고, 어댑터와 프로바이더 경계 뒤에 배치하는 것이 중요합니다. 그래야 플랫폼 기능을 추가하더라도 핵심 도메인 로직을 안정적으로 유지할 수 있습니다.
 
-FluoShop은 이제 글로벌하고 빠르며 안전합니다. 엣지로의 전환은 성능을 향상시켰을 뿐만 아니라 현대적인 TypeScript 애플리케이션이 어떻게 구축되어야 하는지에 대한 청사진을 제공했습니다. 즉, 표준 준수, 플랫폼 인식, 그리고 고도의 이식성을 갖춘 앱입니다.
+FluoShop은 이제 글로벌 엣지 배포까지 검토할 수 있는 구조가 되었습니다. 이 전환은 성능만이 아니라 표준 API, 플랫폼 인식, 이식 가능한 도메인 경계를 함께 설계해야 한다는 점을 보여줍니다.
