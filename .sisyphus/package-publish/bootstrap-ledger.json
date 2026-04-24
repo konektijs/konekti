@@ -3,7 +3,7 @@
   "targetVersion": "1.0.0-beta.1",
   "distTag": "beta",
   "createdAt": "2026-04-24T13:18:06.245Z",
-  "updatedAt": "2026-04-24T13:18:06.245Z",
+  "updatedAt": "2026-04-24T14:37:34.293Z",
   "packages": [
     {
       "order": 1,
@@ -12,10 +12,10 @@
       "dir": "packages/core",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:22.294Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -23,7 +23,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/core.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -36,10 +36,10 @@
       "dir": "packages/config",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:23.755Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -47,7 +47,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/config.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -60,10 +60,10 @@
       "dir": "packages/di",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:25.523Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -71,7 +71,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/di.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -84,10 +84,10 @@
       "dir": "packages/validation",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:27.600Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -95,7 +95,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/validation.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -108,10 +108,10 @@
       "dir": "packages/http",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:29.805Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -119,7 +119,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/http.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -132,10 +132,10 @@
       "dir": "packages/runtime",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:31.551Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -143,7 +143,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/runtime.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -156,10 +156,10 @@
       "dir": "packages/serialization",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:33.042Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -167,7 +167,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/serialization.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -180,10 +180,10 @@
       "dir": "packages/cli",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:35.145Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -191,7 +191,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/cli.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -204,10 +204,10 @@
       "dir": "packages/event-bus",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:37.016Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -215,7 +215,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/event-bus.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -228,10 +228,10 @@
       "dir": "packages/jwt",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:38.758Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -239,7 +239,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/jwt.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -252,10 +252,10 @@
       "dir": "packages/notifications",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:40.331Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -263,7 +263,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/notifications.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -276,10 +276,10 @@
       "dir": "packages/redis",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:42.922Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -287,7 +287,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/redis.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -300,10 +300,10 @@
       "dir": "packages/drizzle",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:45.724Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -311,7 +311,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/drizzle.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -324,10 +324,10 @@
       "dir": "packages/prisma",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:47.596Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -335,7 +335,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/prisma.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -348,10 +348,10 @@
       "dir": "packages/graphql",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:49.780Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -359,7 +359,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/graphql.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -372,10 +372,10 @@
       "dir": "packages/metrics",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:51.700Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -383,7 +383,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/metrics.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -396,10 +396,10 @@
       "dir": "packages/microservices",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:53.945Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -407,7 +407,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/microservices.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -420,10 +420,10 @@
       "dir": "packages/mongoose",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:56.531Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -431,7 +431,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/mongoose.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -444,10 +444,10 @@
       "dir": "packages/openapi",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:58.023Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -455,7 +455,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/openapi.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -468,10 +468,10 @@
       "dir": "packages/platform-bun",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:36:59.831Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -479,7 +479,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/platform-bun.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -492,10 +492,10 @@
       "dir": "packages/platform-cloudflare-workers",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:02.180Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -503,7 +503,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/platform-cloudflare-workers.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -516,10 +516,10 @@
       "dir": "packages/platform-deno",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:04.188Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -527,7 +527,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/platform-deno.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -540,10 +540,10 @@
       "dir": "packages/platform-express",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:05.993Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -551,7 +551,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/platform-express.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -564,10 +564,10 @@
       "dir": "packages/platform-fastify",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:07.723Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -575,7 +575,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/platform-fastify.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -588,10 +588,10 @@
       "dir": "packages/platform-nodejs",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:10.134Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -599,7 +599,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/platform-nodejs.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -612,10 +612,10 @@
       "dir": "packages/studio",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:11.679Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -623,7 +623,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/studio.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -636,10 +636,10 @@
       "dir": "packages/cache-manager",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:13.933Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -647,7 +647,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/cache-manager.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -660,10 +660,10 @@
       "dir": "packages/terminus",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:15.425Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -671,7 +671,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/terminus.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -684,10 +684,10 @@
       "dir": "packages/throttler",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:16.875Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -695,7 +695,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/throttler.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -708,10 +708,10 @@
       "dir": "packages/testing",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:18.330Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -719,7 +719,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/testing.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -732,10 +732,10 @@
       "dir": "packages/websockets",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:19.853Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -743,7 +743,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/websockets.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -756,10 +756,10 @@
       "dir": "packages/cqrs",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:21.904Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -767,7 +767,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/cqrs.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -780,10 +780,10 @@
       "dir": "packages/cron",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:24.076Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -791,7 +791,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/cron.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -804,10 +804,10 @@
       "dir": "packages/queue",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:25.889Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -815,7 +815,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/queue.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -828,10 +828,10 @@
       "dir": "packages/discord",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:27.692Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -839,7 +839,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/discord.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -852,10 +852,10 @@
       "dir": "packages/slack",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:29.190Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -863,7 +863,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/slack.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -876,10 +876,10 @@
       "dir": "packages/passport",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:30.697Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -887,7 +887,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/passport.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -900,10 +900,10 @@
       "dir": "packages/email",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:32.507Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -911,7 +911,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/email.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null
@@ -924,10 +924,10 @@
       "dir": "packages/socket.io",
       "version": "1.0.0-beta.1",
       "distTag": "beta",
-      "status": "pending",
+      "status": "dry-run-passed",
       "attemptCount": 0,
       "timestamps": {
-        "dryRunPassedAt": null,
+        "dryRunPassedAt": "2026-04-24T14:37:34.293Z",
         "publishStartedAt": null,
         "publishedAt": null,
         "verifiedAt": null,
@@ -935,7 +935,7 @@
       },
       "lastError": null,
       "evidencePaths": {
-        "dryRunLog": null,
+        "dryRunLog": ".sisyphus/evidence/all-packages-npm-beta-publish/dry-run/socket-io.log",
         "publishLog": null,
         "registryJson": null,
         "resumeLog": null

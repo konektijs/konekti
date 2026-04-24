@@ -194,6 +194,10 @@ function commandLine(command, args) {
   return [command, ...args].join(' ');
 }
 
+function publishArgsFor(entry, extraArgs = []) {
+  return ['publish', entry.dir, ...extraArgs, '--access', 'public', '--tag', distTag, '--no-git-checks'];
+}
+
 function slugFor(packageName) {
   return packageName
     .replace(/^@fluojs\//u, '')
@@ -431,6 +435,17 @@ function newestTarball(directory, previousFiles) {
   return join(directory, candidates[0].file);
 }
 
+function packedTarballPath(directory, previousFiles, packResult) {
+  const output = `${packResult.stdout ?? ''}\n${packResult.stderr ?? ''}`;
+  const escapedDirectory = directory.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  const match = output.match(new RegExp(`${escapedDirectory}/[^\\s]+\\.tgz`, 'u'));
+  if (match?.[0] && existsSync(match[0])) {
+    return match[0];
+  }
+
+  return newestTarball(directory, previousFiles);
+}
+
 function ensureSequentialBefore(ledger, entry, acceptedPriorStatuses = immutableSuccessStatuses) {
   for (const prior of ledger.packages.slice(0, entry.order - 1)) {
     if (!acceptedPriorStatuses.has(prior.status)) {
@@ -581,14 +596,14 @@ function commandDryRun(options) {
         throw Object.assign(new Error('pnpm pack failed'), packResult);
       }
 
-      const tarballPath = newestTarball(tarballDirectory, beforeTarballs);
+      const tarballPath = packedTarballPath(tarballDirectory, beforeTarballs, packResult);
       const files = tarList(tarballPath);
       const packedManifest = JSON.parse(tarRead(tarballPath, 'package/package.json'));
       writeJsonAtomic(manifestEvidencePath, packedManifest);
       writeFileSync(filesEvidencePath, `${files.join('\n')}\n`, 'utf8');
       const checks = validatePackedManifest(entry, sourceManifest, packedManifest, files, logLines);
 
-      const publishDryRunArgs = ['--dir', entry.dir, 'publish', '--dry-run', '--access', 'public', '--tag', distTag, '--no-git-checks'];
+      const publishDryRunArgs = publishArgsFor(entry, ['--dry-run']);
       logLines.push(`$ ${commandLine('pnpm', publishDryRunArgs)}`);
       const publishDryRunResult = run('pnpm', publishDryRunArgs);
       logLines.push(
@@ -665,7 +680,7 @@ function commandPublish(options) {
 
     const slug = slugFor(entry.name);
     const logPath = join(publishRoot, `${slug}.log`);
-    const args = ['--dir', entry.dir, 'publish', '--access', 'public', '--tag', distTag, '--no-git-checks'];
+    const args = publishArgsFor(entry);
     entry.status = 'publish-started';
     entry.attemptCount += 1;
     entry.timestamps.publishStartedAt = now();
