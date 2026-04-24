@@ -26,6 +26,7 @@ const allowedStatuses = new Set([
   'failed',
 ]);
 const immutableSuccessStatuses = new Set(['verify-passed', 'already-published']);
+const dryRunPredecessorStatuses = new Set([...immutableSuccessStatuses, 'dry-run-passed']);
 
 const lockedPackages = [
   { order: 1, wave: 'P1', name: '@fluojs/core', dir: 'packages/core' },
@@ -430,9 +431,9 @@ function newestTarball(directory, previousFiles) {
   return join(directory, candidates[0].file);
 }
 
-function ensureSequentialBefore(ledger, entry) {
+function ensureSequentialBefore(ledger, entry, acceptedPriorStatuses = immutableSuccessStatuses) {
   for (const prior of ledger.packages.slice(0, entry.order - 1)) {
-    if (!immutableSuccessStatuses.has(prior.status)) {
+    if (!acceptedPriorStatuses.has(prior.status)) {
       throw new Error(
         `${entry.name} cannot proceed because earlier package ${prior.name} is ${prior.status}. Resume in locked order only.`,
       );
@@ -548,7 +549,7 @@ function commandDryRun(options) {
   ensureDirectory(join(dryRunRoot, 'tarballs'));
 
   for (const entry of selectedEntries(ledger, options)) {
-    ensureSequentialBefore(ledger, entry);
+    ensureSequentialBefore(ledger, entry, dryRunPredecessorStatuses);
 
     if (immutableSuccessStatuses.has(entry.status) || entry.status === 'dry-run-passed') {
       console.log(`${entry.name}: ${entry.status}; skipping dry-run.`);
