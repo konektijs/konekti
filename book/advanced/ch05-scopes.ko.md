@@ -74,7 +74,7 @@ const inherited = await request.resolve(InheritedRequest);
 const singleton = await root.resolve(DefaultSingleton);
 ```
 
-이 장의 나머지는 사실상 이 한 줄의 결과를 추적하는 과정입니다.
+이 장의 나머지는 이 한 줄이 실제 cache, request boundary, disposal order로 어떻게 확장되는지 추적합니다.
 
 ## 5.2 Singleton caching and the root container baseline
 singleton은 기본 lifetime이지만, Fluo의 singleton 동작은 단순한 "영원히 객체 하나"보다 더 정밀합니다. 실제로는 "문서화된 override 경로가 없는 한 root singleton cache에 token별 promise 하나"에 가깝습니다.
@@ -196,7 +196,7 @@ const second = await request.resolve(RequestStore);
 console.log(rootError instanceof RequestScopeResolutionError, first === second, first.id);
 ```
 
-구현 관점에서 이 구조는 강력합니다. `Container` reference만 쥘 수 있다면, HTTP든 다른 transport든 상관없이 bounded request lifetime을 만들 수 있습니다. DI 추상화가 transport-neutral하게 유지되는 이유가 여기에 있습니다.
+구현 관점에서 이 구조는 힘이 있습니다. `Container` reference만 있으면 HTTP든 다른 transport든 bounded request lifetime을 만들 수 있습니다. DI 추상화가 transport-neutral하게 유지되는 이유가 여기에 있습니다.
 
 ## 5.4 Transient providers skip caches entirely
 transient scope는 의미론적으로 가장 단순한 lifetime이고, 개념적으로는 가장 쉽게 오해되는 lifetime입니다. 뜻은 "이 token이 resolve될 때마다 새 인스턴스를 만든다"입니다. "consumer class마다 한 번"도 아니고, "처음 만든 뒤 복제"도 아닙니다.
@@ -253,7 +253,7 @@ const report = await container.resolve(ReportService);
 console.log(first === second, report.currentBuilder() instanceof QueryBuilder);
 ```
 
-하지만 아키텍처적 의미는 결코 사소하지 않습니다. transient provider는 request-scope 인프라를 도입하지 않고도, 사용 시점마다 fresh object가 필요할 때 선택할 수 있는 가장 저렴한 탈출구입니다. 가벼운 mapper, builder, 임시 logger decorator, adapter object 같은 곳에 잘 맞습니다.
+하지만 아키텍처적 의미는 작지 않습니다. transient provider는 request-scope 인프라를 도입하지 않고도, 사용 시점마다 fresh object가 필요할 때 선택할 수 있는 가장 낮은 비용의 탈출구입니다. 가벼운 mapper, builder, 임시 logger decorator, adapter object 같은 곳에 잘 맞습니다.
 
 대가도 분명합니다. 컨테이너가 결과를 전혀 cache하지 않기 때문에, 매 resolve마다 full dependency resolution과 instantiation 비용을 다시 지불합니다. 그래서 구현자가 던져야 할 질문은 correctness만이 아닙니다. 반복 생성이 의도된 것인지, 그리고 그 비용이 감당 가능한지까지 포함됩니다.
 
@@ -310,7 +310,7 @@ const fresh = await container.resolve<SecondCache>(CACHE_TOKEN);
 console.log(stale instanceof FirstCache, fresh instanceof SecondCache, events);
 ```
 
-이 부분은 Fluo가 DI를 단순 constructor helper가 아니라 lifecycle system으로 취급한다는 강한 증거입니다. 컨테이너는 초기 생성만큼이나 stale object의 retirement 경로도 엄격하게 관리합니다.
+이 부분은 Fluo가 DI를 단순 constructor helper가 아니라 lifecycle system으로 취급한다는 증거입니다. 컨테이너는 초기 생성만큼이나 stale object의 retirement 경로도 엄격하게 관리합니다.
 
 테스트 harness나 hot-reload 비슷한 흐름을 만드는 고급 사용자라면, 여기서 중요한 교훈은 이것입니다. `override()`가 안전한 이유는 registration state와 lifetime state를 동시에 바꾸기 때문입니다. 만약 map만 바꾸고 cache를 건드리지 않았다면 singleton 동작은 매우 위험하게 뒤틀렸을 것입니다.
 
@@ -384,6 +384,6 @@ await root.dispose();
 console.log(events); // ['request context', 'root api', 'root database']
 ```
 
-구현 관점에서 이것이 scope 이야기의 진짜 완성입니다. scope는 인스턴스가 어디서 생성되고 cache되는지만 결정하지 않습니다. 어느 container tier가 그 인스턴스의 최종 destruction을 소유하는지도 결정합니다.
+구현 관점에서 이것이 scope 이야기의 완성입니다. scope는 인스턴스가 어디서 생성되고 cache되는지만 결정하지 않습니다. 어느 container tier가 그 인스턴스의 최종 destruction을 소유하는지도 결정합니다.
 
 그래서 Fluo의 세 가지 scope 모델은 작아도 충분히 강력합니다. singleton은 root ownership을 정의하고, request는 child ownership을 정의하며, transient는 caching ownership 자체를 포기합니다. 이 세 범주를 "하나의 constructor 경로를 감싼 cache-and-disposal policy"로 이해하면, 컨테이너 전체가 훨씬 명확하게 읽히기 시작합니다.
