@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runGenerateCommand } from './commands/generate.js';
-import { inspectUsage, runInspectCommand } from './commands/inspect.js';
+import { type InspectCommandRuntimeOptions, inspectUsage, runInspectCommand } from './commands/inspect.js';
 import { migrateUsage, runMigrateCommand } from './commands/migrate.js';
 import { type NewCommandRuntimeOptions, newUsage, runNewCommand } from './commands/new.js';
 import { generatorManifest, resolveGeneratorKind } from './generators/manifest.js';
@@ -288,7 +288,7 @@ function parseCommand(argv: string[]): ParsedCommand {
  */
 export async function runCli(
   argv = process.argv.slice(2),
-  runtime: CliRuntimeOptions & NewCommandRuntimeOptions = {},
+  runtime: CliRuntimeOptions & NewCommandRuntimeOptions & InspectCommandRuntimeOptions = {},
 ): Promise<number> {
   const cwd = runtime.cwd ? resolve(runtime.cwd) : process.cwd();
   const stdout = runtime.stdout ?? process.stdout;

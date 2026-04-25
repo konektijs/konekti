@@ -842,6 +842,7 @@ describe('CLI command runner', () => {
     expect(exitCode).toBe(0);
     expect(stdoutBuffer.join('')).toContain('Usage: fluo inspect <module-path> [options]');
     expect(stdoutBuffer.join('')).toContain('--mermaid');
+    expect(stdoutBuffer.join('')).toContain('@fluojs/studio');
     expect(stdoutBuffer.join('')).toContain('--timing');
     expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md');
   });
@@ -876,17 +877,69 @@ describe('CLI command runner', () => {
     expect(payload.health.status).toBe('healthy');
   });
 
-  it('emits Mermaid dependency output for inspect', async () => {
+  it('delegates inspect --mermaid output to Studio when resolvable', async () => {
     const stdoutBuffer: string[] = [];
     const exitCode = await runCli(['inspect', inspectFixtureModulePath, '--mermaid'], {
       cwd: process.cwd(),
+      loadStudioMermaidRenderer: async () => (snapshot) => `graph TD\n  STUDIO["components: ${snapshot.components.length}"]`,
       stderr: { write: () => undefined },
       stdout: { write: (message) => stdoutBuffer.push(message) },
     });
 
     expect(exitCode).toBe(0);
-    expect(stdoutBuffer.join('')).toContain('graph TD');
-    expect(stdoutBuffer.join('')).toContain('No registered platform components');
+    expect(stdoutBuffer.join('')).toBe('graph TD\n  STUDIO["components: 0"]\n');
+  });
+
+  it('fails inspect --mermaid without prompting when Studio is missing in non-interactive mode', async () => {
+    const stdoutBuffer: string[] = [];
+    const stderrBuffer: string[] = [];
+
+    const exitCode = await runCli(['inspect', inspectFixtureModulePath, '--mermaid'], {
+      cwd: process.cwd(),
+      interactive: false,
+      loadStudioMermaidRenderer: async () => undefined,
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdin: { isTTY: false },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stdoutBuffer.join('')).toBe('');
+    expect(stderrBuffer.join('')).toContain('Mermaid graph rendering is owned by @fluojs/studio');
+    expect(stderrBuffer.join('')).toContain('not resolvable from this project');
+    expect(stderrBuffer.join('')).toContain('pnpm add -D @fluojs/studio');
+  });
+
+  it('fails inspect --mermaid without installing when Studio installation is declined', async () => {
+    const stdoutBuffer: string[] = [];
+    const stderrBuffer: string[] = [];
+    const promptMessages: string[] = [];
+
+    const exitCode = await runCli(['inspect', inspectFixtureModulePath, '--mermaid'], {
+      cwd: process.cwd(),
+      interactive: true,
+      loadStudioMermaidRenderer: async () => undefined,
+      prompt: {
+        confirm: async (message) => {
+          promptMessages.push(message);
+          return false;
+        },
+        select: async () => {
+          throw new Error('inspect should not request select prompts');
+        },
+        text: async () => {
+          throw new Error('inspect should not request text prompts');
+        },
+      },
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdin: { isTTY: true },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(promptMessages).toEqual(['Install @fluojs/studio before rendering Mermaid output?']);
+    expect(stdoutBuffer.join('')).toBe('');
+    expect(stderrBuffer.join('')).toContain('Installation declined; no package-manager command was run.');
   });
 
   it('emits bootstrap timing diagnostics for inspect --timing', async () => {

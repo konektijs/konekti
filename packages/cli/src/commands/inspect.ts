@@ -1,6 +1,8 @@
+import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 
+import * as clack from '@clack/prompts';
 import {
   FluoFactory,
   type BootstrapTimingDiagnostics,
@@ -16,14 +18,35 @@ type CliStream = {
   write(message: string): unknown;
 };
 
+type InspectPrompter = {
+  close?(): void;
+  confirm(message: string, defaultValue: boolean): Promise<boolean>;
+};
+
+type ReadableStream = {
+  isTTY?: boolean;
+};
+
+type StudioMermaidRenderer = (snapshot: PlatformShellSnapshot) => string;
+
+type StudioMermaidRendererLoader = (cwd: string) => Promise<StudioMermaidRenderer | undefined>;
+
 /**
  * Runtime options for the inspect command when used programmatically.
  */
 export interface InspectCommandRuntimeOptions {
   /** Current working directory for module resolution. */
   cwd?: string;
+  /** Force or disable interactive prompts for optional Studio guidance. */
+  interactive?: boolean;
+  /** Optional test/editor hook for resolving Studio's Mermaid renderer. */
+  loadStudioMermaidRenderer?: StudioMermaidRendererLoader;
+  /** Custom prompt implementation used only when Studio is missing for Mermaid output. */
+  prompt?: InspectPrompter;
   /** Custom stream for error output. */
   stderr?: CliStream;
+  /** Custom stream for terminal detection. */
+  stdin?: ReadableStream;
   /** Custom stream for standard output. */
   stdout?: CliStream;
 }
@@ -50,7 +73,7 @@ const INSPECT_OPTION_HELP: InspectOptionHelpEntry[] = [
   },
   {
     aliases: [],
-    description: 'Emit platform component dependency chains as a Mermaid diagram.',
+    description: 'Emit a Mermaid graph through the optional @fluojs/studio rendering contract.',
     option: '--mermaid',
   },
   {
@@ -69,6 +92,12 @@ const INSPECT_OPTION_HELP: InspectOptionHelpEntry[] = [
     option: '--help',
   },
 ];
+
+const STUDIO_CONTRACT_ENTRYPOINT = '@fluojs/studio/contracts';
+const STUDIO_MISSING_MESSAGE = [
+  'Mermaid graph rendering is owned by @fluojs/studio, but @fluojs/studio is not resolvable from this project.',
+  'Install @fluojs/studio explicitly (for example: pnpm add -D @fluojs/studio) and rerun fluo inspect --mermaid.',
+].join('\n');
 
 function isHelpFlag(value: string | undefined): boolean {
   return value === '--help' || value === '-h';
@@ -190,48 +219,93 @@ function stringifySnapshot(snapshot: PlatformShellSnapshot): string {
   return JSON.stringify(snapshot, null, 2);
 }
 
-function renderPlatformSnapshotMermaid(snapshot: PlatformShellSnapshot): string {
-  const lines: string[] = ['graph TD'];
+function createInspectPrompter(): InspectPrompter {
+  return {
+    async confirm(message: string, defaultValue: boolean): Promise<boolean> {
+      const result = await clack.confirm({
+        initialValue: defaultValue,
+        message,
+      });
 
-  if (snapshot.components.length === 0) {
-    lines.push('  EMPTY["No registered platform components"]');
-    return lines.join('\n');
-  }
-
-  const nodeByComponentId = new Map<string, string>();
-
-  for (const [index, component] of snapshot.components.entries()) {
-    const nodeId = `C${String(index + 1)}`;
-    nodeByComponentId.set(component.id, nodeId);
-
-    const summary = [
-      component.id,
-      `kind: ${component.kind}`,
-      `state: ${component.state}`,
-      `readiness: ${component.readiness.status}`,
-      `health: ${component.health.status}`,
-    ].join('\\n');
-
-    lines.push(`  ${nodeId}["${summary}"]`);
-  }
-
-  for (const component of snapshot.components) {
-    const from = nodeByComponentId.get(component.id);
-    if (!from) {
-      continue;
-    }
-
-    for (const dependency of component.dependencies) {
-      const to = nodeByComponentId.get(dependency);
-      if (!to) {
-        continue;
+      if (clack.isCancel(result)) {
+        clack.cancel('Operation cancelled.');
+        process.exit(0);
       }
 
-      lines.push(`  ${from} --> ${to}`);
+      return result;
+    },
+  };
+}
+
+function isCiEnvironment(): boolean {
+  return process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+}
+
+function shouldPromptForStudio(runtime: InspectCommandRuntimeOptions): boolean {
+  if (isCiEnvironment()) {
+    return false;
+  }
+
+  if (runtime.prompt !== undefined) {
+    return runtime.interactive ?? true;
+  }
+
+  return runtime.stdout === undefined
+    && runtime.stderr === undefined
+    && (runtime.interactive ?? true)
+    && Boolean(runtime.stdin?.isTTY ?? process.stdin.isTTY);
+}
+
+async function loadStudioMermaidRenderer(cwd: string): Promise<StudioMermaidRenderer | undefined> {
+  const resolvers = [
+    createRequire(resolve(cwd, 'package.json')),
+    createRequire(import.meta.url),
+  ];
+
+  for (const resolver of resolvers) {
+    try {
+      const resolvedEntrypoint = resolver.resolve(STUDIO_CONTRACT_ENTRYPOINT);
+      const importedContract = await import(pathToFileURL(resolvedEntrypoint).href) as { renderMermaid?: unknown };
+
+      if (typeof importedContract.renderMermaid !== 'function') {
+        throw new Error(`${STUDIO_CONTRACT_ENTRYPOINT} does not export renderMermaid(snapshot).`);
+      }
+
+      return importedContract.renderMermaid as StudioMermaidRenderer;
+    } catch (error: unknown) {
+      const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
+      if (code !== 'MODULE_NOT_FOUND' && code !== 'ERR_MODULE_NOT_FOUND') {
+        throw error;
+      }
     }
   }
 
-  return lines.join('\n');
+  return undefined;
+}
+
+async function resolveStudioMermaidRenderer(cwd: string, runtime: InspectCommandRuntimeOptions): Promise<StudioMermaidRenderer> {
+  const renderer = await (runtime.loadStudioMermaidRenderer ?? loadStudioMermaidRenderer)(cwd);
+
+  if (renderer) {
+    return renderer;
+  }
+
+  if (!shouldPromptForStudio(runtime)) {
+    throw new Error(STUDIO_MISSING_MESSAGE);
+  }
+
+  const prompt = runtime.prompt ?? createInspectPrompter();
+  try {
+    const approvedInstall = await prompt.confirm('Install @fluojs/studio before rendering Mermaid output?', false);
+
+    if (!approvedInstall) {
+      throw new Error(`${STUDIO_MISSING_MESSAGE}\nInstallation declined; no package-manager command was run.`);
+    }
+
+    throw new Error(`${STUDIO_MISSING_MESSAGE}\nAutomatic installation is not run by fluo inspect. Install @fluojs/studio explicitly, then rerun the command.`);
+  } finally {
+    prompt.close?.();
+  }
 }
 
 /**
@@ -295,7 +369,8 @@ export async function runInspectCommand(argv: string[], runtime: InspectCommandR
       }
 
       if (parsed.mermaid) {
-        stdout.write(`${renderPlatformSnapshotMermaid(snapshot)}\n`);
+        const renderMermaid = await resolveStudioMermaidRenderer(cwd, runtime);
+        stdout.write(`${renderMermaid(snapshot)}\n`);
       }
     } finally {
       await context.close();
