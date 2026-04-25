@@ -4,11 +4,15 @@ export interface GeneratedFile {
   path: string;
 }
 
-/** Optional generation flags that influence overwrite behavior and sibling-aware templates. */
+/** Optional generation flags that influence overwrite behavior, target placement, and sibling-aware templates. */
 export interface GenerateOptions {
   force?: boolean;
   hasRepo?: boolean;
   hasService?: boolean;
+  /**
+   * Feature or slice directory that should receive feature-local files such as request DTOs.
+   */
+  targetFeature?: string;
 }
 
 /**
