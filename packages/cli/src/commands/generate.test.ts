@@ -196,6 +196,39 @@ export { PostModule };
     expect(existsSync(join(sourceDirectory, 'posts'))).toBe(false);
   });
 
+  it('previews module updates without changing existing module files during dry-run', () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
+    tempDirectories.push(workspaceDirectory);
+
+    const sourceDirectory = join(workspaceDirectory, 'src');
+    const domainDirectory = join(sourceDirectory, 'posts');
+    const modulePath = join(domainDirectory, 'post.module.ts');
+    const initialModuleContent = `import { Module } from '@fluojs/core';
+import { ExistingService } from './existing.service';
+
+@Module({ providers: [ExistingService], controllers: [] })
+class PostModule {}
+
+export { PostModule };
+`;
+    mkdirSync(domainDirectory, { recursive: true });
+    writeFileSync(modulePath, initialModuleContent, 'utf8');
+
+    const result = runGenerateCommand('service', 'Post', sourceDirectory, { dryRun: true });
+
+    expect(result.generatedFiles).toEqual([]);
+    expect(result.plannedFiles).toEqual([
+      { action: 'create', path: join(domainDirectory, 'post.service.ts') },
+      { action: 'create', path: join(domainDirectory, 'post.service.test.ts') },
+      { action: 'module-update', path: modulePath },
+    ]);
+    expect(result.wiringBehavior).toBe('auto-registered');
+    expect(result.moduleRegistered).toBe(true);
+    expect(readFileSync(modulePath, 'utf8')).toBe(initialModuleContent);
+    expect(existsSync(join(domainDirectory, 'post.service.ts'))).toBe(false);
+    expect(existsSync(join(domainDirectory, 'post.service.test.ts'))).toBe(false);
+  });
+
   it('previews explicit request DTO feature targets without writing files during dry-run', () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
