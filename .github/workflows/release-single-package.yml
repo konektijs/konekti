@@ -25,7 +25,6 @@ on:
       release_intent_file:
         description: Committed release-intent JSON record consumed by release-readiness for 1.0.0-beta.2+ publishes
         required: true
-        default: tooling/release/intents/release-intent.json
         type: string
 
 concurrency:

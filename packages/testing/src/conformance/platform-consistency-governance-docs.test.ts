@@ -247,7 +247,7 @@ describe('platform consistency governance docs', () => {
     expect(releaseWorkflow).toContain('dist_tag:');
     expect(releaseWorkflow).toContain('release_prerelease:');
     expect(releaseWorkflow).toContain('release_intent_file:');
-    expect(releaseWorkflow).toContain('default: tooling/release/intents/release-intent.json');
+    expect(releaseWorkflow).not.toContain('default: tooling/release/intents/release-intent.json');
     expect(releaseWorkflow).toContain('RELEASE_INTENT_FILE: ${{ inputs.release_intent_file }}');
     expect(releaseWorkflow).toContain('id-token: write');
     expect(releaseWorkflow).toContain('registry-url: https://registry.npmjs.org');
