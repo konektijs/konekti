@@ -105,6 +105,7 @@ function isHelpFlag(value: string | undefined): boolean {
 function generateUsage(): string {
   return [
     'Usage: fluo generate|g <kind> <name> [options]',
+    '       fluo generate|g request-dto|req <feature> <name> [options]',
     '',
     'Schematics',
     renderHelpTable(GENERATE_KIND_HELP, [
@@ -174,22 +175,24 @@ function resolveDefaultTargetDirectory(startDirectory: string): string {
 }
 
 function parseGenerateArgs(argv: string[]): ParsedCliArgs {
-  const [command, rawKind, name, ...optionArgs] = argv;
+  const [command, rawKind, firstName, ...optionArgs] = argv;
   const kind = normalizeGeneratorKind(rawKind);
 
   if (!(command === 'g' || command === 'generate')) {
     throw new Error(usage());
   }
 
-  if (!kind || !name) {
+  if (!kind || !firstName) {
     throw new Error(generateUsage());
   }
 
-  if (name.startsWith('-')) {
-    throw new Error(`Invalid resource name "${name}": names cannot start with "-".`);
+  if (firstName.startsWith('-')) {
+    throw new Error(`Invalid resource name "${firstName}": names cannot start with "-".`);
   }
 
   const parsedOptions: GenerateOptions = {};
+  let name = firstName;
+  let seenRequestDtoName = false;
   let targetDirectory: string | undefined;
   let seenForce = false;
   let seenTargetDirectory = false;
@@ -197,6 +200,13 @@ function parseGenerateArgs(argv: string[]): ParsedCliArgs {
   for (let index = 0; index < optionArgs.length; index += 1) {
     const option = optionArgs[index];
     const next = optionArgs[index + 1];
+
+    if (kind === 'request-dto' && !seenRequestDtoName && !option.startsWith('-')) {
+      parsedOptions.targetFeature = firstName;
+      name = option;
+      seenRequestDtoName = true;
+      continue;
+    }
 
     if (option === '--target-directory' || option === '-o') {
       if (seenTargetDirectory) {

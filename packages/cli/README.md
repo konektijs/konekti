@@ -99,7 +99,10 @@ Add a new resource with a controller and service, automatically wired into the m
 fluo generate module users
 fluo generate controller users
 fluo generate service users
+fluo generate request-dto users CreateUser
 ```
+
+Request DTO generation accepts the feature directory separately from the DTO class name, so multiple input contracts such as `CreateUser` and `UpdateUser` can live inside the same `src/users/` slice.
 
 ## Common Patterns
 

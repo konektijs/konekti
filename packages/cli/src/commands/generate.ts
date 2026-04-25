@@ -30,6 +30,18 @@ function createGeneratorOptions(
   };
 }
 
+function resolveDomainDirectory(kind: GeneratorKind, resolvedBase: string, kebab: string, options: GenerateOptions): string {
+  if (kind === 'request-dto' && options.targetFeature !== undefined) {
+    const normalizedFeature = options.targetFeature.trim();
+    const featureKebab = assertValidResourceName(normalizedFeature);
+    const featureDirectory = /^[A-Z]/u.test(normalizedFeature) ? toPlural(featureKebab) : featureKebab;
+
+    return join(resolvedBase, featureDirectory);
+  }
+
+  return join(resolvedBase, toPlural(kebab));
+}
+
 function assertValidResourceName(name: string): string {
   const kebab = toKebabCase(name);
 
@@ -130,7 +142,7 @@ export type GenerateResult = {
  * @param kind Generator kind to execute.
  * @param name Resource name supplied by the caller before normalization.
  * @param baseDirectory Source directory that should receive the generated domain folder.
- * @param options Optional generation flags that control overwrites and sibling-aware templates.
+ * @param options Optional generation flags that control overwrites, request DTO feature placement, and sibling-aware templates.
  * @returns Structured file and wiring metadata for the completed generation run.
  * @throws {Error} When the resource name is invalid, the generator kind is unknown, or the target module source cannot be updated safely.
  */
@@ -140,7 +152,7 @@ export function runGenerateCommand(kind: GeneratorKind, name: string, baseDirect
   const generator = findGeneratorDefinition(kind);
 
   const resolvedBase = resolve(baseDirectory);
-  const domainDirectory = join(resolvedBase, toPlural(kebab));
+  const domainDirectory = resolveDomainDirectory(kind, resolvedBase, kebab, options);
   const generatorOptions = createGeneratorOptions(kind, domainDirectory, kebab, options);
   const files = generator.factory(normalizedName, generatorOptions);
   const moduleRegistration = 'moduleRegistration' in generator ? generator.moduleRegistration : undefined;

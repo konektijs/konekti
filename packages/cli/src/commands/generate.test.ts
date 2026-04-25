@@ -178,6 +178,47 @@ export { PostModule };
     expect(result.nextStepHint).toContain('@FromBody');
   });
 
+  it('writes request DTOs into an explicit feature directory when provided', () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
+    tempDirectories.push(workspaceDirectory);
+
+    const sourceDirectory = join(workspaceDirectory, 'src');
+    const result = runGenerateCommand('request-dto', 'CreateUser', sourceDirectory, { targetFeature: 'users' });
+
+    expect(result.generatedFiles).toEqual([join(sourceDirectory, 'users', 'create-user.request.dto.ts')]);
+    expect(existsSync(join(sourceDirectory, 'users', 'create-user.request.dto.ts'))).toBe(true);
+    expect(existsSync(join(sourceDirectory, 'create-users', 'create-user.request.dto.ts'))).toBe(false);
+    expect(result.wiringBehavior).toBe('files-only');
+    expect(result.moduleRegistered).toBe(false);
+  });
+
+  it('normalizes PascalCase request DTO feature names to plural slice directories', () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
+    tempDirectories.push(workspaceDirectory);
+
+    const sourceDirectory = join(workspaceDirectory, 'src');
+    const result = runGenerateCommand('request-dto', 'CreateUser', sourceDirectory, { targetFeature: 'User' });
+
+    expect(result.generatedFiles).toEqual([join(sourceDirectory, 'users', 'create-user.request.dto.ts')]);
+    expect(existsSync(join(sourceDirectory, 'users', 'create-user.request.dto.ts'))).toBe(true);
+    expect(existsSync(join(sourceDirectory, 'user', 'create-user.request.dto.ts'))).toBe(false);
+  });
+
+  it('validates explicit request DTO feature names before writing files', () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
+    tempDirectories.push(workspaceDirectory);
+
+    const sourceDirectory = join(workspaceDirectory, 'src');
+
+    expect(() => runGenerateCommand('request-dto', 'CreateUser', sourceDirectory, { targetFeature: '../users' })).toThrow(
+      'path separators or traversal sequences',
+    );
+    expect(() => runGenerateCommand('request-dto', 'CreateUser', sourceDirectory, { targetFeature: '..\\users' })).toThrow(
+      'path separators or traversal sequences',
+    );
+    expect(existsSync(join(sourceDirectory, 'create-users', 'create-user.request.dto.ts'))).toBe(false);
+  });
+
   it('returns GenerateResult with module wiring hint for standalone module kind', () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-generate-'));
     tempDirectories.push(workspaceDirectory);
