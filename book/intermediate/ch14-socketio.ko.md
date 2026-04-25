@@ -81,12 +81,10 @@ import {
 } from '@fluojs/socket.io';
 import { Inject } from '@fluojs/core';
 
+@Inject(SOCKETIO_ROOM_SERVICE)
 @WebSocketGateway({ path: '/support' })
 export class SupportChatGateway {
-  constructor(
-    @Inject(SOCKETIO_ROOM_SERVICE)
-    private readonly rooms: SocketIoRoomService
-  ) {}
+  constructor(private readonly rooms: SocketIoRoomService) {}
 
   @OnMessage('join_ticket')
   handleJoin(payload: { ticketId: string }, socket: any) {
@@ -147,14 +145,13 @@ SocketIoModule.forRoot({
 `SOCKETIO_SERVER` 토큰을 사용하면 raw server를 주입받을 수 있습니다.
 
 ```typescript
+import { Inject } from '@fluojs/core';
 import { SOCKETIO_SERVER } from '@fluojs/socket.io';
 import type { Server } from 'socket.io';
 
+@Inject(SOCKETIO_SERVER)
 export class ScalingService {
-  constructor(
-    @Inject(SOCKETIO_SERVER)
-    private readonly io: Server
-  ) {
+  constructor(private readonly io: Server) {
     // 저수준 서버 설정 수행
     console.log('Socket.IO Server 인스턴스 사용 가능');
   }

@@ -48,11 +48,10 @@ import { Resolver, Query, Mutation, Arg } from '@fluojs/graphql';
 import { Inject } from '@fluojs/core';
 import { ProductService } from './product.service';
 
+@Inject(ProductService)
 @Resolver()
 export class ProductResolver {
-  constructor(
-    @Inject(ProductService) private readonly productService: ProductService
-  ) {}
+  constructor(private readonly productService: ProductService) {}
 
   @Query()
   async product(@Arg('id') id: string) {

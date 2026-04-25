@@ -80,7 +80,7 @@ export interface PlatformDiagnosticIssue {
   componentId: string;    // 실패한 컴포넌트
   message: string;        // 사람이 읽을 수 있는 설명
   cause?: string;         // 근본 원인 분석
-  fixHint?: string;       // 명시적인 제안: "X에 @Injectable()을 추가하세요"
+  fixHint?: string;       // 명시적인 제안: "X에 @Inject(TOKEN)을 추가하세요"
   dependsOn?: string[];   // 해석을 방해하는 차단 요소들
   docsUrl?: string;       // 상세 가이드 링크
 }

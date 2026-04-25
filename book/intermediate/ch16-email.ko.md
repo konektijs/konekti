@@ -83,8 +83,9 @@ EmailModule.forRoot({
 import { Inject } from '@fluojs/core';
 import { EmailService } from '@fluojs/email';
 
+@Inject(EmailService)
 export class InvoiceService {
-  constructor(@Inject(EmailService) private readonly email: EmailService) {}
+  constructor(private readonly email: EmailService) {}
 
   async sendInvoice(userEmail: string, orderId: string) {
     await this.email.send({

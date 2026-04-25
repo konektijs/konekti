@@ -144,8 +144,9 @@ In FluoShop, Order Service sometimes needs a broker-backed quick answer from Ful
 import { Inject } from '@fluojs/core';
 import { MICROSERVICE, type Microservice } from '@fluojs/microservices';
 
+@Inject(MICROSERVICE)
 export class FulfillmentClient {
-  constructor(@Inject(MICROSERVICE) private readonly microservice: Microservice) {}
+  constructor(private readonly microservice: Microservice) {}
 
   async reservePackers(orderId: string, warehouseId: string) {
     // Use RabbitMqMicroserviceTransport.send().

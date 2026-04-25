@@ -131,11 +131,9 @@ The README also documents `SCHEDULING_REGISTRY` for runtime management. FluoShop
 import { Inject } from '@fluojs/core';
 import { SCHEDULING_REGISTRY, type SchedulingRegistry } from '@fluojs/cron';
 
+@Inject(SCHEDULING_REGISTRY)
 export class CampaignWindowService {
-  constructor(
-    @Inject(SCHEDULING_REGISTRY)
-    private readonly registry: SchedulingRegistry,
-  ) {}
+  constructor(private readonly registry: SchedulingRegistry) {}
 
   scheduleFlashSaleWindow() {
     this.registry.addCron('campaign.flash-sale.close', '0 23 * * *', async () => {

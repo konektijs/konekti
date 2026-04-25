@@ -194,10 +194,9 @@ import { Inject } from '@fluojs/core';
 import { PrismaService } from '@fluojs/prisma';
 import { PrismaClient } from '@prisma/client';
 
+@Inject(PrismaService)
 export class PostsRepository {
-  constructor(
-    @Inject(PrismaService) private readonly prisma: PrismaService<PrismaClient>
-  ) {}
+  constructor(private readonly prisma: PrismaService<PrismaClient>) {}
 
   async createPost(data: { title: string; content?: string; authorId: number }) {
     // .current()는 PrismaService에서 가장 중요한 메서드입니다.

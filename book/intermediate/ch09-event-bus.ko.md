@@ -104,9 +104,9 @@ checkout write path를 생각해 봅시다. 고객이 cart를 확정합니다. C
 import { Inject } from '@fluojs/core';
 import { EventBusLifecycleService } from '@fluojs/event-bus';
 
+@Inject(EventBusLifecycleService)
 export class CheckoutService {
-  @Inject(EventBusLifecycleService)
-  private readonly eventBus: EventBusLifecycleService;
+  constructor(private readonly eventBus: EventBusLifecycleService) {}
 
   async placeOrder(input: PlaceOrderInput) {
     const order = await this.orders.create(input);

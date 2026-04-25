@@ -94,9 +94,9 @@ fluo's Cloudflare adapter connects the Worker `env` object, including KV namespa
 
 ```typescript
 import { ConfigService } from '@fluojs/config';
-import { Injectable } from '@fluojs/core';
+import { Inject } from '@fluojs/core';
 
-@Injectable()
+@Inject(ConfigService)
 export class MyService {
   constructor(private config: ConfigService) {
     // Correctly resolves variables from the Cloudflare env object.

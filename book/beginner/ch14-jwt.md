@@ -168,10 +168,12 @@ Now let's connect configuration and the token lifecycle to real endpoint flow. W
 
 ```typescript
 // src/auth/auth.controller.ts
+import { Inject } from '@fluojs/core';
 import { Controller, Post, RequestDto } from '@fluojs/http';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 
+@Inject(AuthService)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

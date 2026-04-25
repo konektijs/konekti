@@ -68,10 +68,9 @@ In Fluo, you usually interact with MongoDB through repositories. Instead of depe
 import { MongooseConnection } from '@fluojs/mongoose';
 import { Inject } from '@fluojs/core';
 
+@Inject(MongooseConnection)
 export class ProductRepository {
-  constructor(
-    @Inject(MongooseConnection) private readonly conn: MongooseConnection
-  ) {}
+  constructor(private readonly conn: MongooseConnection) {}
 
   async findById(id: string) {
     const Product = this.conn.current().model('Product');
