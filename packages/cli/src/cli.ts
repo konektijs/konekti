@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { runGenerateCommand } from './commands/generate.js';
-import { inspectUsage, runInspectCommand } from './commands/inspect.js';
+import { type InspectCommandRuntimeOptions, inspectUsage, runInspectCommand } from './commands/inspect.js';
 import { migrateUsage, runMigrateCommand } from './commands/migrate.js';
 import { type NewCommandRuntimeOptions, newUsage, runNewCommand } from './commands/new.js';
 import { generatorManifest, resolveGeneratorKind } from './generators/manifest.js';
@@ -18,6 +18,7 @@ type CliStream = {
  * Runtime dependency overrides for embedding the CLI in tests or higher-level tooling.
  */
 export interface CliRuntimeOptions {
+  ci?: boolean;
   cwd?: string;
   stderr?: CliStream;
   stdout?: CliStream;
@@ -283,12 +284,12 @@ function parseCommand(argv: string[]): ParsedCommand {
  * ```
  *
  * @param argv Argument vector to execute. Defaults to the current process arguments without the node/bin prefix.
- * @param runtime Optional runtime overrides shared by the top-level dispatcher and the `new` command.
+ * @param runtime Optional runtime overrides shared by the top-level dispatcher and delegated commands.
  * @returns `0` when the command completes successfully, otherwise `1` after writing the error message to `stderr`.
  */
 export async function runCli(
   argv = process.argv.slice(2),
-  runtime: CliRuntimeOptions & NewCommandRuntimeOptions = {},
+  runtime: CliRuntimeOptions & NewCommandRuntimeOptions & InspectCommandRuntimeOptions = {},
 ): Promise<number> {
   const cwd = runtime.cwd ? resolve(runtime.cwd) : process.cwd();
   const stdout = runtime.stdout ?? process.stdout;
@@ -388,5 +389,8 @@ export async function runCli(
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  process.exitCode = await runCli(undefined, { userAgent: process.env.npm_config_user_agent });
+  process.exitCode = await runCli(undefined, {
+    ci: process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true',
+    userAgent: process.env.npm_config_user_agent,
+  });
 }

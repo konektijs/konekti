@@ -169,6 +169,9 @@ importers:
       '@fluojs/runtime':
         specifier: workspace:^
         version: link:../runtime
+      '@fluojs/studio':
+        specifier: workspace:^
+        version: link:../studio
       ejs:
         specifier: ^3.1.10
         version: 3.1.10

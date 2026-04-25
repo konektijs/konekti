@@ -130,6 +130,14 @@ fluo inspect ./src/app.module.ts --mermaid
 fluo inspect ./src/app.module.ts --json > snapshot.json
 ```
 
+`fluo inspect --mermaid` keeps the CLI as the runtime snapshot producer and delegates graph rendering to the optional `@fluojs/studio` contract. Install Studio in the project that runs the command when you need Mermaid output:
+
+```bash
+pnpm add -D @fluojs/studio
+```
+
+If Studio is missing, CI and other non-interactive runs fail fast with install guidance instead of prompting or running a package manager. Interactive runs may ask whether you want to install Studio, but `fluo inspect` does not run installs unless an explicit install flow is implemented and approved.
+
 ## Public API
 
 The package can be used programmatically to trigger CLI actions from within other tools.
@@ -143,7 +151,7 @@ The package can be used programmatically to trigger CLI actions from within othe
 ## Related Packages
 
 - **[@fluojs/runtime](../runtime/README.md)**: The underlying engine used for inspection and bootstrap.
-- **[@fluojs/studio](../studio/README.md)**: The web-based UI for visualizing `inspect --json` exports.
+- **[@fluojs/studio](../studio/README.md)**: The web-based UI for visualizing `inspect --json` exports and the canonical renderer used by `inspect --mermaid`.
 - **[@fluojs/testing](../testing/README.md)**: Used by generated test templates for integration and E2E testing.
 - **[Canonical Runtime Package Matrix](../../docs/reference/package-surface.md)**: The source of truth for official runtime/package combinations.
 
