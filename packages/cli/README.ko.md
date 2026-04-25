@@ -99,7 +99,10 @@ fluo new my-mixed-app --shape mixed --transport tcp --runtime node --platform fa
 fluo generate module users
 fluo generate controller users
 fluo generate service users
+fluo generate request-dto users CreateUser
 ```
+
+Request DTO 생성은 feature 디렉터리와 DTO 클래스 이름을 분리해서 받습니다. 따라서 `CreateUser`, `UpdateUser` 같은 여러 입력 계약을 같은 `src/users/` 슬라이스 안에 둘 수 있습니다.
 
 ## 주요 패턴
 
