@@ -1,38 +1,49 @@
 <!-- packages: @fluojs/platform-deno, @fluojs/runtime, @fluojs/http -->
 <!-- project-state: FluoShop v2.5.0 -->
 
-# 23. Porting to Deno
+# Chapter 23. Porting to Deno
 
-[Deno](https://deno.com/) is a secure runtime for JavaScript and TypeScript that focuses on simplicity, security, and standards. Unlike Node.js, Deno is secure by default, meaning it has no file, network, or environment access unless explicitly enabled via command-line flags. It also natively supports TypeScript without external compilers or configuration files.
+This chapter explains how to move FluoShop to the Deno runtime and work with its security permission model and Web-standard execution environment. Chapter 22 showed Bun's high-performance runtime port. This chapter validates the standard-first philosophy on top of a stricter security model.
 
-For fluo applications, Deno offers a robust environment that matches fluo's "Standard-First" philosophy. In this chapter, we will port FluoShop to Deno and explore how to handle Deno's unique security model and native web standards.
+## Learning Objectives
+- Understand why Deno fits well with the fluo architecture.
+- Learn how to run an application with `@fluojs/platform-deno` and `runDenoApplication`.
+- Learn how to interpret Deno permission flags in relation to FluoShop operational requirements.
+- Review the Web-standard `Request` and `Response` based dispatch flow.
+- Confirm how Deno-native WebSockets integrate with fluo gateways.
+- Summarize import rules, permissions, and driver compatibility checks for a Deno port.
+
+## Prerequisites
+- Completion of Chapter 21 and Chapter 22.
+- Experience installing Deno and using the basic `deno run` command.
+- Operational awareness of managing environment variables, file access, and network permissions separately.
 
 ## 23.1 Why Deno for fluo?
 
-- **Security**: Granular control over system permissions (network, file, env).
-- **Native TypeScript**: Run `.ts` files directly with zero config and no hidden `tsc` steps.
-- **Web Standards**: Deno is built on the same `fetch`, `Request`, and `Response` APIs as modern browsers.
-- **Single Binary**: Ship your app as a single executable or run it directly from a remote URL.
-- **Built-in Tooling**: Deno includes a formatter, linter, and test runner out of the box, eliminating the need for a fragmented toolchain.
-- **No node_modules**: Deno uses URL-based imports or the modern `deno.json` import maps, simplifying dependency management.
+- **Security**: Network, file, and environment variable access are controlled with explicit permissions.
+- **Native TypeScript**: You can run `.ts` files directly without a hidden `tsc` step.
+- **Web Standards**: Browser-like `fetch`, `Request`, and `Response` APIs sit at the center of the server runtime.
+- **Single Binary**: You can bundle an app into a single executable or run it directly from a remote URL.
+- **Built-in Tooling**: A formatter, linter, and test runner are included by default, reducing separate tool combinations.
+- **No node_modules**: URL-based imports or `deno.json` import maps make dependency boundaries explicit.
 
 ## 23.2 The Deno Adapter
 
-The `@fluojs/platform-deno` package provides the necessary integration for fluo applications to run on `Deno.serve`.
+The `@fluojs/platform-deno` package provides the integration needed for fluo applications to run on `Deno.serve`.
 
 ### 23.2.1 Installation
 
-Deno handles dependencies differently. You can use the `deno add` command or import directly from `npm:` specifiers in your code.
+Deno handles dependencies differently. You can use the `deno add` command or import directly in code with `npm:` specifiers.
 
 ```bash
 deno add npm:@fluojs/platform-deno npm:@fluojs/runtime npm:@fluojs/http
 ```
 
-Alternatively, you can manage these in a `deno.json` file for a more structured approach.
+Alternatively, you can manage them in a `deno.json` file for a more structured approach.
 
 ### 23.2.2 Bootstrapping FluoShop on Deno
 
-The entry point for Deno looks slightly different because of how it handles modules and permissions. fluo provides a `runDenoApplication` helper to streamline the process.
+Because of Deno's module resolution and permission model, its entrypoint looks different from a Node.js entrypoint. Rather than hiding that difference, fluo provides the `runDenoApplication` helper so it can be treated as an explicit execution boundary.
 
 ```typescript
 // main.ts
@@ -44,17 +55,17 @@ await runDenoApplication(AppModule, {
 });
 ```
 
-To run this application, you must explicitly provide the necessary permissions. This is a core part of Deno's security story:
+To run this application, you must explicitly provide the required permissions. In Deno, this permission list becomes part of the operational contract.
 
 ```bash
 deno run --allow-net --allow-read --allow-env main.ts
 ```
 
-If you forget a flag, Deno will either prompt you at runtime or fail with a clear error, ensuring no unauthorized access occurs.
+If a flag is missing, Deno prompts at runtime or exits with a clear error. It is safer to treat missing permissions as configuration problems that should surface before deployment.
 
 ## 23.3 Web Standards and Request Dispatching
 
-Because Deno is built on web standards, fluo's internal dispatcher is even more efficient here. The framework uses the native `Request` and `Response` objects throughout its lifecycle. You can manually handle requests using the adapter's `handle()` method, which is great for serverless-style execution.
+Deno is built on Web standards, so it fits naturally with fluo's internal Dispatcher. The framework handles native `Request` and `Response` objects throughout the lifecycle, and you can also manually process requests with the adapter's `handle()` method. This approach is useful when configuring tests or serverless-style execution.
 
 ```typescript
 import { createDenoAdapter } from '@fluojs/platform-deno';
@@ -72,14 +83,14 @@ const response = await adapter.handle(request);
 console.log(await response.json());
 ```
 
-This alignment with web standards makes fluo apps running on Deno highly predictable and easy to reason about.
+Alignment with Web standards makes the runtime boundary of fluo apps running on Deno easier to read.
 
 ## 23.4 Native Deno WebSockets
 
-Like Bun, Deno has its own high-performance WebSocket implementation via `Deno.upgradeWebSocket`. fluo provides a specific subpath for this, allowing you to use native WebSockets without boilerplate.
+Like Bun, Deno provides its own WebSocket implementation through `Deno.upgradeWebSocket`. fluo provides a runtime-specific path for this so gateway code does not become tied to platform upgrade details.
 
 ```typescript
-// Gateways automatically use Deno's native upgrade when the Deno adapter is active
+// When the Deno adapter is active, gateways automatically use Deno's native upgrade.
 import { WebSocketGateway, SubscribeMessage } from '@fluojs/websockets';
 
 @WebSocketGateway({ path: '/ws' })
@@ -88,60 +99,66 @@ export class MyGateway {
   handlePing() {
     return { event: 'pong', data: 'hello from deno' };
   }
-  // fluo handles the Deno-native upgrade internally
+  // fluo handles Deno-native upgrades internally.
 }
 ```
 
 ## 23.5 Handling Deno Permissions in FluoShop
 
-When building microservices in Deno, you should follow the principle of least privilege. Instead of broad flags, be specific about your permissions:
+When building microservices on Deno, follow the principle of least privilege. Specify concrete permissions instead of broad flags.
 
-- **`--allow-net=0.0.0.0:3000,database.host:5432`**: Restrict network access to your listener port and specific database servers.
-- **`--allow-read=./config,./static`**: Restrict file access to specific directories containing configuration or static assets.
-- **`--allow-env=PORT,DATABASE_URL`**: Restrict environment variable access to only the keys required by the application.
+- **`--allow-net=0.0.0.0:3000,database.host:5432`**: Restricts network access to the listener port and a specific database server.
+- **`--allow-read=./config,./static`**: Restricts file access to specific directories that contain configuration files or static assets.
+- **`--allow-env=PORT,DATABASE_URL`**: Restricts access to only the environment variable keys the application needs.
 
-Fluo's `ConfigModule` works seamlessly with Deno's environment access, provided the permission is granted. This adds an extra layer of operational security to FluoShop.
+Fluo's `ConfigModule` works with Deno environment variable access when permission is granted. The important point is that environment variable access itself appears in the deployment command's permission list.
 
 ## 23.6 Porting Checklist for Deno
 
-1. **Imports**: Ensure all local imports include file extensions (e.g., `./user.service.ts`). Deno does not allow extension-less imports.
-2. **NPM Compatibility**: Most npm packages work via `npm:` imports, but check for any that rely on complex Node-native C++ APIs that might not yet be supported in Deno's Node compatibility layer.
-3. **Async Initialization**: Deno favors top-level `await`, which is perfectly compatible with `fluoFactory.create()`.
-4. **Environment Variables**: Use `Deno.env.get()` if you need direct access, though `ConfigService` is preferred for portability.
+1. **Imports**: Include file extensions in all local imports, for example `./user.service.ts`. Deno does not allow extensionless imports.
+2. **NPM Compatibility**: Most npm packages work through `npm:` imports, but packages that depend on complex Node-native C++ APIs that Deno's Node compatibility layer may not support yet require verification.
+3. **Async Initialization**: Deno favors top-level `await`, which fits well with `fluoFactory.create()`.
+4. **Environment Variables**: Use `Deno.env.get()` if direct access is required, but `ConfigService` is recommended for portability.
 
 ## 23.7 Conclusion
 
-Deno provides a secure and standards-compliant environment that complements fluo's architectural goals. By porting FluoShop to Deno, we achieve a higher level of security and simplified tooling.
+Deno provides a security-centered, standards-centered execution environment that complements fluo's architectural goals. Porting FluoShop to Deno lets you operate permission models and tooling boundaries more explicitly.
 
-Next, we will take portability to the ultimate edge with **Cloudflare Workers**.
+Next, we'll extend the same portability principle to edge execution environments with **Cloudflare Workers**.
 
 ---
 
-*Expansion for 200+ lines rule.*
+*The following sections supplement the security, data, and testing boundaries operators should review during a Deno port.*
 
-Deno's approach to security is a fundamental shift from the permissive nature of Node.js. By requiring explicit flags for every resource access, it forces developers to think about the principle of least privilege from day one. In FluoShop, this means our database credentials and network endpoints are protected by the runtime itself. This "secure by default" stance is particularly valuable in multi-tenant or highly sensitive environments.
+Deno's security approach differs from Node.js's default-allow model. It requires explicit flags for every resource access, so you include the principle of least privilege in the design from the start of development and deployment. In FluoShop, database connection information, network endpoints, and file access scopes can be checked again as runtime permissions. This default security model is especially valuable in multi-tenant environments or environments that handle sensitive data.
 
-The lack of a `node_modules` folder and the use of URL-based imports (or the modern `deno.json` with `npm:` specifiers) further simplifies the deployment pipeline. You no longer need to worry about the "heavy" node_modules during container builds or the complex dependency resolution issues often found in Node. Deno caches dependencies globally and locks them with a hash, ensuring reproducible builds.
+Using URL-based imports or `deno.json` with `npm:` specifiers instead of a `node_modules` folder changes the shape of the deployment pipeline. Instead of copying a large dependency tree during container builds, you manage reproducibility around Deno's cache and lockfile. This approach can become simpler, but you must also decide on a cache strategy and external registry access policy.
 
-Furthermore, Deno's native support for Web APIs means that much of the code you write for fluo is inherently portable to the browser or other standard-compliant runtimes. This alignment is what makes fluo and Deno such a powerful combination for modern web development. Whether you are using `Streams`, `TextEncoder`, or `Headers`, you are using the same APIs that run in billions of browsers worldwide.
+Deno's Web API support also reduces conceptual friction when fluo code moves to other standards-compliant runtimes. Using APIs such as `Streams`, `TextEncoder`, and `Headers` narrows the model gap between server and browser, and makes the transformations the adapter must own clearer.
 
 ## 23.8 Advanced: Deno and FluoShop Databases
 
-When running Deno, you can use specialized database drivers that take advantage of Deno's security model and native performance.
+When running Deno, database driver choices need to account for the security model and native runtime characteristics.
 
 ### 23.8.1 Using Deno KV
 
-If you want a truly Deno-native experience, you can integrate Deno's built-in KV store. Deno KV is a zero-config, ACID-compliant database built directly into the runtime.
+If you need Deno-native storage, you can review Deno's built-in KV store. Deno KV is a key-value store included in the runtime and can be a suitable option for small state or cache-like data.
 
 ```typescript
 import { Injectable, OnModuleInit } from '@fluojs/core';
 
+declare const Deno: {
+  openKv(): Promise<{
+    set(key: string[], value: unknown): Promise<void>;
+    get(key: string[]): Promise<{ value: unknown }>;
+  }>;
+};
+
 @Injectable()
 export class CacheService implements OnModuleInit {
-  private kv: any; // Type-specific Deno.Kv
+  private kv!: Awaited<ReturnType<typeof Deno.openKv>>;
 
   async onModuleInit() {
-    // @ts-ignore: Deno global
     this.kv = await Deno.openKv();
   }
 
@@ -158,16 +175,16 @@ export class CacheService implements OnModuleInit {
 
 ### 23.8.2 Postgres on Deno
 
-For traditional databases, you can use the standard Node-compatible drivers via `npm:pg` or Deno-specific ones like `deno_postgres`. fluo's persistence modules are designed to be driver-agnostic where possible.
+If you need a traditional database, you can review a Node-compatible driver through `npm:pg` or a Deno-specific driver such as `deno_postgres`. fluo persistence modules should be designed to separate driver selection from service logic.
 
 ```typescript
-// Integration within a fluo Provider using Deno-native drivers
+// Integration inside a fluo Provider using a Deno-native driver
 import { Client } from "https://deno.land/x/postgres/mod.ts";
 ```
 
 ## 23.9 Testing in Deno
 
-Deno's built-in test runner is incredibly fast and doesn't require extra dependencies like Jest or Vitest. fluo's testing utilities work perfectly with `Deno.test`.
+Deno's built-in test runner can be used without separate Jest or Vitest dependencies. When using fluo testing utilities with `Deno.test`, include permission flags and import paths in the test environment as well.
 
 ```typescript
 import { assertEquals } from "https://deno.land/std/testing/asserts.ts";
@@ -183,24 +200,24 @@ Deno.test("ProductService should return products", async () => {
 ## 23.10 Summary: The Deno Advantage
 
 - **Security**: No unexpected network or file access without explicit consent.
-- **Modernity**: Built-in support for the latest TypeScript features and Web APIs.
-- **Efficiency**: No build steps needed for development or deployment.
-- **Standard-First**: Perfectly aligned with fluo's design philosophy of standardizing backend development.
+- **Modernity**: Built-in support for modern TypeScript features and Web APIs.
+- **Efficiency**: No build step is required for development or deployment.
+- **Standard-First**: Fits well with fluo's design philosophy of organizing backend development around standard APIs.
 
-By porting FluoShop to Deno, you create a robust, production-ready system that is easier to maintain and more secure by default. It showcases the versatility of the fluo framework.
+Porting FluoShop to Deno gives you an operational model that manages permissions, imports, and testing boundaries more explicitly. This shows that fluo portability is not just adapter replacement; it is runtime contract validation.
 
 ## 23.11 Key Takeaways
 
-- Deno is secure-by-default and TypeScript-native, eliminating the need for complex toolchains.
-- `@fluojs/platform-deno` uses `Deno.serve` and supports web standards throughout the stack.
-- Run applications with explicit permissions using `--allow-*` flags to follow the principle of least privilege.
-- Native Deno WebSockets are automatically supported via fluo's gateway system.
-- Top-level `await` and `npm:` imports simplify dependency management and bootstrapping.
-- Deno KV and other native APIs can be integrated into fluo services for better performance.
-- Porting to Deno is a major step towards making FluoShop a modern, standard-compliant application.
+- Deno has stronger default security and native TypeScript support, so complex toolchains are not required.
+- `@fluojs/platform-deno` uses `Deno.serve` and supports Web standards across the stack.
+- Run the application with explicit permissions through `--allow-*` flags to follow the principle of least privilege.
+- Native Deno WebSockets are automatically supported through fluo's gateway system.
+- Top-level `await` and `npm:` imports simplify dependency management and bootstrap.
+- Deno KV and other native APIs are safer to integrate behind Provider boundaries in fluo services.
+- Porting to Deno is an important step toward making FluoShop a modern, standards-compliant application.
 
 ## 23.12 The Deno Ecosystem for FluoShop
 
-Beyond the runtime itself, Deno offers a suite of tools that enhance the development experience for fluo users. For instance, Deno's native `deno task` allows you to define complex automation scripts without needing `package.json` scripts. You can define a `start:fluoshop` task that includes all the necessary `--allow-*` flags, ensuring consistency across development environments.
+Beyond the runtime, Deno provides tools that tie development and operations together. For example, `deno task` lets you define automation commands without `package.json` scripts. A `start:fluoshop` task that includes the required `--allow-*` flags makes it easier to align execution conditions between development and deployment environments.
 
-Furthermore, Deno's approach to documentation (via `deno doc`) and linting (`deno lint`) provides a unified experience that matches fluo's "Standard-First" philosophy. By embracing the Deno ecosystem, FluoShop becomes more than just an app; it becomes a part of a modern, efficient, and secure development paradigm.
+Deno documentation (`deno doc`) and linting (`deno lint`) also run inside the same tool system. Adopting Deno for FluoShop is not just changing the runtime; it is organizing permissions, documentation, and verification into one operational model.

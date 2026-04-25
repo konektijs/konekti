@@ -1,26 +1,35 @@
 <!-- packages: @fluojs/drizzle, drizzle-orm, @fluojs/core -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 20. Drizzle ORM
+# Chapter 20. Drizzle ORM
 
-While heavy ORMs provide high-level abstractions, some projects require a more lightweight, SQL-like experience that stays close to the relational model. **Drizzle ORM** is a modern, TypeScript-first ORM that offers exactly that: a thin wrapper over SQL that provides full type safety without the overhead of a large runtime.
+This chapter explains how to integrate Drizzle for relational data and SQL-centered workloads in FluoShop. Chapter 19 covered persistence based on document models. Here, we'll organize a type-safe SQL layer and transaction boundaries around fluo patterns.
 
-The `@fluojs/drizzle` package integrates Drizzle into the fluo ecosystem. It provides a transaction-aware database service, lifecycle management for driver resources (like connection pools), and a request-scoped transaction interceptor that mirrors the patterns found in other fluo persistence modules.
+## Learning Objectives
+- Distinguish the advantages of using Drizzle ORM in fluo and where to apply it.
+- Outline `DrizzleModule` configuration and driver resource lifecycle management.
+- Build a repository flow that uses `DrizzleDatabase` and the `current()` seam.
+- Compare manual transactions with the request-scoped transaction Interceptor.
+- Review an approach to designing a relational schema for FluoShop order management.
+- Define operational standards for checking SQL connection status with status snapshots.
 
-In this chapter, we will implement SQL persistence for FluoShop using Drizzle ORM, focusing on schema definition, repository patterns, and transaction management.
+## Prerequisites
+- Completion of Chapter 18 and Chapter 19.
+- Basic understanding of SQL-based schema design and relational data models.
+- Basic experience with transaction boundaries and connection pool management.
 
 ## 20.1 Why Drizzle in fluo?
 
-Drizzle has gained rapid adoption due to its "If you know SQL, you know Drizzle" philosophy. By using it with fluo, you get:
+Drizzle is an ORM that combines a SQL-like authoring experience with TypeScript type inference. When used with fluo, it provides these benefits.
 
-- **Type Safety Without Magic**: Drizzle generates TypeScript types directly from your schema definitions.
-- **SQL Performance**: There is virtually no runtime overhead; Drizzle translates your queries directly to SQL strings.
-- **Unified Transaction Model**: Like `@fluojs/prisma` and `@fluojs/mongoose`, the Drizzle integration uses a `current()` seam that automatically switches to an active transaction handle when needed.
-- **Runtime Portability**: Drizzle supports Node-Postgres, Bun SQL, Cloudflare D1, and more.
+- **Explicit type safety**: Drizzle generates TypeScript types directly from schema definitions.
+- **SQL-like performance characteristics**: Runtime overhead is small, and authored queries are translated into SQL strings.
+- **Integrated transaction model**: Like `@fluojs/prisma` and `@fluojs/mongoose`, the Drizzle integration module uses a `current()` seam that switches between the root handle and the active transaction handle.
+- **Runtime portability**: Drizzle broadly supports Node-Postgres, Bun SQL, Cloudflare D1, and more.
 
 ## 20.2 Installation and Setup
 
-Install Drizzle ORM and the fluo integration. You will also need a driver (like `pg` for PostgreSQL):
+Install Drizzle ORM and the fluo integration package. If you use PostgreSQL, you also need a driver such as `pg`.
 
 ```bash
 pnpm add drizzle-orm @fluojs/drizzle pg
@@ -29,7 +38,7 @@ pnpm add -D drizzle-kit @types/pg
 
 ## 20.3 Configuring the DrizzleModule
 
-The `DrizzleModule` is typically configured asynchronously using the `ConfigService`.
+`DrizzleModule` is usually configured asynchronously with `ConfigService`. This approach makes it easy to inject the connection string and pool settings from runtime configuration.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -62,7 +71,7 @@ export class PersistenceModule {}
 
 ## 20.4 Repositories and the `current()` Seam
 
-In fluo, you inject the `DrizzleDatabase` service into your repositories. The key feature is the `current()` method, which ensures your queries are always executed on the correct handle (either the root database or an active transaction).
+In Fluo, repositories receive the `DrizzleDatabase` service through injection. Its core `current()` method ensures that queries run against the correct target: either the root database handle or the active transaction handle.
 
 ```typescript
 import { DrizzleDatabase } from '@fluojs/drizzle';
@@ -86,7 +95,7 @@ export class ProductRepository {
 
 ## 20.5 Transaction Management
 
-Drizzle's transaction management is fully supported through fluo's unified interface.
+Drizzle transaction management can be handled through fluo's integration interface.
 
 ### Manual Transactions
 
@@ -103,7 +112,7 @@ await this.db.transaction(async () => {
 
 ### Request-Scoped Transactions
 
-Using the `DrizzleTransactionInterceptor`, you can wrap an entire controller action in a transaction. This is the recommended way to handle atomicity for complex business logic.
+With `DrizzleTransactionInterceptor`, you can wrap an entire Controller action in a transaction. This is a good fit for guaranteeing atomicity when multiple repository calls make up one business operation.
 
 ```typescript
 import { UseInterceptors } from '@fluojs/http';
@@ -113,16 +122,16 @@ import { DrizzleTransactionInterceptor } from '@fluojs/drizzle';
 export class OrderController {
   @Post()
   async checkout() {
-    // All repository calls inside this method share a single transaction
+    // Every repository call inside this method shares a single transaction.
   }
 }
 ```
 
 ## 20.6 FluoShop Context: Relational Schema
 
-In FluoShop, we use Drizzle for the **Order Management** service where transactional integrity and relational constraints are paramount.
+FluoShop uses Drizzle for the **Order Management** service, where transaction integrity and relational constraints are important.
 
-We define our tables in a central `schema.ts` file, which Drizzle uses for both migrations and type generation.
+Table definitions are managed in a central `schema.ts` file. Drizzle uses this definition for both migrations and type generation.
 
 ```typescript
 import { pgTable, serial, text, integer, timestamp } from 'drizzle-orm/pg-core';
@@ -135,25 +144,25 @@ export const orders = pgTable('orders', {
 });
 ```
 
-By using `DrizzleDatabase`, our services can orchestrate complex multi-table inserts without worrying about passing transaction handles manually.
+Using `DrizzleDatabase` lets services coordinate complex multi-table insert operations inside the same boundary without passing transaction handles directly.
 
 ## 20.7 Observability and Health
 
-Monitor your SQL connection health using the provided snapshot helper.
+The provided snapshot helper lets you connect SQL connection status to health checks and operational metrics.
 
 ```typescript
 import { createDrizzlePlatformStatusSnapshot } from '@fluojs/drizzle';
 
 const status = await createDrizzlePlatformStatusSnapshot(drizzleDatabase);
 if (status.isReady) {
-  // Database connection is healthy
+  // The database connection is healthy.
 }
 ```
 
 ## 20.8 Conclusion
 
-Drizzle ORM provides a modern, high-performance way to work with SQL in fluo. By combining the type safety of Drizzle with the architectural patterns of fluo, you can build data layers that are both lightning-fast and extremely reliable.
+Drizzle ORM provides a practical way to handle SQL with type safety in fluo. Combining Drizzle's schema-based type inference with fluo's transaction boundaries lets you build a fast and predictable data layer.
 
-This concludes **Part 5: API Extensions**. We've covered GraphQL for flexible client communication and two distinct database strategies—Mongoose for document flexibility and Drizzle for relational precision.
+This concludes **Part 5: API Expansion**. We opened a client query layer with GraphQL and organized strategies for handling document models and relational models with Mongoose and Drizzle, respectively.
 
-In **Part 6**, we'll shift our focus to **Platform Portability**, exploring how to run FluoShop on diverse runtimes like Bun, Deno, and Edge Workers.
+In **Part 6**, we'll focus on **Platform Portability** and cover how to run FluoShop on runtimes such as Bun, Deno, and Edge Workers.

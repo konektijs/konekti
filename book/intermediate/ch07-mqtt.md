@@ -1,55 +1,70 @@
 <!-- packages: @fluojs/microservices, mqtt -->
 <!-- project-state: FluoShop v1.6.0 -->
 
-# 7. MQTT
+# Chapter 7. MQTT
 
-MQTT enters FluoShop when the platform stops talking only to server processes. By v1.6.0, the system also listens to warehouse devices, smart lockers, and cold-chain sensors attached to the shipping flow. These producers are not all full backend services. Some are constrained devices, some connect over unstable networks, and some need retained last-known state more than rich historical replay. That is the world where MQTT becomes useful. While Kafka is a "firehose" for data-center events, MQTT is a **"sensor tap"** for the physical edge. It prioritizes efficient delivery over high-bandwidth logs, making it the standard for IoT-style interactions. The main idea of this chapter is simple: FluoShop can extend beyond service-to-service messaging and still keep the same fluo handler model.
+This chapter expands FluoShop's messaging scope from server to server communication to edge devices and telemetry ingestion, and explains where MQTT fits. Chapter 6 covered fast internal coordination. Here, the flow widens into physical edge environments with unstable connections and retained state.
+
+## Learning Objectives
+- Understand why MQTT fits device and telemetry scenarios.
+- Learn how to configure the MQTT transport around namespace, QoS, and retain settings.
+- Design MQTT request-reply flows with reply topics and timeout budgets.
+- Explain how retained snapshots and telemetry events connect to FluoShop delivery monitoring.
+- Summarize MQTT operational metrics and security considerations in edge environments.
+
+## Prerequisites
+- Completion of Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, and Chapter 6.
+- A basic understanding of topic-based messaging and request-reply patterns.
+- Basic familiarity with edge devices, telemetry, and network variability.
 
 ## 7.1 Why MQTT in FluoShop
 
-MQTT is topic-based, lightweight, and designed for intermittent or resource-constrained clients.
+MQTT is topic based and lightweight. It was designed with intermittently connected or resource-constrained clients in mind.
 
 That makes it a strong fit for device and telemetry scenarios.
 
-FluoShop uses MQTT for shipping and warehouse edge signals.
+FluoShop uses MQTT for delivery and warehouse edge signals.
 
 Examples include:
 
-- **Cold-chain temperature probes**: Monitoring perishable shipments in real-time.
-- **Smart locker updates**: Notifying the system when a customer collects a package.
-- **Handheld scanners**: Confirming picker movements in the warehouse.
-- **Courier beacons**: Providing live ETA updates for the last-mile delivery.
+- cold-chain temperature probes for fresh food delivery
+- smart locker status updates
+- handheld scanner acknowledgments from pickers
+- courier ETA beacons
 
 These signals matter operationally.
 
-They do not all need Kafka-level replay.
+But not every signal needs Kafka-level replay.
 
-They often do need sensible QoS and retained state behavior. By using **MQTT Topics** (e.g., `shipments/+/telemetry`), we can route thousands of sensor feeds into a single FluoShop microservice handler without manual connection management for each device.
+Instead, many of them need the right QoS and retained state behavior.
 
 ## 7.2 MQTT transport setup
 
-Unlike the caller-owned brokers in NATS, Kafka, and RabbitMQ, MQTT can be used either with a supplied client or with a URL that lets the transport resolve its own connection via the `mqtt` package.
+Unlike NATS, Kafka, or RabbitMQ, MQTT does not force a fully caller owned broker setup. You can provide an existing client, or you can let the transport configure a URL-based connection directly through the `mqtt` package.
 
-That flexibility matches real deployment patterns.
+This flexibility matches real deployment models.
 
 Some teams already manage a shared MQTT client.
 
-Others prefer transport-local ownership.
+Other teams prefer transport local ownership.
 
 ### 7.2.1 Core options
 
-`MqttMicroserviceTransport` exposes more delivery-shape options than many other transports.
+`MqttMicroserviceTransport` exposes more delivery-shape options than other transports.
 
-- `namespace`: The root prefix for topics.
-- `eventTopic`, `messageTopic`, `replyTopic`: Specific channels for different frame types.
-- `eventQos`, `messageQos`, `responseQos`: Quality of Service levels (0, 1, or 2).
-- `eventRetain`, `messageRetain`: Whether the broker should save the last-known message.
+- `namespace`
+- `eventTopic`
+- `messageTopic`
+- `replyTopic`
+- `requestTimeoutMs`
+- `eventQos`, `messageQos`, `responseQos`
+- `eventRetain`, `messageRetain`, `responseRetain`
 
-If you only provide a namespace, the transport derives topic names below it.
+If you provide only a namespace, the transport derives topic names under it.
 
-That is a good default for FluoShop.
+This is a practical default for FluoShop.
 
-The system can use `fluoshop.devices` as a namespace and let the transport derive event, message, and response topics beneath it (e.g., `fluoshop.devices.events`).
+The system can use `fluoshop.devices` as its namespace and automatically create event, message, and response topics underneath it.
 
 ### 7.2.2 Module wiring
 
@@ -60,7 +75,7 @@ import { MicroservicesModule, MqttMicroserviceTransport } from '@fluojs/microser
 const transport = new MqttMicroserviceTransport({
   url: process.env.MQTT_URL,
   namespace: 'fluoshop.devices',
-  eventQos: 1, // At-least-once for critical telemetry
+  eventQos: 1,
   messageQos: 1,
   responseQos: 1,
   eventRetain: false,
@@ -69,116 +84,111 @@ const transport = new MqttMicroserviceTransport({
 });
 
 @Module({
-  imports: [
-    MicroservicesModule.forRoot({
-      transport,
-    }),
-  ],
+  imports: [MicroservicesModule.forRoot({ transport })],
   providers: [ShipmentTelemetryHandler],
 })
 export class ShipmentTelemetryModule {}
 ```
 
-This setup is intentionally plain.
+This setup is intentionally simple.
 
-As always, the handler model stays stable.
+The handler model stays stable.
 
-The transport changes how messages move, not how providers express business logic.
+The transport changes how messages move, but it does not change how a Provider expresses business logic.
 
 ## 7.3 Request-reply over MQTT
 
-Many developers think of MQTT only as event pub/sub, but fluo adds request-reply support by publishing message frames with a `replyTopic` and correlating responses by `requestId`. That lets FluoShop send device commands and await acknowledgments.
+Many developers think of MQTT only as event pub/sub, but fluo supports request-reply by publishing message frames with a `replyTopic` and correlating responses with `requestId`. This structure lets FluoShop send device commands and wait for acknowledgments.
 
 ### 7.3.1 Device command acknowledgments
 
-Suppose a smart locker must confirm that a pickup compartment has opened. The API does not want to wait forever, but it does want a bounded response path.
+For example, suppose you need to confirm that a smart locker actually opened a pickup compartment. The API cannot wait forever, but it does need a bounded response path.
 
 ```typescript
 @MessagePattern('locker.open-compartment')
 async openCompartment(input: { lockerId: string; compartmentId: string }) {
-  // Commands the device and waits for the physical hardware ack
   return await this.lockerGateway.open(input);
 }
 ```
 
-The locker edge service can process the command and reply through the MQTT response topic. This pattern is especially useful when devices are MQTT-native but the application still wants a request-style programming model.
+The locker edge service can handle this command and respond through the MQTT response topic. This pattern is useful when the device is MQTT-native but the application still wants to keep a request-style programming model.
 
 ### 7.3.2 Reply topics and timeouts
 
-The transport uses a per-instance reply topic by default. The tests verify that the generated topic matches `fluo.microservices.responses.<uuid>` when defaults are used, which mirrors the reply-isolation story we already saw in RabbitMQ and Kafka. Timeouts matter even more with devices than with server processes because connectivity can be unstable. A locker that does not answer within the request budget should surface as a transient edge failure, not as a hanging web request. In FluoShop, we use a 2,000ms timeout; if the device is offline, the user sees a "Connection issue" instead of a spinning wheel.
+By default, the transport uses an instance-specific reply topic. Tests verify that the generated topic has the form `fluo.microservices.responses.<uuid>` when defaults are used, which matches the same reply isolation idea seen with RabbitMQ and Kafka. In device environments, connection state may be unstable, so timeouts matter more than they do for server to server calls. A locker that fails to respond within the request budget should surface as a temporary edge failure, not as a hanging web request.
 
 ## 7.4 Event delivery for telemetry
 
-MQTT becomes especially expressive when you start thinking about QoS and retained state.
+MQTT becomes more expressive when QoS and retained state are designed together.
 
 FluoShop uses both concepts to model real operational signals.
 
 ### 7.4.1 Retained state snapshots
 
-A cold-chain sensor may publish the latest trailer temperature. New subscribers often need the most recent reading immediately, and that is exactly what retained messages are for. If you configure a retained event channel for a state snapshot topic, new observers do not need to wait for the next natural update before seeing the current state. This is different from historical replay. It is a **last-known-value** strategy, and that distinction is important. In the warehouse, when a new monitor turns on, it immediately sees the "current picker count" because that message was marked as `retained` on the broker.
+A cold-chain sensor can publish the latest trailer temperature. New subscribers usually need to see the most recent value immediately, and this is where a retained message is useful. When you configure a retained event channel for a state snapshot topic, new observers can see the current state instead of waiting for the next natural update. This is not historical replay. It is a last-known-value strategy. That distinction must stay clear during design.
 
 ### 7.4.2 QoS trade-offs
 
-QoS settings are business decisions, not just transport toggles.
+QoS settings are not just transport toggles. They are business decisions.
 
-- **QoS 0 (At most once)**: Best for ETA beacons. If a packet is lost, the next one arrives in seconds anyway.
-- **QoS 1 (At least once)**: Best for "Payment received" or "Locker opened." We must know it happened, even if we get a duplicate.
-- **QoS 2 (Exactly once)**: Strictest and slowest. Rarely needed if your handlers are idempotent.
+- QoS 0 allows loss in exchange for lower overhead.
+- QoS 1 favors at-least-once delivery while accepting the possibility of duplicates.
+- QoS 2 is stricter, but also more expensive.
 
-In FluoShop, a rapidly updating courier ETA beacon may fit QoS 0.
+In FluoShop, frequently updated courier ETA beacons may fit QoS 0.
 
-A smart-locker open command probably deserves QoS 1.
+A smart-locker open command is more likely to fit QoS 1.
 
-A retained warehouse status snapshot may also use QoS 1 so late subscribers reliably receive the brokered state.
+A retained warehouse status snapshot can also use QoS 1 so that late subscribers reliably receive brokered state.
 
 ## 7.5 FluoShop delivery monitoring
 
-MQTT extends the platform beyond the datacenter. That changes the kinds of stories the system can tell.
+MQTT extends the platform beyond the data center. That changes the operational facts the system can represent.
 
 ### 7.5.1 Cold-chain alerts
 
-If a refrigerated shipment exceeds the temperature threshold, the edge gateway can emit `shipment.temperature-alert`. The Notification Service can react, the Operations Dashboard can react, and a compliance recorder can react. None of them need to be part of the sensor's direct request path. That is the same decoupling principle we saw with earlier transports, applied to physical-world telemetry.
+When refrigerated delivery crosses a temperature threshold, the edge gateway can publish `shipment.temperature-alert`. The Notification Service, Operations Dashboard, and compliance recorder can each react. None of them needs to sit on the sensor's direct request path. This applies the decoupling principle from earlier transports to physical-world telemetry.
 
 ### 7.5.2 Order ETA updates
 
-Courier devices can also publish ETA updates.
+A courier device can also publish ETA updates.
 
-The Customer Experience Service may reduce those into a simplified order-tracking status.
+The Customer Experience Service can reduce them into order-tracking status.
 
-The important design point is that MQTT does not need to own the final customer-facing representation.
+The key design point is that MQTT does not need to own the final customer-facing representation.
 
-It only needs to carry edge-originated facts into the platform reliably enough for the downstream systems to respond.
+It only needs to carry the edge-originated fact into the platform reliably enough for downstream systems to react.
 
 ## 7.6 Operations and security
 
-MQTT is often deployed in environments with more network variability and more identity diversity than purely internal service meshes.
+MQTT is often deployed in environments with more network variability and identity diversity than a purely internal service mesh.
 
-That means FluoShop should treat broker auth, topic namespace design, and retained-message scope as security-sensitive architecture choices.
+So FluoShop needs to treat broker auth, topic namespace design, and retained-message scope as security-sensitive architecture choices.
 
 Operationally, teams should watch:
 
-- **Edge failure rates**: How often devices fail to publish their telemetry.
-- **Command timeouts**: Which device types are most frequently "unresponsive."
-- **Retained topic sprawl**: Ensuring the broker isn't cluttered with thousands of stale retained messages.
-- **Duplicate delivery**: Monitoring for handlers that aren't handling QoS 1 duplicates correctly.
-- **Reconnect churn**: Identifying "flapping" devices on unstable cellular networks.
+- edge client publish failure rate
+- timeout rate for request-reply commands
+- retained topic sprawl
+- duplicate delivery patterns on QoS 1 paths
+- reconnect churn from device gateways
 
-These signals tell you whether MQTT is serving as a healthy edge-ingestion layer or quietly accumulating delivery debt.
+These signals show whether MQTT is acting as a healthy edge-ingestion layer or quietly accumulating delivery debt.
 
 ## 7.7 FluoShop v1.6.0 progression
 
-At the end of this chapter, FluoShop is no longer only a set of server-side services. It is a platform that can absorb device and telemetry input. That makes the architecture more realistic, because modern commerce systems often depend on scanners, lockers, courier apps, and sensor networks. MQTT gives those integrations a transport that respects their environment.
+After this chapter, FluoShop is no longer just a set of server-side services. It becomes a platform that can absorb device and telemetry inputs. Modern commerce systems often depend on scanners, lockers, courier apps, and sensor networks, so this change makes the architecture more realistic. MQTT provides a transport built for that integration environment.
 
 ## 7.8 Summary
 
-- MQTT is a strong fit for edge, device, and telemetry scenarios with constrained or unstable connectivity.
-- fluo supports both event and request-reply patterns on MQTT through topic and reply-topic routing.
+- MQTT fits edge, device, and telemetry scenarios where connections are constrained or unstable.
+- fluo supports both event and request-reply patterns over MQTT through topic and reply-topic routing.
 - QoS and retain settings should follow business semantics, not generic defaults.
-- per-instance reply topics keep concurrent request flows isolated.
+- Instance-specific reply topics isolate concurrent request flows.
 - FluoShop now uses MQTT to bring locker, courier, and cold-chain signals into the platform.
 
-The broader lesson is architectural again.
+The larger lesson is again about architecture choices.
 
-A transport choice should reflect the shape of the network and the producers on that network.
+Transport selection should reflect the shape of the network and the producers creating events on top of it.
 
-MQTT belongs in FluoShop because the system now reaches the physical edge. It bridges the gap between the binary code of the server and the physical world of the warehouse.
+FluoShop needs MQTT because the system boundary now extends to the physical edge.

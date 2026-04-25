@@ -1,31 +1,37 @@
 <!-- packages: @fluojs/microservices -->
 <!-- project-state: FluoShop v1.1.0 -->
 
-# 2. TCP Transport
+# Chapter 2. TCP Transport
 
-TCP (Transmission Control Protocol) is the simplest and most common transport protocol for microservices.
+This chapter explains how to set up and operate the TCP transport for FluoShop's first real service connection. Chapter 1 gave us the architecture map. Now we implement that boundary as the simplest request/response link, giving us a baseline to compare against the broker-based chapters that follow.
 
-In fluo, the TCP transport provides a high-performance, point-to-point communication channel using newline-delimited JSON (NDJSON) over raw sockets.
+## Learning Objectives
+- Learn how to configure a TCP microservice with `TcpMicroserviceTransport`.
+- Implement an inter-service request/response flow with the `MICROSERVICE` token and `send()`.
+- Understand how NDJSON framing is used for TCP-based message delivery.
+- Analyze why frame size limits and timeouts matter for TCP operational safety.
+- Explain why TCP fits the Gateway-to-Catalog connection in FluoShop.
 
-This chapter explores how to set up, secure, and scale services using the TCP transport within the **FluoShop** project.
-
-Chapter 1 defined the service map. Chapter 2 turns that abstract map into the first real service link. We choose TCP first because it keeps the system understandable. There is no broker to operate, no consumer groups to reason about, and only one sender, one receiver, and a clear request-response story. That simplicity makes TCP an excellent baseline, and it also reveals the limits that later transports must solve.
+## Prerequisites
+- Completion of Chapter 1.
+- A basic understanding of Node.js socket communication and the request/response pattern.
+- Familiarity with TypeScript asynchronous processing and `async`/`await` syntax.
 
 ## 2.1 Setting up a TCP Microservice
 
-Starting a microservice with TCP is straightforward.
+Starting a microservice over TCP is straightforward.
 
-In the **FluoShop** architecture, we treat TCP as the primary link for internal, latency-critical read operations. Specifically, the API Gateway needs a direct, high-speed path to the Catalog Service to fetch product details before rendering a page. By using TCP, we avoid the overhead of a middle-man broker for these simple request-response pairs.
+**FluoShop** uses TCP as the default connection for internal, latency-sensitive read operations. The API Gateway needs to fetch product details before rendering a page, so it needs a direct, fast path to the Catalog Service. TCP avoids the overhead of passing through a middle-man broker for this simple request/response pair.
 
-You configure the `TcpMicroserviceTransport` inside the `MicroservicesModule`.
+Configure `TcpMicroserviceTransport` inside `MicroservicesModule`.
 
-The transport binds a host and port, opens a server socket during bootstrap, and begins accepting framed packets from clients.
+This transport binds to a host and port, opens the server socket during bootstrap, and starts receiving framed packets from clients.
 
-In FluoShop, the first service we expose over TCP is the Catalog Service because catalog reads are frequent, latency-sensitive, and easy to reason about.
+In FluoShop, we expose the Catalog Service over TCP first. Catalog lookups are frequent, latency-sensitive, and the clearest path for explaining the request/response model.
 
 ### 2.1.1 Server Configuration
 
-To make a service accessible via TCP, bind it to a host and port.
+To make the service reachable over TCP, bind it to a host and port.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -46,25 +52,25 @@ import { CatalogHandler } from './catalog.handler';
 export class CatalogModule {}
 ```
 
-In this setup, the Catalog Service acts as a TCP server. fluo manages the server lifecycle, opening the port during bootstrap and gracefully closing it during shutdown. That lifecycle integration matters in development and production because it removes the need for custom socket boot code in development and gives the framework one place to coordinate cleanup in production. That is especially helpful once health checks, deployments, and rolling restarts are involved. When a service instance starts up, the transport doesn't just open a port; it coordinates with the fluo runtime to ensure handlers are ready before traffic arrives. This prevents "connection refused" or "unhandled message" errors during the split-second of service startup.
+With this configuration, the Catalog Service acts as a TCP server. fluo manages the server lifecycle, opening the port during bootstrap and closing it safely on shutdown. This integration matters in both development and production. During development, you don't need separate socket boot code. In production, the framework can coordinate cleanup in one place. The value of this structure becomes clearer once health checks, deployments, and rolling restarts enter the picture. When a service instance starts, the transport doesn't just open a port. It works with the fluo runtime to confirm that handlers are ready before traffic arrives. This reduces the `connection refused` or `unhandled message` errors that can happen right after service startup.
 
-A few configuration choices deserve attention.
+A few configuration values deserve special attention.
 
-- `host` determines the network interface exposure. Binding to `0.0.0.0` is standard for containerized environments like Docker or Kubernetes.
-- `port` defines the service contract for callers. In FluoShop, we consistently use `4000` for the internal Catalog interface.
-- the provider list defines which handlers are discoverable. Handlers must use the `@MessagePattern` or `@EventPattern` decorators to receive TCP traffic.
+- `host` decides which network interface to expose. In container environments such as Docker or Kubernetes, binding to `0.0.0.0` is common.
+- `port` defines the service contract callers expect. FluoShop consistently uses port `4000` for Catalog's internal interface.
+- The provider list decides which handlers can be discovered. Handlers must use the `@MessagePattern` or `@EventPattern` decorator to receive TCP traffic.
 
-The transport itself should stay thin.
+It's best to keep the transport itself thin.
 
-Business validation belongs in handlers and domain services, not in socket bootstrap code.
+Business validation should live in handlers and domain services, not in socket boot code.
 
 ## 2.2 Communicating Between Services
 
-To call a TCP-based service from another part of the system, such as the API Gateway, you use fluo's `Microservice` client interface. In FluoShop, the API Gateway acts as the entry point. It receives HTTP requests from the public internet and translates them into internal TCP messages, and this translation layer is where service discovery or load balancing handoff typically happens. The client is intentionally small and does not try to hide the fact that you are making a network call. Instead, it gives you a predictable way to send a pattern plus payload and then await either a reply or an error.
+To call a TCP-based service from another part of the system, such as the API Gateway, use fluo's `Microservice` client interface. In FluoShop, the API Gateway is the entry point. It receives HTTP requests from the public internet and translates them into internal TCP messages. This translation layer is also where service discovery or load balancing handoff usually happens. The client is intentionally small and simple, and it doesn't hide the fact that this is a network call. Instead, it lets you send a pattern and payload, then wait for a response or error in a predictable way.
 
 ### 2.2.1 Injecting the Client
 
-The `MICROSERVICE` token provides access to the transport instance configured in the module.
+The `MICROSERVICE` token gives you access to the transport instance configured in the Module.
 
 ```typescript
 import { Inject } from '@fluojs/core';
@@ -81,39 +87,39 @@ export class CatalogClient {
 }
 ```
 
-The `send()` method handles the request-reply correlation. The caller does not manually manage request IDs, socket listeners, or pending promise maps, and the framework does that work so that the calling code stays focused on the domain action. Internally, fluo generates a unique `requestId`, serializes the payload into an NDJSON frame, and sets up a one-time listener on the socket for the corresponding response. If the response doesn't arrive within the timeout window, the promise is rejected automatically. This does not make the call local. It remains a remote operation with all the usual network concerns, which means the caller should still think about timeout budgets, fallback behavior, and what happens when the remote service is unavailable. In FluoShop, if the Catalog Service is slow, the Gateway shouldn't hold the user's browser connection open indefinitely, so we set a strict `requestTimeoutMs` on the client side to ensure fast failure.
+The `send()` method handles request/response correlation. Callers don't need to manage request IDs, socket listeners, or maps of pending promises themselves. The framework handles that work, so calling code can stay focused on domain behavior. Internally, fluo creates a unique `requestId`, serializes the payload as an NDJSON frame, and sets a one-time listener on the socket for the matching response. If the response doesn't arrive within the timeout window, the promise is rejected automatically. That doesn't make this call a local function call. It's still a network call, and callers must design for timeout budgets, fallback behavior, and remote service unavailability. If the Catalog Service slows down in FluoShop, the Gateway shouldn't hold the user's browser connection indefinitely. That is why we set a strict client-side `requestTimeoutMs` to guarantee fast failure.
 
-In FluoShop, the API Gateway uses this style for read-heavy catalog lookups.
+In FluoShop, the API Gateway performs read-heavy catalog lookups this way.
 
-The order path can also begin with TCP while the system is still simple.
+Order paths can also start on TCP while the system is simple.
 
-Later, we will move more failure-sensitive workflows onto durable transports.
+Later, though, workflows that are more sensitive to failure move to a durable transport.
 
 ## 2.3 Delivery Safety and Constraints
 
-TCP is a reliable transport, but it does not provide message persistence.
+TCP is a reliable transport, but it doesn't provide message durability.
 
-If the target service is down, the message cannot be durably stored in transit for later processing.
+If the target service is down, the message can't be safely stored in the middle and processed later.
 
-That makes TCP excellent for online request paths and weaker for workflows that must survive service restarts.
+That makes TCP good for online request paths, but weak for workflows that must survive service restarts.
 
-fluo adds safety layers so that basic TCP communication does not become operationally reckless.
+fluo adds safeguards so basic TCP communication doesn't become operationally reckless.
 
 ### 2.3.1 Frame Size Limits
 
-By default, fluo limits TCP frames to 1 MiB.
+By default, fluo limits TCP frame size to 1 MiB.
 
-This prevents a single malicious or oversized request from exhausting the service's memory.
+This limit prevents a single malicious or excessively large request from exhausting service memory.
 
-If a packet exceeds this limit, fluo closes the socket immediately to protect the process.
+If a packet exceeds this limit, fluo immediately closes the socket to protect the process.
 
-This limit is not just a security detail; it is also an architectural hint. If your service regularly approaches the 1 MiB ceiling, the problem is usually in the contract design. You may be sending binary data through the wrong channel, because TCP is for signaling and small data transfer, while large images or PDFs should be handled via object storage (like S3) with the TCP message only carrying the URI. You may be over-fetching, because returning a list of 10,000 products in a single TCP frame is a recipe for high latency and memory pressure. You may also be pushing batch behavior into a synchronous link that should stay narrow. For FluoShop, catalog lookups should remain small: identifiers, product metadata, and availability flags fit naturally into the frame boundary, but large media assets do not.
+This limit is more than a security detail. It's also an architectural hint. If a service often approaches the 1 MiB limit, the problem is usually in the contract design. You may be sending binary data through the wrong channel. TCP is meant for signaling and small data transfer, so large images or PDFs should be handled through object storage, such as S3, while TCP messages carry only the URI. You may also be querying too much data at once. Returning a list of 10,000 products in a single TCP frame causes high latency and memory pressure. Or you may be forcing batch-like behavior into a contract that should stay on a synchronous link. FluoShop catalog lookups should be small and predictable. Identifiers, product metadata, and inventory flags fit naturally inside frame boundaries, but large media assets do not.
 
 ### 2.3.2 Timeouts and Retries
 
-Since TCP is point-to-point, the caller depends on the availability of the receiver.
+Because TCP is point-to-point, the caller depends on receiver availability.
 
-You can configure request timeouts to prevent the gateway from hanging indefinitely.
+Setting a request timeout keeps the gateway from waiting forever.
 
 ```typescript
 new TcpMicroserviceTransport({
@@ -122,116 +128,116 @@ new TcpMicroserviceTransport({
 })
 ```
 
-A timeout is a business decision as much as a technical one. Too short, and you amplify transient latency spikes into user-visible failures; for example, a 50ms garbage collection pause in the Catalog Service could trigger a 100ms timeout in the Gateway. Too long, and you consume resources while waiting for a response that is no longer useful. If a user expects a page in 2 seconds, a 10-second TCP timeout is effectively a crash from the user's perspective. Retries are equally context-sensitive. For idempotent reads, such as `catalog.get`, retries are usually safe, so if the first attempt times out, the Gateway can try again immediately. For state-changing operations, such as `order.place`, retries without idempotency guards can duplicate work and might end up charging the customer twice. That is why this chapter introduces TCP primarily through catalog reads: they are the cleanest example of where the transport shines.
+Timeouts are both a technical setting and a business decision. If they are too short, temporary latency spikes turn into user-visible failures. For example, if the Catalog Service has a 50 ms garbage collection pause but the Gateway timeout is 100 ms, normal variation may look like failure. If the timeout is too long, resources stay tied up waiting for a response that no longer matters. If users expect to see a page within 2 seconds but the TCP timeout is 10 seconds, the experience is effectively an outage from the user's point of view. Retries also depend on context. Idempotent reads such as `catalog.get` are usually safe to retry, so the Gateway can immediately try again if the first attempt times out. State-changing operations, such as `order.place`, can run twice without idempotency protection and may charge the customer twice. That is why this chapter introduces TCP mainly through catalog lookups. This is the path where the transport fits most naturally.
 
 ## 2.4 Understanding NDJSON Framing
 
-fluo's TCP transport uses Newline-Delimited JSON (NDJSON) for framing.
+fluo's TCP transport uses NDJSON for framing.
 
 Each JSON object is followed by a `\n` character.
 
-This is a standard and lightweight way to stream multiple JSON objects over a single socket.
+This is a standard, lightweight approach for streaming multiple JSON objects over a single socket.
 
 ```json
 {"kind":"message","pattern":"catalog.get","payload":{"productId":"123"},"requestId":"abc-123"}\n
 ```
 
-On the receiving side, fluo buffers incoming data until it encounters a newline.
+On the receiving side, fluo buffers incoming data until it sees a newline character.
 
-At that point, it parses the buffered bytes as JSON and dispatches the packet to the appropriate handler. This mechanism is visible in `TcpMicroserviceTransport.bindSocketParser`, where the buffer is sliced at each `\n`. If a single line exceeds the `maxFrameBytes` (1 MiB), the socket is destroyed to prevent a memory-exhaustion attack.
+At that point, it parses the buffered bytes as JSON and dispatches the packet to the appropriate handler. You can see this mechanism in `TcpMicroserviceTransport.bindSocketParser`, where the buffer is split on each `\n`. If a single line exceeds `maxFrameBytes` (1 MiB), the socket is destroyed to prevent memory exhaustion attacks.
 
-The advantages are straightforward.
+The benefits are clear.
 
-- The framing format is easy to inspect. You can debug the service using `telnet` or `nc` (netcat).
+- The framing format is easy to inspect directly. You can debug the service with tools such as `telnet` or `nc` (netcat).
 - Local debugging is simple with standard socket tools.
-- The protocol overhead is low compared to HTTP/1.1 or bulky SOAP envelopes.
+- Protocol overhead is low compared with HTTP/1.1 or heavy SOAP envelopes.
 
-The trade-offs are equally important.
+The tradeoffs are clear too.
 
-- Payloads must remain text-friendly JSON.
-- Newline-delimited framing assumes packet bodies are serialized cleanly.
-- The transport is optimized for internal service traffic, not arbitrary internet-facing clients.
+- The payload must be text-friendly JSON.
+- Newline-delimited framing assumes clean body serialization.
+- This transport is optimized for internal service traffic rather than arbitrary internet clients.
 
-For FluoShop, NDJSON is a pragmatic choice.
+NDJSON is a practical choice for FluoShop.
 
-It matches the early stage of the system.
+It fits the system's early stage.
 
-We care more about clarity and low operational overhead than about the richer features of a broker.
+We value clarity and low operational cost more than the richer features of a broker for now.
 
 ## 2.5 Error Handling in TCP
 
-When a remote handler throws an error, the TCP transport captures the error message and sends it back to the caller in an error frame.
+When a remote handler throws an error, the TCP transport captures the error message and sends it back to the caller as an error frame.
 
 ```json
 {"requestId":"abc-123","error":"Product not found"}\n
 ```
 
-The `client.send()` method then rejects the promise with a corresponding error, which allows you to handle remote failures with the same control-flow style you use for local exceptions. Even so, a remote error should be treated differently from a validation error in the same process, and the caller should ask at least three questions.
+Then `client.send()` rejects the promise with that error, which lets you handle remote failures with a control flow style similar to local exceptions. Still, remote errors should be treated differently from validation errors inside the same process. Callers should ask at least three questions.
 
-- Did the remote service reject the request on purpose? (e.g., "Invalid product ID")
-- Did the network fail before the request completed? (e.g., "Connection reset by peer")
-- Should the gateway expose the raw message to the client?
+- Did the remote service intentionally reject the request? For example, "invalid product ID".
+- Did the network fail before the request completed? For example, "Connection reset by peer".
+- Is it safe for the gateway to show this raw message to an external client?
 
-In FluoShop, the gateway should map transport-level failures into stable API-facing errors.
+In FluoShop, the gateway should map transport-level failures to stable API errors.
 
-That preserves a clean boundary.
+That keeps the boundary clean.
 
-Clients should not need to know whether a missing product came from a remote TCP handler or from an in-process function.
+The client doesn't need to know whether a missing product came from a remote TCP handler or a local function.
 
 ## 2.6 Scaling TCP Services
 
-Since TCP is a point-to-point protocol, scaling usually involves a load balancer or service discovery layer.
+TCP is a point-to-point protocol, so scaling usually requires a load balancer or service discovery layer.
 
-In a modern environment, the API Gateway doesn't connect to a single IP address. It connects to a stable DNS name provided by the infrastructure.
+In modern environments, the API Gateway doesn't connect to a single IP address. It connects to a stable DNS name provided by the infrastructure.
 
-- **Kubernetes Service**: A `ClusterIP` service provides a single IP that load-balances across multiple Catalog pods.
-- **Service Mesh**: Tools like Istio or Linkerd can handle retries and mTLS at the sidecar level.
-- **Classic Proxy**: NGINX or HAProxy can act as a TCP-level proxy (Layer 4 load balancing).
+- **Kubernetes Service**: A `ClusterIP` service provides a single IP that load balances across multiple Catalog pods.
+- **Service Mesh**: Tools such as Istio or Linkerd can handle retries and mTLS at the sidecar level.
+- **Classic Proxy**: NGINX or HAProxy can act as a TCP-level proxy, which is Layer 4 load balancing.
 
 Client-side load balancing is also possible, but it increases application complexity.
 
-Operationally, TCP scaling raises questions that a broker would otherwise answer.
+From an operations point of view, scaling TCP usually brings back questions that a broker would answer for you.
 
-- How do clients discover healthy instances?
-- How do you drain traffic during deploys? When a Catalog pod is shutting down, it must stop accepting new TCP connections but finish processing existing ones.
-- How do you avoid reconnect storms? If the Catalog cluster restarts, thousands of Gateway connections might try to reconnect simultaneously.
+- How does the client find a healthy instance?
+- How do we drain traffic during a deployment? When a Catalog pod terminates, it should stop accepting new TCP connections while letting existing ones finish.
+- How do we prevent reconnect storms? If the Catalog cluster restarts, thousands of Gateway connections may try to reconnect at the same time.
 
-These are solvable problems. They are simply outside the core transport abstraction. For early FluoShop phases, that is acceptable because the point is to keep the first distributed link understandable. As the system grows, we will introduce transports that move some of this coordination into infrastructure.
+These problems are solvable. The important point is that they live outside the core transport abstraction. This is enough for FluoShop's early stage, because the priority is keeping the first distributed link understandable. As the system grows, we introduce transports where the infrastructure takes over some of this coordination.
 
 ## 2.7 FluoShop Implementation: Gateway and Catalog
 
-In FluoShop, we use TCP for the high-traffic link between the API Gateway and the Catalog Service.
+In FluoShop, we use TCP for the high-traffic connection between the API Gateway and the Catalog Service.
 
-1. **Catalog Service**: Implements the `catalog.get` pattern to return product metadata. It listens on port 4000.
-2. **API Gateway**: Forwards incoming `/products/:id` HTTP requests to the Catalog Service via the TCP transport.
+1. **Catalog Service**: Implements the `catalog.get` pattern that returns product metadata. It listens on port 4000.
+2. **API Gateway**: Forwards incoming `/products/:id` HTTP requests to the Catalog Service through the TCP transport.
 
-This setup provides the lowest practical overhead for product lookups, which are among the most frequent operations in the system. It also creates a clean example of request-response microservice communication. When a customer opens a product page, the gateway does not need durable event delivery; it needs a fast answer. If the catalog service is unavailable, the request should fail quickly and visibly, and that is exactly the sort of interaction TCP models well. This chapter therefore advances the FluoShop state from architecture-only to a concrete service connection. The next chapter will add decoupled, reliability-focused communication on top of that baseline.
+This setup gives one of the system's most frequent operations, product lookup, low practical overhead. It also gives us a clear example of request/response microservice communication. When a customer opens a product page, the gateway doesn't need durable event delivery. It needs a fast response. If the catalog service is down, the request should fail quickly and clearly, and TCP models exactly that interaction. That is why this chapter moves FluoShop from architecture explanation to real service connection. The next chapter adds loosely coupled, reliability-oriented communication on top of this baseline.
 
 ## 2.8 Summary
 
-- **Simplicity**: TCP is easy to set up and requires no external broker.
-- **Low Latency**: NDJSON over raw sockets minimizes overhead for internal communication.
-- **Synchronous Logic**: Use `send()` for critical request-response flows where immediate results are needed.
-- **Safety Boundaries**: fluo's 1 MiB frame limit protects services from memory-based abuse by closing the socket on overflow.
-- **Point-to-Point**: TCP requires the target service to be reachable at a known address or via a load balancer.
-- **Progression**: In FluoShop, TCP establishes the first live link between the gateway and catalog domains.
+- **Simplicity**: TCP is easy to configure and doesn't require an external broker.
+- **Low Latency**: NDJSON over raw sockets minimizes internal communication overhead.
+- **Synchronous Logic**: Use `send()` for request/response flows that need immediate results.
+- **Safety Boundaries**: fluo's 1 MiB frame limit prevents memory-based abuse by closing the socket on overflow.
+- **Point-to-Point**: TCP requires the target service to be reachable at a known address or through a load balancer.
+- **Progression**: In FluoShop, TCP creates the first real connection between the gateway and catalog domain.
 
 The most important lesson is not that TCP is always best.
 
-It is that TCP is best when its limitations match the problem.
+It is that TCP is best when its limits fit the problem.
 
-We are using it where direct reachability, fast failure, and low latency make sense.
+We use TCP where direct reachability, fast failure, and low latency matter.
 
-We are not using it where durability and asynchronous recovery will soon matter more.
+We don't use it yet in areas where durability and asynchronous recovery will matter more.
 
 ## 2.9 Next Chapter Preview
 
-In the next chapter, we will introduce Redis as a message broker to handle asynchronous events and durable communication.
+In the next chapter, we introduce Redis as a message broker for asynchronous events and durable communication.
 
-That will change the character of the system.
+At that point, the system's character changes.
 
-Instead of asking only, "Can service A reach service B right now?"
+We no longer ask only, "Can service A reach service B right now?"
 
-we will also ask, "Can this workflow survive delay, replay, and consumer failure?"
+We also ask, "Can this workflow survive delay, replay, and consumer failure?"
 
-That shift is what turns FluoShop from a simple set of service calls into a more resilient distributed application.
+That shift turns FluoShop from a simple collection of service calls into a more resilient distributed application.

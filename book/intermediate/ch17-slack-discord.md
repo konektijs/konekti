@@ -1,19 +1,28 @@
 <!-- packages: @fluojs/slack, @fluojs/discord, @fluojs/notifications -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 17. Slack and Discord Integration
+# Chapter 17. Slack and Discord Integration
 
-Operational awareness is the hallmark of a mature backend. While email is good for users, real-time chat platforms like Slack and Discord are where your team lives.
+This chapter covers how to extend FluoShop's notification system into team communication channels. Chapter 16 established the email delivery foundation. Here, we connect operational alerts and real-time sharing flows with Slack and Discord.
 
-The `@fluojs/slack` and `@fluojs/discord` packages provide webhook-first, transport-agnostic delivery for fluo. They allow you to send rich, formatted messages to channels and threads without coupling your code to a specific runtime or SDK.
+## Learning Objectives
+- Distinguish how Slack and Discord integrations differ from the email channel.
+- Review the process for registering chat Modules with a webhook-first delivery model.
+- See how to use `SlackService` and `DiscordService` for standalone usage.
+- Implement chat channel connections through `@fluojs/notifications`.
+- Build structured messages with Block Kit and Embed.
+- Operate chat integrations around retry policies and status snapshots.
 
-In this chapter, we'll implement chat-based alerts and notifications for FluoShop.
+## Prerequisites
+- Completion of Chapter 15 and Chapter 16.
+- A basic understanding of webhook-based external service integrations.
+- Experience designing operational notifications separately from team collaboration channels.
 
 ## 17.1 The Webhook-First Approach
 
-Fluo favors **Incoming Webhooks** for simple delivery. This avoids the complexity of managing OAuth tokens or full Bot SDKs for simple notification tasks.
+For simple delivery, Fluo prioritizes **Incoming Webhooks**. When an application only needs to send notifications, this avoids the cost of managing OAuth tokens, bot permissions, and SDK lifecycles.
 
-Both packages provide a `createWebhookTransport` helper that only requires a `fetch` implementation.
+Both packages provide webhook transport helpers that work with only a `fetch` implementation.
 
 ```typescript
 import { createSlackWebhookTransport } from '@fluojs/slack';
@@ -24,11 +33,11 @@ const transport = createSlackWebhookTransport({
 });
 ```
 
-Because it depends on the standard `fetch` API, this transport works natively on Node.js 18+, Bun, Deno, and Cloudflare Workers.
+Because it depends on the standard `fetch` API, this transport works in Node.js 18+, Bun, Deno, and Cloudflare Workers without a separate adapter.
 
 ## 17.2 Registering the Chat Modules
 
-Registration follows the same pattern as other fluo modules.
+Registration follows the same pattern as other fluo Modules. Fix operational defaults, such as the default channel or thread, in the Module configuration, then pass the runtime-specific `fetch` and webhook URL to the transport.
 
 ### Slack Registration
 ```typescript
@@ -68,7 +77,7 @@ export class AppModule {}
 
 ## 17.3 Standalone Usage: SlackService & DiscordService
 
-You can use the services directly for operational logging or custom alerts.
+When orchestration would be too much, such as operational log records or custom alerts, you can use the services directly.
 
 ```typescript
 import { Inject } from '@fluojs/core';
@@ -87,7 +96,7 @@ export class LoggerService {
 
 ## 17.4 Integration with @fluojs/notifications
 
-To include chat platforms in your orchestrated notification system, inject the `SLACK_CHANNEL` or `DISCORD_CHANNEL` tokens.
+To include chat platforms in an orchestrated notification system, inject the `SLACK_CHANNEL` or `DISCORD_CHANNEL` Token. This lets event publishers stay unaware of channel-specific delivery details.
 
 ```typescript
 import { SLACK_CHANNEL } from '@fluojs/slack';
@@ -116,10 +125,10 @@ await this.notifications.dispatch({
 
 ## 17.5 Rich Formatting: Blocks and Embeds
 
-One of the strengths of chat platforms is rich formatting.
+The strength of chat platforms is that they can structure messages in a form people can read and act on immediately.
 
 ### Slack Blocks
-The Slack package supports the **Block Kit** API.
+The Slack package supports the **Block Kit** API, so you can structure messages with sections, fields, dividers, and more.
 
 ```typescript
 await this.slack.send({
@@ -143,7 +152,7 @@ await this.slack.send({
 ```
 
 ### Discord Embeds
-The Discord package supports **Embeds** for structured data.
+The Discord package supports **Embeds** for representing structured data.
 
 ```typescript
 await this.discord.send({
@@ -160,20 +169,20 @@ await this.discord.send({
 
 ## 17.6 FluoShop Context: Operational Alerts
 
-In FluoShop, we use Slack for developer alerts and Discord for community order notifications.
+In FluoShop, Slack is used for internal operational notifications, while Discord is used for order notifications shared with the public community.
 
-By using the `NotificationsService`, we can route a single event to both platforms if needed.
+`NotificationsService` lets a single domain event route to one platform or several platforms based on policy.
 
 ```typescript
 @OnEvent('order.placed')
 async alertOps(event: OrderPlacedEvent) {
-  // Alert developers on Slack
+  // Notify developers through Slack
   await this.notifications.dispatch({
     channel: 'slack',
     payload: { text: `New order: ${event.orderId}` },
   });
 
-  // Share with community on Discord (if opted in)
+  // Share with the community through Discord, if consent was given
   await this.notifications.dispatch({
     channel: 'discord',
     payload: { content: `A new order was just placed! 🚀` },
@@ -183,14 +192,14 @@ async alertOps(event: OrderPlacedEvent) {
 
 ## 17.7 Error Handling and Retries
 
-The built-in webhook transports are designed for production reliability.
+The built-in webhook transports are designed around failure patterns seen in production environments.
 
-- **Automatic Retries**: Retries transient `408`, `429`, and `5xx` failures with bounded exponential backoff.
-- **Explicit Errors**: Throws `SlackTransportError` or `DiscordTransportError` for permanent failures (like 404 or 403), allowing you to handle them at the application level.
+- **Automatic retry**: Transient `408`, `429`, and `5xx` errors are retried with exponential backoff.
+- **Explicit errors**: Permanent failures, such as 404 or 403, are surfaced as `SlackTransportError` or `DiscordTransportError` so the application level can handle them.
 
 ## 17.8 Status Snapshots
 
-Chat integrations often break due to expired webhook URLs. Monitor them with status snapshots.
+Chat integrations can stop working because webhook URLs expire, permissions change, or external services fail. Connect status snapshots to operational metrics and alerts so you can detect issues early.
 
 ```typescript
 const slackStatus = await createSlackPlatformStatusSnapshot(slackService);
@@ -201,6 +210,6 @@ if (!slackStatus.isReady) {
 
 ## Conclusion
 
-By integrating Slack and Discord into the fluo ecosystem, you've turned your backend into an active participant in your team's communication. You've gained real-time observability and rich formatting without sacrificing runtime portability.
+Integrating Slack and Discord into the fluo ecosystem lets the backend participate directly in team communication flows. It keeps runtime portability while adding real-time observability and structured message presentation.
 
-This concludes **Part 4: Notification Systems**. You now have a unified, scalable, and observable strategy for communicating with both your users and your team.
+This concludes **Part 4: Notification System**. So far, we have covered a strategy for handling user notifications and team operational notifications within the same orchestration model.

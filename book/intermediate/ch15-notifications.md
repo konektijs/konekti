@@ -1,31 +1,40 @@
 <!-- packages: @fluojs/notifications, @fluojs/core -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 15. Notification Orchestration
+# Chapter 15. Notification Orchestration
 
-Notifications are a critical part of modern applications. Whether it's a welcome email, a password reset link, or an operational alert, your backend needs a reliable way to dispatch messages across multiple channels.
+This chapter explains how to build a channel-independent notification orchestration layer on top of FluoShop's events and workflows. Chapter 14 covered realtime interaction. Now we'll bind follow-up delivery channels such as email, Slack, and Discord behind one explicit dispatch boundary.
 
-The `@fluojs/notifications` package provides a channel-agnostic orchestration layer for fluo. It freezes the shared contract for notification channels, provides a module-based API, and exposes optional queue-backed delivery and lifecycle event publication seams.
+## Learning Objectives
+- Understand why notification orchestration is safer than scattering direct channel SDK calls across the codebase.
+- Explain the difference between the `NotificationChannel` contract and the role of `NotificationsService`.
+- Learn how to register channels and dispatch configuration with `NotificationsModule.forRoot()`.
+- Analyze why queue-backed delivery moves bulk delivery outside the request path.
+- Summarize how lifecycle event publishing helps notification observability and failure tracking.
+- Explain the follow-up responsibilities notification dispatch takes in FluoShop's order success flow.
 
-By the end of this chapter, you will understand how to build a unified notification system for FluoShop that scales across email, Slack, and Discord.
+## Prerequisites
+- Completion of Chapter 1, Chapter 2, Chapter 3, Chapter 4, Chapter 5, Chapter 6, Chapter 7, Chapter 8, Chapter 9, Chapter 10, Chapter 11, Chapter 12, Chapter 13, and Chapter 14.
+- Basic understanding of event-driven follow-up processing and channel-based delivery.
+- Operational awareness of asynchronous delivery using queues and observability.
 
 ## 15.1 The Orchestration Pattern
 
-In a typical microservices environment, multiple services need to send notifications. If every service implements its own logic for email or Slack, the architecture becomes brittle.
+In a typical microservice environment, many services need to send notifications. If every service implements its own email or Slack logic, the architecture becomes fragile.
 
-Fluo solves this through **Orchestration**.
+fluo addresses this problem through **Orchestration**.
 
-The `NotificationsService` acts as a central hub. It doesn't know *how* to send an email; it only knows *which channel* is responsible for it.
+`NotificationsService` acts as the central hub. It doesn't know *how* to send email, but it does know which *channel* is responsible for email.
 
 ### Why Orchestrate?
-- **Shared Contract**: All channels follow the same interface.
-- **Dependency Inversion**: Application logic depends on `NotificationsService`, not provider SDKs.
-- **Observability**: Lifecycle events are emitted for every dispatch attempt.
-- **Resilience**: Optional queue support prevents notification bursts from blocking the main request path.
+- **Shared Contract**: Every channel follows the same interface.
+- **Dependency Inversion**: Application logic depends on `NotificationsService`, not on vendor SDKs.
+- **Observability**: Lifecycle events are published for every delivery attempt.
+- **Resilience**: Optional queue support keeps notification bursts from blocking the main request path.
 
 ## 15.2 Defining a Notification Channel
 
-A channel is a provider that implements the `NotificationChannel` interface. It's the bridge between the fluo orchestrator and an external service.
+A channel is a Provider that implements the `NotificationChannel` interface. It acts as the bridge between the fluo orchestrator and an external service.
 
 ```typescript
 import { type NotificationChannel } from '@fluojs/notifications';
@@ -47,7 +56,7 @@ The `send` method is the core of the contract. It receives a standardized notifi
 
 ## 15.3 Registering the Notifications Module
 
-To use the orchestration layer, you must register the `NotificationsModule`.
+To use the orchestration layer, register `NotificationsModule`.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -63,11 +72,11 @@ import { NotificationsModule } from '@fluojs/notifications';
 export class AppModule {}
 ```
 
-This registration makes the `NotificationsService` available for injection.
+After this registration, you can inject `NotificationsService`.
 
 ## 15.4 Dispatching Notifications
 
-Once registered, you can inject the `NotificationsService` into your providers.
+Once registration is complete, you can inject `NotificationsService` into a Provider.
 
 ```typescript
 import { Inject } from '@fluojs/core';
@@ -93,11 +102,11 @@ export class WelcomeService {
 }
 ```
 
-The `dispatch` method is asynchronous. It resolves once the notification has been successfully handed off to the channel (or the queue).
+The `dispatch` method is asynchronous. It completes when the notification has been successfully handed to the channel or queue.
 
 ## 15.5 Queue-Backed Delivery
 
-For high-volume scenarios, you might want to offload delivery to background workers. The `@fluojs/notifications` package provides a built-in queue seam.
+In bulk delivery scenarios, you may need to offload delivery work to a background worker. The `@fluojs/notifications` package provides a built-in queue seam.
 
 ```typescript
 NotificationsModule.forRoot({
@@ -117,11 +126,11 @@ NotificationsModule.forRoot({
 });
 ```
 
-When a `bulkThreshold` is reached, or when explicitly requested via options, the service will use the queue adapter instead of direct in-process dispatch.
+When `bulkThreshold` is reached, or when options explicitly request it, the service uses the queue adapter instead of direct delivery.
 
 ## 15.6 Lifecycle Events
 
-Reliability requires observability. The orchestration layer can publish lifecycle events through an event publisher.
+Reliability needs observability. The orchestration layer can publish lifecycle events through an event publisher.
 
 ```typescript
 NotificationsModule.forRoot({
@@ -140,15 +149,15 @@ NotificationsModule.forRoot({
 
 ### Published Events:
 - `notification.dispatch.requested`: When `dispatch()` is called.
-- `notification.dispatch.queued`: When a notification is moved to the background queue.
+- `notification.dispatch.queued`: When a notification moves to the background queue.
 - `notification.dispatch.delivered`: When the channel confirms successful delivery.
-- `notification.dispatch.failed`: When delivery fails after retries.
+- `notification.dispatch.failed`: When delivery still fails after retries.
 
 ## 15.7 FluoShop Context: Order Success Flow
 
-In FluoShop, we use notifications to confirm orders. This builds on the event-driven work we did in Part 2.
+FluoShop uses notifications for order confirmations. This sits on top of the event-driven work built in Part 2.
 
-When an `OrderPlacedEvent` is captured by the `OrderSaga`, it triggers a notification dispatch.
+When `OrderPlacedEvent` is captured by `OrderSaga`, notification dispatch is triggered.
 
 ```typescript
 @OnEvent('order.placed')
@@ -156,7 +165,7 @@ async onOrderPlaced(event: OrderPlacedEvent) {
   await this.notifications.dispatch({
     channel: 'email',
     recipients: [event.userEmail],
-    subject: `Order #${event.orderId} Confirmed`,
+    subject: `Order #${event.orderId} confirmed`,
     payload: {
       orderId: event.orderId,
       total: event.total,
@@ -165,38 +174,31 @@ async onOrderPlaced(event: OrderPlacedEvent) {
 }
 ```
 
-This decoupling ensures that the order processing logic doesn't need to know anything about SMTP servers or email templates.
+This decoupling means the order processing logic doesn't need to know about SMTP servers or email templates.
 
 ## 15.8 Intentional Limitations
 
-The foundation package follows the fluo philosophy of **Explicit Boundaries**.
+The base package follows fluo's **Explicit Boundaries** philosophy.
 
-1. **No Default Implementations**: It does not ship with a built-in email or Slack provider. Those live in their respective packages.
-2. **No Implicit Env**: It does not read `process.env`. All configuration must be passed explicitly.
+1. **No Default Implementations**: It doesn't provide built-in email or Slack providers. Those live in their dedicated packages.
+2. **No Implicit Env**: It doesn't read `process.env`. Every setting must be passed explicitly.
 3. **Transport Agnostic**: It works on Node.js, Bun, Deno, and Workers.
 
-These limitations ensure that the orchestration layer remains stable even as underlying transports change.
+These limitations keep the orchestration layer stable even when the underlying transport changes.
 
 ## 15.9 Public API Summary
 
 ### Services
-- `NotificationsService`: The primary API for dispatching.
-- `NOTIFICATIONS`: Injection token for the service.
+- `NotificationsService`: The primary API for dispatch.
+- `NOTIFICATIONS`: Token for service injection.
 
 ### Interfaces
-- `NotificationChannel`: The contract for new delivery providers.
-- `NotificationDispatchRequest`: The schema for a dispatch attempt.
-- `NotificationsQueueAdapter`: The interface for background processing.
+- `NotificationChannel`: Contract for a new delivery Provider.
+- `NotificationDispatchRequest`: Schema for a dispatch attempt.
+- `NotificationsQueueAdapter`: Interface for background processing.
 
 ## Conclusion
 
-The orchestration layer is the backbone of fluo's messaging strategy. By centralizing the dispatch logic, we gain observability, resilience, and a clean separation of concerns.
+The orchestration layer is central to fluo's messaging strategy. By centralizing dispatch logic, you gain observability, resilience, and a clear separation of concerns.
 
-In the next chapter, we will implement the most common notification channel: **Email**.
-
-<!-- Padding for line count compliance -->
-<!-- Line 197 -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->
+The next chapter implements the most common notification channel: **Email**.

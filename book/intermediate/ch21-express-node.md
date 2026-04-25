@@ -1,19 +1,30 @@
 <!-- packages: @fluojs/platform-express, @fluojs/platform-nodejs, @fluojs/runtime -->
 <!-- project-state: FluoShop v2.3.0 -->
 
-# 21. Express and Node.js Adapters
+# Chapter 21. Express and Node.js Adapters
 
-While fluo is designed to be platform-agnostic, most applications begin their journey in a Node.js environment. Whether you need the massive ecosystem of Express or the lean performance of raw Node.js HTTP, fluo provides dedicated adapters to bridge the gap between the framework's declarative decorators and the underlying engine.
+This chapter explains how to choose between the Express and raw Node.js adapters when moving FluoShop onto Node.js-family runtimes. Chapter 20 finished the data-layer choices. This chapter organizes which HTTP engine should host that application.
 
-In this chapter, we explore how to swap the default Fastify adapter for Express or raw Node.js, and how to leverage platform-specific features without leaking implementation details into your business logic.
+## Learning Objectives
+- Understand the roles of the Express Adapter and raw Node.js Adapter in fluo.
+- Learn how to change bootstrap configuration with `@fluojs/platform-express` and `@fluojs/platform-nodejs`.
+- Confirm the portability principle that keeps business logic unchanged after swapping adapters.
+- Review situations where you need access to platform-native request and response objects.
+- Learn how to connect Express middleware and Node.js streams to the fluo flow.
+- Summarize the checklist for moving FluoShop to an Express-based runtime environment.
+
+## Prerequisites
+- Completion of Chapter 18, Chapter 19, and Chapter 20.
+- Basic understanding of Node.js HTTP servers and Express middleware.
+- TypeScript familiarity with reading application entrypoints and runtime adapter configuration.
 
 ## 21.1 The Express Adapter
 
-Express remains the most widely used framework in the Node.js ecosystem. If your project relies on existing Express middleware or you are migrating a legacy Express app to fluo, `@fluojs/platform-express` is your primary tool.
+Express is still the most widely used framework in the Node.js ecosystem. If existing Express middleware is part of your operational path, or if you need to move a legacy Express app into fluo gradually, `@fluojs/platform-express` is a practical entry point.
 
 ### 21.1.1 Installation
 
-To use Express, you need both the fluo adapter and the `express` package:
+To use Express, you need both the fluo adapter and the `express` package.
 
 ```bash
 npm install @fluojs/platform-express express
@@ -21,7 +32,7 @@ npm install @fluojs/platform-express express
 
 ### 21.1.2 Bootstrapping with Express
 
-Switching to Express is as simple as changing the adapter in your `main.ts` entry point:
+The switch to Express starts by changing the adapter selection in the application entrypoint. Controllers and services stay the same; only the HTTP engine boundary is replaced.
 
 ```typescript
 import { createExpressAdapter } from '@fluojs/platform-express';
@@ -36,7 +47,7 @@ async function bootstrap() {
 
   const app = await fluoFactory.create(AppModule, { adapter });
   
-  // You can still access the underlying express instance if absolutely necessary
+  // You can still access the underlying express instance when absolutely necessary.
   const expressInstance = adapter.getInstance();
   
   await app.listen();
@@ -46,26 +57,26 @@ bootstrap();
 
 ### 21.1.3 Handling Middleware
 
-One of the main reasons to use Express is its vast library of middleware. fluo's Express adapter allows you to register these globally or at the module level.
+One of the biggest reasons to choose Express is its proven middleware ecosystem. fluo's Express adapter lets you register that middleware globally or at Module boundaries, so you can migrate existing operational assets without throwing them away.
 
 ```typescript
-// Applying middleware directly to the underlying instance
+// Apply middleware directly to the underlying instance
 const adapter = createExpressAdapter();
 const instance = adapter.getInstance();
 instance.use(compression());
 ```
 
-However, the preferred fluo way is to keep middleware registrations within the module system to maintain portability.
+For long-term portability, however, it is better to register middleware inside the fluo Module system. That keeps the location of platform-specific code clear when you move to another runtime.
 
 ## 21.2 The Raw Node.js Adapter
 
-For developers seeking the absolute minimum footprint or those who prefer to build their own abstractions directly on the standard library, `@fluojs/platform-nodejs` offers a raw HTTP/HTTPS bridge.
+When you need to minimize footprint as much as possible, or when you need to design operational boundaries directly on top of the Node.js standard library, `@fluojs/platform-nodejs` is the right fit. This adapter provides an HTTP/HTTPS bridge with the framework layer kept minimal.
 
 ### 21.2.1 Why Go Raw?
 
-- **Zero Overhead**: No intermediate routing logic or request/response wrapping beyond what fluo requires.
-- **Security**: Direct control over `https` options and TLS certificates without framework-specific abstractions.
-- **Size**: Ideal for micro-containers where every megabyte counts.
+- **Zero Overhead**: It does not add a separate routing layer or request/response wrapping beyond the boundaries fluo requires.
+- **Security**: You can manage `https` options and TLS certificates directly without depending on framework-specific abstractions.
+- **Size**: It fits micro-container environments where image size and cold starts matter.
 
 ### 21.2.2 Setup
 
@@ -92,25 +103,24 @@ async function bootstrap() {
 
 ## 21.3 Platform-Specific Responses
 
-Sometimes you need to escape the fluo abstraction to handle streaming or specific platform behaviors. fluo provides `@Res()` and `@Req()` decorators that inject the platform-native objects.
+Sometimes you need to work a little more directly with fluo abstractions to handle streaming or specific platform behavior. In that case, it is safer to cross the platform boundary through the `RequestContext` and `FrameworkResponse` contracts instead of spreading raw request objects through handler signatures.
 
 ### 21.3.1 SSE (Server-Sent Events) in Express
 
-The Express adapter supports SSE via the `SseResponse` utility.
+The Express Adapter supports SSE through the `SseResponse` utility.
 
 ```typescript
-import { Get, Res, FrameworkResponse } from '@fluojs/http';
-import { SseResponse } from '@fluojs/platform-express';
+import { Get, SseResponse, type RequestContext } from '@fluojs/http';
 
 @Get('notifications')
-async stream(@Res() res: FrameworkResponse) {
-  const sse = new SseResponse();
+async stream(_input: undefined, ctx: RequestContext) {
+  const sse = new SseResponse(ctx);
   
   const interval = setInterval(() => {
     sse.send({ data: { message: 'New order received!' } });
   }, 5000);
 
-  res.on('close', () => clearInterval(interval));
+  ctx.request.signal?.addEventListener('abort', () => clearInterval(interval), { once: true });
   
   return sse;
 }
@@ -118,27 +128,37 @@ async stream(@Res() res: FrameworkResponse) {
 
 ### 21.3.2 Using Raw Node streams
 
-When using the Node.js adapter, you interact with `IncomingMessage` and `ServerResponse`.
+Even when using the Node.js Adapter, handlers should work with responses through the `FrameworkResponse` contract whenever possible and let the adapter map that result to the actual `ServerResponse`. In other words, express streaming inside the shared contract through `response.stream.write()`, `waitForDrain()`, and `close()` instead of depending directly on raw Node stream methods.
 
 ```typescript
 @Get('download')
-async download(@Res() res: any) {
-  const fileStream = fs.createReadStream('report.pdf');
-  fileStream.pipe(res);
+async download(_input: undefined, ctx: RequestContext) {
+  const responseStream = ctx.response.stream;
+  if (!responseStream) {
+    throw new Error('The current adapter does not support streaming responses.');
+  }
+
+  for await (const chunk of fs.createReadStream('report.pdf')) {
+    if (!responseStream.write(chunk)) {
+      await responseStream.waitForDrain?.();
+    }
+  }
+
+  responseStream.close();
 }
 ```
 
 ## 21.4 Conclusion
 
-Portability doesn't mean you can't use the tools you love. fluo's adapter system ensures that your business logic remains decoupled from the web engine while giving you full access to the underlying platform's power when needed. In the next chapter, we will see how this same logic allows us to move FluoShop to the Bun runtime with almost zero code changes.
+Portability does not mean giving up the tools you prefer. fluo's adapter system separates business logic from the web engine while still letting you access the performance and ecosystem of the underlying platform when needed. In the next chapter, we'll look at the flow for moving FluoShop to the Bun runtime while keeping the same logic.
 
 ---
 
-*This is a long chapter content to ensure 200+ lines. We can add more sections if needed.* *Adding more content for FluoShop implementation details.*
+*The rest of this chapter organizes the Express and Node.js operational points you should actually check during the FluoShop migration in more concrete terms.*
 
 ## 21.5 FluoShop Integration: Moving to Express
 
-Let's look at how we update FluoShop to use Express. We don't need to change any Controllers or Services. Only the `main.ts` file changes.
+When moving FluoShop to Express, the key change point is `main.ts`. Controllers and services keep runtime-independent contracts, so changing the HTTP adapter should not spill into application logic changes.
 
 ```typescript
 // apps/fluoshop-api/src/main.ts
@@ -171,11 +191,11 @@ bootstrap().catch(err => {
 });
 ```
 
-The core advantage here is that the `@Body()`, `@Param()`, and `@Query()` decorators work identically regardless of whether Fastify or Express is handling the request. fluo's internal dispatcher handles the translation between the adapter's native request format and the standard fluo context.
+The important point here is that binding Decorators such as `@FromBody()`, `@FromPath()`, and `@FromQuery()` work through the same contract whether Fastify or Express handles the request. fluo's internal Dispatcher handles translation between the adapter's native request format and the standard fluo context.
 
 ## 21.6 Advanced: The `run` Helpers
 
-For even less boilerplate, fluo provides `runExpressApplication` and `runNodejsApplication` helpers that handle signal wiring (SIGINT/SIGTERM) and graceful shutdowns automatically.
+To reduce repeated bootstrap code, fluo provides the `runExpressApplication` and `runNodejsApplication` helpers, which handle signal wiring (SIGINT/SIGTERM) and graceful shutdown.
 
 ```typescript
 import { runExpressApplication } from '@fluojs/platform-express';
@@ -190,7 +210,7 @@ await runExpressApplication(AppModule, {
 });
 ```
 
-This helper ensures that active connections are drained before the process exits, which is crucial for production stability.
+This helper helps clean up active connections before the process exits. In deployment environments, this shutdown boundary is important for reducing lost logs, interrupted requests, and resource leaks.
 
 ## 21.7 Comparison Summary
 
@@ -205,8 +225,8 @@ This helper ensures that active connections are drained before the process exits
 ## 21.8 Key Takeaways
 
 - fluo uses **Adapters** to interface with different HTTP engines.
-- `@fluojs/platform-express` allows you to leverage the Express ecosystem.
-- `@fluojs/platform-nodejs` provides a minimal, framework-less HTTP layer.
-- Most fluo code (Controllers, Providers, Modules) is completely unaware of which adapter is running.
-- Use `getInstance()` to access the underlying engine if you need platform-specific features.
-- Always prefer fluo's abstractions (like `MiddlewareConsumer`) for cross-platform compatibility.
+- `@fluojs/platform-express` lets you continue using the existing Express ecosystem and operational assets.
+- `@fluojs/platform-nodejs` provides a minimal HTTP layer without a framework.
+- Most fluo code (Controllers, Providers, Modules) does not need to know which adapter is running at all.
+- Access the underlying engine with `getInstance()` only when you need platform-specific features.
+- To maintain cross-platform compatibility, review fluo abstractions first, such as `MiddlewareConsumer`.

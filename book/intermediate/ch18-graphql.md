@@ -1,36 +1,45 @@
 <!-- packages: @fluojs/graphql, @fluojs/core, @fluojs/http -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 18. GraphQL API
+# Chapter 18. GraphQL API
 
-As your application grows, client-side data requirements become more complex. While RESTful APIs are excellent for standard resources, GraphQL offers a flexible, type-safe alternative that allows clients to fetch exactly what they need—nothing more, nothing less.
+This chapter covers how to add a query layer to FluoShop that differs from REST. Through Chapter 17, we expanded notifications and realtime flows. Here, we'll use the product catalog as the center point for building a GraphQL API and execution guardrails.
 
-The `@fluojs/graphql` package provides a first-class, decorator-based integration for fluo. Built on **GraphQL Yoga**, it leverages the framework's native DI system and standard decorators to provide a high-performance execution pipeline.
+## Learning Objectives
+- Distinguish the structural benefits of introducing GraphQL in fluo.
+- Outline `GraphqlModule` configuration and code-first resolver registration.
+- Configure a flow that reduces the N+1 problem with request-scoped DataLoader.
+- Review SSE-based default subscriptions and optional WebSocket subscription configuration.
+- Apply operational guardrails such as complexity limits and introspection control.
+- Define when to connect GraphQL to the FluoShop product catalog.
 
-In this chapter, we will implement a GraphQL API for FluoShop, exploring code-first resolvers, request-scoped DataLoaders, and operational security.
+## Prerequisites
+- Completion of Chapter 13, Chapter 14, Chapter 15, Chapter 16, and Chapter 17.
+- Understanding of core GraphQL terms such as resolver, schema, and subscription.
+- Operational experience designing API security and performance limits together.
 
 ## 18.1 Why GraphQL in fluo?
 
-Fluo's philosophy of **Explicit Over Implicit** aligns perfectly with GraphQL's strongly typed schema. By using `@fluojs/graphql`, you gain:
+fluo's philosophy of **Explicit Over Implicit** fits well with GraphQL's typed schema model. Using `@fluojs/graphql` gives you these benefits.
 
-- **Unified DI**: Resolvers are first-class providers in the fluo container.
-- **Protocol Portability**: Your GraphQL API runs on Node.js, Bun, Deno, or Edge Workers with zero changes.
-- **Standard Decorators**: No legacy `experimentalDecorators` flags are required.
-- **Performance**: Direct integration with the runtime facade ensures minimal overhead.
+- **Unified DI**: Resolvers are treated as top-level Providers inside the fluo container.
+- **Protocol Portability**: The same GraphQL API can run on Node.js, Bun, Deno, and Edge Workers without code changes.
+- **Standard Decorators**: It does not depend on the legacy `experimentalDecorators` flag.
+- **Performance**: Direct integration with the runtime facade reduces unnecessary overhead.
 
 ## 18.2 Installation and Setup
 
-First, install the necessary dependencies:
+First, install the required dependencies.
 
 ```bash
 pnpm add @fluojs/graphql graphql graphql-yoga
 ```
 
-The core of the integration is the `GraphqlModule`. Unlike many other fluo modules, `GraphqlModule` currently uses a synchronous `forRoot` configuration.
+The center of the integration is `GraphqlModule`. Unlike many fluo modules, `GraphqlModule` currently uses synchronous `forRoot` configuration.
 
 ## 18.3 Building Code-first Resolvers
 
-Fluo favors a **code-first** approach where your TypeScript classes define the GraphQL schema.
+Fluo uses a **code-first** approach where TypeScript classes become the basis for the GraphQL schema.
 
 ### Defining the Resolver
 
@@ -78,7 +87,7 @@ export class AppModule {}
 
 ## 18.4 Solving N+1 with DataLoaders
 
-The N+1 problem is the most common performance bottleneck in GraphQL. Fluo provides built-in, request-scoped **DataLoader** support.
+The N+1 problem is the most common performance bottleneck in GraphQL. Fluo provides request-scoped **DataLoader** support so repeated lookups in the same request can be grouped into batches.
 
 ### Creating a DataLoader
 
@@ -87,7 +96,7 @@ import { createDataLoader, type GraphQLContext } from '@fluojs/graphql';
 
 const authorLoader = createDataLoader(async (ids: string[]) => {
   const authors = await authorService.findByIds(ids);
-  // Ensure the return array matches the order of input IDs
+  // Ensure the returned array matches the order of the input IDs.
   return ids.map(id => authors.find(a => a.id === id));
 });
 ```
@@ -102,18 +111,18 @@ export class BookResolver {
     return bookService.findById(id);
   }
 
-  // Field resolver for the 'author' field on a Book
+  // Field resolver for the 'author' field on Book
   async author(book: Book, context: GraphQLContext) {
     return authorLoader(context).load(book.authorId);
   }
 }
 ```
 
-Because `authorLoader(context)` returns a loader instance tied to the specific GraphQL execution context, it ensures that batches are collected only within a single request.
+`authorLoader(context)` returns a loader instance bound to a specific GraphQL execution context. Therefore, batching and caching are shared only within a single request.
 
 ## 18.5 Real-time with Subscriptions
 
-Fluo supports GraphQL subscriptions out of the box using **SSE (Server-Sent Events)** by default, with optional WebSocket support.
+Fluo supports GraphQL subscriptions based on **SSE (Server-Sent Events)** by default, and WebSocket can be enabled when needed.
 
 ### SSE Subscriptions (Default)
 
@@ -131,7 +140,7 @@ export class NotificationResolver {
 
 ### Enabling WebSockets
 
-For two-way real-time communication, enable the WebSocket transport:
+Enable the WebSocket transport when you need bidirectional realtime communication or when the client environment is WebSocket-centered.
 
 ```typescript
 GraphqlModule.forRoot({
@@ -148,31 +157,31 @@ GraphqlModule.forRoot({
 
 ## 18.6 Operational Guardrails
 
-GraphQL APIs are vulnerable to complex, resource-intensive queries. Fluo enforces **Operational Guardrails** by default.
+GraphQL APIs can be vulnerable to deeply nested or expensive queries. Fluo includes **operational guardrails** in the default configuration to reduce these risks.
 
-- **Introspection**: Disabled by default in production.
-- **Complexity Limits**: Use `maxDepth`, `maxComplexity`, and `maxCost` to prevent denial-of-service attacks.
+- **Introspection**: Disabled by default in production environments.
+- **Complexity limits**: Use `maxDepth`, `maxComplexity`, and `maxCost` to reduce excessive query cost and the possibility of denial-of-service (DoS) attacks.
 
 ```typescript
 GraphqlModule.forRoot({
   limits: {
-    maxDepth: 8,      // Prevents deeply nested queries
-    maxComplexity: 120, // Total field weights
-    maxCost: 240,     // Estimated compute cost
+    maxDepth: 8,      // Limit query nesting depth
+    maxComplexity: 120, // Limit total field weight
+    maxCost: 240,     // Limit estimated compute cost
   },
 })
 ```
 
 ## 18.7 FluoShop Context: The Product Catalog
 
-In FluoShop, we use GraphQL to provide a rich product catalog experience. By using DataLoaders for category lookups and Complexity limits to protect our search endpoint, we ensure a fast and secure API for our frontend.
+FluoShop uses GraphQL to provide a more fine-grained product catalog query experience. It applies DataLoader to category lookups and puts complexity limits on search endpoints so performance and safety are managed together.
 
 ```typescript
 @Resolver()
 export class CatalogResolver {
   @Query()
   async search(@Arg('query') query: string) {
-    // Complexity is automatically calculated based on the result set size
+    // Complexity is calculated automatically based on the result set size.
     return this.catalogService.search(query);
   }
 }
@@ -180,21 +189,6 @@ export class CatalogResolver {
 
 ## 18.8 Conclusion
 
-GraphQL in fluo is not just an add-on; it's a deeply integrated part of the ecosystem. By leveraging standard decorators and the native DI container, you can build APIs that are both flexible for clients and maintainable for developers.
+In Fluo, GraphQL is not a peripheral feature. It is an API layer connected to DI, the runtime facade, and Standard Decorators. This structure gives clients a flexible query model while leaving maintainable resolver boundaries on the server side.
 
-In the next chapter, we'll look at how to persist the data driving these APIs using **MongoDB and Mongoose**.
-
-<!-- Padding for line count compliance -->
-<!-- Line 190 -->
-<!-- Line 191 -->
-<!-- Line 192 -->
-<!-- Line 193 -->
-<!-- Line 194 -->
-<!-- Line 195 -->
-<!-- Line 196 -->
-<!-- Line 197 -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->
-<!-- Line 202 -->
+In the next chapter, we'll cover how to persist the data that powers this API with **MongoDB and Mongoose**.

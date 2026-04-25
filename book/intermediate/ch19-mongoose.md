@@ -1,35 +1,44 @@
 <!-- packages: @fluojs/mongoose, mongoose, @fluojs/core -->
 <!-- project-state: FluoShop v2.2.0 -->
 
-# 19. MongoDB and Mongoose
+# Chapter 19. MongoDB and Mongoose
 
-In the world of microservices, polyglot persistence is common. While relational databases are excellent for structured data, MongoDB's flexible document model is often a better fit for catalogs, user profiles, and activity logs.
+This chapter covers how to integrate FluoShop's document-oriented data model into a fluo application. Chapter 18 opened the GraphQL catalog query layer. Here, we'll organize the MongoDB persistence and transaction flow that support it.
 
-The `@fluojs/mongoose` package brings the power of Mongoose to fluo. It provides a lifecycle-aware connection management system and a session-aware transaction wrapper that integrates seamlessly with fluo's DI and interceptor patterns.
+## Learning Objectives
+- Distinguish why Mongoose integration is needed in fluo and where to apply it.
+- Outline `MongooseModule` configuration and connection lifecycle management.
+- Build a repository pattern that uses `MongooseConnection`.
+- Compare manual transactions with request-scoped transactions.
+- See how to apply document models to the FluoShop product catalog.
+- Define standards for observing MongoDB connections with status snapshots.
 
-In this chapter, we will implement MongoDB persistence for FluoShop, focusing on schema definition, transaction management, and request-scoped isolation.
+## Prerequisites
+- Completion of Chapter 18.
+- Understanding of MongoDB document models and basic Mongoose usage.
+- Basic experience with transactions and request-level data consistency.
 
 ## 19.1 Why Mongoose in fluo?
 
-Mongoose is the de facto standard for MongoDB in the Node.js ecosystem. By using the fluo-specific integration, you gain:
+Mongoose is a widely used modeling layer for working with MongoDB in the Node.js ecosystem. Using the fluo-specific integration package gives you these benefits.
 
-- **Lifecycle Management**: Connections are automatically established during the `onApplicationBootstrap` phase and gracefully closed during `beforeApplicationShutdown`.
-- **Session Awareness**: The `MongooseConnection` service tracks MongoDB sessions across your call stack, making transactions much easier to manage.
-- **Request-Scoped Transactions**: Using the `MongooseTransactionInterceptor`, you can wrap entire HTTP requests in a MongoDB transaction with a single decorator.
+- **Lifecycle Management**: It establishes the connection during the `onApplicationBootstrap` stage and closes it safely during the `beforeApplicationShutdown` stage.
+- **Session Awareness**: The `MongooseConnection` service tracks MongoDB sessions across the call stack to preserve transaction boundaries.
+- **Request-Scoped Transactions**: `MongooseTransactionInterceptor` can wrap an entire HTTP request in a MongoDB transaction.
 
 ## 19.2 Installation and Setup
 
-Install Mongoose and the fluo integration:
+Install Mongoose and the fluo integration package.
 
 ```bash
 pnpm add mongoose @fluojs/mongoose
 ```
 
-Unlike some other database integrations, fluo expects you to provide a Mongoose `Connection` object. This gives you full control over the connection options.
+Unlike some database integrations, fluo uses a structure where the application directly creates and provides the Mongoose `Connection` object. This lets the caller explicitly control detailed settings such as the connection string, pool options, and plugin configuration.
 
 ## 19.3 Configuring the MongooseModule
 
-The `MongooseModule` can be configured synchronously or asynchronously.
+`MongooseModule` can be configured synchronously or asynchronously. The example below is the most direct form: passing an already-created connection into the Module.
 
 ### Synchronous Configuration
 
@@ -53,7 +62,7 @@ export class PersistenceModule {}
 
 ## 19.4 Repositories and Connection Management
 
-In fluo, you typically interact with MongoDB through repositories. Instead of using the global `mongoose` object, you inject the `MongooseConnection` service.
+In Fluo, you usually interact with MongoDB through repositories. Instead of depending on the global `mongoose` object, inject the `MongooseConnection` service so the code follows the current connection and session boundary.
 
 ```typescript
 import { MongooseConnection } from '@fluojs/mongoose';
@@ -71,11 +80,11 @@ export class ProductRepository {
 }
 ```
 
-The `conn.current()` method returns the underlying Mongoose connection. If a transaction is active, it may also hold session information depending on the context.
+The `conn.current()` method returns the currently active Mongoose connection. If a transaction is active, session information is also preserved within the same call flow.
 
 ## 19.5 Transaction Management
 
-MongoDB transactions require an active **Session**. Fluo simplifies this by providing a unified transaction wrapper.
+MongoDB transactions require an active **session**. Fluo reduces the caller's burden by grouping session creation, execution, and cleanup into one transaction wrapper.
 
 ### Manual Transactions
 
@@ -92,7 +101,7 @@ await this.conn.transaction(async () => {
 
 ### Request-Scoped Transactions
 
-For even cleaner code, use the `MongooseTransactionInterceptor`. This automatically starts a session and transaction when an HTTP request begins and commits it when the request finishes successfully.
+At the Controller level, you can use `MongooseTransactionInterceptor`. This Interceptor opens a session and transaction when an HTTP request starts, then commits it when the request finishes successfully.
 
 ```typescript
 import { UseInterceptors } from '@fluojs/http';
@@ -103,16 +112,16 @@ import { MongooseTransactionInterceptor } from '@fluojs/mongoose';
 export class OrderController {
   @Post()
   async createOrder() {
-    // Everything here is automatically wrapped in a MongoDB transaction
+    // Every operation inside this method is automatically wrapped in a MongoDB transaction.
   }
 }
 ```
 
 ## 19.6 FluoShop Context: Product Catalog Persistence
 
-In FluoShop, we use MongoDB for the product catalog because the schema for different product types (electronics vs. apparel) can vary significantly.
+FluoShop uses MongoDB for catalog data because product attributes can vary significantly by product type. Documents for electronics, apparel, and digital goods may have different shapes while still belonging to the same domain.
 
-We define a base schema and use Mongoose **Discriminators** to handle different product types while storing them in a single collection.
+After defining a base schema, you can use Mongoose **Discriminators** to store different product types in a single collection while managing type-specific fields separately.
 
 ```typescript
 const productSchema = new mongoose.Schema({ name: String, price: Number }, { discriminatorKey: 'type' });
@@ -122,82 +131,23 @@ const Electronics = Product.discriminator('Electronics', new mongoose.Schema({ w
 const Apparel = Product.discriminator('Apparel', new mongoose.Schema({ size: String, material: String }));
 ```
 
-By leveraging the `MongooseConnection`, our repositories remain clean and testable.
+Using `MongooseConnection` keeps repository code from being tied to global state, makes it easier to inject test doubles, and preserves transaction boundaries consistently.
 
 ## 19.7 Health and Observability
 
-Database connectivity is a vital sign for any backend. Fluo provides a helper to create health snapshots for Mongoose.
+Database connection status is a core signal that backend operations need to check quickly. Fluo provides a snapshot helper so Mongoose connection status can be connected to health checks.
 
 ```typescript
 import { createMongoosePlatformStatusSnapshot } from '@fluojs/mongoose';
 
 const status = await createMongoosePlatformStatusSnapshot(mongooseConnection);
 if (!status.isReady) {
-  // Trigger alerts or enter failover mode
+  // Send an alert or enter failover mode.
 }
 ```
 
 ## 19.8 Conclusion
 
-Mongoose in fluo provides a robust, lifecycle-friendly way to work with MongoDB. By combining Mongoose's powerful modeling with fluo's DI and transaction management, you can build data-driven services that are both flexible and reliable.
+Fluo's Mongoose integration lets you handle connection lifecycle, sessions, and transaction boundaries inside the application structure. Combining Mongoose's modeling features with fluo's DI and transaction management lets you build operational data services while preserving a flexible document model.
 
-In the next chapter, we'll explore **Drizzle ORM**, a modern alternative for SQL-heavy workloads.
-
-<!-- Padding for line count compliance -->
-<!-- Line 190 -->
-<!-- Line 191 -->
-<!-- Line 192 -->
-<!-- Line 193 -->
-<!-- Line 194 -->
-<!-- Line 195 -->
-<!-- Line 196 -->
-<!-- Line 197 -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->
-<!-- Line 202 -->
-
-<!-- Padding for line count compliance -->
-<!-- Line 161 -->
-<!-- Line 162 -->
-<!-- Line 163 -->
-<!-- Line 164 -->
-<!-- Line 165 -->
-<!-- Line 166 -->
-<!-- Line 167 -->
-<!-- Line 168 -->
-<!-- Line 169 -->
-<!-- Line 170 -->
-<!-- Line 171 -->
-<!-- Line 172 -->
-<!-- Line 173 -->
-<!-- Line 174 -->
-<!-- Line 175 -->
-<!-- Line 176 -->
-<!-- Line 177 -->
-<!-- Line 178 -->
-<!-- Line 179 -->
-<!-- Line 180 -->
-<!-- Line 181 -->
-<!-- Line 182 -->
-<!-- Line 183 -->
-<!-- Line 184 -->
-<!-- Line 185 -->
-<!-- Line 186 -->
-<!-- Line 187 -->
-<!-- Line 188 -->
-<!-- Line 189 -->
-<!-- Line 190 -->
-<!-- Line 191 -->
-<!-- Line 192 -->
-<!-- Line 193 -->
-<!-- Line 194 -->
-<!-- Line 195 -->
-<!-- Line 196 -->
-<!-- Line 197 -->
-<!-- Line 198 -->
-<!-- Line 199 -->
-<!-- Line 200 -->
-<!-- Line 201 -->
-<!-- Line 202 -->
+In the next chapter, we'll cover **Drizzle ORM** integration for SQL-centered workloads.

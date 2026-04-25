@@ -1,28 +1,40 @@
 <!-- packages: @fluojs/microservices, nats -->
 <!-- project-state: FluoShop v1.5.0 -->
 
-# 6. NATS
+# Chapter 6. NATS
 
-NATS is the lightest transport in this part that still feels fully brokered. It does not try to be a giant durability platform by default, and instead aims for low-latency messaging, subject-based routing, and operational simplicity. That makes it attractive for control-plane style traffic inside FluoShop. Unlike Kafka, which is designed for "throughput and log persistence," NATS is designed for **"speed and dial-tone reliability."** In a busy system like FluoShop, NATS acts as the nervous system—fast, reactive, and ephemeral. By v1.5.0, the company has several workflows that need quick service-to-service coordination without the heavier operational feel of Kafka or the queue-centric semantics of RabbitMQ. Inventory reservation hints, cache invalidation, and fast internal policy lookups are good examples. NATS fits these links because speed and clear subject routing matter more than historical replay.
+This chapter introduces NATS into FluoShop's fast internal coordination paths and clarifies the role of control-plane messaging, which differs from durable logs or work queues. Chapter 5 covered replayable shared history. Here, the focus moves to inventory and cache coordination, where low latency and subject-based routing matter.
+
+## Learning Objectives
+- Understand why NATS occupies a different architectural position from Kafka or RabbitMQ.
+- Learn how to configure the NATS transport around a caller-owned client and codec.
+- Explain how subject design and request timeouts affect fast internal coordination flows.
+- Analyze how to apply NATS to inventory preview and cache invalidation scenarios.
+- Define the boundaries of NATS usage through logger-driven failure handling and operational signals.
+
+## Prerequisites
+- Completion of Chapter 1, Chapter 2, Chapter 3, Chapter 4, and Chapter 5.
+- Basic understanding of request-reply and event fan-out patterns.
+- A basic sense for separating latency requirements from durability requirements in distributed systems.
 
 ## 6.1 Why NATS in FluoShop
 
-Every transport chapter in this part should answer one question: what does this transport let the architecture express more clearly? For NATS, the answer is fast control-plane communication. FluoShop uses it for two related capabilities.
+Every transport chapter in this part addresses the same question. What intent does this transport make clearer in the architecture? For NATS, the answer is fast control-plane communication. FluoShop uses it for two capabilities.
 
-1. **Quick request-reply checks**: Fast coordination between Order and Inventory services before a customer commits to a purchase.
-2. **Lightweight event fan-out**: Instant signals for cache and policy refresh across the fleet.
+1. **Fast request-reply checks**: Fast coordination between the Order and Inventory services before a customer confirms a purchase.
+2. **Lightweight event fan-out**: Immediate delivery of cache and policy refresh signals across the full server fleet.
 
-These are important interactions, but they are not the same as durable business history and they are also not warehouse work queues. They are short-lived internal coordination steps. By utilizing **Subject-based Routing** (e.g., `fluoshop.inventory.*`), NATS allows services to subscribe to very specific sub-streams of data, ensuring that a service only receives exactly what it needs to coordinate its local state.
+These interactions are important, but they are not durable business history, and they are not warehouse work queues. They are short internal coordination steps. With **subject-based routing** (for example, `fluoshop.inventory.*`), services can subscribe to specific data substreams and receive only the signals they need for local state coordination.
 
 ## 6.2 Caller-owned client and codec setup
 
-The package README calls out an important fact: NATS is caller-owned. `@fluojs/microservices` expects the application to supply both a NATS client and a codec, and the generated starters mentioned in the README use `nats` plus `JSONCodec()`.
+The package README marks an important boundary. NATS is caller-owned. `@fluojs/microservices` expects the application to provide both the NATS client and the codec, and the generated starter mentioned in the README also uses `nats` and `JSONCodec()`.
 
-That detail is useful because it shows fluo is not trying to hide the real NATS contract. Since NATS uses `Uint8Array` for its payload, the `codec` bridge ensures that the framework's JSON-based frames are correctly serialized and deserialized for the wire.
+This detail shows that fluo does not hide the actual NATS contract. NATS uses `Uint8Array` for payloads, so the `codec` bridge ensures that the framework's JSON-based frames are serialized and deserialized correctly during network transport.
 
 ### 6.2.1 Subject design
 
-`NatsMicroserviceTransport` exposes these core options.
+`NatsMicroserviceTransport` exposes the following core options.
 
 - `client`
 - `codec`
@@ -32,14 +44,14 @@ That detail is useful because it shows fluo is not trying to hide the real NATS 
 
 The defaults use `fluo.microservices.events` and `fluo.microservices.messages`.
 
-In FluoShop we can choose subject names that reflect domain intent.
+In FluoShop, we use subject names that reveal domain intent.
 
 - `fluoshop.inventory.events`
 - `fluoshop.inventory.messages`
 
 The transport still carries JSON-framed packets.
 
-The subject names simply make broker inspection easier. Using subjects like `fluoshop.inventory.messages` allows operators to use NATS wildcard subscriptions (like `fluoshop.inventory.>`) to monitor all inventory-related traffic in a single terminal session.
+Subject names make intent easier to read when inspecting the broker. With a subject such as `fluoshop.inventory.messages`, operators can monitor all inventory-related traffic in a single terminal session through NATS wildcard subscriptions (for example, `fluoshop.inventory.>`).
 
 ### 6.2.2 Module wiring
 
@@ -48,7 +60,7 @@ import { Module } from '@fluojs/core';
 import { MicroservicesModule, NatsMicroserviceTransport } from '@fluojs/microservices';
 import { JSONCodec, connect } from 'nats';
 
-// NATS connection logic stays in the bootstrap/main file
+// NATS connection logic stays in the bootstrap/main file.
 const client = await connect({ servers: process.env.NATS_URL });
 const codec = JSONCodec();
 
@@ -74,106 +86,106 @@ const transport = new NatsMicroserviceTransport({
 export class InventoryCoordinationModule {}
 ```
 
-The exact codec wrapper can vary.
+The exact codec wrapper implementation can vary by team.
 
-The architectural point does not.
+But the architectural point does not change.
 
-Your application owns the NATS connection and codec choice explicitly.
+The application explicitly owns the NATS connection and codec choice.
 
 ## 6.3 Fast request-reply for inventory control
 
-NATS uses request-reply natively.
+NATS naturally supports request-reply.
 
-The fluo transport maps `send()` onto `client.request(...)` with a timeout.
+The fluo transport maps `send()` to `client.request(...)` with a timeout.
 
-That makes the path feel direct while still preserving the microservice abstraction. Because NATS handles the **Inbox** creation and reply-to correlation automatically, the developer doesn't need to worry about the unique response topics we saw in the Kafka chapter.
+This lets the path behave as quickly as a direct call while preserving the microservices abstraction. Because NATS handles **Inbox** creation and reply-to correlation, developers do not need to manage the unique response topics we saw in the Kafka chapter themselves.
 
 ### 6.3.1 Inventory reservation lookups
 
-In FluoShop, the Order Service sometimes needs a fast answer before confirming checkout. It may ask the Inventory Service whether a flash-sale SKU still has reserve stock in a particular zone. This is not the final durable reservation; it is a fast coordination check, and that is a good NATS use case.
+In FluoShop, the Order Service sometimes needs a fast answer before checkout is confirmed. For example, it can ask the Inventory Service whether a flash-sale SKU still has reserve stock in a specific zone. This is not the final durable reservation. It is a fast coordination check, and NATS fits that case well.
 
 ```typescript
 @MessagePattern('inventory.reserve-preview')
 async previewReservation(input: { sku: string; zoneId: string; quantity: number }) {
-  // Rapid look-ahead check
+  // Fast look-ahead check
   return await this.inventoryPolicy.preview(input);
 }
 ```
 
-The Order Service gets a quick answer.
+The Order Service gets an answer within a short latency window.
 
-If it needs the truly durable business record later, another transport can own that step.
+If a durable business record is needed later, another transport can own that step.
 
-NATS does not need to carry every responsibility alone.
+NATS does not need to take on every responsibility.
 
 ### 6.3.2 Timeout budgets
 
-The transport defaults to a request timeout of 3 seconds unless you override it. FluoShop should usually shorten that for control-plane checks. If an inventory preview is not available quickly, the gateway should degrade gracefully rather than stall the customer journey. A fast failure is often more honest than a long uncertain wait, and that is particularly true for advisory lookups. In v1.5.0, we set the `requestTimeoutMs` to 1,500ms to ensure the user experience remains snappy even under heavy load.
+The transport uses a 3-second request timeout by default, and you can override this value. In FluoShop, control-plane checks use a shorter budget. If the inventory preview does not arrive quickly, the gateway should degrade gracefully instead of stopping the customer journey for too long. For advisory lookups, failing fast is operationally better than a long, uncertain wait. In v1.5.0, `requestTimeoutMs` is set to 1,500ms so the user experience stays responsive even under high load.
 
 ## 6.4 Event fan-out and logger-driven failures
 
-NATS also supports `emit()` for lightweight event delivery. This is perfect for cache invalidation or policy refresh notices. For example, if Catalog updates a restricted-item rule, several services may need to refresh local read models, and that signal should be fast. It does not need Kafka-style historical replay for every environment.
+NATS also supports `emit()` for lightweight event delivery. This path fits cache invalidation or policy refresh notices well. For example, when Catalog updates a restricted-item rule, several services may need to refresh local read models, and that signal needs to be fast. Not every environment needs Kafka-level historical replay.
 
 ### 6.4.1 Cache invalidation in FluoShop
 
-One simple example is the invalidation of inventory read caches.
+A representative example is invalidating the inventory read cache.
 
 ```typescript
 @EventPattern('inventory.cache.invalidate')
 async invalidateCache(event: { sku: string }) {
-  // Evict stale data immediately across all service instances
+  // Immediately remove stale data from every service instance.
   await this.inventoryCache.evict(event.sku);
 }
 ```
 
-The handler still looks ordinary.
+The handler is still simple.
 
-The subject routing and NATS publish mechanics stay inside the transport.
+Subject routing and the NATS publish mechanism remain inside the transport.
 
-This consistency is what lets one team understand multiple transports without learning a new handler model each time.
+This consistency means teams do not need to relearn a new handler model every time the transport changes.
 
 ### 6.4.2 No console fallback for event failures
 
-The repository tests verify a subtle but important behavior. Event handler failures are logger-driven: if you set a transport logger, the error is reported there, and if you do not set one, fluo does not mirror the failure through a raw `console.error` fallback. That matters for production hygiene because it avoids duplicate noise and keeps observability policy explicit.
+Repository tests verify a subtle but important behavior. Event handler failures are logger-driven, and if a transport logger is configured, errors are recorded through that path. If no logger is configured, fluo does not duplicate them through a raw `console.error` fallback. This behavior matters for production hygiene. It avoids duplicate noise and keeps the observability policy explicit.
 
-For FluoShop, this means the platform team should wire a structured logger whenever NATS event paths matter operationally. The transport utilizes the `logTransportEventHandlerFailure` utility to ensure that if a cache invalidation fails, it is recorded correctly in the service's telemetry.
+In FluoShop, if the NATS event path is operationally important, the platform team must connect a structured logger. The transport uses the `logTransportEventHandlerFailure` utility so cache invalidation failures are recorded in service telemetry.
 
 ## 6.5 Operations and trade-offs
 
-NATS looks simple because it is simple in the ways many teams want. That simplicity is a feature, but it is also a warning against forcing it into roles where richer durability or replay semantics are required. FluoShop uses NATS for quick coordination, not as the canonical timeline and not as the main queueing system.
+NATS looks simple because it really is simple in the way many teams want. That simplicity is a strength, but it is also a warning not to force it into roles that need richer durability or replay semantics. FluoShop uses NATS for fast coordination, not as the canonical timeline or the main queueing system.
 
-Operationally, teams should watch:
+From an operations perspective, teams should watch the following signals.
 
-- **Timeout rates**: High timeout rates on request-reply suggest the target service is overloaded.
-- **Burst volume**: Sudden spikes in fan-out volume can impact internal network latency.
-- **Connection churn**: Frequent reconnects may indicate unstable NATS server configuration or network issues.
-- **Handler error logs**: Monitoring for failed policy updates or cache evictions.
+- **Timeout rates**: High timeout rates suggest the target service is overloaded.
+- **Burst volume**: Sudden increases in fan-out volume can affect internal network latency.
+- **Connection churn**: Frequent reconnections can indicate unstable NATS server configuration or network issues.
+- **Handler error logs**: Monitor failed policy updates or cache evictions.
 
-If these signals stay healthy, NATS remains a clean internal coordination layer.
+If these signals are stable, NATS remains a clear internal coordination layer.
 
-If the business starts demanding replay or long-lived retention, another transport should take over that responsibility.
+If the business starts requiring replay or long-term retention, another transport should take on that responsibility.
 
 ## 6.6 FluoShop v1.5.0 progression
 
-By the end of this chapter, FluoShop gains a fast control plane. The architecture now has a clear split.
+By the end of this chapter, FluoShop has a fast control plane. The architecture's division of responsibility is also clearer.
 
 - Kafka is for durable shared history.
 - RabbitMQ is for queue-owned warehouse work.
-- Redis Streams still covers some durable workflows.
+- Redis Streams still handles some durable workflows.
 - NATS is for low-latency internal coordination.
 
-This is not over-engineering. It is explicit role assignment, and systems become easier to reason about when each transport has one primary job.
+This is not overengineering. It is explicit role assignment. Systems become easier to read when each transport owns one primary responsibility.
 
 ## 6.7 Summary
 
-- NATS is well suited for low-latency control-plane messaging and lightweight event fan-out.
+- NATS fits low-latency control-plane messaging and lightweight event fan-out well.
 - fluo expects a caller-owned NATS client and codec, keeping infrastructure wiring explicit.
-- `send()` maps naturally onto NATS request-reply for fast coordination checks.
-- event-handler failures remain logger-driven, with no raw `console.error` fallback when no logger is configured.
-- FluoShop now uses NATS for fast inventory and cache-coordination paths where speed matters more than replay.
+- `send()` maps naturally to NATS request-reply for fast coordination checks.
+- Event handler failures are handled in a logger-driven way and do not use a raw `console.error` fallback when no logger is present.
+- FluoShop now uses NATS for inventory and cache coordination paths where speed matters more than replay.
 
-NATS does not try to win every transport contest.
+NATS is not a tool that tries to win every transport contest.
 
-It wins the one about fast, understandable coordination.
+It is strong in one role: fast, understandable coordination.
 
-That is exactly why it belongs in FluoShop. It completes the "spectrum of communication" by adding a high-speed lane for internal signals.
+That is why FluoShop needs NATS. It fills a gap in the communication choices by adding a high-speed lane for internal signals.
