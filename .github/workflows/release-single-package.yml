@@ -23,8 +23,8 @@ on:
         default: false
         type: boolean
       release_intent_file:
-        description: Committed release-intent JSON record consumed by release-readiness for 1.0.0-beta.2+ publishes
-        required: true
+        description: Optional committed release-intent JSON record; required by release-readiness for 1.0.0-beta.2+ publishes
+        required: false
         type: string
 
 concurrency:

@@ -247,6 +247,8 @@ describe('platform consistency governance docs', () => {
     expect(releaseWorkflow).toContain('dist_tag:');
     expect(releaseWorkflow).toContain('release_prerelease:');
     expect(releaseWorkflow).toContain('release_intent_file:');
+    expect(releaseWorkflow).toContain('Optional committed release-intent JSON record; required by release-readiness for 1.0.0-beta.2+ publishes');
+    expect(releaseWorkflow).toContain('required: false');
     expect(releaseWorkflow).not.toContain('default: tooling/release/intents/release-intent.json');
     expect(releaseWorkflow).toContain('RELEASE_INTENT_FILE: ${{ inputs.release_intent_file }}');
     expect(releaseWorkflow).toContain('id-token: write');
