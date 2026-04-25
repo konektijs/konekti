@@ -130,6 +130,14 @@ fluo inspect ./src/app.module.ts --mermaid
 fluo inspect ./src/app.module.ts --json > snapshot.json
 ```
 
+`fluo inspect --mermaid`는 CLI를 런타임 snapshot producer로 유지하고, 그래프 렌더링은 선택적 `@fluojs/studio` 계약에 위임합니다. Mermaid 출력이 필요하면 명령을 실행하는 프로젝트에 Studio를 설치하세요:
+
+```bash
+pnpm add -D @fluojs/studio
+```
+
+Studio가 없으면 CI와 non-interactive 실행은 prompt나 package manager 실행 없이 설치 안내와 함께 빠르게 실패합니다. Interactive 실행에서는 Studio 설치 여부를 물을 수 있지만, 명시적으로 승인되고 구현된 설치 흐름이 없는 한 `fluo inspect`가 package manager install을 실행하지 않습니다.
+
 ## 공개 API
 
 다른 도구 내에서 CLI 동작을 트리거하기 위해 패키지를 프로그래밍 방식으로 사용할 수 있습니다.
@@ -143,7 +151,7 @@ fluo inspect ./src/app.module.ts --json > snapshot.json
 ## 관련 패키지
 
 - **[@fluojs/runtime](../runtime/README.ko.md)**: 검사 및 부트스트랩에 사용되는 기본 엔진입니다.
-- **[@fluojs/studio](../studio/README.ko.md)**: `inspect --json` 출력을 시각화하기 위한 웹 기반 UI입니다.
+- **[@fluojs/studio](../studio/README.ko.md)**: `inspect --json` 출력을 시각화하고 `inspect --mermaid`가 사용하는 canonical renderer를 제공하는 웹 기반 UI입니다.
 - **[@fluojs/testing](../testing/README.ko.md)**: 통합 및 E2E 테스트를 위해 생성된 테스트 템플릿에서 사용됩니다.
 - **[Canonical Runtime Package Matrix](../../docs/reference/package-surface.ko.md)**: 공식 런타임/패키지 조합을 보여주는 기준 문서입니다.
 
