@@ -1062,7 +1062,69 @@ describe('CLI command runner', () => {
     expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.module.ts'))).toBe(true);
   });
 
-  it('accepts `request-dto` as a request DTO schematic', async () => {
+  it('accepts `request-dto` as a request DTO schematic with an explicit feature target', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+
+    mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ name: 'test-app', private: true }, null, 2),
+    );
+
+    const exitCode = await runCli(['g', 'request-dto', 'users', 'CreateUser'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'create-user.request.dto.ts'))).toBe(true);
+    expect(existsSync(join(workspaceDirectory, 'src', 'create-users', 'create-user.request.dto.ts'))).toBe(false);
+  });
+
+  it('supports the canonical generate request-dto command with an explicit feature target', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+
+    mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ name: 'test-app', private: true }, null, 2),
+    );
+
+    const exitCode = await runCli(['generate', 'request-dto', 'users', 'CreateUser'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'create-user.request.dto.ts'))).toBe(true);
+  });
+
+  it('normalizes PascalCase request DTO feature targets to plural slice directories', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+
+    mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ name: 'test-app', private: true }, null, 2),
+    );
+
+    const exitCode = await runCli(['g', 'req', 'User', 'CreateUser'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'create-user.request.dto.ts'))).toBe(true);
+    expect(existsSync(join(workspaceDirectory, 'src', 'user', 'create-user.request.dto.ts'))).toBe(false);
+  });
+
+  it('keeps the legacy one-name request DTO form as a compatibility path', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
 
@@ -1639,13 +1701,14 @@ describe('CLI command runner', () => {
       JSON.stringify({ name: 'test-app', private: true }, null, 2),
     );
 
-    const exitCode = await runCli(['g', 'req', 'CreateUser'], {
+    const exitCode = await runCli(['g', 'req', 'users', 'CreateUser'], {
       cwd: workspaceDirectory,
       stderr: { write: () => undefined },
       stdout: { write: () => undefined },
     });
 
     expect(exitCode).toBe(0);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'create-user.request.dto.ts'))).toBe(true);
   });
 
   it('resolves `res` alias to response-dto', async () => {
@@ -1718,7 +1781,7 @@ describe('CLI command runner', () => {
     );
 
     const stdoutBuffer: string[] = [];
-    const exitCode = await runCli(['g', 'request-dto', 'CreateUser'], {
+    const exitCode = await runCli(['g', 'request-dto', 'users', 'CreateUser'], {
       cwd: workspaceDirectory,
       stderr: { write: () => undefined },
       stdout: { write: (message) => stdoutBuffer.push(message) },
@@ -1728,6 +1791,7 @@ describe('CLI command runner', () => {
 
     expect(exitCode).toBe(0);
     expect(output).toContain('CREATE');
+    expect(output).toContain('users/create-user.request.dto.ts');
     expect(output).toContain('Wiring: files only');
     expect(output).toContain('manual registration required');
     expect(output).toContain('Next steps:');
