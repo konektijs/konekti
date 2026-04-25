@@ -163,9 +163,11 @@ Inside a service or Controller, use it like this.
 
 ```typescript
 import { Inject } from '@fluojs/core';
+import { ConfigService } from '@fluojs/config';
 
+@Inject(ConfigService)
 export class ApiService {
-  constructor(@Inject(ConfigService) private readonly config: ConfigService) {}
+  constructor(private readonly config: ConfigService) {}
 
   getExternalApiUrl() {
     // Using getOrThrow ensures the app fails immediately when a required key is missing.

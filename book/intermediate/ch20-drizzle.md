@@ -79,10 +79,9 @@ import { Inject } from '@fluojs/core';
 import { eq } from 'drizzle-orm';
 import { products } from './schema';
 
+@Inject(DrizzleDatabase)
 export class ProductRepository {
-  constructor(
-    @Inject(DrizzleDatabase) private readonly db: DrizzleDatabase
-  ) {}
+  constructor(private readonly db: DrizzleDatabase) {}
 
   async findById(id: string) {
     return this.db.current()

@@ -135,8 +135,9 @@ MetricsModule.forRoot({
 import { Inject } from '@fluojs/core';
 import { MetricsService } from '@fluojs/metrics';
 
+@Inject(MetricsService)
 export class PostService {
-  constructor(@Inject(MetricsService) private readonly metrics: MetricsService) {}
+  constructor(private readonly metrics: MetricsService) {}
 
   async create(data: any) {
     const post = await this.prisma.post.create({ data });

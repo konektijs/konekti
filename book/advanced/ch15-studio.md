@@ -80,7 +80,7 @@ export interface PlatformDiagnosticIssue {
   componentId: string;    // Failed component
   message: string;        // Human-readable description
   cause?: string;         // Root cause analysis
-  fixHint?: string;       // Explicit suggestion: "Add @Injectable() to X"
+  fixHint?: string;       // Explicit suggestion: "Add @Inject(TOKEN) to X"
   dependsOn?: string[];   // Blockers preventing resolution
   docsUrl?: string;       // Link to the detailed guide
 }

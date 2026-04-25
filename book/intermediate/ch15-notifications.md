@@ -82,11 +82,9 @@ Once registration is complete, you can inject `NotificationsService` into a Prov
 import { Inject } from '@fluojs/core';
 import { NotificationsService } from '@fluojs/notifications';
 
+@Inject(NotificationsService)
 export class WelcomeService {
-  constructor(
-    @Inject(NotificationsService) 
-    private readonly notifications: NotificationsService
-  ) {}
+  constructor(private readonly notifications: NotificationsService) {}
 
   async sendWelcome(email: string) {
     await this.notifications.dispatch({

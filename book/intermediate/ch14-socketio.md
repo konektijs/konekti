@@ -81,12 +81,10 @@ import {
 } from '@fluojs/socket.io';
 import { Inject } from '@fluojs/core';
 
+@Inject(SOCKETIO_ROOM_SERVICE)
 @WebSocketGateway({ path: '/support' })
 export class SupportChatGateway {
-  constructor(
-    @Inject(SOCKETIO_ROOM_SERVICE)
-    private readonly rooms: SocketIoRoomService
-  ) {}
+  constructor(private readonly rooms: SocketIoRoomService) {}
 
   @OnMessage('join_ticket')
   handleJoin(payload: { ticketId: string }, socket: any) {
@@ -147,14 +145,13 @@ This is common when connecting a custom adapter such as a Redis adapter for mult
 You can inject the raw server with the `SOCKETIO_SERVER` Token.
 
 ```typescript
+import { Inject } from '@fluojs/core';
 import { SOCKETIO_SERVER } from '@fluojs/socket.io';
 import type { Server } from 'socket.io';
 
+@Inject(SOCKETIO_SERVER)
 export class ScalingService {
-  constructor(
-    @Inject(SOCKETIO_SERVER)
-    private readonly io: Server
-  ) {
+  constructor(private readonly io: Server) {
     // Perform low level server setup
     console.log('Socket.IO Server instance is available');
   }

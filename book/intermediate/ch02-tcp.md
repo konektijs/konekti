@@ -76,10 +76,9 @@ The `MICROSERVICE` token gives you access to the transport instance configured i
 import { Inject } from '@fluojs/core';
 import { MICROSERVICE, type Microservice } from '@fluojs/microservices';
 
+@Inject(MICROSERVICE)
 export class CatalogClient {
-  constructor(
-    @Inject(MICROSERVICE) private readonly client: Microservice
-  ) {}
+  constructor(private readonly client: Microservice) {}
 
   async getProduct(productId: string) {
     return await this.client.send('catalog.get', { productId });

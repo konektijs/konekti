@@ -99,9 +99,9 @@ This keeps the request path short without losing the business action.
 import { Inject } from '@fluojs/core';
 import { QueueLifecycleService } from '@fluojs/queue';
 
+@Inject(QueueLifecycleService)
 export class BillingProjectionHandler {
-  @Inject(QueueLifecycleService)
-  private readonly queue: QueueLifecycleService;
+  constructor(private readonly queue: QueueLifecycleService) {}
 
   async onShipmentDispatched(orderId: string) {
     await this.queue.enqueue(new GenerateInvoiceJob(orderId));

@@ -253,8 +253,8 @@ This matters to fluo because useful framework behavior does not always happen on
 
 ```typescript
 class MyController {
-  @Inject(MyService)
-  accessor service: MyService;
+  @TrackAccess('viewCount')
+  accessor viewCount = 0;
 }
 ```
 
@@ -264,7 +264,7 @@ Accessors provide clearer language-level hooks for property-related behavior.
 
 That makes them useful for patterns like these.
 
-- property-based injection,
+- property access tracking,
 - lazy initialization,
 - structured metadata attachment.
 
@@ -278,7 +278,7 @@ The standard Decorator model gives framework authors a broader and cleaner desig
 
 ### Encapsulation and Getters/Setters
 
-When the `accessor` keyword is combined with Decorators, fluo can intercept property access while still respecting standard JavaScript encapsulation. Your code stays idiomatic, and the framework handles work such as dependency resolution or state management at defined points.
+When the `accessor` keyword is combined with Decorators, fluo can intercept property access while still respecting standard JavaScript encapsulation. Your code stays idiomatic, and the framework handles work such as state observation or structured metadata attachment at defined points.
 
 ### Reactivity and State Management
 

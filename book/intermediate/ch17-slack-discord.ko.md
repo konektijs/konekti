@@ -83,8 +83,9 @@ export class AppModule {}
 import { Inject } from '@fluojs/core';
 import { SlackService } from '@fluojs/slack';
 
+@Inject(SlackService)
 export class LoggerService {
-  constructor(@Inject(SlackService) private readonly slack: SlackService) {}
+  constructor(private readonly slack: SlackService) {}
 
   async logError(error: Error) {
     await this.slack.send({

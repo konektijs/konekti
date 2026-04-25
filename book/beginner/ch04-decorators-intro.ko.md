@@ -253,8 +253,8 @@ findAll() {
 
 ```typescript
 class MyController {
-  @Inject(MyService)
-  accessor service: MyService;
+  @TrackAccess('viewCount')
+  accessor viewCount = 0;
 }
 ```
 
@@ -264,7 +264,7 @@ class MyController {
 
 그래서 다음과 같은 패턴에 유용합니다.
 
-- 속성 기반 주입,
+- 속성 접근 추적,
 - 지연 초기화,
 - 구조화된 메타데이터 부착.
 
@@ -278,7 +278,7 @@ class MyController {
 
 ### Encapsulation and Getters/Setters
 
-`accessor` 키워드를 데코레이터와 결합하면 fluo가 표준 JavaScript 캡슐화를 존중하면서 속성 접근을 가로챌 수 있습니다. 코드는 관용적(idiomatic)인 상태를 유지하고, 프레임워크는 의존성 해결이나 상태 관리 같은 작업을 정해진 지점에서 처리합니다.
+`accessor` 키워드를 데코레이터와 결합하면 fluo가 표준 JavaScript 캡슐화를 존중하면서 속성 접근을 가로챌 수 있습니다. 코드는 관용적(idiomatic)인 상태를 유지하고, 프레임워크는 상태 관찰이나 구조화된 메타데이터 부착 같은 작업을 정해진 지점에서 처리합니다.
 
 ### Reactivity and State Management
 

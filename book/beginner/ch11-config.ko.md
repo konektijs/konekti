@@ -163,9 +163,11 @@ async function bootstrap() {
 
 ```typescript
 import { Inject } from '@fluojs/core';
+import { ConfigService } from '@fluojs/config';
 
+@Inject(ConfigService)
 export class ApiService {
-  constructor(@Inject(ConfigService) private readonly config: ConfigService) {}
+  constructor(private readonly config: ConfigService) {}
 
   getExternalApiUrl() {
     // getOrThrow를 사용하면 필수 키가 누락되었을 때 앱이 즉시 중단되도록 보장합니다.
