@@ -266,7 +266,7 @@ describe('platform consistency governance docs', () => {
     expect(releaseWorkflow).toContain('run: pnpm verify:release-readiness');
     expect(releaseWorkflow).toContain('NPM_CONFIG_PROVENANCE: true');
     expect(releaseWorkflow).toContain('NPM_TOKEN: ${{ secrets.NPM_TOKEN }}');
-    expect(releaseWorkflow).not.toContain('NODE_AUTH_TOKEN');
+    expect(releaseWorkflow).toContain('NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}');
   });
 
   it('keeps Changesets release safety gates before versioning or publish', () => {

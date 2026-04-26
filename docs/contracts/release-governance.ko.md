@@ -50,7 +50,7 @@ Changesets(`.changeset/*.md`)는 canonical release metadata 도구입니다. 기
 
 changeset에 없는 패키지는 해당 릴리스에서 version이 올라가거나 publish되지 않습니다. Downstream dependent 패키지는 Changesets의 낶은 dependency graph를 통해 평가되며, dependent 버전 bump는 versioning 단계에서 자동으로 계산됩니다.
 
-릴리스 workflow는 `main`에 push될 때 자동으로 트리거됩니다. pending changeset이 있으면 Changesets action이 "Version Packages" PR을 열어 버전을 올리고, changelog를 업데이트하며, 소비된 changeset을 제거합니다. 이 PR을 merge하면 publish 단계가 트리거되어 npm token 기반 인증과 provenance로 영향받는 패키지를 npm에 publish하고, scoped git tag와 GitHub Release를 생성합니다.
+릴리스 workflow는 `main`에 push될 때 자동으로 트리거됩니다. pending changeset이 있으면 Changesets action이 "Version Packages" PR을 열어 버전을 올리고, changelog를 업데이트하며, 소비된 changeset을 제거합니다. 이 PR을 merge하면 publish 단계가 트리거되어 npm token 기반 인증과 provenance로 영향받는 패키지를 npm에 publish하고, scoped git tag와 GitHub Release를 생성합니다. publish step은 같은 `secrets.NPM_TOKEN` 값을 Changesets action용 `NPM_TOKEN`과 `actions/setup-node`가 생성한 npm user config path용 `NODE_AUTH_TOKEN`으로 모두 전달합니다.
 
 Prerelease workflow는 Changesets prerelease mode(`changeset pre enter <tag>`)를 사용합니다. 필요할 때 dedicated branch에서 prerelease mode에 진입하고, stable 릴리스 전에 `changeset pre exit`로 종료합니다.
 
