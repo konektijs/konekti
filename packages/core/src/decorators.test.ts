@@ -38,6 +38,16 @@ describe('core decorators', () => {
     });
   });
 
+  it.each(['singleton', 'request', 'transient'] as const)('writes %s scope metadata through @Scope', (scope) => {
+    @Scope(scope)
+    class ScopedService {}
+
+    expect(getClassDiMetadata(ScopedService)).toEqual({
+      inject: undefined,
+      scope,
+    });
+  });
+
   it('inherits DI metadata through decorators while keeping own reads separate', () => {
     const LOGGER = Symbol('LOGGER');
 
