@@ -150,7 +150,7 @@ const verifier = new DefaultJwtVerifier({
 
 JWT signing and verification require at least one supported algorithm in `algorithms`. The built-in signer supports `HS256`, `HS384`, `HS512`, `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, and `ES512`; configuration with an empty algorithm list fails fast instead of issuing or accepting ambiguous tokens.
 
-Access-token TTL must also be a positive finite number. When `accessTokenTtlSeconds` is omitted, `DefaultJwtSigner` uses the documented `3600` second default; when it is provided as `0`, a negative number, or a non-finite value, signing fails with `JwtConfigurationError` before a token is issued.
+Access-token TTL must also be a positive finite number. When `accessTokenTtlSeconds` is omitted, `DefaultJwtSigner` uses the documented `3600` second default. Fractional seconds are preserved in the JWT NumericDate `exp` claim; when the option is provided as `0`, a negative number, or a non-finite value, signing fails with `JwtConfigurationError` before a token is issued.
 
 ## Public API Overview
 
