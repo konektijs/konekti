@@ -20,6 +20,14 @@ import {
   getOwnClassDiMetadata,
   getRouteMetadata,
 } from './metadata.js';
+import {
+  getStandardConstructorMetadataBag,
+  getStandardConstructorMetadataMap,
+  getStandardConstructorMetadataRecord,
+  getStandardMetadataBag,
+  standardMetadataKeys,
+  type StandardMetadataBag,
+} from './metadata/shared.js';
 
 describe('metadata helpers', () => {
   it('round-trips module metadata', () => {
@@ -479,6 +487,44 @@ describe('metadata helpers', () => {
 
   it('ensures Symbol.metadata is available through the exported initializer', () => {
     expect(ensureMetadataSymbol()).toBe((Symbol as typeof Symbol & { metadata?: symbol }).metadata);
+  });
+
+  it('reads standard metadata bags and constructor-level records through Symbol.metadata', () => {
+    const metadataSymbol = ensureMetadataSymbol();
+    const injectionMetadata = new Map([['service', { optional: true, token: 'LOGGER' }]]);
+    const metadataBag: StandardMetadataBag = {
+      [standardMetadataKeys.controller]: { basePath: '/users' },
+      [standardMetadataKeys.injection]: injectionMetadata,
+    };
+
+    class ExampleController {
+      service!: string;
+    }
+
+    Object.defineProperty(ExampleController, metadataSymbol, {
+      configurable: true,
+      value: metadataBag,
+    });
+
+    expect(getStandardMetadataBag(ExampleController)).toBe(metadataBag);
+    expect(getStandardConstructorMetadataBag(ExampleController.prototype)).toBe(metadataBag);
+    expect(getStandardConstructorMetadataRecord<{ basePath: string }>(
+      ExampleController.prototype,
+      standardMetadataKeys.controller,
+    )).toEqual({ basePath: '/users' });
+    expect(getStandardConstructorMetadataMap(ExampleController.prototype, standardMetadataKeys.injection)).toBe(injectionMetadata);
+  });
+
+  it('ignores non-object standard metadata payloads', () => {
+    class ExampleController {}
+
+    Object.defineProperty(ExampleController, ensureMetadataSymbol(), {
+      configurable: true,
+      value: 'invalid metadata',
+    });
+
+    expect(getStandardMetadataBag(ExampleController)).toBeUndefined();
+    expect(getStandardConstructorMetadataBag(ExampleController.prototype)).toBeUndefined();
   });
 
   it('does not retain caller-owned module metadata arrays across partial writes', () => {
