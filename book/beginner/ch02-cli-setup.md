@@ -6,7 +6,7 @@
 In Chapter 1, you saw the ideas behind fluo. Now it is time to turn that philosophy into real directories and commands. By the end of this chapter, you will have a runnable FluoBlog starter, and you will understand why the generated files are placed where they are. Before building more architecture on top, you will secure a stable baseline that already works.
 
 ## Learning Objectives
-- Learn how to install the fluo CLI globally or run it through a package runner.
+- Learn how to install the fluo CLI globally or run it with `pnpm dlx` when you need a one-off execution.
 - Scaffold a new project with the `fluo new` command.
 - Preview scaffold choices with `--print-plan` before files are written.
 - Recognize the beginner-facing CLI commands you will meet later: `generate`/`g`, `inspect`, and `migrate`.
@@ -53,12 +53,12 @@ If a version string is printed, your shell can find the executable correctly.
 When you are starting out, the simplest choice is usually a global install. It is also common in real work, but knowing the difference helps you make faster decisions later when you work with a team or CI. The point is not to memorize one correct option, but to choose based on the environment in front of you.
 
 - **Global installation** is convenient in a personal development environment.
-- **Local execution** through tools like `npx`, `pnpx`, or `pnpm dlx` makes it easier to pin versions in CI.
-- Team workflows may prefer local execution so everyone uses the same version.
+- **One-off execution** through `pnpm dlx` makes it easier to pin the CLI version in CI or scripts without relying on a global binary.
+- Team workflows may prefer `pnpm dlx` scripts so everyone uses the same CLI version.
 
-All three approaches are valid. The key is to choose for the current situation, not out of habit.
+Both approaches are valid. The key is to choose for the current situation, not out of habit.
 
-For example, if you want to run the CLI without installing it globally, you can start a project like this.
+For example, if you want to run the CLI without installing it globally, use the documented `pnpm dlx` path.
 
 ```bash
 pnpm dlx @fluojs/cli new fluo-blog
