@@ -14,7 +14,7 @@
 | **Persistence** | Database and cache. | `@fluojs/prisma`, `@fluojs/drizzle`, `@fluojs/mongoose`, `@fluojs/redis`, `@fluojs/cache-manager` |
 | **Patterns** | Messaging and architecture. | `@fluojs/microservices`, `@fluojs/cqrs`, `@fluojs/event-bus`, `@fluojs/cron`, `@fluojs/queue`, `@fluojs/notifications`, `@fluojs/email`, `@fluojs/slack`, `@fluojs/discord` |
 | **Operations** | Health and monitoring. | `@fluojs/metrics`, `@fluojs/terminus`, `@fluojs/throttler` |
-| **Tooling** | CLI inspection export, Studio graph viewing/rendering, and testing diagnostics. | `@fluojs/cli`, `@fluojs/studio`, `@fluojs/testing` |
+| **Tooling** | CLI inspection export, inspect artifact viewing/rendering through Studio, and testing diagnostics. | `@fluojs/cli`, `@fluojs/studio`, `@fluojs/testing` |
 
 ## canonical runtime package matrix
 
@@ -55,9 +55,15 @@
 - **`@fluojs/prisma` / `@fluojs/drizzle`**: ORM lifecycle and ALS-backed transaction context.
 
 ### tooling
-- **`@fluojs/cli`**: Project scaffolding, generation, codemods, and inspection export/delegation for runtime-produced snapshots.
-- **`@fluojs/studio`**: File-first snapshot viewer plus canonical parsing, filtering, and graph rendering helpers for CLI and automation callers.
+- **`@fluojs/cli`**: Project scaffolding, generation, codemods, and inspection export/delegation for runtime-produced snapshots. `fluo inspect` owns CLI argument validation, application bootstrap/close, JSON snapshot serialization, report artifact writing, `--output <path>` file emission, and the handoff to Studio for Mermaid rendering.
+- **`@fluojs/studio`**: File-first snapshot/report viewer plus canonical parsing, filtering, and graph rendering helpers for CLI and automation callers. Studio owns the responsibility boundary for consuming `fluo inspect --json` snapshots, `--json --timing` envelopes, `--report` artifacts, and Mermaid graph rendering through `renderMermaid(snapshot)`.
 - **`@fluojs/testing`**: Conformance and integration helpers for verifying application and platform contracts.
+
+## Studio inspect artifact ownership
+
+Runtime packages remain the source of inspection snapshots and timing diagnostics. The CLI turns those runtime values into transportable artifacts, either raw JSON, a timing envelope, a report artifact, or Mermaid text when Studio is installed. Studio is responsible for reading, validating, filtering, viewing, and rendering those inspect artifacts for humans and automation callers.
+
+This boundary keeps graph semantics out of `@fluojs/cli`: the CLI may locate `@fluojs/studio/contracts` and call `renderMermaid(snapshot)`, but Studio defines how internal dependency edges and external dependency nodes become Mermaid output. Consumers that need a persistent artifact should use `fluo inspect --json --output <path>` for raw snapshots, `fluo inspect --json --timing --output <path>` for timing envelopes, or `fluo inspect --report --output <path>` for support reports.
 
 ## naming conventions
 - **`platform-*`**: Reserved for runtime/protocol adapters implementing `PlatformAdapter`.
