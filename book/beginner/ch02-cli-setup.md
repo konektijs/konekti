@@ -17,7 +17,7 @@ In Chapter 1, you saw the ideas behind fluo. Now it is time to turn that philoso
 
 ## Prerequisites
 - Node.js 18 or later.
-- One package manager among npm, pnpm, or yarn.
+- `pnpm`, which this book uses for CLI installation, one-off CLI execution, and project scripts.
 - Completion of Chapter 1.
 - A terminal session you can keep open throughout the exercises.
 
@@ -27,17 +27,10 @@ The first step looks simple, but it matters. The CLI prepares the working enviro
 
 The fluo CLI is the entrypoint for creating your first project. Instead of matching every configuration file by hand, you can start from a tool that already knows the framework's conventions.
 
-Install it with your preferred package manager.
+Install it with `pnpm`.
 
 ```bash
-# Using npm
-npm install -g @fluojs/cli
-
-# Using pnpm
 pnpm add -g @fluojs/cli
-
-# Using yarn
-yarn global add @fluojs/cli
 ```
 
 After installation, check that the command is actually recognized.
@@ -112,10 +105,6 @@ The fluo ecosystem evolves quickly. New features, security patches, and performa
 To keep getting the latest features and bug fixes, check for CLI updates from time to time.
 
 ```bash
-# Using npm
-npm update -g @fluojs/cli
-
-# Using pnpm
 pnpm update -g @fluojs/cli
 ```
 
@@ -360,7 +349,7 @@ Run the project. This is the first check that the generated files are not only w
 pnpm dev
 ```
 
-If you chose npm or yarn during installation, use the matching equivalent command.
+If you intentionally generated the project with a different package manager, use that project's matching script command. The book's documented path stays on `pnpm`.
 
 On the first run, the flow looks like this. You can expect startup logs similar to the following.
 
