@@ -6,8 +6,10 @@
 In Chapter 1, you saw the ideas behind fluo. Now it is time to turn that philosophy into real directories and commands. By the end of this chapter, you will have a runnable FluoBlog starter, and you will understand why the generated files are placed where they are. Before building more architecture on top, you will secure a stable baseline that already works.
 
 ## Learning Objectives
-- Learn how to install the fluo CLI globally or run it through a package runner.
+- Learn how to install the fluo CLI globally or run it with `pnpm dlx` when you need a one-off execution.
 - Scaffold a new project with the `fluo new` command.
+- Preview scaffold choices with `--print-plan` before files are written.
+- Recognize the beginner-facing CLI commands you will meet later: `generate`/`g`, `inspect`, and `migrate`.
 - Analyze the generated project structure and the role of each directory.
 - Understand the `package.json` scripts used for local development.
 - Run the first FluoBlog setup and verify it.
@@ -15,7 +17,7 @@ In Chapter 1, you saw the ideas behind fluo. Now it is time to turn that philoso
 
 ## Prerequisites
 - Node.js 18 or later.
-- One package manager among npm, pnpm, or yarn.
+- `pnpm`, which this book uses for CLI installation, one-off CLI execution, and project scripts.
 - Completion of Chapter 1.
 - A terminal session you can keep open throughout the exercises.
 
@@ -25,17 +27,10 @@ The first step looks simple, but it matters. The CLI prepares the working enviro
 
 The fluo CLI is the entrypoint for creating your first project. Instead of matching every configuration file by hand, you can start from a tool that already knows the framework's conventions.
 
-Install it with your preferred package manager.
+Install it with `pnpm`.
 
 ```bash
-# Using npm
-npm install -g @fluojs/cli
-
-# Using pnpm
 pnpm add -g @fluojs/cli
-
-# Using yarn
-yarn global add @fluojs/cli
 ```
 
 After installation, check that the command is actually recognized.
@@ -51,10 +46,18 @@ If a version string is printed, your shell can find the executable correctly.
 When you are starting out, the simplest choice is usually a global install. It is also common in real work, but knowing the difference helps you make faster decisions later when you work with a team or CI. The point is not to memorize one correct option, but to choose based on the environment in front of you.
 
 - **Global installation** is convenient in a personal development environment.
-- **Local execution** through tools like `npx` or `pnpx` makes it easier to pin versions in CI.
-- Team workflows may prefer local execution so everyone uses the same version.
+- **One-off execution** through `pnpm dlx` makes it easier to pin the CLI version in CI or scripts without relying on a global binary.
+- Team workflows may prefer `pnpm dlx` scripts so everyone uses the same CLI version.
 
-All three approaches are valid. The key is to choose for the current situation, not out of habit.
+Both approaches are valid. The key is to choose for the current situation, not out of habit.
+
+For example, if you want to run the CLI without installing it globally, use the documented `pnpm dlx` path.
+
+```bash
+pnpm dlx @fluojs/cli new fluo-blog
+```
+
+That command still runs the same `fluo new` flow. The difference is only how your shell obtains the CLI executable.
 
 ### Verifying Your PATH
 
@@ -102,10 +105,6 @@ The fluo ecosystem evolves quickly. New features, security patches, and performa
 To keep getting the latest features and bug fixes, check for CLI updates from time to time.
 
 ```bash
-# Using npm
-npm update -g @fluojs/cli
-
-# Using pnpm
 pnpm update -g @fluojs/cli
 ```
 
@@ -125,10 +124,23 @@ This command starts an interactive wizard that asks for project information.
 
 Typical questions include the following.
 
-1. **Description**: A short description of the project.
-2. **Version**: Usually `1.0.0` for a new app.
-3. **Author**: The author name or team name.
-4. **Package Manager**: The tool that the generated scripts will assume.
+1. **Project name**: The directory and package name to create.
+2. **Shape**: An application, microservice, or mixed starter.
+3. **Runtime and platform**: For this book, keep the beginner path on the Node.js HTTP application starter.
+4. **Tooling and package manager**: The scripts and install flow the generated project will use.
+5. **Install and git choices**: Whether the CLI should install dependencies and initialize a repository immediately.
+
+### Previewing the starter plan
+
+When you are new, it can be helpful to see what the CLI would do before it writes files. Use `--print-plan` for that.
+
+```bash
+fluo new fluo-blog --shape application --runtime node --platform fastify --print-plan
+```
+
+Plan preview mode resolves the same project name, shape, runtime, platform, package manager, install choice, and git choice as a real scaffold. Then it prints the selected recipe and exits without creating files, installing dependencies, or initializing git.
+
+For this book, you can treat `--print-plan` as a safe rehearsal. Run it once if you want to understand the choices, then run `fluo new fluo-blog` when you are ready to create the project.
 
 ### What happens under the hood?
 
@@ -168,6 +180,24 @@ Do not skip over the generator output. On the first run, you will see a short te
 - Whether there is anything to watch before running the app.
 
 This habit will help you find problems faster later.
+
+### The CLI commands you will meet next
+
+`fluo new` is only the first command. You do not need to master the whole CLI today, but it helps to know the names you will see later.
+
+```bash
+fluo generate module posts
+fluo g service posts
+fluo inspect ./src/app.ts --json
+fluo inspect ./src/app.ts --report --output artifacts/inspect-report.json
+fluo migrate ./src --json
+```
+
+- `generate`, or its short alias `g`, creates framework files such as modules, controllers, services, repositories, and request DTOs inside an existing project.
+- `inspect` exports runtime inspection data. JSON is the default snapshot format, `--report --output <path>` writes a support artifact, and `--mermaid` delegates graph rendering to Studio when you need a visual view.
+- `migrate` previews or applies code transforms when moving older decorator-style code toward fluo. Its default mode is a dry run, and `--json` gives automation a stable report.
+
+For now, keep this as a map. Chapter 3 starts using generated building blocks, and Chapter 6 connects generated request DTO files to validation.
 
 ## 2.3 Analyzing the Project Structure
 
@@ -319,7 +349,7 @@ Run the project. This is the first check that the generated files are not only w
 pnpm dev
 ```
 
-If you chose npm or yarn during installation, use the matching equivalent command.
+If you intentionally generated the project with a different package manager, use that project's matching script command. The book's documented path stays on `pnpm`.
 
 On the first run, the flow looks like this. You can expect startup logs similar to the following.
 
@@ -413,6 +443,8 @@ The more you interact with the framework through the CLI and logs, the more intu
 ## Summary
 - The fluo CLI gives developers new to fluo a consistent starting point.
 - `fluo new` scaffolds not just a folder, but files and conventions together.
+- `--print-plan` lets you preview a starter without writing files.
+- `generate`/`g`, `inspect`, and `migrate` are the next CLI commands to recognize, but not memorize yet.
 - The generated source tree shows where Bootstrap, Module composition, and project metadata live.
 - `dev`, `build`, and `start` each handle a different stage of the development lifecycle.
 - The first successful request is strong evidence that the scaffold actually works.
