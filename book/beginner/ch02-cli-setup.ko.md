@@ -194,7 +194,7 @@ fluo migrate ./src --json
 ```
 
 - `generate`, 또는 짧은 별칭인 `g`는 기존 프로젝트 안에 모듈, 컨트롤러, 서비스, 리포지토리, request DTO 같은 프레임워크 파일을 만듭니다.
-- `inspect`는 런타임 검사 데이터를 내보냅니다. 로컬에서는 사람이 읽는 출력이 유용하고, CI, 지원, Studio용 파일이 필요할 때는 `--json`, `--report`, `--output`이 더 적합합니다.
+- `inspect`는 런타임 검사 데이터를 내보냅니다. JSON이 기본 snapshot 형식이고, `--report --output <path>`는 support artifact를 쓰며, 시각적 그래프가 필요할 때는 `--mermaid`가 렌더링을 Studio에 위임합니다.
 - `migrate`는 오래된 decorator 스타일 코드를 fluo 쪽으로 옮길 때 코드 변환을 미리 보거나 적용합니다. 기본 모드는 dry run이며, `--json`은 자동화가 읽기 좋은 안정적인 report를 제공합니다.
 
 지금은 이것을 지도로만 기억하세요. Chapter 3부터 생성된 빌딩 블록을 쓰기 시작하고, Chapter 6에서는 생성된 request DTO 파일을 validation과 연결합니다.
