@@ -7,6 +7,7 @@ The canonical CLI for fluo — bootstrap new applications, generate components, 
 ## Table of Contents
 
 - [Installation](#installation)
+- [Update Checks](#update-checks)
 - [When to Use](#when-to-use)
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
@@ -31,6 +32,12 @@ pnpm dlx @fluojs/cli new my-app
 - `@fluojs/cli` is a public package in the intended publish surface.
 - The supported install paths are the global package (`pnpm add -g @fluojs/cli`) and the no-install runner (`pnpm dlx @fluojs/cli ...`).
 - The published `fluo` bin is backed by the dist-built CLI entrypoint declared in `package.json`.
+
+## Update Checks
+
+When `fluo` runs in an interactive TTY, it checks the public npm `latest` dist-tag for `@fluojs/cli` using a local cache so every invocation does not hit the registry. If a newer version is available, the CLI asks whether to install it. Declining continues the current command with the installed version; accepting runs `pnpm add -g @fluojs/cli@<latest>` and then restarts `fluo` with the same arguments under the updated binary.
+
+The update check is skipped in CI, non-TTY output, npm-script contexts, rerun-after-update contexts, registry/network failures, and explicit opt-out paths. Use `--no-update-check` (or the compatibility alias `--no-update-notifier`) for one invocation, or set `FLUO_NO_UPDATE_CHECK=1` when automation must never prompt.
 
 ## When to Use
 
