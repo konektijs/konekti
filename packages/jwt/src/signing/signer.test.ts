@@ -45,6 +45,21 @@ describe('DefaultJwtSigner', () => {
     );
   });
 
+  it('rejects non-finite access token ttl values before issuing a token', async () => {
+    for (const accessTokenTtlSeconds of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const signer = new DefaultJwtSigner({
+        accessTokenTtlSeconds,
+        algorithms: ['HS256'],
+        secret: 'secret',
+      });
+
+      await expect(signer.signAccessToken({ sub: 'non-finite-ttl-user' })).rejects.toThrow(JwtConfigurationError);
+      await expect(signer.signAccessToken({ sub: 'non-finite-ttl-user' })).rejects.toThrow(
+        'JWT accessTokenTtlSeconds must be a positive finite number.',
+      );
+    }
+  });
+
   it('preserves fractional access token ttl seconds in the exp claim', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-26T20:00:00.000Z'));
