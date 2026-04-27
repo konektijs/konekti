@@ -746,6 +746,105 @@ describe('@fluojs/cqrs', () => {
     await app.close();
   });
 
+  it('isolates CQRS event handler and saga mutations from delegated event-bus subscribers', async () => {
+    interface Snapshot {
+      readonly flagged: boolean;
+      readonly label: string;
+      readonly tags: readonly string[];
+    }
+
+    class MutationStore {
+      delegatedSnapshots: Snapshot[] = [];
+      handlerSnapshots: Snapshot[] = [];
+      sagaSnapshots: Snapshot[] = [];
+
+      record(collection: Snapshot[], label: string, event: MutableProfileEvent): void {
+        collection.push({
+          flagged: event.payload.nested.flagged,
+          label,
+          tags: [...event.payload.tags],
+        });
+      }
+    }
+
+    class MutableProfileEvent implements IEvent {
+      constructor(
+        public readonly userId: string,
+        public readonly payload: { nested: { flagged: boolean }; tags: string[] },
+      ) {}
+    }
+
+    @Inject(MutationStore)
+    @EventHandler(MutableProfileEvent)
+    class MutatingEventHandler implements IEventHandler<MutableProfileEvent> {
+      constructor(private readonly store: MutationStore) {}
+
+      handle(event: MutableProfileEvent): void {
+        event.payload.tags.push('handler-mutated');
+        event.payload.nested.flagged = true;
+        this.store.record(this.store.handlerSnapshots, 'mutating-handler', event);
+      }
+    }
+
+    @Inject(MutationStore)
+    @EventHandler(MutableProfileEvent)
+    class ObservingEventHandler implements IEventHandler<MutableProfileEvent> {
+      constructor(private readonly store: MutationStore) {}
+
+      handle(event: MutableProfileEvent): void {
+        this.store.record(this.store.handlerSnapshots, 'observing-handler', event);
+      }
+    }
+
+    @Inject(MutationStore)
+    @Saga(MutableProfileEvent)
+    class MutatingSaga implements ISaga<MutableProfileEvent> {
+      constructor(private readonly store: MutationStore) {}
+
+      handle(event: MutableProfileEvent): void {
+        event.payload.tags.push('saga-mutated');
+        event.payload.nested.flagged = true;
+        this.store.record(this.store.sagaSnapshots, 'mutating-saga', event);
+      }
+    }
+
+    @Inject(MutationStore)
+    class DelegatedEventBusProjection {
+      constructor(private readonly store: MutationStore) {}
+
+      @OnEvent(MutableProfileEvent)
+      onMutableProfile(event: MutableProfileEvent): void {
+        this.store.record(this.store.delegatedSnapshots, 'delegated-event-bus', event);
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [CqrsModule.forRoot()],
+      providers: [MutationStore, MutatingEventHandler, ObservingEventHandler, MutatingSaga, DelegatedEventBusProjection],
+    });
+
+    const app = await bootstrapApplication({ rootModule: AppModule });
+    const eventBus = await app.container.resolve<CqrsEventBus>(EVENT_BUS);
+    const store = await app.container.resolve(MutationStore);
+    const event = new MutableProfileEvent('user-1', {
+      nested: { flagged: false },
+      tags: ['original'],
+    });
+
+    await eventBus.publish(event);
+
+    expect(store.handlerSnapshots).toEqual([
+      { flagged: true, label: 'mutating-handler', tags: ['original', 'handler-mutated'] },
+      { flagged: false, label: 'observing-handler', tags: ['original'] },
+    ]);
+    expect(store.sagaSnapshots).toEqual([{ flagged: true, label: 'mutating-saga', tags: ['original', 'saga-mutated'] }]);
+    expect(store.delegatedSnapshots).toEqual([{ flagged: false, label: 'delegated-event-bus', tags: ['original'] }]);
+    expect(event.payload).toEqual({ nested: { flagged: false }, tags: ['original'] });
+
+    await app.close();
+  });
+
   it('processes saga events in a deterministic order under concurrent publish calls', async () => {
     class SequenceStore {
       seen: number[] = [];

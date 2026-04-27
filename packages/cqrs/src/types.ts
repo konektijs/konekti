@@ -8,7 +8,7 @@ export interface IQuery<TResult = unknown> {
   readonly __queryResultType__?: TResult;
 }
 
-/** Marker interface for events published through the CQRS event bus. */
+/** Marker interface for cloneable domain events published through the CQRS event bus. */
 export interface IEvent {}
 
 /** Contract implemented by classes decorated with {@link CommandHandler}. */
@@ -36,9 +36,9 @@ export interface IQueryHandler<TQuery extends IQuery<TResult>, TResult = unknown
 /** Contract implemented by classes decorated with {@link EventHandler}. */
 export interface IEventHandler<TEvent extends IEvent> {
   /**
-   * Reacts to one published event instance.
+   * Reacts to one isolated copy of a published event instance.
    *
-   * @param event Event payload dispatched by the event bus.
+   * @param event Event payload cloned for this handler before delegated event-bus publication.
    * @returns A promise or void once side effects complete.
    */
   handle(event: TEvent): void | Promise<void>;
@@ -47,9 +47,9 @@ export interface IEventHandler<TEvent extends IEvent> {
 /** Contract implemented by classes decorated with {@link Saga}. */
 export interface ISaga<TEvent extends IEvent = IEvent> {
   /**
-   * Reacts to one event and typically emits follow-up commands.
+   * Reacts to one isolated copy of an event and typically emits follow-up commands.
    *
-   * @param event Event payload that triggered the saga.
+   * @param event Event payload cloned for this saga route before delegated event-bus publication.
    * @returns A promise or void once orchestration side effects complete.
    */
   handle(event: TEvent): void | Promise<void>;
@@ -167,7 +167,10 @@ export interface QueryBus {
 /** Event publishing facade exposed by the CQRS module. */
 export interface CqrsEventBus {
   /**
-   * Publishes one event to the underlying event bus.
+   * Publishes one event to local CQRS handlers, sagas, and the underlying event bus.
+   *
+   * Local CQRS handlers and sagas receive isolated event copies. Delegated `@fluojs/event-bus`
+   * subscribers receive the original event after local CQRS side effects complete.
    *
    * @param event Event instance to publish.
    * @returns A promise that resolves once publication completes.
