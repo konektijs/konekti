@@ -691,7 +691,11 @@ class FluoMicroserviceApplication implements MicroserviceApplication {
 /**
  * lifecycle hook이 있는 singleton provider 인스턴스를 미리 해석해 둔다.
  */
-async function resolveLifecycleInstances(container: Container, providers: Provider[]): Promise<unknown[]> {
+async function resolveLifecycleInstances(
+  container: Container,
+  providers: Provider[],
+  resolvedInstances: unknown[] = [],
+): Promise<unknown[]> {
   const lifecycleEntries: Array<{ token: Token; useValue?: unknown }> = [];
   const seen = new Set<Token>();
 
@@ -716,7 +720,30 @@ async function resolveLifecycleInstances(container: Container, providers: Provid
     lifecycleEntries.push({ token });
   }
 
-  return Promise.all(lifecycleEntries.map((entry) => entry.useValue ?? container.resolve(entry.token)));
+  const resolutionResults = await Promise.allSettled(
+    lifecycleEntries.map((entry) => entry.useValue ?? container.resolve(entry.token)),
+  );
+
+  let resolutionError: unknown;
+  let hasResolutionError = false;
+
+  for (const result of resolutionResults) {
+    if (result.status === 'fulfilled') {
+      resolvedInstances.push(result.value);
+      continue;
+    }
+
+    if (!hasResolutionError) {
+      resolutionError = result.reason;
+      hasResolutionError = true;
+    }
+  }
+
+  if (hasResolutionError) {
+    throw resolutionError;
+  }
+
+  return resolvedInstances;
 }
 
 function createContextCacheableTokenSet(
@@ -960,13 +987,14 @@ function registerRuntimeApplicationContextTokens(bootstrapped: BootstrapResult, 
 async function resolveBootstrapLifecycleInstances(
   bootstrapped: BootstrapResult,
   runtimeProviders: Provider[],
+  resolvedInstances?: unknown[],
 ): Promise<unknown[]> {
   const lifecycleProviders = [
     ...runtimeProviders,
     ...bootstrapped.modules.flatMap((compiledModule) => compiledModule.definition.providers ?? []),
   ];
 
-  return resolveLifecycleInstances(bootstrapped.container, lifecycleProviders);
+  return resolveLifecycleInstances(bootstrapped.container, lifecycleProviders, resolvedInstances);
 }
 
 async function runBootstrapLifecycle(
@@ -1106,7 +1134,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
     bootstrappedModules = bootstrapped.modules;
 
     const resolveLifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
-    lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, runtimeProviders);
+    lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, runtimeProviders, lifecycleInstances);
     lifecycleInstances.push({
       onModuleDestroy() {
         return platformShell.stop();
@@ -1252,7 +1280,7 @@ export class FluoFactory {
       bootstrappedModules = bootstrapped.modules;
 
       const resolveLifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
-      lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, runtimeProviders);
+      lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, runtimeProviders, lifecycleInstances);
       lifecycleInstances.push({
         onModuleDestroy() {
           return platformShell.stop();

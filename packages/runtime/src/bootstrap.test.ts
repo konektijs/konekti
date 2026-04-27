@@ -653,6 +653,50 @@ describe('FluoFactory.createApplicationContext', () => {
     await context.close();
   });
 
+  it('cleans up lifecycle instances resolved before parallel provider resolution failure', async () => {
+    const events: string[] = [];
+    const SUCCESS = Symbol('success');
+    const FAILING = Symbol('failing');
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        {
+          provide: SUCCESS,
+          async useFactory() {
+            events.push('success:resolve');
+
+            return {
+              onApplicationShutdown(signal?: string) {
+                events.push(`success:shutdown:${signal ?? 'none'}`);
+              },
+              onModuleDestroy() {
+                events.push('success:destroy');
+              },
+            };
+          },
+        },
+        {
+          provide: FAILING,
+          async useFactory() {
+            events.push('failing:resolve');
+            throw new Error('lifecycle provider failed');
+          },
+        },
+      ],
+    });
+
+    await expect(FluoFactory.createApplicationContext(AppModule, {
+    })).rejects.toThrow('lifecycle provider failed');
+
+    expect(events).toEqual([
+      'success:resolve',
+      'failing:resolve',
+      'success:destroy',
+      'success:shutdown:bootstrap-failed',
+    ]);
+  });
+
   it('runs startup and shutdown lifecycle hooks around close()', async () => {
     const events: string[] = [];
 
