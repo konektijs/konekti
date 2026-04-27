@@ -15,7 +15,7 @@ import {
 import { DuplicateProviderError } from './errors.js';
 import { createBootstrapTimingDiagnostics, type BootstrapTimingPhase } from './health/diagnostics.js';
 import { createConsoleApplicationLogger } from './logging/logger.js';
-import { compileModuleGraph, createRuntimeTokenSet, providerToken } from './module-graph.js';
+import { compileModuleGraph, providerToken } from './module-graph.js';
 import { createRuntimePlatformShell, type RuntimePlatformShell } from './platform-shell.js';
 import { APPLICATION_LOGGER, COMPILED_MODULES, HTTP_APPLICATION_ADAPTER, PLATFORM_SHELL, RUNTIME_CONTAINER } from './tokens.js';
 import type {
@@ -28,6 +28,7 @@ import type {
   BootstrapApplicationOptions,
   BootstrapModuleOptions,
   BootstrapResult,
+  BootstrapEffectiveProviders,
   CompiledModule,
   CreateApplicationOptions,
   CreateApplicationContextOptions,
@@ -260,6 +261,7 @@ type DuplicateProviderPolicy = Exclude<BootstrapModuleOptions['duplicateProvider
 
 interface SelectedProviderEntry {
   moduleName: string;
+  moduleType?: ModuleType;
   provider: Provider;
   source: 'module' | 'runtime';
   token: Token;
@@ -270,56 +272,140 @@ function createDuplicateProviderMessage(token: Token, moduleName: string, existi
   return `Duplicate provider token "${tokenLabel}" registered in module "${moduleName}". Previously registered in module "${existingModuleName}".`;
 }
 
-function collectProvidersForContainer(
-  modules: CompiledModule[],
-  runtimeProviders: Provider[] | undefined,
+function createDuplicateRuntimeProviderMessage(token: Token): string {
+  const tokenLabel = typeof token === 'function' ? token.name || '<anonymous>' : String(token);
+  return `Duplicate runtime provider token "${tokenLabel}" registered.`;
+}
+
+function handleDuplicateProvider(
+  token: Token,
+  moduleName: string,
+  existingModuleName: string,
   policy: DuplicateProviderPolicy,
   logger?: ApplicationLogger,
-): Provider[] {
-  const selectedProviders = new Map<Token, SelectedProviderEntry>();
+): void {
+  const message = createDuplicateProviderMessage(token, moduleName, existingModuleName);
+
+  if (policy === 'throw') {
+    throw new DuplicateProviderError(message, {
+      module: moduleName,
+      token,
+      phase: 'provider registration',
+      hint: `Remove the duplicate registration from one of the modules, use container.override() for intentional replacements, or set duplicateProviderPolicy to 'warn' or 'ignore'.`,
+    });
+  }
+
+  if (policy === 'warn') {
+    logger?.warn(message, 'BootstrapModule');
+  }
+}
+
+function handleDuplicateRuntimeProvider(
+  token: Token,
+  policy: DuplicateProviderPolicy,
+  logger?: ApplicationLogger,
+): void {
+  const message = createDuplicateRuntimeProviderMessage(token);
+
+  if (policy === 'throw') {
+    throw new DuplicateProviderError(message, {
+      module: '<runtime>',
+      token,
+      phase: 'provider registration',
+      hint: `Remove the duplicate runtime provider registration, use container.override() after bootstrap for intentional replacements, or set duplicateProviderPolicy to 'warn' or 'ignore'.`,
+    });
+  }
+
+  if (policy === 'warn') {
+    logger?.warn(message, 'BootstrapModule');
+  }
+}
+
+function selectEffectiveBootstrapProviders(
+  modules: CompiledModule[],
+  runtimeProviders: Provider[] | undefined,
+  rootModule: ModuleType,
+  policy: DuplicateProviderPolicy,
+  logger?: ApplicationLogger,
+): BootstrapEffectiveProviders {
+  const selectedRuntimeProviderIndexes = new Map<Token, number>();
+  const selectedModuleProviderIndexes = new Map<Token, number>();
+  const runtimeProviderEntries: SelectedProviderEntry[] = [];
+  const moduleProviderEntries: SelectedProviderEntry[] = [];
 
   for (const runtimeProvider of runtimeProviders ?? []) {
     const token = providerToken(runtimeProvider);
-    selectedProviders.set(token, {
+    const existingRuntimeProviderIndex = selectedRuntimeProviderIndexes.get(token);
+
+    if (existingRuntimeProviderIndex !== undefined) {
+      handleDuplicateRuntimeProvider(token, policy, logger);
+    }
+
+    runtimeProviderEntries.push({
       moduleName: '<runtime>',
       provider: runtimeProvider,
       source: 'runtime',
       token,
     });
+    selectedRuntimeProviderIndexes.set(token, runtimeProviderEntries.length - 1);
   }
+
+  const runtimeProviderTokens = new Set(selectedRuntimeProviderIndexes.keys());
 
   for (const compiledModule of modules) {
     for (const provider of compiledModule.definition.providers ?? []) {
       const token = providerToken(provider);
-      const existing = selectedProviders.get(token);
+      const existingModuleProviderIndex = selectedModuleProviderIndexes.get(token);
+      const existing = existingModuleProviderIndex === undefined
+        ? undefined
+        : moduleProviderEntries[existingModuleProviderIndex];
 
       if (existing && existing.source === 'module') {
-        const message = createDuplicateProviderMessage(token, compiledModule.type.name, existing.moduleName);
-
-        if (policy === 'throw') {
-          throw new DuplicateProviderError(message, {
-            module: compiledModule.type.name,
-            token,
-            phase: 'provider registration',
-            hint: `Remove the duplicate registration from one of the modules, use container.override() for intentional replacements, or set duplicateProviderPolicy to 'warn' or 'ignore'.`,
-          });
-        }
-
-        if (policy === 'warn') {
-          logger?.warn(message, 'BootstrapModule');
-        }
+        handleDuplicateProvider(token, compiledModule.type.name, existing.moduleName, policy, logger);
       }
 
-      selectedProviders.set(token, {
+      const entry: SelectedProviderEntry = {
         moduleName: compiledModule.type.name,
+        moduleType: compiledModule.type,
         provider,
         source: 'module',
         token,
-      });
+      };
+
+      moduleProviderEntries.push(entry);
+      selectedModuleProviderIndexes.set(token, moduleProviderEntries.length - 1);
     }
   }
 
-  return [...selectedProviders.values()].map((entry) => entry.provider);
+  const selectedModuleProviderIndexesSet = new Set(selectedModuleProviderIndexes.values());
+  const selectedRuntimeProviderIndexesSet = new Set(selectedRuntimeProviderIndexes.values());
+  const moduleProviders: Provider[] = [];
+  const rootModuleProviders: Provider[] = [];
+  const effectiveRuntimeProviders = runtimeProviderEntries
+    .filter((_, index) => selectedRuntimeProviderIndexesSet.has(index))
+    .map((entry) => entry.provider);
+
+  moduleProviderEntries.forEach((entry, index) => {
+    if (entry.source !== 'module' || !selectedModuleProviderIndexesSet.has(index)) {
+      return;
+    }
+
+    if (runtimeProviderTokens.has(entry.token)) {
+      return;
+    }
+
+    moduleProviders.push(entry.provider);
+
+    if (entry.moduleType === rootModule) {
+      rootModuleProviders.push(entry.provider);
+    }
+  });
+
+  return {
+    moduleProviders,
+    rootModuleProviders,
+    runtimeProviders: effectiveRuntimeProviders,
+  };
 }
 
 function registerControllers(container: Container, modules: CompiledModule[]): void {
@@ -386,16 +472,20 @@ export function bootstrapModule(rootModule: ModuleType, options: BootstrapModule
   const policy: DuplicateProviderPolicy = options.duplicateProviderPolicy ?? 'warn';
 
   const runtimeProviders = options.providers ?? [];
-  const runtimeProviderTokens = createRuntimeTokenSet(runtimeProviders);
-  const moduleProviders = collectProvidersForContainer(modules, runtimeProviders, policy, options.logger)
-    .filter((provider) => !runtimeProviderTokens.has(providerToken(provider)));
+  const effectiveProviders = selectEffectiveBootstrapProviders(
+    modules,
+    runtimeProviders,
+    rootModule,
+    policy,
+    options.logger,
+  );
 
-  if (runtimeProviders.length > 0) {
-    container.register(...runtimeProviders);
+  if (effectiveProviders.runtimeProviders.length > 0) {
+    container.register(...effectiveProviders.runtimeProviders);
   }
 
-  if (moduleProviders.length > 0) {
-    container.register(...moduleProviders);
+  if (effectiveProviders.moduleProviders.length > 0) {
+    container.register(...effectiveProviders.moduleProviders);
   }
 
   registerControllers(container, modules);
@@ -403,6 +493,7 @@ export function bootstrapModule(rootModule: ModuleType, options: BootstrapModule
 
   return {
     container,
+    effectiveProviders,
     modules,
     rootModule,
   };
@@ -747,14 +838,12 @@ async function resolveLifecycleInstances(
 }
 
 function createContextCacheableTokenSet(
-  modules: readonly CompiledModule[],
-  rootModule: ModuleType,
-  runtimeProviders: readonly Provider[],
+  effectiveProviders: BootstrapEffectiveProviders,
   runtimeTokens: readonly Token[],
 ): Set<Token> {
   const cacheableTokens = new Set<Token>(runtimeTokens);
 
-  for (const provider of runtimeProviders) {
+  for (const provider of effectiveProviders.runtimeProviders) {
     if (!isDirectSingletonContextProvider(provider)) {
       continue;
     }
@@ -762,18 +851,12 @@ function createContextCacheableTokenSet(
     cacheableTokens.add(providerToken(provider));
   }
 
-  for (const compiledModule of modules) {
-    if (compiledModule.type !== rootModule) {
+  for (const provider of effectiveProviders.rootModuleProviders) {
+    if (!isDirectSingletonContextProvider(provider)) {
       continue;
     }
 
-    for (const provider of compiledModule.definition.providers ?? []) {
-      if (!isDirectSingletonContextProvider(provider)) {
-        continue;
-      }
-
-      cacheableTokens.add(providerToken(provider));
-    }
+    cacheableTokens.add(providerToken(provider));
   }
 
   return cacheableTokens;
@@ -986,12 +1069,11 @@ function registerRuntimeApplicationContextTokens(bootstrapped: BootstrapResult, 
 
 async function resolveBootstrapLifecycleInstances(
   bootstrapped: BootstrapResult,
-  runtimeProviders: Provider[],
   resolvedInstances?: unknown[],
 ): Promise<unknown[]> {
   const lifecycleProviders = [
-    ...runtimeProviders,
-    ...bootstrapped.modules.flatMap((compiledModule) => compiledModule.definition.providers ?? []),
+    ...bootstrapped.effectiveProviders.runtimeProviders,
+    ...bootstrapped.effectiveProviders.moduleProviders,
   ];
 
   return resolveLifecycleInstances(bootstrapped.container, lifecycleProviders, resolvedInstances);
@@ -1134,7 +1216,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
     bootstrappedModules = bootstrapped.modules;
 
     const resolveLifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
-    lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, runtimeProviders, lifecycleInstances);
+    lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, lifecycleInstances);
     lifecycleInstances.push({
       onModuleDestroy() {
         return platformShell.stop();
@@ -1182,9 +1264,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
       logger,
       runtimeCleanup,
       createContextCacheableTokenSet(
-        bootstrapped.modules,
-        options.rootModule,
-        runtimeProviders,
+        bootstrapped.effectiveProviders,
         [RUNTIME_CONTAINER, COMPILED_MODULES, HTTP_APPLICATION_ADAPTER, PLATFORM_SHELL],
       ),
     );
@@ -1280,7 +1360,7 @@ export class FluoFactory {
       bootstrappedModules = bootstrapped.modules;
 
       const resolveLifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
-      lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, runtimeProviders, lifecycleInstances);
+      lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, lifecycleInstances);
       lifecycleInstances.push({
         onModuleDestroy() {
           return platformShell.stop();
@@ -1314,9 +1394,7 @@ export class FluoFactory {
         lifecycleInstances,
         runtimeCleanup,
         createContextCacheableTokenSet(
-          bootstrapped.modules,
-          rootModule,
-          runtimeProviders,
+          bootstrapped.effectiveProviders,
           [RUNTIME_CONTAINER, COMPILED_MODULES, PLATFORM_SHELL],
         ),
       );

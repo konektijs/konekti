@@ -602,6 +602,81 @@ describe('FluoFactory.createApplicationContext', () => {
     await context.close();
   });
 
+  it.each(['warn', 'ignore'] as const)(
+    'does not cache losing duplicate root singleton providers when policy is %s',
+    async (duplicateProviderPolicy) => {
+      const CACHE_TOKEN = Symbol('cache-token');
+      let resolutionCount = 0;
+
+      class AppModule {}
+      defineModuleMetadata(AppModule, {
+        providers: [
+          {
+            provide: CACHE_TOKEN,
+            useFactory: () => ({ id: 0 }),
+          },
+          {
+            provide: CACHE_TOKEN,
+            scope: 'transient',
+            useFactory: () => ({ id: ++resolutionCount }),
+          },
+        ],
+      });
+
+      const logger = { debug: vi.fn(), error: vi.fn(), log: vi.fn(), warn: vi.fn() };
+      const context = await FluoFactory.createApplicationContext(AppModule, {
+        duplicateProviderPolicy,
+        logger,
+      });
+
+      const first = await context.get<{ id: number }>(CACHE_TOKEN);
+      const second = await context.get<{ id: number }>(CACHE_TOKEN);
+
+      expect(first).toEqual({ id: 1 });
+      expect(second).toEqual({ id: 2 });
+      expect(first).not.toBe(second);
+
+      await context.close();
+    },
+  );
+
+  it.each(['warn', 'ignore'] as const)(
+    'does not cache losing duplicate runtime singleton providers when policy is %s',
+    async (duplicateProviderPolicy) => {
+      const CACHE_TOKEN = Symbol('runtime-cache-token');
+      let resolutionCount = 0;
+
+      class AppModule {}
+      defineModuleMetadata(AppModule, {});
+
+      const logger = { debug: vi.fn(), error: vi.fn(), log: vi.fn(), warn: vi.fn() };
+      const context = await FluoFactory.createApplicationContext(AppModule, {
+        duplicateProviderPolicy,
+        logger,
+        providers: [
+          {
+            provide: CACHE_TOKEN,
+            useFactory: () => ({ id: 0 }),
+          },
+          {
+            provide: CACHE_TOKEN,
+            scope: 'transient',
+            useFactory: () => ({ id: ++resolutionCount }),
+          },
+        ],
+      });
+
+      const first = await context.get<{ id: number }>(CACHE_TOKEN);
+      const second = await context.get<{ id: number }>(CACHE_TOKEN);
+
+      expect(first).toEqual({ id: 1 });
+      expect(second).toEqual({ id: 2 });
+      expect(first).not.toBe(second);
+
+      await context.close();
+    },
+  );
+
   it('resolves independent singleton lifecycle providers concurrently before ordered hooks', async () => {
     const events: string[] = [];
     const FIRST = Symbol('first');
@@ -779,6 +854,228 @@ describe('FluoFactory.createApplicationContext', () => {
       'value:shutdown:SIGTERM',
     ]);
   });
+
+  it.each(['warn', 'ignore'] as const)(
+    'runs lifecycle hooks only on winning duplicate useValue providers when policy is %s',
+    async (duplicateProviderPolicy) => {
+      const events: string[] = [];
+      const LIFECYCLE_VALUE = Symbol('lifecycle-value');
+
+      class AppModule {}
+      defineModuleMetadata(AppModule, {
+        providers: [
+          {
+            provide: LIFECYCLE_VALUE,
+            useValue: {
+              onApplicationBootstrap() {
+                events.push('losing:bootstrap');
+              },
+              onApplicationShutdown(signal?: string) {
+                events.push(`losing:shutdown:${signal ?? 'none'}`);
+              },
+              onModuleDestroy() {
+                events.push('losing:destroy');
+              },
+              onModuleInit() {
+                events.push('losing:init');
+              },
+            },
+          },
+          {
+            provide: LIFECYCLE_VALUE,
+            useValue: {
+              onApplicationBootstrap() {
+                events.push('winning:bootstrap');
+              },
+              onApplicationShutdown(signal?: string) {
+                events.push(`winning:shutdown:${signal ?? 'none'}`);
+              },
+              onModuleDestroy() {
+                events.push('winning:destroy');
+              },
+              onModuleInit() {
+                events.push('winning:init');
+              },
+            },
+          },
+        ],
+      });
+
+      const logger = { debug: vi.fn(), error: vi.fn(), log: vi.fn(), warn: vi.fn() };
+      const context = await FluoFactory.createApplicationContext(AppModule, {
+        duplicateProviderPolicy,
+        logger,
+      });
+
+      expect(events).toEqual(['winning:init', 'winning:bootstrap']);
+
+      await context.close('SIGTERM');
+
+      expect(events).toEqual([
+        'winning:init',
+        'winning:bootstrap',
+        'winning:destroy',
+        'winning:shutdown:SIGTERM',
+      ]);
+    },
+  );
+
+  it.each(['warn', 'ignore'] as const)(
+    'runs lifecycle hooks only on winning duplicate runtime useValue providers when policy is %s',
+    async (duplicateProviderPolicy) => {
+      const events: string[] = [];
+      const LIFECYCLE_VALUE = Symbol('runtime-lifecycle-value');
+
+      class AppModule {}
+      defineModuleMetadata(AppModule, {});
+
+      const logger = { debug: vi.fn(), error: vi.fn(), log: vi.fn(), warn: vi.fn() };
+      const context = await FluoFactory.createApplicationContext(AppModule, {
+        duplicateProviderPolicy,
+        logger,
+        providers: [
+          {
+            provide: LIFECYCLE_VALUE,
+            useValue: {
+              onApplicationBootstrap() {
+                events.push('losing:bootstrap');
+              },
+              onApplicationShutdown(signal?: string) {
+                events.push(`losing:shutdown:${signal ?? 'none'}`);
+              },
+              onModuleDestroy() {
+                events.push('losing:destroy');
+              },
+              onModuleInit() {
+                events.push('losing:init');
+              },
+            },
+          },
+          {
+            provide: LIFECYCLE_VALUE,
+            useValue: {
+              onApplicationBootstrap() {
+                events.push('winning:bootstrap');
+              },
+              onApplicationShutdown(signal?: string) {
+                events.push(`winning:shutdown:${signal ?? 'none'}`);
+              },
+              onModuleDestroy() {
+                events.push('winning:destroy');
+              },
+              onModuleInit() {
+                events.push('winning:init');
+              },
+            },
+          },
+        ],
+      });
+
+      expect(events).toEqual(['winning:init', 'winning:bootstrap']);
+
+      await context.close('SIGTERM');
+
+      expect(events).toEqual([
+        'winning:init',
+        'winning:bootstrap',
+        'winning:destroy',
+        'winning:shutdown:SIGTERM',
+      ]);
+    },
+  );
+
+  it.each(['warn', 'ignore'] as const)(
+    'ignores stale losing lifecycle hooks when the duplicate winner has no hooks and policy is %s',
+    async (duplicateProviderPolicy) => {
+      const events: string[] = [];
+      const LIFECYCLE_VALUE = Symbol('lifecycle-value');
+
+      class AppModule {}
+      defineModuleMetadata(AppModule, {
+        providers: [
+          {
+            provide: LIFECYCLE_VALUE,
+            useValue: {
+              onApplicationBootstrap() {
+                events.push('losing:bootstrap');
+              },
+              onApplicationShutdown(signal?: string) {
+                events.push(`losing:shutdown:${signal ?? 'none'}`);
+              },
+              onModuleDestroy() {
+                events.push('losing:destroy');
+              },
+              onModuleInit() {
+                events.push('losing:init');
+              },
+            },
+          },
+          {
+            provide: LIFECYCLE_VALUE,
+            useValue: { marker: 'winning-without-hooks' },
+          },
+        ],
+      });
+
+      const logger = { debug: vi.fn(), error: vi.fn(), log: vi.fn(), warn: vi.fn() };
+      const context = await FluoFactory.createApplicationContext(AppModule, {
+        duplicateProviderPolicy,
+        logger,
+      });
+
+      expect(events).toEqual([]);
+
+      await context.close('SIGTERM');
+
+      expect(events).toEqual([]);
+    },
+  );
+
+  it.each(['warn', 'ignore'] as const)(
+    'ignores stale losing runtime lifecycle hooks when the duplicate winner has no hooks and policy is %s',
+    async (duplicateProviderPolicy) => {
+      const events: string[] = [];
+      const LIFECYCLE_VALUE = Symbol('runtime-lifecycle-value-without-hooks');
+
+      class AppModule {}
+      defineModuleMetadata(AppModule, {});
+
+      const logger = { debug: vi.fn(), error: vi.fn(), log: vi.fn(), warn: vi.fn() };
+      const context = await FluoFactory.createApplicationContext(AppModule, {
+        duplicateProviderPolicy,
+        logger,
+        providers: [
+          {
+            provide: LIFECYCLE_VALUE,
+            useValue: {
+              onApplicationBootstrap() {
+                events.push('losing:bootstrap');
+              },
+              onApplicationShutdown(signal?: string) {
+                events.push(`losing:shutdown:${signal ?? 'none'}`);
+              },
+              onModuleDestroy() {
+                events.push('losing:destroy');
+              },
+              onModuleInit() {
+                events.push('losing:init');
+              },
+            },
+          },
+          {
+            provide: LIFECYCLE_VALUE,
+            useValue: { marker: 'winning-without-hooks' },
+          },
+        ],
+      });
+
+      expect(events).toEqual([]);
+
+      await context.close('SIGTERM');
+
+      expect(events).toEqual([]);
+    },
+  );
 
   it('does not collect bootstrap timing diagnostics by default', async () => {
     class AppModule {}
