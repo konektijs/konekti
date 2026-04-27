@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { Inject, Scope as ScopeDecorator } from '@fluojs/core';
 
 import { Container } from './container.js';
-import { CircularDependencyError, ContainerResolutionError, DuplicateProviderError, RequestScopeResolutionError, ScopeMismatchError } from './errors.js';
-import { Scope, forwardRef, optional } from './types.js';
+import { CircularDependencyError, ContainerResolutionError, DuplicateProviderError, InvalidProviderError, RequestScopeResolutionError, ScopeMismatchError } from './errors.js';
+import { Scope, forwardRef, optional, type Provider } from './types.js';
 
 describe('Container', () => {
   it('caches singleton providers', async () => {
@@ -489,6 +489,55 @@ describe('Container', () => {
 
       expect(() => requestScope.register({ provide: token, useValue: 'request-only' })).toThrow(ScopeMismatchError);
     });
+
+    it('throws ScopeMismatchError when registering singleton multi providers on a request scope container', () => {
+      const token = Symbol('singleton-multi-token');
+      const root = new Container();
+      const requestScope = root.createRequestScope();
+
+      expect(() => requestScope.register({ provide: token, useValue: 'request-only', multi: true })).toThrow(ScopeMismatchError);
+    });
+  });
+
+  describe('provider validation', () => {
+    it('throws InvalidProviderError when an object provider omits provide', () => {
+      const provider = { useValue: 'missing-token' } as unknown as Provider;
+
+      expect(() => new Container().register(provider)).toThrow(InvalidProviderError);
+      expect(() => new Container().register(provider)).toThrow('provide token');
+    });
+
+    it('throws InvalidProviderError when an object provider has more than one strategy', () => {
+      const token = Symbol('ambiguous-provider');
+      const provider = { provide: token, useValue: 'value', useFactory: () => 'factory' } as unknown as Provider;
+
+      expect(() => new Container().register(provider)).toThrow(InvalidProviderError);
+      expect(() => new Container().register(provider)).toThrow('exactly one');
+    });
+
+    it('throws InvalidProviderError when useFactory is not callable', () => {
+      const token = Symbol('invalid-factory');
+      const provider = { provide: token, useFactory: 'factory' } as unknown as Provider;
+
+      expect(() => new Container().register(provider)).toThrow(InvalidProviderError);
+      expect(() => new Container().register(provider)).toThrow('useFactory');
+    });
+
+    it('throws InvalidProviderError when useClass is not callable', () => {
+      const token = Symbol('invalid-class');
+      const provider = { provide: token, useClass: 'Service' } as unknown as Provider;
+
+      expect(() => new Container().register(provider)).toThrow(InvalidProviderError);
+      expect(() => new Container().register(provider)).toThrow('useClass');
+    });
+
+    it('throws InvalidProviderError when useExisting is nullish', () => {
+      const token = Symbol('invalid-alias');
+      const provider = { provide: token, useExisting: undefined } as unknown as Provider;
+
+      expect(() => new Container().register(provider)).toThrow(InvalidProviderError);
+      expect(() => new Container().register(provider)).toThrow('useExisting');
+    });
   });
 
   describe('optional injection', () => {
@@ -660,7 +709,7 @@ describe('Container', () => {
         { provide: PLUGINS, useValue: 'root-a', multi: true },
         { provide: PLUGINS, useValue: 'root-b', multi: true },
       );
-      const child = root.createRequestScope().register({ provide: PLUGINS, useValue: 'child-c', multi: true });
+      const child = root.createRequestScope().register({ provide: PLUGINS, useFactory: () => 'child-c', multi: true, scope: Scope.REQUEST });
 
       await expect(root.resolve<string[]>(PLUGINS)).resolves.toEqual(['root-a', 'root-b']);
       await expect(child.resolve<string[]>(PLUGINS)).resolves.toEqual(['root-a', 'root-b', 'child-c']);

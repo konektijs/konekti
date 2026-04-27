@@ -23,6 +23,8 @@ import type {
 } from './types.js';
 import { Scope, isForwardRef, isOptionalToken } from './types.js';
 
+type ObjectProvider = ClassProvider | ExistingProvider | FactoryProvider | ValueProvider;
+
 function isClassConstructor(value: Provider): value is ClassType {
   return typeof value === 'function';
 }
@@ -41,6 +43,25 @@ function isClassProvider(value: Provider): value is ClassProvider {
 
 function isExistingProvider(value: Provider): value is ExistingProvider {
   return typeof value === 'object' && value !== null && 'useExisting' in value;
+}
+
+function assertProviderToken(provider: ObjectProvider): void {
+  if (!('provide' in provider) || provider.provide == null) {
+    throw new InvalidProviderError('Provider object must include a non-null provide token.');
+  }
+}
+
+function assertProviderStrategy(provider: ObjectProvider): void {
+  const strategyCount = Number('useValue' in provider) + Number('useFactory' in provider) + Number('useClass' in provider) + Number('useExisting' in provider);
+
+  if (strategyCount !== 1) {
+    throw new InvalidProviderError('Provider object must declare exactly one of useValue, useFactory, useClass, or useExisting.');
+  }
+}
+
+function assertObjectProvider(provider: ObjectProvider): void {
+  assertProviderToken(provider);
+  assertProviderStrategy(provider);
 }
 
 function normalizeInjectToken(token: Token | ForwardRefFn | OptionalToken): Token | ForwardRefFn | OptionalToken {
@@ -65,6 +86,8 @@ function normalizeProvider(provider: Provider): NormalizedProvider {
   }
 
   if (isValueProvider(provider)) {
+    assertObjectProvider(provider);
+
     return {
       inject: [],
       multi: provider.multi,
@@ -76,6 +99,12 @@ function normalizeProvider(provider: Provider): NormalizedProvider {
   }
 
   if (isFactoryProvider(provider)) {
+    assertObjectProvider(provider);
+
+    if (typeof provider.useFactory !== 'function') {
+      throw new InvalidProviderError('Factory provider useFactory must be a function.', { token: provider.provide });
+    }
+
     const metadata = provider.resolverClass ? getClassDiMetadata(provider.resolverClass) : undefined;
 
     return {
@@ -89,6 +118,12 @@ function normalizeProvider(provider: Provider): NormalizedProvider {
   }
 
   if (isClassProvider(provider)) {
+    assertObjectProvider(provider);
+
+    if (typeof provider.useClass !== 'function') {
+      throw new InvalidProviderError('Class provider useClass must be a constructor.', { token: provider.provide });
+    }
+
     const metadata = getClassDiMetadata(provider.useClass);
 
     return {
@@ -102,6 +137,12 @@ function normalizeProvider(provider: Provider): NormalizedProvider {
   }
 
   if (isExistingProvider(provider)) {
+    assertObjectProvider(provider);
+
+    if (provider.useExisting == null) {
+      throw new InvalidProviderError('Alias provider useExisting must be a non-null token.', { token: provider.provide });
+    }
+
     return {
       inject: [],
       provide: provider.provide,
@@ -160,7 +201,7 @@ export class Container {
     for (const provider of providers) {
       const normalized = normalizeProvider(provider);
 
-      if (this.requestScopeEnabled && normalized.scope === Scope.DEFAULT && normalized.multi !== true) {
+      if (this.requestScopeEnabled && normalized.scope === Scope.DEFAULT) {
         throw new ScopeMismatchError(
           `Singleton provider ${String(normalized.provide)} cannot be registered on a request-scope container.`,
           {
