@@ -46,8 +46,8 @@ fluo 저장소의 GitHub issue를 전용 worktree에서 해결하고, fluo의 be
 3. package/runtime 변경은 `README.md`와 behavioral contract를 binding contract로 본다.
 4. PR body는 `.github/PULL_REQUEST_TEMPLATE.md`의 축을 실질적으로 채워야 한다.
 5. release/tooling/CI 관련 변경은 `docs/contracts/release-governance.md`, `docs/contracts/testing-guide.md`와 정합해야 한다.
-6. 패키지 버전업/배포 준비 자체는 root `CHANGELOG.md`와 `tooling/release/intents/*.json` release intent record를 함께 다룬다.
-7. `1.0.0-beta.2` 이상 후보 릴리스는 release intent record가 필요하며, Changesets/Beachball은 현재 승인된 릴리스 경로가 아니다.
+6. 사용자 영향이 있는 public `@fluojs/*` package 변경은 PR 시점에 `.changeset/*.md`를 함께 포함한다.
+7. 패키지 버전업/배포 준비 자체는 Changesets가 생성하는 Version Packages PR과 repo-local `package-publish`가 담당한다. `tooling/release/intents/*.json`는 legacy reference로만 본다.
 
 ## Authority Boundary
 
@@ -90,7 +90,7 @@ fluo 저장소의 GitHub issue를 전용 worktree에서 해결하고, fluo의 be
    - release / publish / CLI / tooling 관련 변경:
       - `docs/contracts/release-governance.md`
       - `docs/contracts/testing-guide.md`
-      - `tooling/release/intents/README.md`
+      - `.changeset/config.json`
       - `docs/reference/toolchain-contract-matrix.md`
    - public API / docs contract 관련 변경:
       - `docs/contracts/public-export-tsdoc-baseline.md`
@@ -119,7 +119,9 @@ fluo 저장소의 GitHub issue를 전용 worktree에서 해결하고, fluo의 be
 - documented limitation은 issue가 명시하지 않는 이상 조용히 없애지 않는다.
 - contract-affecting change는 regression test를 반드시 포함한다.
 - release/tooling/CI 계약을 바꾸면 related docs와 governance checks를 같이 맞춘다.
-- 패키지 릴리스 준비 PR이면 `package.json` version, root `CHANGELOG.md`, `tooling/release/intents/*.json`, `pnpm verify:release-readiness --target-package ... --target-version ... --dist-tag ...`를 같은 릴리스 단위로 맞춘다.
+- 사용자 영향이 있는 public package 변경이면 `.changeset/*.md`를 추가하고, frontmatter에 affected package와 `patch`/`minor`/`major` bump를 명시하며, summary는 소비자 관점으로 작성한다.
+- private example/internal tooling만 바뀌거나 release 영향이 없는 docs/tests-only 변경이면 `.changeset/*.md`를 추가하지 않을 수 있지만, PR body에 no-release 판단 근거를 남긴다.
+- 패키지 릴리스 준비 자체를 다루는 PR이면 Version Packages PR의 `package.json` version, package-level `CHANGELOG.md`, consumed `.changeset/*.md`, `pnpm verify:release-readiness`, `pnpm changeset status --since=main` 정합성을 같은 릴리스 단위로 맞춘다.
 - `downstream-evaluate`는 자동 publish 트리거가 아니라 명시적 review decision으로 취급한다.
 - `Co-Authored-By` trailer를 절대 넣지 않는다.
 
@@ -132,7 +134,7 @@ fluo 저장소의 GitHub issue를 전용 worktree에서 해결하고, fluo의 be
 - 일반 코드 변경: `pnpm verify` 또는 관련 package test/build/typecheck
 - docs/governance 변경: `pnpm verify:platform-consistency-governance`
 - release/publish/tooling 변경: `pnpm verify:release-readiness`
-- 단건 패키지 릴리스 준비: `pnpm verify:release-readiness --target-package <pkg> --target-version <version> --dist-tag <tag>` 및 필요 시 `--release-intent-file <path>`
+- Version Packages PR 또는 릴리스 준비 검토: `pnpm verify:release-readiness` 및 `pnpm changeset status --since=main`
 - public export docs 변경: `pnpm lint` 및 필요시 `pnpm verify:public-export-tsdoc:baseline`
 
 ### 7. Commit
@@ -176,7 +178,7 @@ fluo에서 package/runtime/tooling behavior는 문서 경계의 일부다.
 - documented supported behavior를 silent narrowing 하지 않는다.
 - behavior가 바뀌면 docs/test를 같은 PR에 포함한다.
 - release/tooling contract를 바꾸면 `release-governance`와 `testing-guide`도 함께 확인한다.
-- release intent가 필요한 버전에서 `tooling/release/intents/*.json` 갱신이 빠졌으면 PR 생성 전에 보완한다.
+- 사용자 영향이 있는 public package 변경에서 `.changeset/*.md`가 빠졌으면 PR 생성 전에 보완하거나 no-release 판단 근거를 PR body에 명시한다.
 
 ## Mandatory Rules
 
