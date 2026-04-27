@@ -71,8 +71,9 @@ export class AppModule {}
 import { Inject } from '@fluojs/core';
 import { NotificationsService } from '@fluojs/notifications';
 
+@Inject(NotificationsService)
 export class WelcomeService {
-  constructor(@Inject(NotificationsService) private readonly notifications: NotificationsService) {}
+  constructor(private readonly notifications: NotificationsService) {}
 
   async sendWelcomeEmail(userId: string, email: string) {
     await this.notifications.dispatch({
@@ -87,6 +88,8 @@ export class WelcomeService {
   }
 }
 ```
+
+`NotificationsModule.forRoot(...)` exports `NotificationsService`, `NOTIFICATIONS`, and `NOTIFICATION_CHANNELS` as global providers. Application services should declare dependencies with fluo's class-level `@Inject(...)` decorator so the standard-decorator DI container can resolve the service without legacy parameter decorators.
 
 ## Common Patterns
 
