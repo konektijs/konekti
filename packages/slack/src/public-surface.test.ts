@@ -42,6 +42,23 @@ describe('@fluojs/slack public API surface', () => {
     expect(koreanReadme).toContain('이 helper는 `SlackModule.forRoot(...)`가 구성하는 `SLACK`, `SLACK_CHANNEL`, `SlackService` wiring을 동일하게 유지합니다.');
   });
 
+  it('keeps the Slack tutorial lifecycle snapshot examples aligned with the service contract', () => {
+    const tutorial = readFileSync(resolve(import.meta.dirname, '../../../book/intermediate/ch17-slack-discord.md'), 'utf8');
+    const koreanTutorial = readFileSync(
+      resolve(import.meta.dirname, '../../../book/intermediate/ch17-slack-discord.ko.md'),
+      'utf8',
+    );
+
+    expect(tutorial).toContain('const slackStatus = slackService.createPlatformStatusSnapshot();');
+    expect(tutorial).toContain("if (slackStatus.readiness.status !== 'ready') {");
+    expect(koreanTutorial).toContain('const slackStatus = slackService.createPlatformStatusSnapshot();');
+    expect(koreanTutorial).toContain("if (slackStatus.readiness.status !== 'ready') {");
+    expect(tutorial).not.toContain('createSlackPlatformStatusSnapshot(slackService)');
+    expect(koreanTutorial).not.toContain('createSlackPlatformStatusSnapshot(slackService)');
+    expect(tutorial).not.toContain('slackStatus.isReady');
+    expect(koreanTutorial).not.toContain('slackStatus.isReady');
+  });
+
   it('keeps documented TypeScript-only contracts stable enough for downstream packages', () => {
     expectTypeOf<SlackMessage>().toHaveProperty('text');
     expectTypeOf<SlackMessage>().toHaveProperty('blocks');
