@@ -110,7 +110,7 @@ Saga execution now fails fast with `SagaTopologyError` when an in-process publis
 
 ### Event Publishing Contracts
 
-`CqrsEventBusService.publish(event)` runs the CQRS event pipeline in a fixed order: matching `@EventHandler(...)` providers first, matching `@Saga(...)` providers second, and delegated `@fluojs/event-bus` publication last. `publishAll(events)` preserves the input order by awaiting each event's full pipeline before publishing the next event.
+`CqrsEventBusService.publish(event)` runs the CQRS event pipeline in a fixed order: matching `@EventHandler(...)` providers first, matching `@Saga(...)` providers second, and delegated `@fluojs/event-bus` publication last. `publishAll(events)` preserves the input order by awaiting each event's CQRS handlers, sagas, and delegated publication call before publishing the next event. When `CqrsModule.forRoot({ eventBus: { publish: { waitForHandlers: false } } })` is configured, the delegated publication call can resolve before matching `@OnEvent(...)` subscribers finish, so `publish(...)` and `publishAll(...)` do not imply subscriber completion in that mode.
 
 Each CQRS event handler and saga receives an isolated event copy with the matched event prototype restored. Mutating that copy is local to the current handler or saga route; those mutations are not visible to other CQRS handlers, sagas, the original event object, or delegated `@fluojs/event-bus` subscribers. The delegated event-bus publication receives the original event after CQRS side effects complete, so `@OnEvent(...)` projections and transports observe the caller-owned payload rather than a CQRS handler's mutated copy.
 

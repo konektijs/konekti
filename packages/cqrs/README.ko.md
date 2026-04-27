@@ -110,7 +110,7 @@ class UserSaga implements ISaga<UserCreatedEvent> {
 
 ### Event 발행 계약
 
-`CqrsEventBusService.publish(event)`는 CQRS event pipeline을 고정된 순서로 실행합니다. 먼저 일치하는 `@EventHandler(...)` provider를 실행하고, 그다음 일치하는 `@Saga(...)` provider를 실행한 뒤, 마지막으로 `@fluojs/event-bus`로 위임 발행합니다. `publishAll(events)`는 각 event의 전체 pipeline이 끝난 뒤 다음 event를 발행하므로 입력 순서를 보존합니다.
+`CqrsEventBusService.publish(event)`는 CQRS event pipeline을 고정된 순서로 실행합니다. 먼저 일치하는 `@EventHandler(...)` provider를 실행하고, 그다음 일치하는 `@Saga(...)` provider를 실행한 뒤, 마지막으로 `@fluojs/event-bus`로 위임 발행합니다. `publishAll(events)`는 각 event의 CQRS handler, saga, 위임 발행 호출을 기다린 뒤 다음 event를 발행하므로 입력 순서를 보존합니다. `CqrsModule.forRoot({ eventBus: { publish: { waitForHandlers: false } } })`로 설정한 경우 위임 발행 호출은 일치하는 `@OnEvent(...)` subscriber가 완료되기 전에 resolve될 수 있으므로, 이 모드에서 `publish(...)`와 `publishAll(...)`는 subscriber 완료를 의미하지 않습니다.
 
 각 CQRS event handler와 saga는 매칭된 event prototype이 복원된 격리 event 복사본을 받습니다. 이 복사본을 mutate해도 변경은 현재 handler 또는 saga route 안에만 머물며, 다른 CQRS handler, saga, 원본 event 객체, 또는 위임된 `@fluojs/event-bus` subscriber에는 보이지 않습니다. 위임된 event-bus 발행은 CQRS side effect가 끝난 뒤 원본 event를 받으므로, `@OnEvent(...)` projection과 transport는 CQRS handler가 mutate한 복사본이 아니라 호출자가 소유한 payload를 관찰합니다.
 
