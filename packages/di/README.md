@@ -83,7 +83,7 @@ const requestContainer = container.createRequestScope();
 const scopedService = await requestContainer.resolve(RequestScopedService);
 ```
 
-Request-scope containers may resolve providers from their parent chain, but request-owned registrations must not introduce new singleton providers. Register singleton providers on the root container before creating request scopes. If a request scope needs local additions, declare them with `scope: 'request'`/`Scope.REQUEST` or use `override()` for an explicit request-local replacement.
+Request-scope containers may resolve providers from their parent chain, but request-owned registrations must not introduce new singleton providers. Register singleton providers on the root container before creating request scopes. If a request scope needs local additions, declare them with `scope: 'request'`/`Scope.REQUEST` or use `override()` for an explicit request-local replacement. The same rule applies to multi providers: default-scope multi providers belong on the root container, while request-local multi providers must opt into request scope or be replaced through `override()`.
 
 Provider objects are validated at registration time: every object provider must include a non-null `provide` token and exactly one strategy (`useClass`, `useValue`, `useFactory`, or `useExisting`). Invalid provider shapes throw `InvalidProviderError` before they can affect the container graph.
 
