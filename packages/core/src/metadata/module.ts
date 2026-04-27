@@ -52,10 +52,10 @@ export function defineModuleMetadata(target: Function, metadata: ModuleMetadata)
 }
 
 /**
- * Reads cloned module metadata for the provided module class.
+ * Reads the immutable frozen module metadata snapshot for the provided module class.
  *
  * @param target Module class being inspected.
- * @returns A defensive clone of module metadata, or `undefined` when none was defined.
+ * @returns An immutable frozen snapshot of module metadata, or `undefined` when none was defined.
  */
 export function getModuleMetadata(target: Function): ModuleMetadata | undefined {
   return moduleMetadataStore.read(target);
