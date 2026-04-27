@@ -71,6 +71,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function hasOwn(value: Record<string, unknown>, key: string): boolean {
+  return Object.hasOwn(value, key);
+}
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
 }
@@ -216,12 +220,17 @@ function validateReportSummary(value: unknown): StudioReportSummary {
   return value as unknown as StudioReportSummary;
 }
 
+function isReportArtifactEnvelope(value: Record<string, unknown>): boolean {
+  return value.summary !== undefined
+    || (hasOwn(value, 'snapshot') && hasOwn(value, 'timing') && (hasOwn(value, 'generatedAt') || hasOwn(value, 'version')));
+}
+
 function validateReport(value: unknown, snapshot: PlatformShellSnapshot | null, timing: BootstrapTimingDiagnostics | null): StudioReportArtifact | null {
-  if (!isRecord(value) || value.summary === undefined) {
+  if (!isRecord(value) || !isReportArtifactEnvelope(value)) {
     return null;
   }
 
-  if (value.version !== 1 || typeof value.generatedAt !== 'string' || !snapshot || !timing) {
+  if (value.summary === undefined || value.version !== 1 || typeof value.generatedAt !== 'string' || !snapshot || !timing) {
     throw new Error('Invalid inspect report artifact payload.');
   }
 
@@ -244,9 +253,17 @@ function validateReport(value: unknown, snapshot: PlatformShellSnapshot | null, 
 export function parseStudioPayload(rawJson: string): ParsedPayload {
   const parsed = JSON.parse(rawJson) as unknown;
   const envelope = isRecord(parsed) ? parsed : undefined;
+  const hasSnapshotEnvelope = envelope !== undefined && hasOwn(envelope, 'snapshot');
+  const hasTimingEnvelope = envelope !== undefined && hasOwn(envelope, 'timing');
+  const standaloneTiming = envelope !== undefined
+    && !hasSnapshotEnvelope
+    && !hasTimingEnvelope
+    && hasOwn(envelope, 'version')
+    && hasOwn(envelope, 'totalMs')
+    && hasOwn(envelope, 'phases');
 
-  const snapshot = validateSnapshot(envelope?.snapshot ?? parsed);
-  const timing = validateTiming(envelope?.timing ?? (!snapshot ? parsed : undefined));
+  const snapshot = validateSnapshot(hasSnapshotEnvelope ? envelope.snapshot : standaloneTiming ? undefined : parsed);
+  const timing = validateTiming(hasTimingEnvelope ? envelope.timing : !snapshot ? parsed : undefined);
   const report = validateReport(parsed, snapshot, timing);
 
   if (!snapshot && !timing) {

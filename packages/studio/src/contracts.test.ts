@@ -1,13 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-import { describe, expect, it } from 'vitest';
-
-import * as studio from './index.js';
-import { applyFilters, parseStudioPayload, renderMermaid } from './contracts.js';
 import type { PlatformShellSnapshot } from '@fluojs/runtime';
+import { describe, expect, it } from 'vitest';
 import { runWorkspaceBuildClosure } from '../../../tooling/scripts/run-workspace-build-closure.mjs';
+import { applyFilters, parseStudioPayload, renderMermaid } from './contracts.js';
+import * as studio from './index.js';
 
 const packageDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
 const repoRoot = resolve(packageDir, '..', '..');
@@ -131,6 +129,23 @@ describe('parseStudioPayload', () => {
     expect(parsed.payload.timing?.phases).toHaveLength(1);
   });
 
+  it('parses standalone timing diagnostics without requiring a snapshot', () => {
+    const parsed = parseStudioPayload(
+      JSON.stringify({
+        phases: [{ durationMs: 1.23, name: 'bootstrap_module' }],
+        totalMs: 1.23,
+        version: 1,
+      }),
+    );
+
+    expect(parsed.payload.snapshot).toBeUndefined();
+    expect(parsed.payload.timing).toEqual({
+      phases: [{ durationMs: 1.23, name: 'bootstrap_module' }],
+      totalMs: 1.23,
+      version: 1,
+    });
+  });
+
   it('preserves inspect report artifacts with summary, snapshot, and timing', () => {
     const parsed = parseStudioPayload(
       JSON.stringify({
@@ -200,6 +215,23 @@ describe('parseStudioPayload', () => {
         }),
       )
     ).toThrow('Invalid inspect report summary payload.');
+  });
+
+  it('rejects inspect report artifacts missing the required summary', () => {
+    expect(() =>
+      parseStudioPayload(
+        JSON.stringify({
+          generatedAt: snapshotFixture.generatedAt,
+          snapshot: snapshotFixture,
+          timing: {
+            phases: [{ durationMs: 4.56, name: 'bootstrap_module' }],
+            totalMs: 4.56,
+            version: 1,
+          },
+          version: 1,
+        }),
+      )
+    ).toThrow('Invalid inspect report artifact payload.');
   });
 
   it('keeps the Studio release contract aligned across manifest and README docs', () => {
