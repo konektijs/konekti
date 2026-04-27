@@ -1,4 +1,4 @@
-import { cloneCollection, cloneMutableValue } from './shared.js';
+import { cloneFrozenCollection, cloneMutableValue, freezeMetadataSnapshot } from './shared.js';
 import { createClonedWeakMapStore } from './store.js';
 import type { ModuleMetadata } from './types.js';
 
@@ -13,25 +13,25 @@ function cloneProvider(provider: unknown): unknown {
     // Shallow-copy the provider descriptor but preserve the useValue reference.
     // Deep-cloning useValue would sever object identity for externally supplied
     // instances (e.g. transport adapters) that callers hold references to.
-    return { ...provider };
+    return Object.freeze({ ...provider });
   }
 
-  return cloneMutableValue(provider);
+  return freezeMetadataSnapshot(cloneMutableValue(provider));
 }
 
 function cloneProviders(providers: readonly unknown[] | undefined): unknown[] | undefined {
-  return providers ? providers.map(cloneProvider) : undefined;
+  return providers ? freezeMetadataSnapshot(providers.map(cloneProvider)) : undefined;
 }
 
 function cloneModuleMetadata(metadata: ModuleMetadata): ModuleMetadata {
-  return {
-    controllers: cloneCollection(metadata.controllers),
-    exports: cloneCollection(metadata.exports),
+  return freezeMetadataSnapshot({
+    controllers: cloneFrozenCollection(metadata.controllers),
+    exports: cloneFrozenCollection(metadata.exports),
     global: metadata.global,
-    imports: cloneCollection(metadata.imports),
-    middleware: cloneCollection(metadata.middleware),
+    imports: cloneFrozenCollection(metadata.imports),
+    middleware: cloneFrozenCollection(metadata.middleware),
     providers: cloneProviders(metadata.providers),
-  };
+  });
 }
 
 /**

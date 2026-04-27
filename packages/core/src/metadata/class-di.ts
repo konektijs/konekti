@@ -1,13 +1,14 @@
 import { createClonedWeakMapStore } from './store.js';
+import { freezeMetadataSnapshot } from './shared.js';
 import type { ClassDiMetadata } from './types.js';
 
 const classDiMetadataStore = createClonedWeakMapStore<Function, ClassDiMetadata>(cloneClassDiMetadata);
 
 function cloneClassDiMetadata(metadata: ClassDiMetadata): ClassDiMetadata {
-  return {
+  return freezeMetadataSnapshot({
     inject: metadata.inject ? [...metadata.inject] : undefined,
     scope: metadata.scope,
-  };
+  });
 }
 
 function getClassMetadataLineage(target: Function): Function[] {

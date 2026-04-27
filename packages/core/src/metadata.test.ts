@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   appendDtoFieldValidationRule,
@@ -51,7 +51,7 @@ describe('metadata helpers', () => {
     });
   });
 
-  it('preserves prior module collections across partial writes and returns clones', () => {
+  it('preserves prior module collections across partial writes and returns immutable snapshots', () => {
     class ExampleModule {}
 
     defineModuleMetadata(ExampleModule, {
@@ -74,9 +74,10 @@ describe('metadata helpers', () => {
       providers: ['LoggerProvider'],
     });
 
-    if (metadata?.imports) {
-      (metadata.imports as unknown as unknown[]).push('MutatedModule');
-    }
+    expect(Object.isFrozen(metadata)).toBe(true);
+    expect(Object.isFrozen(metadata?.imports)).toBe(true);
+    expect(getModuleMetadata(ExampleModule)).toBe(metadata);
+    expect(() => (metadata?.imports as unknown as unknown[]).push('MutatedModule')).toThrow(TypeError);
 
     expect(getModuleMetadata(ExampleModule)).toEqual({
       controllers: undefined,
@@ -144,7 +145,7 @@ describe('metadata helpers', () => {
     });
   });
 
-  it('returns cloned nested route metadata objects', () => {
+  it('returns immutable nested route metadata objects', () => {
     class ExampleController {
       getUser() {
         return { ok: true };
@@ -163,13 +164,19 @@ describe('metadata helpers', () => {
 
     const metadata = getRouteMetadata(ExampleController.prototype, 'getUser');
 
-    if (metadata?.headers?.[0]) {
-      metadata.headers[0].value = 'mutated';
-    }
-
-    if (metadata?.redirect) {
-      metadata.redirect.url = '/mutated';
-    }
+    expect(Object.isFrozen(metadata?.headers)).toBe(true);
+    expect(Object.isFrozen(metadata?.headers?.[0])).toBe(true);
+    expect(Object.isFrozen(metadata?.redirect)).toBe(true);
+    expect(() => {
+      if (metadata?.headers?.[0]) {
+        metadata.headers[0].value = 'mutated';
+      }
+    }).toThrow(TypeError);
+    expect(() => {
+      if (metadata?.redirect) {
+        metadata.redirect.url = '/mutated';
+      }
+    }).toThrow(TypeError);
 
     expect(getRouteMetadata(ExampleController.prototype, 'getUser')).toEqual({
       headers: [{ name: 'x-test', value: 'v1' }],
@@ -204,7 +211,9 @@ describe('metadata helpers', () => {
 
     expect(returnedMiddleware).toBe(middleware);
     expect(metadata?.middleware).not.toBeUndefined();
-    expect(metadata?.middleware).not.toBe((getModuleMetadata(ExampleModule)?.middleware as unknown[] | undefined));
+    expect(Object.isFrozen(metadata?.middleware)).toBe(true);
+    expect(returnedMiddleware && Object.isFrozen(returnedMiddleware)).toBe(false);
+    expect(metadata?.middleware).toBe(getModuleMetadata(ExampleModule)?.middleware);
   });
 
   it('builds DTO binding schema from field metadata', () => {
@@ -424,7 +433,7 @@ describe('metadata helpers', () => {
     });
   });
 
-  it('merges child DI metadata with inherited fallback and clones returned arrays', () => {
+  it('merges child DI metadata with inherited fallback and returns immutable arrays', () => {
     class BaseService {}
 
     defineClassDiMetadata(BaseService, {
@@ -449,9 +458,9 @@ describe('metadata helpers', () => {
       scope: 'request',
     });
 
-    if (metadata?.inject) {
-      (metadata.inject as unknown as unknown[]).push('MUTATED');
-    }
+    expect(Object.isFrozen(metadata)).toBe(true);
+    expect(Object.isFrozen(metadata?.inject)).toBe(true);
+    expect(() => (metadata?.inject as unknown as unknown[]).push('MUTATED')).toThrow(TypeError);
 
     expect(getInheritedClassDiMetadata(ChildService)).toEqual({
       inject: ['CACHE'],
@@ -548,5 +557,41 @@ describe('metadata helpers', () => {
       middleware: undefined,
       providers: ['LoggerProvider'],
     });
+  });
+
+  it('reuses frozen metadata snapshots across repeated hot-path reads', () => {
+    class Repository {}
+    class Cache {}
+    const providerFactory = vi.fn(() => new Repository());
+    const modules: Function[] = [];
+
+    for (let index = 0; index < 250; index += 1) {
+      class StressModule {}
+
+      defineModuleMetadata(StressModule, {
+        imports: modules.slice(Math.max(0, modules.length - 3)),
+        providers: [Repository, Cache, { provide: `REPOSITORY_${index}`, useFactory: providerFactory }],
+      });
+      modules.push(StressModule);
+    }
+
+    const serviceMetadata = { inject: [Repository, Cache] };
+
+    class StressService {}
+
+    defineClassDiMetadata(StressService, serviceMetadata);
+
+    const firstModuleRead = getModuleMetadata(modules.at(-1) as Function);
+    const firstDiRead = getOwnClassDiMetadata(StressService);
+
+    for (let index = 0; index < 1_000; index += 1) {
+      expect(getModuleMetadata(modules.at(-1) as Function)).toBe(firstModuleRead);
+      expect(getOwnClassDiMetadata(StressService)).toBe(firstDiRead);
+    }
+
+    expect(providerFactory).not.toHaveBeenCalled();
+    expect(Object.isFrozen(firstModuleRead)).toBe(true);
+    expect(Object.isFrozen(firstModuleRead?.providers)).toBe(true);
+    expect(Object.isFrozen(firstDiRead?.inject)).toBe(true);
   });
 });

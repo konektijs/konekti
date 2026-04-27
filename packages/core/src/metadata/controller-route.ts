@@ -1,6 +1,7 @@
 import {
+  cloneFrozenCollection,
   cloneMutableValue,
-  cloneCollection,
+  freezeMetadataSnapshot,
   getOrCreatePropertyMap,
   getStandardConstructorMetadataMap,
   getStandardMetadataBag,
@@ -15,29 +16,29 @@ const controllerMetadataStore = createClonedWeakMapStore<Function, ControllerMet
 const routeMetadataStore = new WeakMap<object, Map<MetadataPropertyKey, RouteMetadata>>();
 
 function cloneRouteHeaders(headers: RouteMetadata['headers']): RouteMetadata['headers'] {
-  return headers?.map((header) => ({ ...header }));
+  return headers ? freezeMetadataSnapshot(headers.map((header) => ({ ...header }))) : undefined;
 }
 
 function cloneRouteRedirect(redirect: RouteMetadata['redirect']): RouteMetadata['redirect'] {
-  return redirect ? { ...redirect } : undefined;
+  return redirect ? freezeMetadataSnapshot({ ...redirect }) : undefined;
 }
 
 function cloneControllerMetadata(metadata: ControllerMetadata): ControllerMetadata {
-  return {
+  return freezeMetadataSnapshot({
     ...metadata,
-    guards: cloneCollection(metadata.guards),
-    interceptors: cloneCollection(metadata.interceptors),
-  };
+    guards: cloneFrozenCollection(metadata.guards),
+    interceptors: cloneFrozenCollection(metadata.interceptors),
+  });
 }
 
 function cloneRouteMetadata(metadata: RouteMetadata): RouteMetadata {
-  return {
+  return freezeMetadataSnapshot({
     ...metadata,
     headers: cloneRouteHeaders(metadata.headers),
     redirect: cloneRouteRedirect(metadata.redirect),
-    guards: cloneCollection(metadata.guards),
-    interceptors: cloneCollection(metadata.interceptors),
-  };
+    guards: cloneFrozenCollection(metadata.guards),
+    interceptors: cloneFrozenCollection(metadata.interceptors),
+  });
 }
 
 function getStandardControllerMetadata(target: Function): ControllerMetadata | undefined {
@@ -122,7 +123,7 @@ function mergeRouteMetadata(
   const mergedHeaders = stored?.headers ?? standard?.headers;
   const mergedRedirect = stored?.redirect ?? standard?.redirect;
 
-  return {
+  return freezeMetadataSnapshot({
     guards: mergeUnique(stored?.guards, standard?.guards),
     headers: cloneMutableValue(mergedHeaders),
     interceptors: mergeUnique(stored?.interceptors, standard?.interceptors),
@@ -132,7 +133,7 @@ function mergeRouteMetadata(
     request: stored?.request ?? standard?.request,
     successStatus: stored?.successStatus ?? standard?.successStatus,
     version: stored?.version ?? standard?.version,
-  };
+  });
 }
 
 export function getRouteMetadata(target: object, propertyKey: MetadataPropertyKey): RouteMetadata | undefined {

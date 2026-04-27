@@ -1,6 +1,7 @@
 import {
   appendPropertyMapValue,
   cloneMutableValue,
+  freezeMetadataSnapshot,
   getOrCreatePropertyMap,
   getStandardConstructorMetadataMap,
   getStandardMetadataBag,
@@ -22,7 +23,7 @@ import type { Constructor, MetadataPropertyKey } from '../types.js';
 const dtoFieldBindingStore = new WeakMap<object, Map<MetadataPropertyKey, DtoFieldBindingMetadata>>();
 const dtoFieldValidationStore = new WeakMap<object, Map<MetadataPropertyKey, DtoFieldValidationRule[]>>();
 const classValidationStore = createClonedWeakMapStore<Function, ClassValidationRule[]>((rules) =>
-  rules.map((rule) => cloneMutableValue(rule))
+  freezeMetadataSnapshot(rules.map((rule) => cloneMutableValue(rule)))
 );
 
 function getStandardDtoBindingMap(target: object): Map<MetadataPropertyKey, StandardDtoBindingRecord> | undefined {
@@ -39,6 +40,13 @@ function getStandardClassValidationRules(target: Function): ClassValidationRule[
   return rules ? rules.map((rule) => cloneMutableValue(rule)) : undefined;
 }
 
+/**
+ * Reads binding metadata for a single DTO field.
+ *
+ * @param target DTO prototype that owns the field metadata.
+ * @param propertyKey Field property key to inspect.
+ * @returns The resolved field binding metadata, or `undefined` when no source is defined.
+ */
 export function getDtoFieldBindingMetadata(target: object, propertyKey: MetadataPropertyKey): DtoFieldBindingMetadata | undefined {
   const stored = dtoFieldBindingStore.get(target)?.get(propertyKey);
   const standard = getStandardDtoBindingMap(target)?.get(propertyKey);
@@ -58,6 +66,13 @@ export function getDtoFieldBindingMetadata(target: object, propertyKey: Metadata
   };
 }
 
+/**
+ * Defines binding metadata for a DTO field.
+ *
+ * @param target DTO prototype receiving the field metadata.
+ * @param propertyKey Field property key associated with the metadata.
+ * @param metadata Binding metadata to store for the field.
+ */
 export function defineDtoFieldBindingMetadata(
   target: object,
   propertyKey: MetadataPropertyKey,
@@ -66,6 +81,13 @@ export function defineDtoFieldBindingMetadata(
   getOrCreatePropertyMap(dtoFieldBindingStore, target).set(propertyKey, { ...metadata });
 }
 
+/**
+ * Appends a validation rule to a DTO field.
+ *
+ * @param target DTO prototype receiving the validation rule.
+ * @param propertyKey Field property key associated with the rule.
+ * @param rule Validation rule to append after existing rules.
+ */
 export function appendDtoFieldValidationRule(
   target: object,
   propertyKey: MetadataPropertyKey,
@@ -74,12 +96,23 @@ export function appendDtoFieldValidationRule(
   appendPropertyMapValue(dtoFieldValidationStore, target, propertyKey, cloneMutableValue(rule));
 }
 
+/**
+ * Appends a class-level validation rule.
+ *
+ * @param target DTO class receiving the validation rule.
+ * @param rule Validation rule to append after existing class-level rules.
+ */
 export function appendClassValidationRule(target: Function, rule: ClassValidationRule): void {
   const rules = classValidationStore.read(target) ?? [];
-  rules.push(cloneMutableValue(rule));
-  classValidationStore.write(target, rules);
+  classValidationStore.write(target, [...rules, cloneMutableValue(rule)]);
 }
 
+/**
+ * Builds the ordered binding schema for a DTO class.
+ *
+ * @param dto DTO class whose prototype and standard metadata should be inspected.
+ * @returns Ordered binding schema entries for fields with a defined source.
+ */
 export function getDtoBindingSchema(dto: Constructor): DtoBindingSchemaEntry[] {
   const stored = dtoFieldBindingStore.get(dto.prototype) ?? new Map<MetadataPropertyKey, DtoFieldBindingMetadata>();
   const standard =
@@ -112,6 +145,13 @@ export function getDtoBindingSchema(dto: Constructor): DtoBindingSchemaEntry[] {
   });
 }
 
+/**
+ * Reads validation rules for a single DTO field.
+ *
+ * @param target DTO prototype that owns the field metadata.
+ * @param propertyKey Field property key to inspect.
+ * @returns Ordered validation rules from standard metadata followed by explicit store metadata.
+ */
 export function getDtoFieldValidationRules(target: object, propertyKey: MetadataPropertyKey): readonly DtoFieldValidationRule[] {
   const stored = dtoFieldValidationStore.get(target)?.get(propertyKey) ?? [];
   const standard = getStandardDtoValidationMap(target)?.get(propertyKey) ?? [];
@@ -122,6 +162,12 @@ export function getDtoFieldValidationRules(target: object, propertyKey: Metadata
   ];
 }
 
+/**
+ * Builds the ordered validation schema for a DTO class.
+ *
+ * @param dto DTO class whose prototype and standard metadata should be inspected.
+ * @returns Ordered validation schema entries for fields that have validation rules.
+ */
 export function getDtoValidationSchema(dto: Constructor): DtoValidationSchemaEntry[] {
   const stored = dtoFieldValidationStore.get(dto.prototype) ?? new Map<MetadataPropertyKey, DtoFieldValidationRule[]>();
   const standard = getStandardDtoValidationMap(dto.prototype) ?? new Map<MetadataPropertyKey, StandardDtoValidationRecord>();
@@ -141,6 +187,12 @@ export function getDtoValidationSchema(dto: Constructor): DtoValidationSchemaEnt
   });
 }
 
+/**
+ * Reads class-level validation rules for a DTO class.
+ *
+ * @param target DTO class whose class-level validation rules should be inspected.
+ * @returns Ordered class-level validation rules from standard metadata followed by explicit store metadata.
+ */
 export function getClassValidationRules(target: Function): readonly ClassValidationRule[] {
   return [...(getStandardClassValidationRules(target) ?? []), ...(classValidationStore.read(target) ?? [])];
 }

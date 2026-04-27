@@ -11,6 +11,19 @@ const symbolWithMetadata = Symbol as typeof Symbol & { metadata?: symbol };
  * Active symbol key used to read and write standard metadata bags.
  */
 export let metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('fluo.symbol.metadata');
+let installedMetadataSymbol = symbolWithMetadata.metadata;
+
+function createSymbolRegistry<const TEntries extends readonly (readonly [string, string])[]>(entries: TEntries): {
+  [K in TEntries[number] as K[0]]: symbol;
+} {
+  const registry = new Map<string, symbol>();
+
+  for (const [type, key] of entries) {
+    registry.set(type, Symbol.for(key));
+  }
+
+  return Object.fromEntries(registry) as { [K in TEntries[number] as K[0]]: symbol };
+}
 
 /**
  * Ensures `Symbol.metadata` exists and returns the symbol used by Fluo metadata helpers.
@@ -18,8 +31,14 @@ export let metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('fluo.symb
  * @returns The resolved metadata symbol.
  */
 export function ensureMetadataSymbol(): symbol {
+  if (installedMetadataSymbol) {
+    metadataSymbol = installedMetadataSymbol;
+    return metadataSymbol;
+  }
+
   if (symbolWithMetadata.metadata) {
-    metadataSymbol = symbolWithMetadata.metadata;
+    installedMetadataSymbol = symbolWithMetadata.metadata;
+    metadataSymbol = installedMetadataSymbol;
     return metadataSymbol;
   }
 
@@ -27,6 +46,7 @@ export function ensureMetadataSymbol(): symbol {
     configurable: true,
     value: metadataSymbol,
   });
+  installedMetadataSymbol = metadataSymbol;
 
   return metadataSymbol;
 }
@@ -41,6 +61,51 @@ function isPlainObject(value: unknown): value is Record<PropertyKey, unknown> {
   const prototype = Object.getPrototypeOf(value);
 
   return prototype === Object.prototype || prototype === null;
+}
+
+function freezeMetadataValue<T>(value: T, seen: WeakSet<object>): T {
+  if (typeof value !== 'object' || value === null) {
+    return value;
+  }
+
+  if (seen.has(value)) {
+    return value;
+  }
+
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      freezeMetadataValue(item, seen);
+    }
+  } else if (value instanceof Map) {
+    for (const [key, entryValue] of value.entries()) {
+      freezeMetadataValue(key, seen);
+      freezeMetadataValue(entryValue, seen);
+    }
+  } else if (value instanceof Set) {
+    for (const entryValue of value.values()) {
+      freezeMetadataValue(entryValue, seen);
+    }
+  } else if (isPlainObject(value)) {
+    for (const key of Reflect.ownKeys(value)) {
+      freezeMetadataValue((value as Record<PropertyKey, unknown>)[key], seen);
+    }
+  } else if (!(value instanceof Date)) {
+    return value;
+  }
+
+  return Object.freeze(value);
+}
+
+/**
+ * Freezes metadata snapshots after write-time cloning so read paths can return stable references.
+ *
+ * @param value Metadata value to freeze.
+ * @returns The same value after recursively freezing metadata-owned mutable containers.
+ */
+export function freezeMetadataSnapshot<T>(value: T): T {
+  return freezeMetadataValue(value, new WeakSet<object>());
 }
 
 /**
@@ -61,26 +126,30 @@ export function cloneMutableValue<T>(value: T): T {
  * Canonical symbol keys for metadata emitted through the standard decorator metadata bag.
  */
 export const standardMetadataKeys = {
-  classValidation: Symbol.for('fluo.standard.class-validation'),
-  controller: Symbol.for('fluo.standard.controller'),
-  dtoFieldBinding: Symbol.for('fluo.standard.dto-binding'),
-  dtoFieldValidation: Symbol.for('fluo.standard.dto-validation'),
-  injection: Symbol.for('fluo.standard.injection'),
-  route: Symbol.for('fluo.standard.route'),
+  ...createSymbolRegistry([
+    ['classValidation', 'fluo.standard.class-validation'],
+    ['controller', 'fluo.standard.controller'],
+    ['dtoFieldBinding', 'fluo.standard.dto-binding'],
+    ['dtoFieldValidation', 'fluo.standard.dto-validation'],
+    ['injection', 'fluo.standard.injection'],
+    ['route', 'fluo.standard.route'],
+  ] as const),
 } as const;
 
 /**
  * Canonical symbol keys for Fluo-owned metadata stores.
  */
 export const metadataKeys = {
-  module: Symbol.for('fluo.metadata.module'),
-  controller: Symbol.for('fluo.metadata.controller'),
-  route: Symbol.for('fluo.metadata.route'),
-  dtoFieldBinding: Symbol.for('fluo.metadata.dto-field-binding'),
-  dtoFieldValidation: Symbol.for('fluo.metadata.dto-field-validation'),
-  injection: Symbol.for('fluo.metadata.injection'),
-  classDi: Symbol.for('fluo.metadata.class-di'),
-  classValidation: Symbol.for('fluo.metadata.class-validation'),
+  ...createSymbolRegistry([
+    ['module', 'fluo.metadata.module'],
+    ['controller', 'fluo.metadata.controller'],
+    ['route', 'fluo.metadata.route'],
+    ['dtoFieldBinding', 'fluo.metadata.dto-field-binding'],
+    ['dtoFieldValidation', 'fluo.metadata.dto-field-validation'],
+    ['injection', 'fluo.metadata.injection'],
+    ['classDi', 'fluo.metadata.class-di'],
+    ['classValidation', 'fluo.metadata.class-validation'],
+  ] as const),
 } as const;
 
 /**
@@ -91,6 +160,18 @@ export const metadataKeys = {
  */
 export function cloneCollection<T>(collection: readonly T[] | undefined): T[] | undefined {
   return collection ? collection.map((value) => cloneMutableValue(value)) : undefined;
+}
+
+/**
+ * Clones and freezes a readonly collection for immutable metadata snapshots.
+ *
+ * @param collection Collection to clone and freeze.
+ * @returns A frozen cloned array, or `undefined` when the collection is absent.
+ */
+export function cloneFrozenCollection<T>(collection: readonly T[] | undefined): T[] | undefined {
+  const cloned = cloneCollection(collection);
+
+  return cloned ? freezeMetadataSnapshot(cloned) : undefined;
 }
 
 /**

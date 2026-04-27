@@ -97,6 +97,27 @@ describe('core decorators', () => {
     });
   });
 
+  it('normalizes the legacy array syntax once when the decorator is created', () => {
+    const LOGGER = Symbol('LOGGER');
+    const CACHE = Symbol('CACHE');
+    const MUTATED = Symbol('MUTATED');
+    const tokens = [LOGGER, CACHE];
+    const decorator = Inject(tokens);
+
+    tokens.push(MUTATED);
+
+    @decorator
+    class LegacyArrayService {}
+
+    const metadata = getClassDiMetadata(LegacyArrayService);
+
+    expect(metadata).toEqual({
+      inject: [LOGGER, CACHE],
+      scope: undefined,
+    });
+    expect(Object.isFrozen(metadata?.inject)).toBe(true);
+  });
+
   it('stores an explicit empty inject list for zero-dependency classes', () => {
     @Inject()
     class ZeroDependencyService {}

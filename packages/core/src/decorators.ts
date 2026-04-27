@@ -10,6 +10,14 @@ type StandardClassDecoratorFn = (value: Function, context: ClassDecoratorContext
 
 type TupleOnly<T extends readonly unknown[]> = number extends T['length'] ? never : T;
 
+function normalizeInjectionTokens(tokensOrList: readonly unknown[]): Token[] {
+  const tokens = tokensOrList.length === 1 && Array.isArray(tokensOrList[0])
+    ? tokensOrList[0] as readonly Token[]
+    : tokensOrList as readonly Token[];
+
+  return [...tokens];
+}
+
 /**
  * Declares module-level metadata (`imports`, `providers`, `controllers`, `exports`, `global`) on a class.
  *
@@ -67,12 +75,10 @@ export function Inject(tokens: readonly Token[]): StandardClassDecoratorFn;
  * @returns A standard class decorator that stores explicit injection metadata on the target class.
  */
 export function Inject(...tokensOrList: readonly unknown[]): StandardClassDecoratorFn {
-  const tokens = tokensOrList.length === 1 && Array.isArray(tokensOrList[0])
-    ? [...tokensOrList[0] as readonly Token[]]
-    : [...tokensOrList as readonly Token[]];
+  const tokens = normalizeInjectionTokens(tokensOrList);
 
   return (target) => {
-    defineClassDiMetadata(target, { inject: [...tokens] });
+    defineClassDiMetadata(target, { inject: tokens });
   };
 }
 

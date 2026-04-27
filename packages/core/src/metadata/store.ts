@@ -1,5 +1,5 @@
 /**
- * Clone-on-read/write metadata store contract for function/object keyed metadata records.
+ * Immutable-snapshot metadata store contract for function/object keyed metadata records.
  */
 export interface ClonedWeakMapStore<TKey extends object, TValue> {
   read(target: TKey): TValue | undefined;
@@ -8,10 +8,12 @@ export interface ClonedWeakMapStore<TKey extends object, TValue> {
 }
 
 /**
- * Creates a WeakMap-backed store that clones values when they enter or leave the cache.
+ * Creates a WeakMap-backed store that normalizes values once when they enter the cache.
+ * The clone routine is responsible for returning an immutable snapshot so repeated reads
+ * can reuse the stored reference without allocating defensive clones.
  *
- * @param cloneValue Clone routine used to isolate stored metadata from caller mutations.
- * @returns A cloned WeakMap store for metadata helpers.
+ * @param cloneValue Clone routine used to isolate and freeze stored metadata from caller mutations.
+ * @returns An immutable WeakMap store for metadata helpers.
  */
 export function createClonedWeakMapStore<TKey extends object, TValue>(
   cloneValue: (value: TValue) => TValue,
@@ -20,8 +22,7 @@ export function createClonedWeakMapStore<TKey extends object, TValue>(
 
   return {
     read(target: TKey): TValue | undefined {
-      const value = store.get(target);
-      return value !== undefined ? cloneValue(value) : undefined;
+      return store.get(target);
     },
     update(target: TKey, updateValue: (current: TValue | undefined) => TValue): void {
       store.set(target, cloneValue(updateValue(store.get(target))));
