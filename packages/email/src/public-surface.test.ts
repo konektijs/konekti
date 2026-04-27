@@ -33,8 +33,21 @@ describe('@fluojs/email public API surface', () => {
     expect(emailPublicApi).not.toHaveProperty('DEFAULT_EMAIL_QUEUE_WORKER_OPTIONS');
     expect(emailQueuePublicApi).toHaveProperty('createEmailNotificationsQueueAdapter');
     expect(emailQueuePublicApi).toHaveProperty('DEFAULT_EMAIL_QUEUE_WORKER_OPTIONS');
+    expect(emailQueuePublicApi).toHaveProperty('EmailNotificationQueueJob');
+    expect(emailQueuePublicApi).toHaveProperty('EmailNotificationsQueueWorker');
     expectTypeOf<EmailQueueWorkerOptions>().toHaveProperty('attempts');
     expectTypeOf<EmailQueueWorkerOptions>().toHaveProperty('concurrency');
+  });
+
+  it('keeps concrete queue dependencies out of the root entrypoint implementation graph', () => {
+    const rootEntrypointFiles = ['index.ts', 'module.ts', 'types.ts', 'service.ts', 'channel.ts', 'constants.ts'];
+
+    for (const fileName of rootEntrypointFiles) {
+      const source = readFileSync(resolve(import.meta.dirname, fileName), 'utf8');
+
+      expect(source, fileName).not.toContain('@fluojs/queue');
+      expect(source, fileName).not.toContain('./queue.js');
+    }
   });
 
   it('keeps queue install requirements behind an optional peer dependency', () => {
@@ -95,6 +108,7 @@ describe('@fluojs/email public API surface', () => {
     expect(emailPublicApi).not.toHaveProperty('EMAIL_OPTIONS');
     expect(emailPublicApi).not.toHaveProperty('NormalizedEmailModuleOptions');
     expect(emailPublicApi).not.toHaveProperty('EmailNotificationQueueJob');
+    expect(emailPublicApi).not.toHaveProperty('EmailNotificationsQueueWorker');
     expect(emailPublicApi).not.toHaveProperty('NodemailerEmailTransport');
     expect(emailPublicApi).not.toHaveProperty('createNodemailerEmailTransport');
     expect(emailPublicApi).not.toHaveProperty('createNodemailerEmailTransportFactory');

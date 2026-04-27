@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type Constructor, type Token } from '@fluojs/core';
+import type { Constructor, Token } from '@fluojs/core';
 import { getModuleMetadata } from '@fluojs/core/internal';
 import { Container, type Provider } from '@fluojs/di';
 import { NotificationsModule, NotificationsService } from '@fluojs/notifications';
@@ -157,6 +157,17 @@ class PartialDeliveryTransport implements EmailTransport {
       messageId: 'partial-1',
       pending: ['pending@example.com'],
       rejected: ['rejected@example.com'],
+    };
+  }
+}
+
+class ZeroAcceptedTransport implements EmailTransport {
+  async send(): Promise<{ accepted: []; messageId: string; pending: []; rejected: [] }> {
+    return {
+      accepted: [],
+      messageId: 'zero-accepted-1',
+      pending: [],
+      rejected: [],
     };
   }
 }
@@ -397,7 +408,7 @@ describe('EmailModule', () => {
     emailContainer.register(...moduleProviders(emailModuleType));
 
     const channel = await emailContainer.resolve(EmailChannel);
-    const worker = await emailContainer.resolve(EmailNotificationsQueueWorker);
+    const worker = new EmailNotificationsQueueWorker(channel);
 
     const notificationsContainer = new Container();
     const notificationsModuleType = NotificationsModule.forRoot({
@@ -433,6 +444,77 @@ describe('EmailModule', () => {
     await worker.handle(enqueued[1] as EmailNotificationQueueJob);
 
     expect(transportState.sent).toHaveLength(2);
+  });
+
+  it('keeps the queue worker outside EmailModule providers so queue support stays opt-in', () => {
+    const providers = moduleProviders(
+      EmailModule.forRoot({
+        defaultFrom: 'noreply@example.com',
+        transport: new PassiveTransport(),
+      }),
+    );
+
+    expect(providers).toContain(EmailService);
+    expect(providers).toContain(EmailChannel);
+    expect(providers).not.toContain(EmailNotificationsQueueWorker);
+  });
+
+  it('propagates incomplete delivery failures from queue-backed email notification workers', async () => {
+    const container = new Container();
+    const moduleType = EmailModule.forRoot({
+      defaultFrom: 'noreply@example.com',
+      transport: new PartialDeliveryTransport(),
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const channel = await container.resolve(EmailChannel);
+    const worker = new EmailNotificationsQueueWorker(channel);
+
+    await expect(
+      worker.handle(
+        new EmailNotificationQueueJob(
+          {
+            channel: 'email',
+            payload: { text: 'Queued hello' },
+            recipients: ['user@example.com'],
+            subject: 'Queued subject',
+          },
+          '2026-04-27T00:00:00.000Z',
+        ),
+      ),
+    ).rejects.toMatchObject({
+      message: 'Email transport reported an incomplete delivery (accepted=1, pending=1, rejected=1).',
+      name: 'EmailDeliveryError',
+    });
+  });
+
+  it('fails queued notifications when the transport accepts zero recipients', async () => {
+    const container = new Container();
+    const moduleType = EmailModule.forRoot({
+      defaultFrom: 'noreply@example.com',
+      transport: new ZeroAcceptedTransport(),
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const channel = await container.resolve(EmailChannel);
+    const worker = new EmailNotificationsQueueWorker(channel);
+
+    await expect(
+      worker.handle(
+        new EmailNotificationQueueJob(
+          {
+            channel: 'email',
+            payload: { text: 'Queued hello' },
+            recipients: ['user@example.com'],
+            subject: 'Queued subject',
+          },
+          '2026-04-27T00:00:00.000Z',
+        ),
+      ),
+    ).rejects.toMatchObject({
+      message: 'Email transport reported an incomplete delivery (accepted=0, pending=0, rejected=0).',
+      name: 'EmailDeliveryError',
+    });
   });
 
   it('fails notifications delivery when the transport reports pending or rejected recipients', async () => {
