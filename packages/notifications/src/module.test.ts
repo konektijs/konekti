@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type Constructor, type Token } from '@fluojs/core';
+import { Inject, type Constructor, type Token } from '@fluojs/core';
 import { getModuleMetadata } from '@fluojs/core/internal';
 import { Container, type Provider } from '@fluojs/di';
 
@@ -118,6 +118,49 @@ describe('NotificationsModule', () => {
         recipients: ['user@example.com'],
       },
     ]);
+  });
+
+  it('supports documented class-level service injection for application services', async () => {
+    const deliveries: string[] = [];
+
+    @Inject(NotificationsService)
+    class WelcomeService {
+      constructor(private readonly notifications: NotificationsService) {}
+
+      async sendWelcomeEmail(email: string): Promise<NotificationDispatchResult> {
+        return this.notifications.dispatch({
+          channel: 'email',
+          payload: { template: 'welcome-email' },
+          recipients: [email],
+          subject: 'Welcome to fluo',
+        });
+      }
+    }
+
+    const container = new Container();
+    const moduleType = NotificationsModule.forRoot({
+      channels: [
+        {
+          channel: 'email',
+          async send(notification: NotificationDispatchRequest) {
+            deliveries.push(notification.recipients?.[0] ?? 'missing-recipient');
+
+            return { externalId: 'welcome-1' };
+          },
+        },
+      ],
+    });
+
+    container.register(...moduleProviders(moduleType), WelcomeService);
+    const service = await container.resolve(WelcomeService);
+
+    await expect(service.sendWelcomeEmail('user@example.com')).resolves.toMatchObject({
+      channel: 'email',
+      deliveryId: 'welcome-1',
+      queued: false,
+      status: 'delivered',
+    });
+    expect(deliveries).toEqual(['user@example.com']);
   });
 
   it('keeps single dispatch direct by default even when bulkThreshold is 1', async () => {

@@ -71,8 +71,9 @@ export class AppModule {}
 import { Inject } from '@fluojs/core';
 import { NotificationsService } from '@fluojs/notifications';
 
+@Inject(NotificationsService)
 export class WelcomeService {
-  constructor(@Inject(NotificationsService) private readonly notifications: NotificationsService) {}
+  constructor(private readonly notifications: NotificationsService) {}
 
   async sendWelcomeEmail(userId: string, email: string) {
     await this.notifications.dispatch({
@@ -87,6 +88,8 @@ export class WelcomeService {
   }
 }
 ```
+
+`NotificationsModule.forRoot(...)`는 `NotificationsService`, `NOTIFICATIONS`, `NOTIFICATION_CHANNELS`를 global provider로 export합니다. 애플리케이션 서비스는 fluo의 class-level `@Inject(...)` decorator로 의존성을 선언해야 standard-decorator DI container가 legacy parameter decorator 없이 서비스를 resolve할 수 있습니다.
 
 ## 일반적인 패턴
 
