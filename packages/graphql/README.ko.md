@@ -84,11 +84,16 @@ const userLoader = createDataLoader(async (ids: string[]) => {
   return ids.map(id => users.find(u => u.id === id));
 });
 
+class UserInput {
+  @Arg('id')
+  id = '';
+}
+
 @Resolver()
 class UserResolver {
-  @Query()
-  async user(@Arg('id') id: string, context: GraphQLContext) {
-    return userLoader(context).load(id);
+  @Query({ input: UserInput })
+  async user(input: UserInput, context: GraphQLContext) {
+    return userLoader(context).load(input.id);
   }
 }
 ```
