@@ -7,10 +7,12 @@ import { fallbackClone } from '../utils.js';
 export type StandardMetadataBag = Record<PropertyKey, unknown>;
 
 const symbolWithMetadata = Symbol as typeof Symbol & { metadata?: symbol };
+const fallbackMetadataSymbol = Symbol.for('fluo.symbol.metadata');
+
 /**
  * Active symbol key used to read and write standard metadata bags.
  */
-export let metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('fluo.symbol.metadata');
+export let metadataSymbol = symbolWithMetadata.metadata ?? fallbackMetadataSymbol;
 
 /**
  * Ensures `Symbol.metadata` exists and returns the symbol used by Fluo metadata helpers.
@@ -41,6 +43,16 @@ function getActiveMetadataSymbol(): symbol {
   }
 
   return metadataSymbol;
+}
+
+function getStandardMetadataBagFromSymbol(target: object, symbol: symbol): StandardMetadataBag | undefined {
+  const metadata = Reflect.get(target, symbol);
+
+  if (typeof metadata !== 'object' || metadata === null) {
+    return undefined;
+  }
+
+  return metadata as StandardMetadataBag;
 }
 
 function isPlainObject(value: unknown): value is Record<PropertyKey, unknown> {
@@ -159,13 +171,18 @@ export function mergeUnique<T>(existing: readonly T[] | undefined, values: reado
  * @returns The metadata bag when present, otherwise `undefined`.
  */
 export function getStandardMetadataBag(target: object): StandardMetadataBag | undefined {
-  const metadata = Reflect.get(target, getActiveMetadataSymbol());
+  const activeMetadataSymbol = getActiveMetadataSymbol();
+  const activeMetadata = getStandardMetadataBagFromSymbol(target, activeMetadataSymbol);
 
-  if (typeof metadata !== 'object' || metadata === null) {
-    return undefined;
+  if (activeMetadata) {
+    return activeMetadata;
   }
 
-  return metadata as StandardMetadataBag;
+  if (activeMetadataSymbol !== fallbackMetadataSymbol) {
+    return getStandardMetadataBagFromSymbol(target, fallbackMetadataSymbol);
+  }
+
+  return undefined;
 }
 
 /**

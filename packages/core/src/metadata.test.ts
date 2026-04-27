@@ -723,6 +723,69 @@ describe('metadata helpers', () => {
     }
   });
 
+  it('reads standard metadata written before and after Symbol.metadata replacement in one process', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(Symbol, 'metadata');
+    const fallbackSymbol = ensureMetadataSymbol();
+    const nativeSymbol = Symbol('native.metadata');
+    const fallbackInjectionMetadata = new Map([['fallbackService', { optional: true, token: 'FALLBACK_LOGGER' }]]);
+    const nativeInjectionMetadata = new Map([['nativeService', { optional: false, token: 'NATIVE_LOGGER' }]]);
+
+    class FallbackEraController {
+      fallbackService!: string;
+    }
+
+    Object.defineProperty(FallbackEraController, fallbackSymbol, {
+      configurable: true,
+      value: {
+        [standardMetadataKeys.controller]: { basePath: '/fallback-era' },
+        [standardMetadataKeys.injection]: fallbackInjectionMetadata,
+      },
+    });
+
+    Object.defineProperty(Symbol, 'metadata', {
+      configurable: true,
+      value: nativeSymbol,
+    });
+
+    class NativeEraController {
+      nativeService!: string;
+    }
+
+    Object.defineProperty(NativeEraController, nativeSymbol, {
+      configurable: true,
+      value: {
+        [standardMetadataKeys.controller]: { basePath: '/native-era' },
+        [standardMetadataKeys.injection]: nativeInjectionMetadata,
+      },
+    });
+
+    try {
+      expect(fallbackSymbol).not.toBe(nativeSymbol);
+      expect(getStandardConstructorMetadataRecord<{ basePath: string }>(
+        FallbackEraController.prototype,
+        standardMetadataKeys.controller,
+      )).toEqual({ basePath: '/fallback-era' });
+      expect(getStandardConstructorMetadataMap(FallbackEraController.prototype, standardMetadataKeys.injection)).toBe(
+        fallbackInjectionMetadata,
+      );
+      expect(getStandardConstructorMetadataRecord<{ basePath: string }>(
+        NativeEraController.prototype,
+        standardMetadataKeys.controller,
+      )).toEqual({ basePath: '/native-era' });
+      expect(getStandardConstructorMetadataMap(NativeEraController.prototype, standardMetadataKeys.injection)).toBe(
+        nativeInjectionMetadata,
+      );
+      expect(metadataSymbol).toBe(nativeSymbol);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(Symbol, 'metadata', originalDescriptor);
+      } else {
+        delete (Symbol as typeof Symbol & { metadata?: symbol }).metadata;
+      }
+      ensureMetadataSymbol();
+    }
+  });
+
   it('reads standard metadata bags and constructor-level records through Symbol.metadata', () => {
     const metadataSymbol = ensureMetadataSymbol();
     const injectionMetadata = new Map([['service', { optional: true, token: 'LOGGER' }]]);
