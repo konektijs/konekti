@@ -14,6 +14,7 @@
 - [공통 패턴](#공통-패턴)
   - [Redis 저장소 사용](#redis-저장소-사용)
   - [쿼리 매개변수 기반 캐싱](#쿼리-매개변수-기반-캐싱)
+  - [캐시 소유권과 reset 범위](#캐시-소유권과-reset-범위)
   - [수동 모듈 조합](#수동-모듈-조합)
 - [공개 API 개요](#공개-api-개요)
 - [관련 패키지](#관련-패키지)
@@ -120,6 +121,8 @@ CacheModule.forRoot({
 
 내장 `RedisStore`는 엔트리를 `JSON.stringify(...)`로 저장합니다. 따라서 캐시 값은 JSON 호환 형태여야 합니다. 일반 객체, 배열, 문자열, 숫자, 불리언, `null`은 안정적으로 round-trip 되지만, `Date`는 JSON 결과(예: ISO 문자열)로 돌아오고, 함수/`undefined`/`symbol`은 유지되지 않으며, `bigint`나 순환 그래프처럼 직렬화 불가능한 값은 캐싱 전에 정규화해야 합니다.
 
+Redis reset 소유권은 기본값이 `fluo:cache:`인 `keyPrefix`로 제한됩니다. Redis 기반 저장소에서 `CacheService.reset()`은 해당 prefix 아래의 키만 삭제하므로, cache prefix 밖의 애플리케이션 소유 Redis 데이터는 유지됩니다. 의도적으로 빈 `keyPrefix`를 설정하면 reset은 `*`를 scan하지 않고 현재 `RedisStore` 인스턴스가 쓴 키로만 제한됩니다. 재시작 이후나 여러 프로세스에 걸친 캐시 엔트리까지 reset해야 한다면 비어 있지 않은 애플리케이션 전용 prefix를 사용하세요.
+
 ### 쿼리 매개변수 기반 캐싱
 
 기본적으로 캐시 키는 쿼리 매개변수를 무시합니다. 검색 조건 등에 따라 다른 응답을 캐싱하려면 `httpKeyStrategy: 'route+query'`를 활성화하세요.
@@ -130,6 +133,19 @@ CacheModule.forRoot({
   httpKeyStrategy: 'route+query',
 })
 ```
+
+### 캐시 소유권과 reset 범위
+
+`CacheService.reset()`은 관련 없는 애플리케이션 상태가 아니라 설정된 store가 소유한 엔트리만 삭제합니다. 내장 메모리 저장소에서는 해당 store 인스턴스가 보유한 in-process 엔트리를 의미합니다. Redis에서는 설정된 `keyPrefix` namespace가 소유권 경계입니다. 공유 Redis 배포에서는 기본 `fluo:cache:`를 유지하거나 `myapp:cache:`처럼 전용 prefix를 선택하세요.
+
+```typescript
+CacheModule.forRoot({
+  store: 'redis',
+  keyPrefix: 'myapp:cache:',
+})
+```
+
+Redis cache prefix를 cache가 아닌 데이터와 공유하지 마세요. `del(key)`은 이 패키지가 해석한 정확한 캐시 키를 삭제하고, `reset()`은 위에서 설명한 store 소유 캐시 namespace만 삭제합니다.
 
 ### 수동 모듈 조합
 

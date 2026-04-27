@@ -1,7 +1,16 @@
 import type { CacheStore, RedisCompatibleClient } from '../types.js';
 
+/**
+ * Redis store configuration for key ownership and reset scanning.
+ */
 export interface RedisStoreOptions {
+  /**
+   * Prefix used to scope keys owned by this cache store when deleting entries or resetting the store.
+   */
   keyPrefix?: string;
+  /**
+   * Maximum number of keys requested per Redis SCAN iteration during reset.
+   */
   scanCount?: number;
 }
 
@@ -43,7 +52,11 @@ function normalizeScanResponse(result: [string | number, string[]]): { cursor: s
   };
 }
 
+/**
+ * Cache store implementation backed by a Redis-compatible client.
+ */
 export class RedisStore implements CacheStore {
+  private readonly ownedKeys = new Set<string>();
   private readonly keyPrefix: string;
   private readonly scanCount: number;
 
@@ -78,6 +91,7 @@ export class RedisStore implements CacheStore {
 
   async set<T = unknown>(key: string, value: T, ttlSeconds = 0): Promise<void> {
     const now = Date.now();
+    const redisKey = this.toRedisKey(key);
     const entry: RedisCacheEntry<T> = {
       value,
     };
@@ -86,18 +100,44 @@ export class RedisStore implements CacheStore {
       const ttlMilliseconds = Math.max(1, Math.floor(ttlSeconds * 1000));
       entry.expiresAt = now + ttlMilliseconds;
       const ttlSecondsRounded = Math.max(1, Math.ceil(ttlMilliseconds / 1000));
-      await this.client.set(this.toRedisKey(key), JSON.stringify(entry), 'EX', ttlSecondsRounded);
+      await this.client.set(redisKey, JSON.stringify(entry), 'EX', ttlSecondsRounded);
+      this.trackOwnedKey(redisKey);
       return;
     }
 
-    await this.client.set(this.toRedisKey(key), JSON.stringify(entry));
+    await this.client.set(redisKey, JSON.stringify(entry));
+    this.trackOwnedKey(redisKey);
+  }
+
+  private trackOwnedKey(redisKey: string): void {
+    if (this.keyPrefix.length === 0) {
+      this.ownedKeys.add(redisKey);
+    }
   }
 
   async del(key: string): Promise<void> {
-    await this.client.del(this.toRedisKey(key));
+    const redisKey = this.toRedisKey(key);
+
+    await this.client.del(redisKey);
+    this.ownedKeys.delete(redisKey);
   }
 
   async reset(): Promise<void> {
+    if (this.keyPrefix.length === 0) {
+      const keys = Array.from(this.ownedKeys);
+
+      if (keys.length > 0) {
+        const [firstKey, ...restKeys] = keys;
+
+        if (firstKey !== undefined) {
+          await this.client.del(firstKey, ...restKeys);
+        }
+      }
+
+      this.ownedKeys.clear();
+      return;
+    }
+
     let cursor = '0';
     const pattern = `${this.keyPrefix}*`;
 
@@ -115,5 +155,7 @@ export class RedisStore implements CacheStore {
         }
       }
     } while (cursor !== '0');
+
+    this.ownedKeys.clear();
   }
 }

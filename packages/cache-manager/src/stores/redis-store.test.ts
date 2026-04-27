@@ -99,6 +99,32 @@ describe('RedisStore', () => {
     expect(client.storage.has('another-prefix:noop')).toBe(true);
   });
 
+  it('preserves non-owned redis keys when keyPrefix is empty', async () => {
+    const client = new MockRedisClient();
+    const store = new RedisStore(client, { keyPrefix: '' });
+
+    client.storage.set('external:owned-by-app', JSON.stringify({ value: 'keep' }));
+    await store.set('cache:owned-by-store', { value: 'remove' });
+
+    await store.reset();
+
+    expect(client.scanCalls).toEqual([]);
+    expect(client.storage.has('cache:owned-by-store')).toBe(false);
+    expect(client.storage.get('external:owned-by-app')).toBe(JSON.stringify({ value: 'keep' }));
+  });
+
+  it('deletes an owned empty-string key when keyPrefix is empty', async () => {
+    const client = new MockRedisClient();
+    const store = new RedisStore(client, { keyPrefix: '' });
+
+    await store.set('', { value: 'remove' });
+
+    await store.reset();
+
+    expect(client.deletedKeys).toContainEqual(['']);
+    expect(client.storage.has('')).toBe(false);
+  });
+
   it('stores ttl=0 entries without redis expiry arguments', async () => {
     const client = new MockRedisClient();
     const store = new RedisStore(client, { keyPrefix: 'cache:' });

@@ -14,6 +14,7 @@ General-purpose cache manager for fluo with pluggable memory and Redis stores. P
 - [Common Patterns](#common-patterns)
   - [Redis Storage](#redis-storage)
   - [Query-Sensitive Caching](#query-sensitive-caching)
+  - [Cache Ownership and Reset Scope](#cache-ownership-and-reset-scope)
   - [Manual Module Composition](#manual-module-composition)
 - [Public API Overview](#public-api-overview)
 - [Related Packages](#related-packages)
@@ -120,6 +121,8 @@ CacheModule.forRoot({
 
 The built-in `RedisStore` persists entries with `JSON.stringify(...)`. Cache values therefore need to be JSON-compatible: plain objects, arrays, strings, numbers, booleans, and `null` round-trip cleanly, while values such as `Date` come back as JSON output (for example ISO strings), functions/`undefined`/symbols do not survive, and non-serializable values like `bigint` or cyclic graphs should be normalized before caching.
 
+Redis reset ownership is scoped by `keyPrefix`, which defaults to `fluo:cache:`. `CacheService.reset()` deletes only keys under that prefix for Redis-backed stores, so application-owned Redis data outside the cache prefix is preserved. If you intentionally configure an empty `keyPrefix`, reset is limited to keys written by the current `RedisStore` instance instead of scanning `*`; use a non-empty, application-specific prefix when you need reset to cover cache entries across restarts or multiple processes.
+
 ### Query-Sensitive Caching
 
 By default, the cache key ignores query parameters. Enable `httpKeyStrategy: 'route+query'` to cache different responses for different search parameters.
@@ -130,6 +133,19 @@ CacheModule.forRoot({
   httpKeyStrategy: 'route+query',
 })
 ```
+
+### Cache Ownership and Reset Scope
+
+`CacheService.reset()` clears entries owned by the configured store, not unrelated application state. For the built-in memory store that means the in-process entries held by that store instance. For Redis, ownership is the configured `keyPrefix` namespace; keep the default `fluo:cache:` or choose a dedicated prefix such as `myapp:cache:` for shared Redis deployments.
+
+```typescript
+CacheModule.forRoot({
+  store: 'redis',
+  keyPrefix: 'myapp:cache:',
+})
+```
+
+Avoid sharing a Redis cache prefix with non-cache data. `del(key)` removes the exact cache key resolved by this package, while `reset()` removes only the store-owned cache namespace described above.
 
 ### Manual Module Composition
 
