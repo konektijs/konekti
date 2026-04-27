@@ -85,7 +85,7 @@ export class AppModule {}
 ### 16.3.1 Global Throttling
 Configuring the Module at the root level establishes a default layer of protection for the entire application. This is your first line of defense. Every incoming request is tracked against the global limit unless a separate override exists. This "secure by default" posture reflects Fluo's philosophy, because even routes you forgot to protect explicitly still receive some protection from abuse.
 
-This setup applies a global limit of 100 requests per minute to every route in the application. It gives FluoBlog a baseline defense before you add stricter rules to sensitive endpoints.
+This setup defines a default limit of 10 requests every 60 seconds for routes that wire `ThrottlerGuard`. It gives FluoBlog a baseline defense before you add stricter rules to sensitive endpoints.
 
 Global throttling is especially effective when combined with **load balancer integration**. If your application runs behind a proxy such as Nginx, HAProxy, or a cloud-native load balancer such as AWS ALB, you must ensure the `X-Forwarded-For` header is parsed correctly to identify the real client IP. Without this setup, the global throttler may treat all traffic as coming from the proxy itself and accidentally put every user on a "global blacklist." In Fluo, enabling `trustProxyHeaders: true` in platform settings lets `ThrottlerGuard` receive the correct IP address for tracking logic.
 
