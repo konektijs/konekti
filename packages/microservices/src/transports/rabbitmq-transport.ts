@@ -144,9 +144,11 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
 
     return await new Promise<unknown>((resolve, reject) => {
       let abortHandler: (() => void) | undefined;
+      let settled = false;
       const timeout = setTimeout(() => {
-        cleanup();
-        reject(new Error(`RabbitMQ request timed out after ${this.requestTimeoutMs}ms waiting for pattern "${pattern}".`));
+        settle(() => {
+          reject(new Error(`RabbitMQ request timed out after ${this.requestTimeoutMs}ms waiting for pattern "${pattern}".`));
+        });
       }, this.requestTimeoutMs);
 
       const cleanup = () => {
@@ -158,44 +160,71 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
         }
       };
 
+      const settle = (callback: () => void) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        cleanup();
+        callback();
+      };
+
       this.pending.set(requestId, {
         reject: (error: unknown) => {
-          cleanup();
-          reject(error);
+          settle(() => {
+            reject(error);
+          });
         },
         resolve: (value: unknown) => {
-          cleanup();
-          resolve(value);
+          settle(() => {
+            resolve(value);
+          });
         },
         timeout,
       });
 
       if (signal) {
         if (signal.aborted) {
-          cleanup();
-          reject(new Error('RabbitMQ request aborted before publish.'));
+          settle(() => {
+            reject(new Error('RabbitMQ request aborted before publish.'));
+          });
           return;
         }
 
         abortHandler = () => {
-          cleanup();
-          reject(new Error('RabbitMQ request aborted.'));
+          settle(() => {
+            reject(new Error('RabbitMQ request aborted.'));
+          });
         };
 
         signal.addEventListener('abort', abortHandler, { once: true });
       }
 
       void Promise.resolve().then(async () => {
+        if (settled) {
+          return;
+        }
+
+        if (signal?.aborted) {
+          settle(() => {
+            reject(new Error('RabbitMQ request aborted before publish.'));
+          });
+          return;
+        }
+
         if (this.closing) {
-          cleanup();
-          reject(new Error('RabbitMQ microservice transport closed before request dispatch.'));
+          settle(() => {
+            reject(new Error('RabbitMQ microservice transport closed before request dispatch.'));
+          });
           return;
         }
 
         await this.options.publisher.publish(this.messageQueue, JSON.stringify(message));
       }).catch((error: unknown) => {
-        cleanup();
-        reject(error instanceof Error ? error : new Error('Failed to publish RabbitMQ request.'));
+        settle(() => {
+          reject(error instanceof Error ? error : new Error('Failed to publish RabbitMQ request.'));
+        });
       });
     });
   }

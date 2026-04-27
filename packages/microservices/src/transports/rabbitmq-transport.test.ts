@@ -425,6 +425,39 @@ describe('RabbitMqMicroserviceTransport', () => {
     );
   });
 
+  it('does not publish a request frame when send() is aborted before deferred publish', async () => {
+    const bus = new InMemoryQueueBus();
+    const published: string[] = [];
+    const transport = new RabbitMqMicroserviceTransport({
+      consumer: {
+        async cancel(queue) {
+          await bus.unsubscribe(queue);
+        },
+        async consume(queue, handler) {
+          await bus.subscribe(queue, handler);
+        },
+      },
+      publisher: {
+        async publish(queue, message) {
+          published.push(message);
+          await bus.publish(queue, message);
+        },
+      },
+      requestTimeoutMs: 5_000,
+    });
+
+    await transport.listen(async () => 'ok');
+
+    const controller = new AbortController();
+    const pending = transport.send('aborted.before.deferred.publish', {}, controller.signal);
+    controller.abort();
+
+    await expect(pending).rejects.toThrow('RabbitMQ request aborted.');
+    expect(published.filter((message) => (JSON.parse(message) as { kind?: string }).kind === 'message')).toHaveLength(0);
+
+    await transport.close();
+  });
+
   it('does not publish request frames once close() starts', async () => {
     const bus = new InMemoryQueueBus();
     const published: string[] = [];

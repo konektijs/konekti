@@ -305,6 +305,34 @@ describe('NatsMicroserviceTransport', () => {
     await transport.close();
   });
 
+  it('does not dispatch a NATS request when send() is aborted before deferred publish', async () => {
+    const nats = new InMemoryNatsClient();
+    const codec = {
+      decode(data: Uint8Array) {
+        return new TextDecoder().decode(data);
+      },
+      encode(value: string) {
+        return new TextEncoder().encode(value);
+      },
+    };
+
+    nats.request = vi.fn(async () => {
+      return { data: codec.encode(JSON.stringify({ payload: { value: 1 } })) };
+    });
+
+    const transport = new NatsMicroserviceTransport({ client: nats, codec, requestTimeoutMs: 5_000 });
+    await transport.listen(async () => undefined);
+
+    const controller = new AbortController();
+    const pending = transport.send('aborted.before.deferred.publish', {}, controller.signal);
+    controller.abort();
+
+    await expect(pending).rejects.toThrow('NATS request aborted.');
+    expect(nats.request).not.toHaveBeenCalled();
+
+    await transport.close();
+  });
+
   it('does not close the caller-owned NATS client during transport close()', async () => {
     const nats = new InMemoryNatsClient();
     const codec = {

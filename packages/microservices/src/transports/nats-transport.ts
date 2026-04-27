@@ -118,6 +118,7 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
    *
    * @param pattern Pattern identifying the remote message handler.
    * @param payload Serializable request payload.
+   * @param signal Optional abort signal used to cancel the request.
    * @returns The decoded remote handler response payload.
    */
   async send(pattern: string, payload: unknown, signal?: AbortSignal): Promise<unknown> {
@@ -182,6 +183,15 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
       }
 
       void Promise.resolve().then(async () => {
+        if (settled) {
+          return;
+        }
+
+        if (signal?.aborted) {
+          entry.reject(new Error('NATS request aborted before publish.'));
+          return;
+        }
+
         if (this.closing) {
           entry.reject(new Error('NATS microservice transport closed before request dispatch.'));
           return;
