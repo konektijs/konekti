@@ -80,6 +80,12 @@ class MyService {
 
 `validate` 함수는 모든 소스가 합쳐진 뒤 실행되며, 에러를 던지면 부트스트랩이 즉시 중단됩니다.
 
+### 런타임 접근과 리로드 비용 모델
+
+`ConfigService.get('a.b.c')`는 dot-path 세그먼트를 순서대로 탐색하므로 조회 비용은 path 깊이에 비례합니다. `get()`, `getOrThrow()`, `snapshot()`이 객체 형태의 값을 반환할 때는 분리된 clone을 반환합니다. 따라서 clone 비용은 반환되는 subtree 크기에 비례하며, 호출자 mutation은 활성 config snapshot에 영향을 주지 않습니다.
+
+`ConfigReloadManager.reload()`는 리로드 작업을 직렬화합니다. 현재 리로드가 listener 알림을 수행하는 동안 다른 리로드가 요청되면 후속 리로드는 큐에 들어가 활성 알림이 끝난 뒤 적용됩니다. 활성 알림이 실패하면 이전 snapshot을 복구하고 큐에 있던 리로드는 폐기합니다.
+
 ## 공개 API
 
 | 클래스/헬퍼 | 설명 |

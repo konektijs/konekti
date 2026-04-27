@@ -85,6 +85,11 @@ Plain objects are deep-merged by key. Arrays and primitive values from higher-pr
 ### Validation
 The `validate` function runs after all sources are merged but before the application starts. If it throws, the application bootstrap fails immediately.
 
+### Runtime Access and Reload Cost Model
+`ConfigService.get('a.b.c')` resolves dot-path keys by walking each path segment, so lookup cost is proportional to path depth. When `get()`, `getOrThrow()`, or `snapshot()` returns an object-like value, the returned value is a detached clone; clone cost is proportional to the returned subtree size so caller mutations cannot affect the active config snapshot.
+
+`ConfigReloadManager.reload()` serializes reload work. If another reload is requested while the current reload is notifying listeners, the follow-up reload is queued and applied after the active notification finishes; if the active notification fails, the previous snapshot is restored and the queued reload is discarded.
+
 ## Public API
 
 | Class/Helper | Description |
