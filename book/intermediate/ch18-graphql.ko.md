@@ -188,12 +188,17 @@ GraphqlModule.forRoot({
 FluoShop에서는 제품 카탈로그 조회 경험을 세밀하게 제공하기 위해 GraphQL을 사용합니다. 카테고리 조회에는 DataLoader를 적용하고, 검색 엔드포인트에는 복잡도 제한을 둬 성능과 안전성을 함께 관리합니다. 이 조합은 클라이언트가 필요한 필드를 유연하게 고르면서도, 서버가 감당하기 어려운 쿼리를 미리 제한하게 해줍니다.
 
 ```typescript
+class CatalogSearchInput {
+  @Arg('query')
+  query = '';
+}
+
 @Resolver()
 export class CatalogResolver {
-  @Query()
-  async search(@Arg('query') query: string) {
+  @Query({ input: CatalogSearchInput })
+  async search(input: CatalogSearchInput) {
     // 복잡도는 결과 세트 크기에 따라 자동으로 계산됩니다.
-    return this.catalogService.search(query);
+    return this.catalogService.search(input.query);
   }
 }
 ```

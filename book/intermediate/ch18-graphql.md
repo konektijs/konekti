@@ -188,12 +188,17 @@ GraphqlModule.forRoot({
 FluoShop uses GraphQL to provide a more fine-grained product catalog query experience. It applies DataLoader to category lookups and puts complexity limits on search endpoints so performance and safety are managed together.
 
 ```typescript
+class CatalogSearchInput {
+  @Arg('query')
+  query = '';
+}
+
 @Resolver()
 export class CatalogResolver {
-  @Query()
-  async search(@Arg('query') query: string) {
+  @Query({ input: CatalogSearchInput })
+  async search(input: CatalogSearchInput) {
     // Complexity is calculated automatically based on the result set size.
-    return this.catalogService.search(query);
+    return this.catalogService.search(input.query);
   }
 }
 ```
