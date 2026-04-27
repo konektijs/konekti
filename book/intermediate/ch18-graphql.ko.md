@@ -48,14 +48,19 @@ import { Resolver, Query, Mutation, Arg } from '@fluojs/graphql';
 import { Inject } from '@fluojs/core';
 import { ProductService } from './product.service';
 
+class ProductInput {
+  @Arg('id')
+  id = '';
+}
+
 @Inject(ProductService)
 @Resolver()
 export class ProductResolver {
   constructor(private readonly productService: ProductService) {}
 
-  @Query()
-  async product(@Arg('id') id: string) {
-    return this.productService.findById(id);
+  @Query({ input: ProductInput })
+  async product(input: ProductInput) {
+    return this.productService.findById(input.id);
   }
 
   @Query()
@@ -64,6 +69,8 @@ export class ProductResolver {
   }
 }
 ```
+
+`@Arg(...)`는 resolver input DTO용 필드 데코레이터입니다. GraphQL 인자로 노출할 DTO 필드에 표시한 뒤, operation의 `input` 옵션으로 해당 DTO 클래스를 전달합니다.
 
 ### Registering the Module
 
@@ -103,11 +110,16 @@ const authorLoader = createDataLoader(async (ids: string[]) => {
 ### Using the Loader in a Resolver
 
 ```typescript
+class BookInput {
+  @Arg('id')
+  id = '';
+}
+
 @Resolver()
 export class BookResolver {
-  @Query()
-  async book(@Arg('id') id: string) {
-    return bookService.findById(id);
+  @Query({ input: BookInput })
+  async book(input: BookInput) {
+    return bookService.findById(input.id);
   }
 
   // Book의 'author' 필드에 대한 필드 리졸버
@@ -176,12 +188,17 @@ GraphqlModule.forRoot({
 FluoShop에서는 제품 카탈로그 조회 경험을 세밀하게 제공하기 위해 GraphQL을 사용합니다. 카테고리 조회에는 DataLoader를 적용하고, 검색 엔드포인트에는 복잡도 제한을 둬 성능과 안전성을 함께 관리합니다. 이 조합은 클라이언트가 필요한 필드를 유연하게 고르면서도, 서버가 감당하기 어려운 쿼리를 미리 제한하게 해줍니다.
 
 ```typescript
+class CatalogSearchInput {
+  @Arg('query')
+  query = '';
+}
+
 @Resolver()
 export class CatalogResolver {
-  @Query()
-  async search(@Arg('query') query: string) {
+  @Query({ input: CatalogSearchInput })
+  async search(input: CatalogSearchInput) {
     // 복잡도는 결과 세트 크기에 따라 자동으로 계산됩니다.
-    return this.catalogService.search(query);
+    return this.catalogService.search(input.query);
   }
 }
 ```
