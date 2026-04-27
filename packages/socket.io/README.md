@@ -59,6 +59,13 @@ this.rooms.joinRoom(socket.id, 'room:123');
 this.rooms.broadcastToRoom('room:123', 'event', data);
 ```
 
+Room helpers follow the shared `WebSocketRoomService` contract and add Socket.IO namespace awareness. Inside a gateway handler the current `@WebSocketGateway({ path })` namespace is inferred automatically. When room helpers run outside gateway handler context, pass the namespace path explicitly so room operations target the intended Socket.IO namespace instead of a same-named room elsewhere.
+
+```typescript
+this.rooms.broadcastToRoom('room:123', 'event', data, '/chat');
+this.rooms.joinRoom(socketId, 'room:123', '/chat');
+```
+
 ### Accessing the Raw Server
 You can inject the underlying Socket.IO `Server` instance for low-level control.
 
@@ -111,6 +118,8 @@ Register Socket.IO through module imports in the owning module so namespace/mess
 - `SocketIoModule.forRoot({ auth, cors, engine, ... })`: Configures namespace/message guards plus explicit CORS and Engine.IO payload bounds.
 - `SOCKETIO_SERVER`: Token to inject the raw Socket.IO `Server`.
 - `SOCKETIO_ROOM_SERVICE`: Token to inject the `SocketIoRoomService`.
+- `SocketIoRoomService`: Shared room contract plus Socket.IO namespace-aware `joinRoom`, `leaveRoom`, `broadcastToRoom`, and `getRooms` helpers.
+- `SocketIoLifecycleService`: Lifecycle-backed implementation behind the server and room-service tokens; application code should usually inject `SOCKETIO_SERVER` or `SOCKETIO_ROOM_SERVICE` instead.
 
 ## Supported Platforms
 
@@ -124,3 +133,4 @@ Register Socket.IO through module imports in the owning module so namespace/mess
 ## Example Sources
 
 - `packages/socket.io/src/module.test.ts`
+- `packages/socket.io/src/public-surface.test.ts`

@@ -58,6 +58,13 @@ this.rooms.joinRoom(socket.id, 'room:123');
 this.rooms.broadcastToRoom('room:123', 'event', data);
 ```
 
+Room helper는 공유 `WebSocketRoomService` 계약을 따르면서 Socket.IO namespace 인식을 추가합니다. gateway handler 안에서는 현재 `@WebSocketGateway({ path })` namespace를 자동으로 추론합니다. gateway handler 밖에서 room helper를 실행할 때는 같은 이름의 room이 다른 Socket.IO namespace에 존재할 수 있으므로 대상 namespace path를 명시적으로 전달하세요.
+
+```ts
+this.rooms.broadcastToRoom('room:123', 'event', data, '/chat');
+this.rooms.joinRoom(socketId, 'room:123', '/chat');
+```
+
 ### Raw Socket.IO 서버 접근
 
 ```ts
@@ -109,6 +116,8 @@ Socket.IO 등록은 소유 모듈의 import 경로에서 구성하여 namespace/
 - `SocketIoModule.forRoot({ auth, cors, engine, ... })`
 - `SOCKETIO_SERVER`
 - `SOCKETIO_ROOM_SERVICE`
+- `SocketIoRoomService`: 공유 room 계약에 Socket.IO namespace-aware `joinRoom`, `leaveRoom`, `broadcastToRoom`, `getRooms` helper를 더한 타입입니다.
+- `SocketIoLifecycleService`: server와 room-service token 뒤에서 동작하는 lifecycle 기반 구현입니다. 애플리케이션 코드는 일반적으로 `SOCKETIO_SERVER` 또는 `SOCKETIO_ROOM_SERVICE`를 주입하세요.
 
 ## 지원 플랫폼
 
@@ -122,3 +131,4 @@ Socket.IO 등록은 소유 모듈의 import 경로에서 구성하여 namespace/
 ## 예제 소스
 
 - `packages/socket.io/src/module.test.ts`
+- `packages/socket.io/src/public-surface.test.ts`
