@@ -601,23 +601,34 @@ describe('metadata helpers', () => {
       modules.push(StressModule);
     }
 
-    const serviceMetadata = { inject: [Repository, Cache] };
+    class BaseStressService {}
 
-    class StressService {}
+    defineClassDiMetadata(BaseStressService, {
+      scope: 'request',
+    });
 
-    defineClassDiMetadata(StressService, serviceMetadata);
+    class StressService extends BaseStressService {}
+
+    defineClassDiMetadata(StressService, {
+      inject: [Repository, Cache],
+    });
 
     const firstModuleRead = getModuleMetadata(modules.at(-1) as Function);
-    const firstDiRead = getOwnClassDiMetadata(StressService);
+    const firstDiRead = getClassDiMetadata(StressService);
 
     for (let index = 0; index < 1_000; index += 1) {
       expect(getModuleMetadata(modules.at(-1) as Function)).toBe(firstModuleRead);
-      expect(getOwnClassDiMetadata(StressService)).toBe(firstDiRead);
+      expect(getClassDiMetadata(StressService)).toBe(firstDiRead);
     }
 
     expect(providerFactory).not.toHaveBeenCalled();
     expect(Object.isFrozen(firstModuleRead)).toBe(true);
     expect(Object.isFrozen(firstModuleRead?.providers)).toBe(true);
+    expect(firstDiRead).toEqual({
+      inject: [Repository, Cache],
+      scope: 'request',
+    });
+    expect(Object.isFrozen(firstDiRead)).toBe(true);
     expect(Object.isFrozen(firstDiRead?.inject)).toBe(true);
   });
 });
