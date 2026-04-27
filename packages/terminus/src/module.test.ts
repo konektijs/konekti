@@ -465,8 +465,16 @@ describe('TerminusModule.forRoot', () => {
     expect(healthResponse.statusCode).toBe(503);
     expect(healthResponse.body).toMatchObject({
       contributors: {
-        down: [],
+        down: ['fluo-platform-readiness'],
         up: ['database'],
+      },
+      error: {
+        'fluo-platform-readiness': {
+          critical: true,
+          message: 'redis not ready',
+          platformStatus: 'not-ready',
+          status: 'down',
+        },
       },
       platform: {
         health: {
@@ -485,6 +493,162 @@ describe('TerminusModule.forRoot', () => {
 
     expect(readyResponse.statusCode).toBe(503);
     expect(readyResponse.body).toEqual({ status: 'unavailable' });
+
+    await app.close();
+  });
+
+  it('reports platform health failures as explicit Terminus diagnostics', async () => {
+    const component: PlatformComponent = {
+      async health() {
+        return { reason: 'database pool exhausted', status: 'unhealthy' };
+      },
+      id: 'database.default',
+      kind: 'database',
+      async ready() {
+        return { critical: true, status: 'ready' };
+      },
+      snapshot() {
+        return {
+          dependencies: [],
+          details: {},
+          health: { reason: 'database pool exhausted', status: 'unhealthy' },
+          id: 'database.default',
+          kind: 'database',
+          ownership: { externallyManaged: true, ownsResources: false },
+          readiness: { critical: true, status: 'ready' },
+          state: 'degraded',
+          telemetry: { namespace: 'database', tags: {} },
+        };
+      },
+      async start() {},
+      state() {
+        return 'degraded';
+      },
+      async stop() {},
+      async validate() {
+        return { issues: [], ok: true };
+      },
+    };
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [TerminusModule.forRoot()],
+    });
+
+    const app = await bootstrapApplication({
+      platform: {
+        components: [component],
+      },
+      rootModule: AppModule,
+    });
+
+    const healthResponse = createResponse();
+    await app.dispatch(createRequest('/health'), healthResponse);
+
+    expect(healthResponse.statusCode).toBe(503);
+    expect(healthResponse.body).toMatchObject({
+      contributors: {
+        down: ['fluo-platform-health'],
+        up: [],
+      },
+      error: {
+        'fluo-platform-health': {
+          message: 'database pool exhausted',
+          platformStatus: 'unhealthy',
+          status: 'down',
+        },
+      },
+      status: 'error',
+    });
+
+    const readyResponse = createResponse();
+    await app.dispatch(createRequest('/ready'), readyResponse);
+    expect(readyResponse.statusCode).toBe(200);
+    expect(readyResponse.body).toEqual({ status: 'ready' });
+
+    await app.close();
+  });
+
+  it('does not overwrite user indicators that reuse fixed platform diagnostic keys', async () => {
+    const component: PlatformComponent = {
+      async health() {
+        return { reason: 'runtime unhealthy', status: 'unhealthy' };
+      },
+      id: 'runtime.default',
+      kind: 'runtime',
+      async ready() {
+        return { critical: true, reason: 'runtime not ready', status: 'not-ready' };
+      },
+      snapshot() {
+        return {
+          dependencies: [],
+          details: {},
+          health: { reason: 'runtime unhealthy', status: 'unhealthy' },
+          id: 'runtime.default',
+          kind: 'runtime',
+          ownership: { externallyManaged: true, ownsResources: false },
+          readiness: { critical: true, reason: 'runtime not ready', status: 'not-ready' },
+          state: 'degraded',
+          telemetry: { namespace: 'runtime', tags: {} },
+        };
+      },
+      async start() {},
+      state() {
+        return 'degraded';
+      },
+      async stop() {},
+      async validate() {
+        return { issues: [], ok: true };
+      },
+    };
+    const indicators: HealthIndicator[] = [
+      {
+        key: 'reserved-collision-probe',
+        check: async () => ({
+          'fluo-platform-health': { status: 'up' },
+          'fluo-platform-readiness': { status: 'up' },
+        }),
+      },
+    ];
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [TerminusModule.forRoot({ indicators })],
+    });
+
+    const app = await bootstrapApplication({
+      platform: {
+        components: [component],
+      },
+      rootModule: AppModule,
+    });
+
+    const healthResponse = createResponse();
+    await app.dispatch(createRequest('/health'), healthResponse);
+
+    expect(healthResponse.statusCode).toBe(503);
+    expect(healthResponse.body).toMatchObject({
+      contributors: {
+        down: [
+          'fluo-platform-health-duplicate-key-error',
+          'fluo-platform-readiness-duplicate-key-error',
+        ],
+        up: ['fluo-platform-health', 'fluo-platform-readiness'],
+      },
+      details: {
+        'fluo-platform-health': { status: 'up' },
+        'fluo-platform-health-duplicate-key-error': {
+          message: 'Platform diagnostic key "fluo-platform-health" collided with an existing health result key.',
+          status: 'down',
+        },
+        'fluo-platform-readiness': { status: 'up' },
+        'fluo-platform-readiness-duplicate-key-error': {
+          message: 'Platform diagnostic key "fluo-platform-readiness" collided with an existing health result key.',
+          status: 'down',
+        },
+      },
+      status: 'error',
+    });
 
     await app.close();
   });

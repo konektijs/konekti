@@ -11,7 +11,7 @@ import { PLATFORM_SHELL, RUNTIME_CONTAINER } from '@fluojs/runtime/internal';
 
 import { TerminusHealthService } from './health-check.js';
 import { TERMINUS_HEALTH_INDICATORS, TERMINUS_INDICATOR_PROVIDER_TOKENS } from './tokens.js';
-import type { HealthIndicator, TerminusModuleOptions } from './types.js';
+import type { HealthCheckReport, HealthIndicator, HealthIndicatorState, TerminusModuleOptions } from './types.js';
 
 const TERMINUS_OPTIONS = Symbol.for('fluo.terminus.options');
 
@@ -108,6 +108,116 @@ function createTerminusProviders(options: TerminusModuleOptions = {}): Provider[
   ];
 }
 
+function createPlatformHealthDiagnostic(health: PlatformHealthReport): HealthIndicatorState | undefined {
+  if (health.status === 'healthy') {
+    return undefined;
+  }
+
+  return {
+    checks: health.checks,
+    message: health.reason ?? `Platform health reported ${health.status}.`,
+    platformStatus: health.status,
+    status: 'down',
+  };
+}
+
+function createPlatformReadinessDiagnostic(readiness: PlatformReadinessReport): HealthIndicatorState | undefined {
+  if (readiness.status === 'ready') {
+    return undefined;
+  }
+
+  return {
+    checks: readiness.checks,
+    critical: readiness.critical,
+    message: readiness.reason ?? `Platform readiness reported ${readiness.status}.`,
+    platformStatus: readiness.status,
+    status: 'down',
+  };
+}
+
+function createPlatformDiagnosticCollisionKey(
+  diagnosticKey: string,
+  seenKeys: ReadonlySet<string>,
+): string {
+  const baseKey = `${diagnosticKey}-duplicate-key-error`;
+
+  if (!seenKeys.has(baseKey)) {
+    return baseKey;
+  }
+
+  let suffix = 2;
+  let candidate = `${baseKey}-${String(suffix)}`;
+
+  while (seenKeys.has(candidate)) {
+    suffix += 1;
+    candidate = `${baseKey}-${String(suffix)}`;
+  }
+
+  return candidate;
+}
+
+function appendPlatformDiagnostic(
+  entries: Record<string, HealthIndicatorState>,
+  existingKeys: ReadonlySet<string>,
+  diagnosticKey: string,
+  diagnostic: HealthIndicatorState | undefined,
+): void {
+  if (diagnostic === undefined) {
+    return;
+  }
+
+  if (!existingKeys.has(diagnosticKey) && !(diagnosticKey in entries)) {
+    entries[diagnosticKey] = diagnostic;
+    return;
+  }
+
+  const collisionKey = createPlatformDiagnosticCollisionKey(diagnosticKey, new Set([
+    ...existingKeys,
+    ...Object.keys(entries),
+  ]));
+  entries[collisionKey] = {
+    message: `Platform diagnostic key "${diagnosticKey}" collided with an existing health result key.`,
+    status: 'down',
+  };
+}
+
+function withPlatformDiagnostics(
+  report: HealthCheckReport,
+  health: PlatformHealthReport,
+  readiness: PlatformReadinessReport,
+): HealthCheckReport {
+  const platformDiagnostics: Record<string, HealthIndicatorState> = {};
+  const healthDiagnostic = createPlatformHealthDiagnostic(health);
+  const readinessDiagnostic = createPlatformReadinessDiagnostic(readiness);
+  const existingKeys = new Set(Object.keys(report.details));
+
+  appendPlatformDiagnostic(platformDiagnostics, existingKeys, 'fluo-platform-health', healthDiagnostic);
+  appendPlatformDiagnostic(platformDiagnostics, existingKeys, 'fluo-platform-readiness', readinessDiagnostic);
+
+  const platformDiagnosticKeys = Object.keys(platformDiagnostics);
+
+  return {
+    ...report,
+    contributors: {
+      down: [...report.contributors.down, ...platformDiagnosticKeys],
+      up: [...report.contributors.up],
+    },
+    details: {
+      ...report.details,
+      ...platformDiagnostics,
+    },
+    error: {
+      ...report.error,
+      ...platformDiagnostics,
+    },
+    platform: {
+      health,
+      readiness,
+    },
+    status: report.status === 'ok' && platformDiagnosticKeys.length === 0 ? 'ok' : 'error',
+  };
+}
+
 function createTerminusRuntimeModule(options: TerminusModuleOptions = {}): ModuleType {
   const readinessChecks = [...(options.readinessChecks ?? [])];
   const healthModule = createHealthModule({
@@ -119,18 +229,11 @@ function createTerminusRuntimeModule(options: TerminusModuleOptions = {}): Modul
         platformShell.ready(),
         platformShell.health(),
       ]);
-      const status = report.status === 'ok' && health.status === 'healthy' && readiness.status === 'ready' ? 'ok' : 'error';
+      const reportWithPlatform = withPlatformDiagnostics(report, health, readiness);
 
       return {
-        body: {
-          ...report,
-          platform: {
-            health,
-            readiness,
-          },
-          status,
-        },
-        statusCode: status === 'ok' ? 200 : 503,
+        body: reportWithPlatform,
+        statusCode: reportWithPlatform.status === 'ok' ? 200 : 503,
       };
     },
     path: options.path,
