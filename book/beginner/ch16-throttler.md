@@ -208,26 +208,34 @@ When a user exceeds a limit, Fluo throws the HTTP package's `TooManyRequestsExce
 A well-designed client-side application should detect this 429 status and disable the "Submit" button or show a countdown timer. This keeps users from repeating the same request unnecessarily and reduces situations where the server keeps processing pointless retries. Good error handling is completed through cooperation between backend and frontend, and Fluo provides the metadata needed for that cooperation. Transparent limit information helps healthy integration code respect system boundaries.
 
 ### 16.7.2 Customizing the Exception Response
-If the default error message doesn't match your API style, you can catch `TooManyRequestsException` in a global exception filter. This lets you return a custom JSON body with extra guidance, support links, or branding. Keeping a consistent error format is essential for a high-quality developer experience (DX).
+If the default error message doesn't match your API style, register an `ExceptionFilterHandler` during runtime bootstrap and handle `TooManyRequestsException`. This lets you return a custom JSON body with extra guidance, support links, or branding. Keeping a consistent error format is essential for a high-quality developer experience (DX).
 
 When customizing the response, it is also good practice to include **localization (L10n)**. Based on the client's preferred language, such as the `Accept-Language` header, you can provide a localized message that helps users understand why they were blocked. This is especially important in consumer-facing applications where the technical "429 Too Many Requests" message may be confusing. Localized 429 guidance should focus on neutrally explaining that the limit was exceeded and when retrying is possible.
 
 You can also use an exception filter to trigger **external security alerts**. If a specific IP or user ID repeatedly causes `TooManyRequestsException` within a short period, the filter can notify the security team or automatically update a temporary hard-block list in the firewall. This active response transformation turns the throttling layer from a passive filter into an active participant in the system-wide security posture.
 
 ```typescript
-@Catch(TooManyRequestsException)
-export class TooManyRequestsExceptionFilter implements ExceptionFilter {
-  catch(_exception: TooManyRequestsException, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
-    const retryAfter = response.getHeader('Retry-After');
-    
-    response.status(429).json({
-      statusCode: 429,
-      message: 'Take a short breather! You have exceeded the rate limit.',
+import { TooManyRequestsException } from '@fluojs/http';
+import type { ExceptionFilterHandler } from '@fluojs/runtime';
+
+export class TooManyRequestsFilter implements ExceptionFilterHandler {
+  async catch(error, { response, requestId }) {
+    if (!(error instanceof TooManyRequestsException)) {
+      return undefined;
+    }
+
+    const retryAfter = response.headers['Retry-After'];
+
+    response.setStatus(429);
+    await response.send({
       error: 'Too Many Requests',
+      message: 'Take a short breather! You have exceeded the rate limit.',
+      requestId,
       retryAfter,
+      statusCode: 429,
     });
+
+    return true;
   }
 }
 ```
@@ -334,7 +342,7 @@ Even with good tools, it is easy to make mistakes when implementing rate limitin
 If limits are too aggressive, legitimate users become frustrated. Always start with loose limits and tighten them gradually based on observed traffic data. Use metrics to find the sweet spot that blocks the top 1% of abusive traffic without affecting 95% of normal users.
 
 ### 16.14.2 Forgetting Proxies and Load Balancers
-If your Fluo app is behind a proxy such as Nginx or Cloudflare, `request.ip` may always be the proxy's IP. Make sure `trustProxyHeaders: true` is enabled so the throttler can see the real client IP from the `X-Forwarded-For` header. Otherwise, you may accidentally block every user at once!
+If your Fluo app is behind a proxy such as Nginx or Cloudflare, the raw socket identity exposed to the framework request may be the proxy's address. Make sure `trustProxyHeaders: true` is enabled only when that proxy overwrites forwarded headers, so the throttler can see the real client IP from `Forwarded`, `X-Forwarded-For`, or `X-Real-IP`. Otherwise, you may accidentally block every user at once!
 
 If you use **Cloudflare** or another specialized proxy, you can also extract the client's country code, such as from the `cf-ipcountry` header. Use this information as part of tracking logic to apply region-specific limits or completely block traffic from high-risk countries. This edge-first integration uses information from your infrastructure provider to improve application resilience. Fluo's DI system makes it easy to inject `CountryService` into a custom `ThrottlerGuard` and handle this logic with minimal overhead.
 

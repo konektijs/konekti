@@ -101,8 +101,14 @@ ThrottlerModule.forRoot({
   ttl: 60,
   limit: 100,
   keyGenerator: (context) => {
-    const request = context.switchToHttp().getRequest();
-    return request.headers['x-api-key'] || request.ip;
+    const apiKeyHeader = context.request.headers['x-api-key'];
+    const apiKey = Array.isArray(apiKeyHeader) ? apiKeyHeader[0] : apiKeyHeader;
+
+    if (!apiKey) {
+      throw new Error('Missing API key for throttler tracking.');
+    }
+
+    return `api-key:${apiKey}`;
   },
 });
 ```
