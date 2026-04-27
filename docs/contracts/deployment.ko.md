@@ -28,7 +28,7 @@
 | 엔드포인트 | 기본 계약 | 출처 |
 | --- | --- | --- |
 | `GET /health` | `createHealthModule()`이 제공하는 runtime health endpoint입니다. `TerminusModule.forRoot(...)`를 사용하면 응답에 `checkedAt`, `contributors`, `details`, `error`, `info`, `platform`, `status`가 포함됩니다. HTTP 200은 aggregate status `ok`, HTTP 503은 aggregate status `error`를 의미합니다. | `packages/terminus/src/module.ts`, `docs/architecture/observability.md` |
-| `GET /ready` | `createHealthModule()`이 제공하는 runtime readiness endpoint입니다. 앱이 준비되기 전에는 HTTP 503과 `{"status":"starting"}`, readiness check 실패 시 HTTP 503과 `{"status":"unavailable"}`, 준비 완료 시 HTTP 200과 `{"status":"ready"}`를 반환합니다. | `docs/architecture/observability.md` |
+| `GET /ready` | `createHealthModule()`이 제공하는 runtime readiness endpoint입니다. 앱이 준비되기 전과 애플리케이션/컨텍스트 종료가 시작된 뒤에는 HTTP 503과 `{"status":"starting"}`, readiness check 실패 시 HTTP 503과 `{"status":"unavailable"}`, 준비 완료 시 HTTP 200과 `{"status":"ready"}`를 반환합니다. | `docs/architecture/observability.md` |
 | Prefix가 붙은 health route | health module에 base path를 설정하면 runtime contract는 `{path}/health`, `{path}/ready`가 됩니다. | `docs/architecture/observability.md` |
 | 저장소 예제 검증 | `examples/ops-metrics-terminus/src/app.test.ts`는 현재 example app 설정에서 `/health`와 `/ready`가 HTTP 200을 반환하는지 검증합니다. | `examples/ops-metrics-terminus/src/app.test.ts` |
 

@@ -28,7 +28,7 @@
 | Endpoint | Default contract | Source |
 | --- | --- | --- |
 | `GET /health` | Runtime health endpoint from `createHealthModule()`. With `TerminusModule.forRoot(...)`, the response includes `checkedAt`, `contributors`, `details`, `error`, `info`, `platform`, and `status`. HTTP 200 means aggregated status `ok`. HTTP 503 means aggregated status `error`. | `packages/terminus/src/module.ts`, `docs/architecture/observability.md` |
-| `GET /ready` | Runtime readiness endpoint from `createHealthModule()`. It returns HTTP 503 with `{"status":"starting"}` until the app is ready, HTTP 503 with `{"status":"unavailable"}` when a readiness check fails, and HTTP 200 with `{"status":"ready"}` when the app is ready. | `docs/architecture/observability.md` |
+| `GET /ready` | Runtime readiness endpoint from `createHealthModule()`. It returns HTTP 503 with `{"status":"starting"}` until the app is ready and again as soon as application/context shutdown begins, HTTP 503 with `{"status":"unavailable"}` when a readiness check fails, and HTTP 200 with `{"status":"ready"}` when the app is ready. | `docs/architecture/observability.md` |
 | Prefixed health routes | If a base path is configured for the health module, the runtime contracts become `{path}/health` and `{path}/ready`. | `docs/architecture/observability.md` |
 | Repository example coverage | `examples/ops-metrics-terminus/src/app.test.ts` verifies `/health` and `/ready` with HTTP 200 under the current example app configuration. | `examples/ops-metrics-terminus/src/app.test.ts` |
 
