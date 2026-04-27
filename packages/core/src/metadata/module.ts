@@ -7,18 +7,38 @@ function isValueProvider(provider: unknown): provider is { useValue: unknown } {
   return typeof provider === 'object' && provider !== null && 'useValue' in provider;
 }
 
+function cloneProviderDescriptorFields<T extends object>(provider: T): T {
+  const clonedProvider = { ...provider } as T & { inject?: unknown };
+
+  if (Array.isArray(clonedProvider.inject)) {
+    clonedProvider.inject = [...clonedProvider.inject];
+  }
+
+  return clonedProvider;
+}
+
+function freezeProviderDescriptor<T extends object>(provider: T): T {
+  const inject = (provider as { inject?: unknown }).inject;
+
+  if (Array.isArray(inject)) {
+    Object.freeze(inject);
+  }
+
+  return Object.freeze(provider);
+}
+
 function cloneProvider(provider: unknown): unknown {
   if (isValueProvider(provider)) {
-    // Shallow-copy the provider descriptor but preserve the useValue reference.
+    // Shallow-copy descriptor fields but preserve the useValue reference.
     // Deep-cloning useValue would sever object identity for externally supplied
     // instances (e.g. transport adapters) that callers hold references to.
-    return Object.freeze({ ...provider });
+    return freezeProviderDescriptor(cloneProviderDescriptorFields(provider));
   }
 
   const clonedProvider = cloneMutableValue(provider);
 
   return typeof clonedProvider === 'object' && clonedProvider !== null
-    ? Object.freeze(clonedProvider)
+    ? freezeProviderDescriptor(clonedProvider)
     : clonedProvider;
 }
 

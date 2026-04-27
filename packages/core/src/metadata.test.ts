@@ -270,6 +270,38 @@ describe('metadata helpers', () => {
     expect((getModuleMetadata(ExampleModule)?.providers?.[0] as { useValue: typeof value } | undefined)?.useValue.count).toBe(1);
   });
 
+  it('freezes and detaches factory provider inject arrays in stable module snapshots', () => {
+    const inject = ['CONFIG'];
+
+    class ExampleModule {}
+
+    defineModuleMetadata(ExampleModule, {
+      providers: [{ provide: 'SERVICE', useFactory: () => 'service', inject }],
+    });
+
+    const metadata = getModuleMetadata(ExampleModule);
+    const provider = metadata?.providers?.[0] as { inject: string[] } | undefined;
+
+    expect(Object.isFrozen(provider)).toBe(true);
+    expect(Object.isFrozen(provider?.inject)).toBe(true);
+    expect(provider?.inject).not.toBe(inject);
+    expect(() => provider?.inject.push('MUTATED')).toThrow(TypeError);
+
+    inject.push('ORIGINAL_MUTATED');
+    defineModuleMetadata(ExampleModule, {
+      global: true,
+    });
+
+    expect(getModuleMetadata(ExampleModule)).toEqual({
+      controllers: undefined,
+      exports: undefined,
+      global: true,
+      imports: undefined,
+      middleware: undefined,
+      providers: [{ provide: 'SERVICE', useFactory: expect.any(Function), inject: ['CONFIG'] }],
+    });
+  });
+
   it('does not freeze runtime guard or interceptor instances read from controller and route metadata', () => {
     class RuntimeGuard {
       calls = 0;
