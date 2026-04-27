@@ -101,12 +101,18 @@ export class RedisStore implements CacheStore {
       entry.expiresAt = now + ttlMilliseconds;
       const ttlSecondsRounded = Math.max(1, Math.ceil(ttlMilliseconds / 1000));
       await this.client.set(redisKey, JSON.stringify(entry), 'EX', ttlSecondsRounded);
-      this.ownedKeys.add(redisKey);
+      this.trackOwnedKey(redisKey);
       return;
     }
 
     await this.client.set(redisKey, JSON.stringify(entry));
-    this.ownedKeys.add(redisKey);
+    this.trackOwnedKey(redisKey);
+  }
+
+  private trackOwnedKey(redisKey: string): void {
+    if (this.keyPrefix.length === 0) {
+      this.ownedKeys.add(redisKey);
+    }
   }
 
   async del(key: string): Promise<void> {
@@ -123,7 +129,7 @@ export class RedisStore implements CacheStore {
       if (keys.length > 0) {
         const [firstKey, ...restKeys] = keys;
 
-        if (firstKey) {
+        if (firstKey !== undefined) {
           await this.client.del(firstKey, ...restKeys);
         }
       }
