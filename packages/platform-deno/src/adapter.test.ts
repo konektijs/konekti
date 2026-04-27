@@ -13,7 +13,7 @@ import {
   type RequestContext,
 } from '@fluojs/http';
 import { defineModule, type Application, type ApplicationLogger, type ModuleType } from '@fluojs/runtime';
-import { createHttpAdapterPortabilityHarness } from '../../testing/dist/portability/http-adapter-portability.js';
+import { createHttpAdapterPortabilityHarness } from '@fluojs/testing/http-adapter-portability';
 
 import {
   bootstrapDenoApplication,
