@@ -7,10 +7,11 @@ import { fallbackClone } from '../utils.js';
 export type StandardMetadataBag = Record<PropertyKey, unknown>;
 
 const symbolWithMetadata = Symbol as typeof Symbol & { metadata?: symbol };
+const fallbackMetadataSymbol = Symbol.for('fluo.symbol.metadata');
 /**
  * Active symbol key used to read and write standard metadata bags.
  */
-export let metadataSymbol = symbolWithMetadata.metadata ?? Symbol.for('fluo.symbol.metadata');
+export let metadataSymbol = symbolWithMetadata.metadata ?? fallbackMetadataSymbol;
 let installedMetadataSymbol = symbolWithMetadata.metadata;
 
 function createSymbolRegistry<const TEntries extends readonly (readonly [string, string])[]>(entries: TEntries): {
@@ -31,16 +32,13 @@ function createSymbolRegistry<const TEntries extends readonly (readonly [string,
  * @returns The resolved metadata symbol.
  */
 export function ensureMetadataSymbol(): symbol {
-  if (installedMetadataSymbol) {
-    metadataSymbol = installedMetadataSymbol;
-    return metadataSymbol;
-  }
-
   if (symbolWithMetadata.metadata) {
     installedMetadataSymbol = symbolWithMetadata.metadata;
     metadataSymbol = installedMetadataSymbol;
     return metadataSymbol;
   }
+
+  metadataSymbol = fallbackMetadataSymbol;
 
   Object.defineProperty(Symbol, 'metadata', {
     configurable: true,

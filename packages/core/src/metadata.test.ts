@@ -625,8 +625,57 @@ describe('metadata helpers', () => {
     });
   });
 
+  it('reuses the same frozen own class DI metadata snapshot across repeated reads', () => {
+    class ExampleService {}
+
+    defineClassDiMetadata(ExampleService, {
+      inject: ['LOGGER'],
+      scope: 'request',
+    });
+
+    const metadata = getOwnClassDiMetadata(ExampleService);
+
+    expect(getOwnClassDiMetadata(ExampleService)).toBe(metadata);
+    expect(Object.isFrozen(metadata)).toBe(true);
+    expect(Object.isFrozen(metadata?.inject)).toBe(true);
+    expect(() => (metadata?.inject as unknown as unknown[]).push('MUTATED')).toThrow(TypeError);
+    expect(getOwnClassDiMetadata(ExampleService)).toEqual({
+      inject: ['LOGGER'],
+      scope: 'request',
+    });
+  });
+
   it('ensures Symbol.metadata is available through the exported initializer', () => {
     expect(ensureMetadataSymbol()).toBe((Symbol as typeof Symbol & { metadata?: symbol }).metadata);
+  });
+
+  it('uses a runtime-installed Symbol.metadata instead of a stale fallback symbol', () => {
+    const symbolConstructor = Symbol as typeof Symbol & { metadata?: symbol };
+    const previousMetadataDescriptor = Object.getOwnPropertyDescriptor(Symbol, 'metadata');
+    const runtimeMetadataSymbol = Symbol('runtime.metadata');
+
+    try {
+      Object.defineProperty(Symbol, 'metadata', {
+        configurable: true,
+        value: undefined,
+      });
+
+      expect(ensureMetadataSymbol()).toBe(Symbol.for('fluo.symbol.metadata'));
+
+      Object.defineProperty(Symbol, 'metadata', {
+        configurable: true,
+        value: runtimeMetadataSymbol,
+      });
+
+      expect(ensureMetadataSymbol()).toBe(runtimeMetadataSymbol);
+    } finally {
+      if (previousMetadataDescriptor) {
+        Object.defineProperty(Symbol, 'metadata', previousMetadataDescriptor);
+      } else {
+        delete symbolConstructor.metadata;
+      }
+      ensureMetadataSymbol();
+    }
   });
 
   it('reads standard metadata bags and constructor-level records through Symbol.metadata', () => {
