@@ -12,10 +12,14 @@ function cloneProvider(provider: unknown): unknown {
     // Shallow-copy the provider descriptor but preserve the useValue reference.
     // Deep-cloning useValue would sever object identity for externally supplied
     // instances (e.g. transport adapters) that callers hold references to.
-    return { ...provider };
+    return Object.freeze({ ...provider });
   }
 
-  return cloneMutableValue(provider);
+  const clonedProvider = cloneMutableValue(provider);
+
+  return typeof clonedProvider === 'object' && clonedProvider !== null
+    ? Object.freeze(clonedProvider)
+    : clonedProvider;
 }
 
 function cloneProviders(providers: readonly unknown[] | undefined): unknown[] | undefined {

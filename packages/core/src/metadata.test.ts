@@ -233,6 +233,43 @@ describe('metadata helpers', () => {
     expect(provider?.useValue.count).toBe(1);
   });
 
+  it('freezes provider descriptor wrappers without freezing useValue payloads', () => {
+    const value = { count: 0 };
+
+    class ExampleModule {}
+
+    defineModuleMetadata(ExampleModule, {
+      providers: [{ provide: 'COUNTER', useValue: value }],
+    });
+
+    const metadata = getModuleMetadata(ExampleModule);
+    const provider = metadata?.providers?.[0] as { provide: string; useValue: typeof value } | undefined;
+
+    expect(Object.isFrozen(metadata?.providers)).toBe(true);
+    expect(Object.isFrozen(provider)).toBe(true);
+    expect(Object.isFrozen(provider?.useValue)).toBe(false);
+    expect(() => {
+      if (provider) {
+        provider.provide = 'MUTATED';
+      }
+    }).toThrow(TypeError);
+
+    value.count += 1;
+    defineModuleMetadata(ExampleModule, {
+      global: true,
+    });
+
+    expect(getModuleMetadata(ExampleModule)).toEqual({
+      controllers: undefined,
+      exports: undefined,
+      global: true,
+      imports: undefined,
+      middleware: undefined,
+      providers: [{ provide: 'COUNTER', useValue: value }],
+    });
+    expect((getModuleMetadata(ExampleModule)?.providers?.[0] as { useValue: typeof value } | undefined)?.useValue.count).toBe(1);
+  });
+
   it('does not freeze runtime guard or interceptor instances read from controller and route metadata', () => {
     class RuntimeGuard {
       calls = 0;
@@ -464,6 +501,26 @@ describe('metadata helpers', () => {
     });
   });
 
+  it('returns a frozen stable own class DI metadata snapshot', () => {
+    class ExampleService {}
+
+    defineClassDiMetadata(ExampleService, {
+      inject: ['LOGGER'],
+      scope: 'request',
+    });
+
+    const metadata = getOwnClassDiMetadata(ExampleService);
+
+    expect(metadata).toEqual({
+      inject: ['LOGGER'],
+      scope: 'request',
+    });
+    expect(Object.isFrozen(metadata)).toBe(true);
+    expect(Object.isFrozen(metadata?.inject)).toBe(true);
+    expect(getOwnClassDiMetadata(ExampleService)).toBe(metadata);
+    expect(() => (metadata?.inject as unknown as unknown[]).push('MUTATED')).toThrow(TypeError);
+  });
+
   it('does not retain caller-owned inject arrays across partial class DI writes', () => {
     class ExampleService {}
 
@@ -564,6 +621,36 @@ describe('metadata helpers', () => {
       inject: [],
       scope: 'request',
     });
+  });
+
+  it('invalidates cached inherited DI metadata after later metadata writes', () => {
+    class BaseService {}
+
+    defineClassDiMetadata(BaseService, {
+      inject: ['LOGGER'],
+    });
+
+    class ChildService extends BaseService {}
+
+    const cached = getInheritedClassDiMetadata(ChildService);
+
+    expect(cached).toEqual({
+      inject: ['LOGGER'],
+      scope: undefined,
+    });
+    expect(getInheritedClassDiMetadata(ChildService)).toBe(cached);
+
+    defineClassDiMetadata(BaseService, {
+      scope: 'request',
+    });
+
+    const refreshed = getInheritedClassDiMetadata(ChildService);
+
+    expect(refreshed).toEqual({
+      inject: ['LOGGER'],
+      scope: 'request',
+    });
+    expect(refreshed).not.toBe(cached);
   });
 
   it('ensures Symbol.metadata is available through the exported initializer', () => {
