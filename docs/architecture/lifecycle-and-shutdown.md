@@ -21,11 +21,11 @@ If any bootstrap step fails, the runtime runs failure cleanup with signal value 
 
 | Signal or state | Guarantee | Source anchor |
 | --- | --- | --- |
-| Module readiness markers | During bootstrap, compiled modules that expose `markStarting()` and `markReady()` are set to starting before lifecycle hooks run, then switched to ready only after `platformShell.start()` succeeds. | `packages/runtime/src/bootstrap.ts:232-245`, `packages/runtime/src/bootstrap.ts:830-841` |
+| Module readiness markers | During bootstrap, compiled modules that expose `markStarting()` and `markReady()` are set to starting before lifecycle hooks run, then switched to ready only after `platformShell.start()` succeeds. Shutdown resets those markers to starting before cleanup callbacks and lifecycle shutdown hooks run. | `packages/runtime/src/bootstrap.ts:232-245`, `packages/runtime/src/bootstrap.ts:119-153`, `packages/runtime/src/bootstrap.ts:830-841` |
 | Application state model | Public runtime state is `bootstrapped`, `ready`, or `closed`. | `packages/runtime/src/types.ts:91-92` |
 | Readiness gate before listen | `Application.listen()` calls `ready()`, and `ready()` delegates to `platformShell.assertCriticalReadiness()`. The adapter is not asked to bind until that check passes. | `packages/runtime/src/bootstrap.ts:437-489` |
 | Ready transition | `Application.listen()` sets the application state to `ready` only after `adapter.listen(this.dispatcher)` resolves successfully. | `packages/runtime/src/bootstrap.ts:481-490` |
-| Closed transition | `Application.close()` sets the application state to `closed` only after runtime cleanup, lifecycle shutdown hooks, adapter close, and container disposal complete without error. | `packages/runtime/src/bootstrap.ts:500-528` |
+| Closed transition | `Application.close()` sets the application state to `closed` only after readiness markers have been reset, runtime cleanup, lifecycle shutdown hooks, adapter close, and container disposal complete without error. | `packages/runtime/src/bootstrap.ts:500-528` |
 
 These guarantees separate bootstrap completion from listener binding. A compiled application can exist in `bootstrapped` state before it begins accepting traffic.
 

@@ -12,6 +12,20 @@ type ReadinessManagedModule = ReturnType<typeof createHealthModule> & {
   markStarting(): void;
 };
 
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve(value: T | PromiseLike<T>): void;
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: Deferred<T>['resolve'];
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+
+  return { promise, resolve };
+}
+
 function createRequest(path: string): FrameworkRequest {
   return {
     body: undefined,
@@ -138,5 +152,81 @@ describe('createHealthModule', () => {
     expect(readyResponse.body).toEqual({ status: 'ready' });
 
     await app.close();
+  });
+
+  it('marks readiness as starting as soon as application close begins', async () => {
+    const healthModule = createHealthModule() as ReadinessManagedModule;
+    const shutdownBlocker = createDeferred<void>();
+    const shutdownStarted = createDeferred<void>();
+
+    class BlockingShutdownService {
+      onApplicationShutdown() {
+        shutdownStarted.resolve();
+        return shutdownBlocker.promise;
+      }
+    }
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [healthModule],
+      providers: [BlockingShutdownService],
+    });
+
+    const app = await bootstrapApplication({
+      rootModule: AppModule,
+    });
+
+    const readyBeforeClose = createResponse();
+    await app.dispatch(createRequest('/ready'), readyBeforeClose);
+    expect(readyBeforeClose.statusCode).toBe(200);
+    expect(readyBeforeClose.body).toEqual({ status: 'ready' });
+
+    const closePromise = app.close('SIGTERM');
+    await shutdownStarted.promise;
+
+    const readyDuringClose = createResponse();
+    await app.dispatch(createRequest('/ready'), readyDuringClose);
+    expect(readyDuringClose.statusCode).toBe(503);
+    expect(readyDuringClose.body).toEqual({ status: 'starting' });
+
+    shutdownBlocker.resolve();
+    await closePromise;
+  });
+
+  it('keeps readiness out of rotation when shutdown hooks fail', async () => {
+    const healthModule = createHealthModule() as ReadinessManagedModule;
+    const shutdownBlocker = createDeferred<void>();
+    const shutdownStarted = createDeferred<void>();
+
+    class FailingShutdownService {
+      async onApplicationShutdown() {
+        shutdownStarted.resolve();
+        await shutdownBlocker.promise;
+        throw new Error('shutdown failed');
+      }
+    }
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [healthModule],
+      providers: [FailingShutdownService],
+    });
+
+    const app = await bootstrapApplication({
+      rootModule: AppModule,
+    });
+
+    const closePromise = app.close('SIGTERM');
+    await shutdownStarted.promise;
+
+    const readyDuringFailedClose = createResponse();
+    await app.dispatch(createRequest('/ready'), readyDuringFailedClose);
+    expect(readyDuringFailedClose.statusCode).toBe(503);
+    expect(readyDuringFailedClose.body).toEqual({ status: 'starting' });
+
+    shutdownBlocker.resolve();
+    await expect(closePromise).rejects.toThrow('shutdown failed');
   });
 });

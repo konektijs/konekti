@@ -120,10 +120,13 @@ async function closeRuntimeResources(options: {
   adapter?: HttpApplicationAdapter;
   container: Container;
   lifecycleInstances: readonly unknown[];
+  modules: CompiledModule[];
   runtimeCleanup: readonly (() => void)[];
   signal?: string;
 }): Promise<void> {
   const errors: unknown[] = [];
+
+  resetReadinessState(options.modules);
 
   errors.push(...(await runCleanupCallbacks(options.runtimeCleanup)));
 
@@ -156,10 +159,13 @@ async function runBootstrapFailureCleanup(options: {
   container?: Container;
   lifecycleInstances: readonly unknown[];
   logger: ApplicationLogger;
+  modules: CompiledModule[];
   runtimeCleanup: readonly (() => void)[];
   scope: 'application' | 'application context';
 }): Promise<void> {
   const errors: unknown[] = [];
+
+  resetReadinessState(options.modules);
 
   errors.push(...(await runCleanupCallbacks(options.runtimeCleanup)));
 
@@ -512,6 +518,7 @@ class FluoApplication implements Application {
         adapter: this.adapter,
         container: this.container,
         lifecycleInstances: this.lifecycleInstances,
+        modules: this.modules,
         runtimeCleanup: this.runtimeCleanup,
         signal,
       });
@@ -559,6 +566,7 @@ class FluoApplicationContext implements ApplicationContext {
       await closeRuntimeResources({
         container: this.container,
         lifecycleInstances: this.lifecycleInstances,
+        modules: this.modules,
         runtimeCleanup: this.runtimeCleanup,
         signal,
       });
@@ -921,6 +929,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
   const logger = options.logger ?? createConsoleApplicationLogger();
   let lifecycleInstances: unknown[] = [];
   let bootstrappedContainer: Container | undefined;
+  let bootstrappedModules: CompiledModule[] = [];
   const hasHttpAdapter = options.adapter !== undefined;
   const adapter = options.adapter ?? {
     async close() {},
@@ -960,6 +969,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
     }
 
     bootstrappedContainer = bootstrapped.container;
+    bootstrappedModules = bootstrapped.modules;
 
     const resolveLifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
     lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, runtimeProviders);
@@ -1021,6 +1031,7 @@ export async function bootstrapApplication(options: BootstrapApplicationOptions)
       container: bootstrappedContainer,
       lifecycleInstances,
       logger,
+      modules: bootstrappedModules,
       runtimeCleanup,
       scope: 'application',
     });
@@ -1063,17 +1074,18 @@ export class FluoFactory {
     const logger = options.logger ?? createConsoleApplicationLogger();
     let lifecycleInstances: unknown[] = [];
     let bootstrappedContainer: Container | undefined;
+    let bootstrappedModules: CompiledModule[] = [];
     const runtimeCleanup: Array<() => void> = [];
     const platformShell = createRuntimePlatformShell(options.platform?.components);
     const timingEnabled = options.diagnostics?.timing === true;
-  const timingStart = timingEnabled ? runtimePerformance.now() : 0;
+    const timingStart = timingEnabled ? runtimePerformance.now() : 0;
     const timingPhases: BootstrapTimingPhase[] = [];
 
     try {
       logger.log('Starting fluo application context...', 'FluoFactory');
       const runtimeProviders = createRuntimeProviders(options, logger);
 
-  const moduleBootstrapStart = timingEnabled ? runtimePerformance.now() : 0;
+      const moduleBootstrapStart = timingEnabled ? runtimePerformance.now() : 0;
       const bootstrapped = bootstrapModule(rootModule, {
         duplicateProviderPolicy: options.duplicateProviderPolicy,
         logger,
@@ -1082,23 +1094,24 @@ export class FluoFactory {
       });
       if (timingEnabled) {
         timingPhases.push({
-        durationMs: runtimePerformance.now() - moduleBootstrapStart,
+          durationMs: runtimePerformance.now() - moduleBootstrapStart,
           name: 'bootstrap_module',
         });
       }
 
-    const registerTokensStart = timingEnabled ? runtimePerformance.now() : 0;
+      const registerTokensStart = timingEnabled ? runtimePerformance.now() : 0;
       registerRuntimeApplicationContextTokens(bootstrapped, platformShell);
       if (timingEnabled) {
         timingPhases.push({
-        durationMs: runtimePerformance.now() - registerTokensStart,
+          durationMs: runtimePerformance.now() - registerTokensStart,
           name: 'register_runtime_tokens',
         });
       }
 
       bootstrappedContainer = bootstrapped.container;
+      bootstrappedModules = bootstrapped.modules;
 
-    const resolveLifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
+      const resolveLifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
       lifecycleInstances = await resolveBootstrapLifecycleInstances(bootstrapped, runtimeProviders);
       lifecycleInstances.push({
         onModuleDestroy() {
@@ -1107,22 +1120,22 @@ export class FluoFactory {
       });
       if (timingEnabled) {
         timingPhases.push({
-        durationMs: runtimePerformance.now() - resolveLifecycleStart,
+          durationMs: runtimePerformance.now() - resolveLifecycleStart,
           name: 'resolve_lifecycle_instances',
         });
       }
 
-    const lifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
+      const lifecycleStart = timingEnabled ? runtimePerformance.now() : 0;
       await runBootstrapLifecycle(bootstrapped.modules, lifecycleInstances, logger, platformShell);
       if (timingEnabled) {
         timingPhases.push({
-        durationMs: runtimePerformance.now() - lifecycleStart,
+          durationMs: runtimePerformance.now() - lifecycleStart,
           name: 'run_bootstrap_lifecycle',
         });
       }
 
       const bootstrapTiming = timingEnabled
-    ? createBootstrapTimingDiagnostics(timingPhases, runtimePerformance.now() - timingStart)
+        ? createBootstrapTimingDiagnostics(timingPhases, runtimePerformance.now() - timingStart)
         : undefined;
 
       return new FluoApplicationContext(
@@ -1144,6 +1157,7 @@ export class FluoFactory {
         container: bootstrappedContainer,
         lifecycleInstances,
         logger,
+        modules: bootstrappedModules,
         runtimeCleanup,
         scope: 'application context',
       });

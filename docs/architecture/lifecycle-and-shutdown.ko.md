@@ -21,11 +21,11 @@
 
 | 신호 또는 상태 | 보장 | 근거 소스 |
 | --- | --- | --- |
-| 모듈 readiness 표시 | 부트스트랩 중 `markStarting()`과 `markReady()`를 노출하는 compiled module은 라이프사이클 훅 전에 starting으로 설정되고, `platformShell.start()`가 성공한 뒤에만 ready로 전환됩니다. | `packages/runtime/src/bootstrap.ts:232-245`, `packages/runtime/src/bootstrap.ts:830-841` |
+| 모듈 readiness 표시 | 부트스트랩 중 `markStarting()`과 `markReady()`를 노출하는 compiled module은 라이프사이클 훅 전에 starting으로 설정되고, `platformShell.start()`가 성공한 뒤에만 ready로 전환됩니다. shutdown은 cleanup callback과 lifecycle shutdown hook 실행 전에 이 표시를 starting으로 되돌립니다. | `packages/runtime/src/bootstrap.ts:232-245`, `packages/runtime/src/bootstrap.ts:119-153`, `packages/runtime/src/bootstrap.ts:830-841` |
 | 애플리케이션 상태 모델 | 공개 런타임 상태는 `bootstrapped`, `ready`, `closed`입니다. | `packages/runtime/src/types.ts:91-92` |
 | listen 이전 readiness 게이트 | `Application.listen()`은 `ready()`를 호출하고, `ready()`는 `platformShell.assertCriticalReadiness()`에 위임합니다. 이 검사가 통과하기 전에는 어댑터 bind가 시작되지 않습니다. | `packages/runtime/src/bootstrap.ts:437-489` |
 | ready 전이 | `Application.listen()`은 `adapter.listen(this.dispatcher)`가 성공적으로 끝난 뒤에만 애플리케이션 상태를 `ready`로 설정합니다. | `packages/runtime/src/bootstrap.ts:481-490` |
-| closed 전이 | `Application.close()`는 런타임 정리, 라이프사이클 종료 훅, 어댑터 종료, 컨테이너 해제가 모두 오류 없이 끝난 뒤에만 상태를 `closed`로 설정합니다. | `packages/runtime/src/bootstrap.ts:500-528` |
+| closed 전이 | `Application.close()`는 readiness 표시 reset, 런타임 정리, 라이프사이클 종료 훅, 어댑터 종료, 컨테이너 해제가 모두 오류 없이 끝난 뒤에만 상태를 `closed`로 설정합니다. | `packages/runtime/src/bootstrap.ts:500-528` |
 
 이 보장들은 부트스트랩 완료와 리스너 바인딩을 분리합니다. 컴파일된 애플리케이션은 트래픽을 받기 전에 `bootstrapped` 상태로 존재할 수 있습니다.
 

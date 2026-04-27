@@ -20,7 +20,7 @@
 | Surface | Source | Default path contract | Response contract |
 | --- | --- | --- | --- |
 | Runtime health endpoint | `createHealthModule()` in `@fluojs/runtime` | `GET /health` when no base path is provided. If a base `path` is configured, the route becomes `{path}/health`. | Without a custom health callback, the response body is `{ "status": "ok" }` with HTTP 200. A custom callback may return either a plain body or `{ body, statusCode }`. |
-| Runtime readiness endpoint | `createHealthModule()` in `@fluojs/runtime` | `GET /ready` when no base path is provided. If a base `path` is configured, the route becomes `{path}/ready`. | Returns `{ "status": "starting" }` with HTTP 503 until `markReady()` runs. Returns `{ "status": "unavailable" }` with HTTP 503 when any readiness check returns false. Returns `{ "status": "ready" }` with HTTP 200 when the app is ready. |
+| Runtime readiness endpoint | `createHealthModule()` in `@fluojs/runtime` | `GET /ready` when no base path is provided. If a base `path` is configured, the route becomes `{path}/ready`. | Returns `{ "status": "starting" }` with HTTP 503 until `markReady()` runs and again as soon as application/context shutdown begins. Returns `{ "status": "unavailable" }` with HTTP 503 when any readiness check returns false. Returns `{ "status": "ready" }` with HTTP 200 when the app is ready. |
 | Terminus aggregated health endpoint | `@fluojs/terminus` via `TerminusModule.forRoot(...)` | Uses the same health path contract as the runtime health module, defaulting to `GET /health`. | Returns a JSON body with `checkedAt`, `contributors`, `details`, `error`, `info`, `platform`, and `status`. HTTP status is 200 when the aggregated status is `ok`, otherwise 503. |
 | Terminus readiness registration | `@fluojs/terminus` readiness hooks layered on runtime readiness checks | Uses the same readiness path contract as the runtime health module, defaulting to `GET /ready`. | Terminus adds readiness checks that combine indicator health and `platformShell.ready()`. The route still returns the runtime readiness body shape of `starting`, `unavailable`, or `ready`. |
 
@@ -32,7 +32,7 @@
 
 | Concern | Route | Current repo behavior |
 | --- | --- | --- |
-| Startup readiness gate | `GET /ready` | Owned by `createHealthModule()`. The route stays at HTTP 503 with `{ "status": "starting" }` until the runtime marks the app ready. Additional readiness checks can force `{ "status": "unavailable" }`. |
+| Startup and shutdown readiness gate | `GET /ready` | Owned by `createHealthModule()`. The route stays at HTTP 503 with `{ "status": "starting" }` until the runtime marks the app ready, and it returns to `starting` when shutdown begins. Additional readiness checks can force `{ "status": "unavailable" }`. |
 | Runtime dependency readiness | `GET /ready` with `@fluojs/terminus` | Terminus registers an additional readiness check that requires both `TerminusHealthService.isHealthy()` and `platformShell.ready().status === 'ready'`. |
 | Aggregated health report | `GET /health` with `@fluojs/terminus` | Terminus computes `status: 'ok'` only when indicator status is `ok`, `platformShell.health().status === 'healthy'`, and `platformShell.ready().status === 'ready'`. Otherwise the route returns HTTP 503 and `status: 'error'`. |
 | Metrics-side readiness view | `GET /metrics` | Runtime platform telemetry exports readiness and health as gauge values per component and for `runtime.shell`. |

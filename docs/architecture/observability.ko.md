@@ -20,7 +20,7 @@
 | Surface | Source | Default path contract | Response contract |
 | --- | --- | --- | --- |
 | Runtime health endpoint | `@fluojs/runtime`의 `createHealthModule()` | base path가 없으면 `GET /health`다. base `path`가 있으면 경로는 `{path}/health`가 된다. | 커스텀 health callback이 없으면 응답 본문은 `{ "status": "ok" }`이고 HTTP 200이다. 커스텀 callback은 일반 본문 또는 `{ body, statusCode }`를 반환할 수 있다. |
-| Runtime readiness endpoint | `@fluojs/runtime`의 `createHealthModule()` | base path가 없으면 `GET /ready`다. base `path`가 있으면 경로는 `{path}/ready`가 된다. | `markReady()`가 실행되기 전에는 `{ "status": "starting" }`과 HTTP 503을 반환한다. readiness check 중 하나라도 false를 반환하면 `{ "status": "unavailable" }`과 HTTP 503을 반환한다. 앱이 준비되면 `{ "status": "ready" }`와 HTTP 200을 반환한다. |
+| Runtime readiness endpoint | `@fluojs/runtime`의 `createHealthModule()` | base path가 없으면 `GET /ready`다. base `path`가 있으면 경로는 `{path}/ready`가 된다. | `markReady()`가 실행되기 전과 애플리케이션/컨텍스트 종료가 시작된 뒤에는 `{ "status": "starting" }`과 HTTP 503을 반환한다. readiness check 중 하나라도 false를 반환하면 `{ "status": "unavailable" }`과 HTTP 503을 반환한다. 앱이 준비되면 `{ "status": "ready" }`와 HTTP 200을 반환한다. |
 | Terminus aggregated health endpoint | `@fluojs/terminus`의 `TerminusModule.forRoot(...)` | 런타임 health 경로 계약을 그대로 사용하며, 기본값은 `GET /health`다. | JSON 본문은 `checkedAt`, `contributors`, `details`, `error`, `info`, `platform`, `status`를 포함한다. 집계 상태가 `ok`이면 HTTP 200, 아니면 HTTP 503이다. |
 | Terminus readiness registration | 런타임 readiness check 위에 추가되는 `@fluojs/terminus` readiness hook | 런타임 readiness 경로 계약을 그대로 사용하며, 기본값은 `GET /ready`다. | Terminus는 indicator 건강 상태와 `platformShell.ready()`를 함께 검사하는 readiness check를 추가한다. 경로의 응답 본문 형태는 여전히 `starting`, `unavailable`, `ready`다. |
 
@@ -32,7 +32,7 @@
 
 | Concern | Route | Current repo behavior |
 | --- | --- | --- |
-| Startup readiness gate | `GET /ready` | `createHealthModule()`가 소유한다. 런타임이 앱을 ready로 표시하기 전까지 이 경로는 HTTP 503과 `{ "status": "starting" }`을 유지한다. 추가 readiness check는 `{ "status": "unavailable" }`를 강제할 수 있다. |
+| Startup and shutdown readiness gate | `GET /ready` | `createHealthModule()`가 소유한다. 런타임이 앱을 ready로 표시하기 전까지 이 경로는 HTTP 503과 `{ "status": "starting" }`을 유지하고, shutdown이 시작되면 다시 `starting`으로 내려간다. 추가 readiness check는 `{ "status": "unavailable" }`를 강제할 수 있다. |
 | Runtime dependency readiness | `@fluojs/terminus`가 붙은 `GET /ready` | Terminus는 `TerminusHealthService.isHealthy()`와 `platformShell.ready().status === 'ready'`를 모두 만족해야 통과하는 추가 readiness check를 등록한다. |
 | Aggregated health report | `@fluojs/terminus`가 붙은 `GET /health` | Terminus는 indicator 상태가 `ok`이고, `platformShell.health().status === 'healthy'`이며, `platformShell.ready().status === 'ready'`일 때만 `status: 'ok'`를 계산한다. 그 외에는 HTTP 503과 `status: 'error'`를 반환한다. |
 | Metrics-side readiness view | `GET /metrics` | 런타임 플랫폼 텔레메트리는 component별 및 `runtime.shell`용 readiness와 health를 gauge 값으로 내보낸다. |
