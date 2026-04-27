@@ -88,7 +88,9 @@ export class CookieAuthStrategy implements AuthStrategy {
       const principal = await this.verifier.verifyAccessToken(accessToken);
 
       return {
+        audience: principal.audience,
         claims: principal.claims,
+        issuer: principal.issuer,
         roles: principal.roles,
         scopes: principal.scopes,
         subject: principal.subject,

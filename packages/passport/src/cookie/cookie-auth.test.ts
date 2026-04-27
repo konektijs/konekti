@@ -146,10 +146,12 @@ describe('CookieAuthStrategy', () => {
       await expect(strategy.authenticate(context)).rejects.toThrow(AuthenticationRequiredError);
     });
 
-    it('preserves principal claims, roles, and scopes', async () => {
+    it('preserves jwt principal claims, issuer, audience, roles, and scopes', async () => {
       const verifier = createMockVerifier({
         verifyAccessToken: vi.fn().mockResolvedValue({
+          audience: ['dashboard', 'api'],
           claims: { sub: 'user-2', custom: 'data', roles: ['user'], scopes: ['write:data'] },
+          issuer: 'auth.example.test',
           roles: ['user'],
           scopes: ['write:data'],
           subject: 'user-2',
@@ -161,7 +163,9 @@ describe('CookieAuthStrategy', () => {
       const result = await strategy.authenticate(context);
 
       expect(result).toMatchObject({
+        audience: ['dashboard', 'api'],
         subject: 'user-2',
+        issuer: 'auth.example.test',
         roles: ['user'],
         scopes: ['write:data'],
         claims: { sub: 'user-2', custom: 'data', roles: ['user'], scopes: ['write:data'] },
