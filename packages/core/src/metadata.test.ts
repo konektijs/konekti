@@ -242,6 +242,111 @@ describe('metadata helpers', () => {
     expect(metadata?.middleware).toBe(getModuleMetadata(ExampleModule)?.middleware);
   });
 
+  it('keeps middleware runtime instances mutable inside frozen module metadata snapshots', () => {
+    const middleware = {
+      calls: 0,
+      handle() {
+        this.calls += 1;
+      },
+    };
+
+    class ExampleModule {}
+
+    defineModuleMetadata(ExampleModule, {
+      middleware: [middleware],
+    });
+
+    const metadata = getModuleMetadata(ExampleModule);
+    const returnedMiddleware = metadata?.middleware?.[0] as typeof middleware | undefined;
+
+    expect(Object.isFrozen(metadata)).toBe(true);
+    expect(Object.isFrozen(metadata?.middleware)).toBe(true);
+    expect(returnedMiddleware).toBe(middleware);
+    expect(Object.isFrozen(returnedMiddleware)).toBe(false);
+
+    returnedMiddleware?.handle();
+
+    expect(middleware.calls).toBe(1);
+  });
+
+  it('keeps guard and interceptor runtime instances mutable inside frozen controller and route metadata snapshots', () => {
+    const controllerGuard = {
+      calls: 0,
+      canActivate() {
+        this.calls += 1;
+        return true;
+      },
+    };
+    const controllerInterceptor = {
+      calls: 0,
+      intercept() {
+        this.calls += 1;
+        return 'controller';
+      },
+    };
+    const routeGuard = {
+      calls: 0,
+      canActivate() {
+        this.calls += 1;
+        return true;
+      },
+    };
+    const routeInterceptor = {
+      calls: 0,
+      intercept() {
+        this.calls += 1;
+        return 'route';
+      },
+    };
+
+    class ExampleController {
+      getUser() {
+        return { ok: true };
+      }
+    }
+
+    defineControllerMetadata(ExampleController, {
+      basePath: '/users',
+      guards: [controllerGuard],
+      interceptors: [controllerInterceptor],
+    });
+    defineRouteMetadata(ExampleController.prototype, 'getUser', {
+      guards: [routeGuard],
+      interceptors: [routeInterceptor],
+      method: 'GET',
+      path: '/:id',
+    });
+
+    const controllerMetadata = getControllerMetadata(ExampleController);
+    const routeMetadata = getRouteMetadata(ExampleController.prototype, 'getUser');
+    const returnedControllerGuard = controllerMetadata?.guards?.[0] as typeof controllerGuard | undefined;
+    const returnedControllerInterceptor = controllerMetadata?.interceptors?.[0] as typeof controllerInterceptor | undefined;
+    const returnedRouteGuard = routeMetadata?.guards?.[0] as typeof routeGuard | undefined;
+    const returnedRouteInterceptor = routeMetadata?.interceptors?.[0] as typeof routeInterceptor | undefined;
+
+    expect(Object.isFrozen(routeMetadata)).toBe(true);
+    expect(Object.isFrozen(routeMetadata?.guards)).toBe(true);
+    expect(Object.isFrozen(routeMetadata?.interceptors)).toBe(true);
+    expect(returnedControllerGuard).toBe(controllerGuard);
+    expect(returnedControllerInterceptor).toBe(controllerInterceptor);
+    expect(returnedRouteGuard).toBe(routeGuard);
+    expect(returnedRouteInterceptor).toBe(routeInterceptor);
+    expect(Object.isFrozen(returnedControllerGuard)).toBe(false);
+    expect(Object.isFrozen(returnedControllerInterceptor)).toBe(false);
+    expect(Object.isFrozen(returnedRouteGuard)).toBe(false);
+    expect(Object.isFrozen(returnedRouteInterceptor)).toBe(false);
+
+    returnedControllerGuard?.canActivate();
+    returnedControllerInterceptor?.intercept();
+    returnedRouteGuard?.canActivate();
+    returnedRouteInterceptor?.intercept();
+
+    expect(controllerGuard.calls).toBe(1);
+    expect(controllerInterceptor.calls).toBe(1);
+    expect(routeGuard.calls).toBe(1);
+    expect(routeInterceptor.calls).toBe(1);
+  });
+
   it('builds DTO binding schema from field metadata', () => {
     class GetUserRequest {
       id!: string;

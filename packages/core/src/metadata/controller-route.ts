@@ -1,6 +1,5 @@
 import {
   cloneFrozenCollection,
-  cloneMutableValue,
   freezeMetadataSnapshot,
   getOrCreatePropertyMap,
   getStandardConstructorMetadataMap,
@@ -23,21 +22,31 @@ function cloneRouteRedirect(redirect: RouteMetadata['redirect']): RouteMetadata[
   return redirect ? freezeMetadataSnapshot({ ...redirect }) : undefined;
 }
 
+function isGuardOrInterceptorRuntimeReference(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as { canActivate?: unknown; intercept?: unknown };
+
+  return typeof candidate.canActivate === 'function' || typeof candidate.intercept === 'function';
+}
+
 function cloneControllerMetadata(metadata: ControllerMetadata): ControllerMetadata {
-  return freezeMetadataSnapshot({
+  return Object.freeze({
     ...metadata,
-    guards: cloneFrozenCollection(metadata.guards),
-    interceptors: cloneFrozenCollection(metadata.interceptors),
+    guards: cloneFrozenCollection(metadata.guards, isGuardOrInterceptorRuntimeReference),
+    interceptors: cloneFrozenCollection(metadata.interceptors, isGuardOrInterceptorRuntimeReference),
   });
 }
 
 function cloneRouteMetadata(metadata: RouteMetadata): RouteMetadata {
-  return freezeMetadataSnapshot({
+  return Object.freeze({
     ...metadata,
     headers: cloneRouteHeaders(metadata.headers),
     redirect: cloneRouteRedirect(metadata.redirect),
-    guards: cloneFrozenCollection(metadata.guards),
-    interceptors: cloneFrozenCollection(metadata.interceptors),
+    guards: cloneFrozenCollection(metadata.guards, isGuardOrInterceptorRuntimeReference),
+    interceptors: cloneFrozenCollection(metadata.interceptors, isGuardOrInterceptorRuntimeReference),
   });
 }
 
@@ -122,14 +131,16 @@ function mergeRouteMetadata(
 ): RouteMetadata {
   const mergedHeaders = stored?.headers ?? standard?.headers;
   const mergedRedirect = stored?.redirect ?? standard?.redirect;
+  const mergedGuards = mergeUnique(stored?.guards, standard?.guards);
+  const mergedInterceptors = mergeUnique(stored?.interceptors, standard?.interceptors);
 
-  return freezeMetadataSnapshot({
-    guards: mergeUnique(stored?.guards, standard?.guards),
-    headers: cloneMutableValue(mergedHeaders),
-    interceptors: mergeUnique(stored?.interceptors, standard?.interceptors),
+  return Object.freeze({
+    guards: cloneFrozenCollection(mergedGuards, isGuardOrInterceptorRuntimeReference),
+    headers: cloneRouteHeaders(mergedHeaders),
+    interceptors: cloneFrozenCollection(mergedInterceptors, isGuardOrInterceptorRuntimeReference),
     method: required.method,
     path: required.path,
-    redirect: cloneMutableValue(mergedRedirect),
+    redirect: cloneRouteRedirect(mergedRedirect),
     request: stored?.request ?? standard?.request,
     successStatus: stored?.successStatus ?? standard?.successStatus,
     version: stored?.version ?? standard?.version,

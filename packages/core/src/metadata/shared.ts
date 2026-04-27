@@ -168,10 +168,19 @@ export function cloneCollection<T>(collection: readonly T[] | undefined): T[] | 
  * @param collection Collection to clone and freeze.
  * @returns A frozen cloned array, or `undefined` when the collection is absent.
  */
-export function cloneFrozenCollection<T>(collection: readonly T[] | undefined): T[] | undefined {
-  const cloned = cloneCollection(collection);
+export function cloneFrozenCollection<T>(
+  collection: readonly T[] | undefined,
+  shouldPreserveReference: (value: T) => boolean = () => false,
+): T[] | undefined {
+  const cloned = collection?.map((value) => {
+    if (shouldPreserveReference(value)) {
+      return value;
+    }
 
-  return cloned ? freezeMetadataSnapshot(cloned) : undefined;
+    return freezeMetadataSnapshot(cloneMutableValue(value));
+  });
+
+  return cloned ? (Object.freeze(cloned) as T[]) : undefined;
 }
 
 /**

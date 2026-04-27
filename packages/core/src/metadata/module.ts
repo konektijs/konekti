@@ -8,6 +8,10 @@ function isValueProvider(provider: unknown): provider is { useValue: unknown } {
   return typeof provider === 'object' && provider !== null && 'useValue' in provider;
 }
 
+function isMiddlewareRuntimeReference(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && typeof (value as { handle?: unknown }).handle === 'function';
+}
+
 function cloneProvider(provider: unknown): unknown {
   if (isValueProvider(provider)) {
     // Shallow-copy the provider descriptor but preserve the useValue reference.
@@ -29,7 +33,7 @@ function cloneModuleMetadata(metadata: ModuleMetadata): ModuleMetadata {
     exports: cloneFrozenCollection(metadata.exports),
     global: metadata.global,
     imports: cloneFrozenCollection(metadata.imports),
-    middleware: cloneFrozenCollection(metadata.middleware),
+    middleware: cloneFrozenCollection(metadata.middleware, isMiddlewareRuntimeReference),
     providers: cloneProviders(metadata.providers),
   });
 }
