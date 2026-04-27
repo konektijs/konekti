@@ -16,7 +16,6 @@ interface NatsSubscriptionLike {
 }
 
 interface NatsLike {
-  close?(): void;
   publish(subject: string, payload: Uint8Array): void;
   request(subject: string, payload: Uint8Array, options?: { timeout?: number }): Promise<{ data: Uint8Array }>;
   subscribe(subject: string, handler: (message: NatsMessageLike) => void): NatsSubscriptionLike;
@@ -119,9 +118,10 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
    *
    * @param pattern Pattern identifying the remote message handler.
    * @param payload Serializable request payload.
+   * @param signal Optional abort signal used to cancel the request.
    * @returns The decoded remote handler response payload.
    */
-  async send(pattern: string, payload: unknown): Promise<unknown> {
+  async send(pattern: string, payload: unknown, signal?: AbortSignal): Promise<unknown> {
     if (this.closing) {
       throw new Error('NATS microservice transport is closing. Wait for close() to complete before send().');
     }
@@ -139,6 +139,7 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
     const requestId = crypto.randomUUID();
 
     return await new Promise<unknown>((resolve, reject) => {
+      let abortHandler: (() => void) | undefined;
       let settled = false;
 
       const cleanup = () => {
@@ -147,6 +148,11 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
         }
 
         settled = true;
+
+        if (signal && abortHandler) {
+          signal.removeEventListener('abort', abortHandler);
+        }
+
         this.pending.delete(requestId);
       };
 
@@ -163,7 +169,29 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
 
       this.pending.set(requestId, entry);
 
+      if (signal) {
+        if (signal.aborted) {
+          entry.reject(new Error('NATS request aborted before publish.'));
+          return;
+        }
+
+        abortHandler = () => {
+          entry.reject(new Error('NATS request aborted.'));
+        };
+
+        signal.addEventListener('abort', abortHandler, { once: true });
+      }
+
       void Promise.resolve().then(async () => {
+        if (settled) {
+          return;
+        }
+
+        if (signal?.aborted) {
+          entry.reject(new Error('NATS request aborted before publish.'));
+          return;
+        }
+
         if (this.closing) {
           entry.reject(new Error('NATS microservice transport closed before request dispatch.'));
           return;
@@ -196,6 +224,10 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once the event is published.
    */
   async emit(pattern: string, payload: unknown): Promise<void> {
+    if (this.closing) {
+      throw new Error('NATS microservice transport is closing. Wait for close() to complete before emit().');
+    }
+
     const event: NatsTransportMessage = {
       kind: 'event',
       pattern,
@@ -206,7 +238,7 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
   }
 
   /**
-   * Unsubscribes from NATS subjects and closes the client when supported.
+   * Unsubscribes from NATS subjects without closing the caller-owned client.
    *
    * @returns A promise that resolves once shutdown cleanup completes.
    */
@@ -219,7 +251,6 @@ export class NatsMicroserviceTransport implements MicroserviceTransport {
         subscription.unsubscribe();
       }
 
-      this.options.client.close?.();
     } catch (error) {
       closeError = error;
     } finally {

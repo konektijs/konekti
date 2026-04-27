@@ -287,8 +287,7 @@ describe('RabbitMqMicroserviceTransport', () => {
 
     await transport.close();
 
-    await expect(first).rejects.toThrow('RabbitMQ microservice transport closed before response.');
-    await expect(second).rejects.toThrow('RabbitMQ microservice transport closed before response.');
+    await expect(Promise.all([first, second])).rejects.toThrow(/RabbitMQ microservice transport closed before/);
   });
 
   it('still rejects pending requests when queue cancellation fails during close', async () => {
@@ -319,7 +318,7 @@ describe('RabbitMqMicroserviceTransport', () => {
     const pending = transport.send('never.close', {});
 
     await expect(transport.close()).rejects.toBe(closeError);
-    await expect(pending).rejects.toThrow('RabbitMQ microservice transport closed before response.');
+    await expect(pending).rejects.toThrow(/RabbitMQ microservice transport closed before/);
   });
 
   it('documents startup/reconnect/shutdown queue lifecycle behavior', async () => {
@@ -397,6 +396,123 @@ describe('RabbitMqMicroserviceTransport', () => {
 
     await expect(transport.send('math.sum', { a: 1, b: 2 })).rejects.toThrow(
       'RabbitMqMicroserviceTransport is not listening. Call listen() before send().',
+    );
+  });
+
+  it('rejects send() after close() starts', async () => {
+    const bus = new InMemoryQueueBus();
+    const transport = new RabbitMqMicroserviceTransport({
+      consumer: {
+        async cancel(queue) {
+          await bus.unsubscribe(queue);
+        },
+        async consume(queue, handler) {
+          await bus.subscribe(queue, handler);
+        },
+      },
+      publisher: {
+        async publish(queue, message) {
+          await bus.publish(queue, message);
+        },
+      },
+    });
+
+    await transport.listen(async () => 'ok');
+    await transport.close();
+
+    await expect(transport.send('after.close', {})).rejects.toThrow(
+      'RabbitMqMicroserviceTransport is closing. Wait for close() to complete before send().',
+    );
+  });
+
+  it('does not publish a request frame when send() is aborted before deferred publish', async () => {
+    const bus = new InMemoryQueueBus();
+    const published: string[] = [];
+    const transport = new RabbitMqMicroserviceTransport({
+      consumer: {
+        async cancel(queue) {
+          await bus.unsubscribe(queue);
+        },
+        async consume(queue, handler) {
+          await bus.subscribe(queue, handler);
+        },
+      },
+      publisher: {
+        async publish(queue, message) {
+          published.push(message);
+          await bus.publish(queue, message);
+        },
+      },
+      requestTimeoutMs: 5_000,
+    });
+
+    await transport.listen(async () => 'ok');
+
+    const controller = new AbortController();
+    const pending = transport.send('aborted.before.deferred.publish', {}, controller.signal);
+    controller.abort();
+
+    await expect(pending).rejects.toThrow('RabbitMQ request aborted.');
+    expect(published.filter((message) => (JSON.parse(message) as { kind?: string }).kind === 'message')).toHaveLength(0);
+
+    await transport.close();
+  });
+
+  it('does not publish request frames once close() starts', async () => {
+    const bus = new InMemoryQueueBus();
+    const published: string[] = [];
+    const transport = new RabbitMqMicroserviceTransport({
+      consumer: {
+        async cancel(queue) {
+          await bus.unsubscribe(queue);
+        },
+        async consume(queue, handler) {
+          await bus.subscribe(queue, handler);
+        },
+      },
+      publisher: {
+        async publish(queue, message) {
+          published.push(message);
+          await bus.publish(queue, message);
+        },
+      },
+      requestTimeoutMs: 5_000,
+    });
+
+    await transport.listen(async () => {
+      await new Promise<void>(() => undefined);
+    });
+
+    const pending = transport.send('close.race', {});
+    await transport.close();
+
+    await expect(pending).rejects.toThrow(/closed before/);
+    expect(published.filter((message) => (JSON.parse(message) as { kind?: string }).kind === 'message')).toHaveLength(0);
+  });
+
+  it('rejects emit() after close() starts', async () => {
+    const bus = new InMemoryQueueBus();
+    const transport = new RabbitMqMicroserviceTransport({
+      consumer: {
+        async cancel(queue) {
+          await bus.unsubscribe(queue);
+        },
+        async consume(queue, handler) {
+          await bus.subscribe(queue, handler);
+        },
+      },
+      publisher: {
+        async publish(queue, message) {
+          await bus.publish(queue, message);
+        },
+      },
+    });
+
+    await transport.listen(async () => undefined);
+    await transport.close();
+
+    await expect(transport.emit('after.close', {})).rejects.toThrow(
+      'RabbitMqMicroserviceTransport is closing. Wait for close() to complete before emit().',
     );
   });
 

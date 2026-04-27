@@ -35,6 +35,7 @@ export interface RabbitMqMicroserviceTransportOptions {
  * a queue-oriented topology while still consuming the generic Fluo transport API.
  */
 export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
+  private closing = false;
   private handler: TransportHandler | undefined;
   private listening = false;
   private listenPromise: Promise<void> | undefined;
@@ -68,6 +69,7 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once queue consumers are registered.
    */
   async listen(handler: TransportHandler): Promise<void> {
+    this.closing = false;
     this.handler = handler;
 
     if (this.listening) {
@@ -119,6 +121,10 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @returns The remote handler response payload.
    */
   async send(pattern: string, payload: unknown, signal?: AbortSignal): Promise<unknown> {
+    if (this.closing) {
+      throw new Error('RabbitMqMicroserviceTransport is closing. Wait for close() to complete before send().');
+    }
+
     if (this.listenPromise) {
       await this.listenPromise;
     }
@@ -138,9 +144,11 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
 
     return await new Promise<unknown>((resolve, reject) => {
       let abortHandler: (() => void) | undefined;
+      let settled = false;
       const timeout = setTimeout(() => {
-        cleanup();
-        reject(new Error(`RabbitMQ request timed out after ${this.requestTimeoutMs}ms waiting for pattern "${pattern}".`));
+        settle(() => {
+          reject(new Error(`RabbitMQ request timed out after ${this.requestTimeoutMs}ms waiting for pattern "${pattern}".`));
+        });
       }, this.requestTimeoutMs);
 
       const cleanup = () => {
@@ -152,36 +160,71 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
         }
       };
 
+      const settle = (callback: () => void) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        cleanup();
+        callback();
+      };
+
       this.pending.set(requestId, {
         reject: (error: unknown) => {
-          cleanup();
-          reject(error);
+          settle(() => {
+            reject(error);
+          });
         },
         resolve: (value: unknown) => {
-          cleanup();
-          resolve(value);
+          settle(() => {
+            resolve(value);
+          });
         },
         timeout,
       });
 
       if (signal) {
         if (signal.aborted) {
-          cleanup();
-          reject(new Error('RabbitMQ request aborted before publish.'));
+          settle(() => {
+            reject(new Error('RabbitMQ request aborted before publish.'));
+          });
           return;
         }
 
         abortHandler = () => {
-          cleanup();
-          reject(new Error('RabbitMQ request aborted.'));
+          settle(() => {
+            reject(new Error('RabbitMQ request aborted.'));
+          });
         };
 
         signal.addEventListener('abort', abortHandler, { once: true });
       }
 
-      void this.options.publisher.publish(this.messageQueue, JSON.stringify(message)).catch((error: unknown) => {
-        cleanup();
-        reject(error instanceof Error ? error : new Error('Failed to publish RabbitMQ request.'));
+      void Promise.resolve().then(async () => {
+        if (settled) {
+          return;
+        }
+
+        if (signal?.aborted) {
+          settle(() => {
+            reject(new Error('RabbitMQ request aborted before publish.'));
+          });
+          return;
+        }
+
+        if (this.closing) {
+          settle(() => {
+            reject(new Error('RabbitMQ microservice transport closed before request dispatch.'));
+          });
+          return;
+        }
+
+        await this.options.publisher.publish(this.messageQueue, JSON.stringify(message));
+      }).catch((error: unknown) => {
+        settle(() => {
+          reject(error instanceof Error ? error : new Error('Failed to publish RabbitMQ request.'));
+        });
       });
     });
   }
@@ -194,6 +237,10 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once the event is published.
    */
   async emit(pattern: string, payload: unknown): Promise<void> {
+    if (this.closing) {
+      throw new Error('RabbitMqMicroserviceTransport is closing. Wait for close() to complete before emit().');
+    }
+
     const message: RabbitMqTransportMessage = {
       kind: 'event',
       pattern,
@@ -209,6 +256,7 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once shutdown cleanup completes.
    */
   async close(): Promise<void> {
+    this.closing = true;
     let closeError: unknown;
 
     if (this.listenPromise) {

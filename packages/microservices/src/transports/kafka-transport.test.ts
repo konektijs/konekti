@@ -302,6 +302,18 @@ describe('KafkaMicroserviceTransport', () => {
     expect(requestFrames).toHaveLength(0);
   });
 
+  it('rejects emit() after close() starts', async () => {
+    const bus = new InMemoryTopicBus();
+    const { transport } = createTransport(bus);
+
+    await transport.listen(async () => undefined);
+    await transport.close();
+
+    await expect(transport.emit('after.close', {})).rejects.toThrow(
+      'KafkaMicroserviceTransport is closing. Wait for close() to complete before emit().',
+    );
+  });
+
   it('captures async callback rejections without leaking them to emit()', async () => {
     const bus = new InMemoryTopicBus();
     const { transport } = createTransport(bus, {
