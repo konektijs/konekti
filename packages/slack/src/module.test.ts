@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type Constructor, type Token } from '@fluojs/core';
+import type { Constructor, Token } from '@fluojs/core';
 import { getModuleMetadata } from '@fluojs/core/internal';
 import { Container, type Provider } from '@fluojs/di';
 import { NOTIFICATION_CHANNELS, NotificationsModule, NotificationsService } from '@fluojs/notifications';
@@ -53,7 +53,12 @@ class RecordingTransport implements SlackTransport {
 }
 
 class PassiveTransport implements SlackTransport {
+  closeCalls = 0;
   readonly sent: string[] = [];
+
+  async close(): Promise<void> {
+    this.closeCalls += 1;
+  }
 
   async send(message: NormalizedSlackMessage) {
     this.sent.push(message.text ?? '');
@@ -555,6 +560,50 @@ describe('SlackModule', () => {
     expect(result.ok).toBe(true);
     expect(transport.sent).toEqual(['Provider transport']);
     expect(transportState.verifyCalls).toBe(0);
+  });
+
+  it('preserves direct transport ownership across bootstrap and shutdown lifecycle hooks', async () => {
+    const transport = new PassiveTransport();
+    const container = new Container();
+    const moduleType = SlackModule.forRoot({
+      defaultChannel: '#owned-by-app',
+      transport,
+      verifyOnModuleInit: true,
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(SlackService);
+
+    await service.onModuleInit();
+    expect(service.createPlatformStatusSnapshot()).toMatchObject({
+      details: {
+        lifecycleState: 'ready',
+        transportKind: 'custom-instance',
+        verifiedOnModuleInit: true,
+      },
+      ownership: {
+        externallyManaged: true,
+        ownsResources: false,
+      },
+      readiness: { critical: true, status: 'ready' },
+    });
+
+    await service.send({ text: 'App-owned transport' });
+    await service.onApplicationShutdown();
+
+    expect(transport.sent).toEqual(['App-owned transport']);
+    expect(transport.closeCalls).toBe(0);
+    expect(service.createPlatformStatusSnapshot()).toMatchObject({
+      details: { lifecycleState: 'stopped' },
+      ownership: {
+        externallyManaged: true,
+        ownsResources: false,
+      },
+      readiness: {
+        reason: 'Slack transport is shutting down or already stopped.',
+        status: 'not-ready',
+      },
+    });
   });
 
   it('rejects module registration without an explicit transport contract', () => {
