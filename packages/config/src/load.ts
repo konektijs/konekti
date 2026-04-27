@@ -26,6 +26,22 @@ interface NormalizedLoadOptions {
   validate?: (raw: ConfigDictionary) => ConfigDictionary;
 }
 
+const reloadFailureReasons = new WeakMap<object, ConfigReloadReason>();
+
+function markReloadFailure(error: unknown, reason: ConfigReloadReason): void {
+  if (typeof error === 'object' && error !== null) {
+    reloadFailureReasons.set(error, reason);
+  }
+}
+
+function getReloadFailureReason(error: unknown): ConfigReloadReason | undefined {
+  if (typeof error !== 'object' || error === null) {
+    return undefined;
+  }
+
+  return reloadFailureReasons.get(error);
+}
+
 function parseEnvContent(content: string, safeProcessEnv: Record<string, string>, customParser?: (content: string) => Record<string, string>): Record<string, string> {
   if (customParser) {
     return customParser(content);
@@ -204,17 +220,22 @@ function applyReload(
   }
 
   state.reloading = true;
+  let activeReason = reason;
 
   try {
-    let latest = applyReloadNow(normalized, state, listeners, reason);
+    let latest = applyReloadNow(normalized, state, listeners, activeReason);
 
     while (state.pendingReloadReason) {
       const pendingReason = state.pendingReloadReason;
       state.pendingReloadReason = undefined;
+      activeReason = pendingReason;
       latest = applyReloadNow(normalized, state, listeners, pendingReason);
     }
 
     return latest;
+  } catch (error: unknown) {
+    markReloadFailure(error, activeReason);
+    throw error;
   } finally {
     state.pendingReloadReason = undefined;
     state.reloading = false;
@@ -236,7 +257,7 @@ function startReloaderWatcher(
     try {
       applyReload(normalized, state, listeners, 'watch');
     } catch (error: unknown) {
-      notifyReloadErrorListeners(errorListeners, error, 'watch');
+      notifyReloadErrorListeners(errorListeners, error, getReloadFailureReason(error) ?? 'watch');
     }
   });
 }

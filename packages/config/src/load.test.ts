@@ -509,6 +509,49 @@ describe('loadConfig', () => {
     }
   });
 
+  it('reports queued manual reload failures with the manual reason during watch reloads', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-watch-manual-error-reason-'));
+    const envPath = join(cwd, '.env.dev');
+
+    writeFileSync(envPath, 'PORT=4000\n');
+
+    const reloader = createConfigReloader({
+      cwd,
+      envFile: envPath,
+      processEnv: {},
+      watch: true,
+    });
+
+    try {
+      const errorReasons: string[] = [];
+      let queuedManualReload = false;
+
+      reloader.subscribe((_snapshot, reason) => {
+        if (reason === 'watch' && !queuedManualReload) {
+          queuedManualReload = true;
+          writeFileSync(envPath, 'PORT=4200\n');
+          reloader.reload();
+          return;
+        }
+
+        if (reason === 'manual') {
+          throw new Error('queued manual listener failed');
+        }
+      });
+      reloader.subscribeError((_error, reason) => {
+        errorReasons.push(reason);
+      });
+
+      writeFileSync(envPath, 'PORT=4100\n');
+      emitWatchChange();
+
+      expect(errorReasons).toEqual(['manual']);
+      expect(reloader.current()['PORT']).toBe('4100');
+    } finally {
+      reloader.close();
+    }
+  });
+
   it('stops watch notifications after close', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-watch-close-'));
     const envPath = join(cwd, '.env.dev');
