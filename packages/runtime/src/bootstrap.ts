@@ -330,14 +330,23 @@ function selectEffectiveBootstrapProviders(
 ): BootstrapEffectiveProviders {
   const selectedRuntimeProviderIndexes = new Map<Token, number>();
   const selectedModuleProviderIndexes = new Map<Token, number>();
+  const runtimeMultiTokens = new Set<Token>();
+  const runtimeSingleTokens = new Set<Token>();
   const runtimeProviderEntries: SelectedProviderEntry[] = [];
   const moduleProviderEntries: SelectedProviderEntry[] = [];
 
   for (const runtimeProvider of runtimeProviders ?? []) {
     const token = providerToken(runtimeProvider);
+    const multi = isMultiProvider(runtimeProvider);
     const existingRuntimeProviderIndex = selectedRuntimeProviderIndexes.get(token);
 
-    if (existingRuntimeProviderIndex !== undefined) {
+    if (multi) {
+      runtimeMultiTokens.add(token);
+    } else {
+      runtimeSingleTokens.add(token);
+    }
+
+    if (!multi && existingRuntimeProviderIndex !== undefined) {
       handleDuplicateRuntimeProvider(token, policy, logger);
     }
 
@@ -347,20 +356,22 @@ function selectEffectiveBootstrapProviders(
       source: 'runtime',
       token,
     });
-    selectedRuntimeProviderIndexes.set(token, runtimeProviderEntries.length - 1);
-  }
 
-  const runtimeProviderTokens = new Set(selectedRuntimeProviderIndexes.keys());
+    if (!multi) {
+      selectedRuntimeProviderIndexes.set(token, runtimeProviderEntries.length - 1);
+    }
+  }
 
   for (const compiledModule of modules) {
     for (const provider of compiledModule.definition.providers ?? []) {
       const token = providerToken(provider);
+      const multi = isMultiProvider(provider);
       const existingModuleProviderIndex = selectedModuleProviderIndexes.get(token);
       const existing = existingModuleProviderIndex === undefined
         ? undefined
         : moduleProviderEntries[existingModuleProviderIndex];
 
-      if (existing && existing.source === 'module') {
+      if (!multi && existing && existing.source === 'module') {
         handleDuplicateProvider(token, compiledModule.type.name, existing.moduleName, policy, logger);
       }
 
@@ -373,7 +384,10 @@ function selectEffectiveBootstrapProviders(
       };
 
       moduleProviderEntries.push(entry);
-      selectedModuleProviderIndexes.set(token, moduleProviderEntries.length - 1);
+
+      if (!multi) {
+        selectedModuleProviderIndexes.set(token, moduleProviderEntries.length - 1);
+      }
     }
   }
 
@@ -382,15 +396,17 @@ function selectEffectiveBootstrapProviders(
   const moduleProviders: Provider[] = [];
   const rootModuleProviders: Provider[] = [];
   const effectiveRuntimeProviders = runtimeProviderEntries
-    .filter((_, index) => selectedRuntimeProviderIndexesSet.has(index))
+    .filter((entry, index) => isMultiProvider(entry.provider) || selectedRuntimeProviderIndexesSet.has(index))
     .map((entry) => entry.provider);
 
   moduleProviderEntries.forEach((entry, index) => {
-    if (entry.source !== 'module' || !selectedModuleProviderIndexesSet.has(index)) {
+    const multi = isMultiProvider(entry.provider);
+
+    if (entry.source !== 'module' || (!multi && !selectedModuleProviderIndexesSet.has(index))) {
       return;
     }
 
-    if (runtimeProviderTokens.has(entry.token)) {
+    if (runtimeSingleTokens.has(entry.token) || (runtimeMultiTokens.has(entry.token) && !multi)) {
       return;
     }
 
@@ -406,6 +422,13 @@ function selectEffectiveBootstrapProviders(
     rootModuleProviders,
     runtimeProviders: effectiveRuntimeProviders,
   };
+}
+
+function isMultiProvider(provider: Provider): boolean {
+  return typeof provider === 'object'
+    && provider !== null
+    && 'multi' in provider
+    && provider.multi === true;
 }
 
 function registerControllers(container: Container, modules: CompiledModule[]): void {
@@ -863,6 +886,10 @@ function createContextCacheableTokenSet(
 }
 
 function isDirectSingletonContextProvider(provider: Provider): boolean {
+  if (isMultiProvider(provider)) {
+    return false;
+  }
+
   if (typeof provider === 'function') {
     return providerScope(provider) === 'singleton';
   }

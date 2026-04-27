@@ -677,6 +677,84 @@ describe('FluoFactory.createApplicationContext', () => {
     },
   );
 
+  it('does not memoize multi-provider tokens through ApplicationContext.get()', async () => {
+    const MULTI_TOKEN = Symbol('context-multi-token');
+    const firstContribution = { id: 'first' };
+    const secondContribution = { id: 'second' };
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        {
+          multi: true,
+          provide: MULTI_TOKEN,
+          useFactory: () => firstContribution,
+        },
+        {
+          multi: true,
+          provide: MULTI_TOKEN,
+          useFactory: () => secondContribution,
+        },
+      ],
+    });
+
+    const context = await FluoFactory.createApplicationContext(AppModule, {
+    });
+    const resolve = vi.spyOn(context.container, 'resolve');
+
+    const first = await context.get<Array<{ id: string }>>(MULTI_TOKEN);
+    const second = await context.get<Array<{ id: string }>>(MULTI_TOKEN);
+
+    expect(first).toEqual([firstContribution, secondContribution]);
+    expect(second).toEqual([firstContribution, secondContribution]);
+    expect(first).not.toBe(second);
+    expect(first[0]).toBe(second[0]);
+    expect(first[1]).toBe(second[1]);
+    expect(resolve).toHaveBeenCalledTimes(2);
+
+    await context.close();
+  });
+
+  it('does not memoize multi-provider tokens through Application.get()', async () => {
+    const MULTI_TOKEN = Symbol('application-multi-token');
+    const moduleContribution = { id: 'module' };
+    const runtimeContribution = { id: 'runtime' };
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        {
+          multi: true,
+          provide: MULTI_TOKEN,
+          useFactory: () => moduleContribution,
+        },
+      ],
+    });
+
+    const app = await FluoFactory.create(AppModule, {
+      providers: [
+        {
+          multi: true,
+          provide: MULTI_TOKEN,
+          useFactory: () => runtimeContribution,
+        },
+      ],
+    });
+    const resolve = vi.spyOn(app.container, 'resolve');
+
+    const first = await app.get<Array<{ id: string }>>(MULTI_TOKEN);
+    const second = await app.get<Array<{ id: string }>>(MULTI_TOKEN);
+
+    expect(first).toEqual([runtimeContribution, moduleContribution]);
+    expect(second).toEqual([runtimeContribution, moduleContribution]);
+    expect(first).not.toBe(second);
+    expect(first[0]).toBe(second[0]);
+    expect(first[1]).toBe(second[1]);
+    expect(resolve).toHaveBeenCalledTimes(2);
+
+    await app.close();
+  });
+
   it('resolves independent singleton lifecycle providers concurrently before ordered hooks', async () => {
     const events: string[] = [];
     const FIRST = Symbol('first');
