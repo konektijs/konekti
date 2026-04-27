@@ -572,6 +572,36 @@ describe('FluoFactory.createApplicationContext', () => {
     await context.close();
   });
 
+  it('recomputes ApplicationContext.get() cacheability after singleton provider overrides', async () => {
+    class AppService {}
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [AppService],
+    });
+
+    const context = await FluoFactory.createApplicationContext(AppModule, {
+    });
+
+    const singleton = await context.get(AppService);
+    expect(await context.get(AppService)).toBe(singleton);
+
+    context.container.override({
+      provide: AppService,
+      scope: 'transient',
+      useFactory: () => ({ marker: Symbol('app-service') }) as AppService,
+    });
+
+    const firstOverride = await context.get(AppService);
+    const secondOverride = await context.get(AppService);
+
+    expect(firstOverride).not.toBe(singleton);
+    expect(secondOverride).not.toBe(singleton);
+    expect(firstOverride).not.toBe(secondOverride);
+
+    await context.close();
+  });
+
   it('resolves independent singleton lifecycle providers concurrently before ordered hooks', async () => {
     const events: string[] = [];
     const FIRST = Symbol('first');
@@ -661,6 +691,48 @@ describe('FluoFactory.createApplicationContext', () => {
       'app:bootstrap',
       'module:destroy',
       'app:shutdown:SIGTERM',
+    ]);
+  });
+
+  it('runs lifecycle hooks exposed by singleton useValue providers', async () => {
+    const events: string[] = [];
+    const LIFECYCLE_VALUE = Symbol('lifecycle-value');
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        {
+          provide: LIFECYCLE_VALUE,
+          useValue: {
+            onApplicationBootstrap() {
+              events.push('value:bootstrap');
+            },
+            onApplicationShutdown(signal?: string) {
+              events.push(`value:shutdown:${signal ?? 'none'}`);
+            },
+            onModuleDestroy() {
+              events.push('value:destroy');
+            },
+            onModuleInit() {
+              events.push('value:init');
+            },
+          },
+        },
+      ],
+    });
+
+    const context = await FluoFactory.createApplicationContext(AppModule, {
+    });
+
+    expect(events).toEqual(['value:init', 'value:bootstrap']);
+
+    await context.close('SIGTERM');
+
+    expect(events).toEqual([
+      'value:init',
+      'value:bootstrap',
+      'value:destroy',
+      'value:shutdown:SIGTERM',
     ]);
   });
 

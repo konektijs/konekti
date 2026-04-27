@@ -45,6 +45,7 @@ const DEFAULT_MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service') as T
 const runtimePerformance = globalThis.performance;
 
 type ContextResolutionCache = Map<Token, Promise<unknown>>;
+type ContextCacheableTokens = Set<Token>;
 
 type CacheInvalidatingContainer = Container & { override(...providers: Provider[]): Container };
 
@@ -430,10 +431,10 @@ class FluoApplication implements Application {
     lifecycleInstances: unknown[],
     private readonly logger: ApplicationLogger,
     private readonly runtimeCleanup: Array<() => void>,
-    private readonly contextCacheableTokens: ReadonlySet<Token>,
+    private readonly contextCacheableTokens: ContextCacheableTokens,
   ) {
     this.lifecycleInstances = lifecycleInstances;
-    installContextCacheInvalidation(this.container, this.contextResolutionCache);
+    installContextCacheInvalidation(this.container, this.contextResolutionCache, this.contextCacheableTokens);
   }
 
   get state(): ApplicationState {
@@ -558,9 +559,9 @@ class FluoApplicationContext implements ApplicationContext {
     readonly bootstrapTiming: ApplicationContext['bootstrapTiming'],
     private readonly lifecycleInstances: unknown[],
     private readonly runtimeCleanup: Array<() => void>,
-    private readonly contextCacheableTokens: ReadonlySet<Token>,
+    private readonly contextCacheableTokens: ContextCacheableTokens,
   ) {
-    installContextCacheInvalidation(this.container, this.contextResolutionCache);
+    installContextCacheInvalidation(this.container, this.contextResolutionCache, this.contextCacheableTokens);
   }
 
   async get<T>(token: Token<T>): Promise<T> {
@@ -691,25 +692,31 @@ class FluoMicroserviceApplication implements MicroserviceApplication {
  * lifecycle hook이 있는 singleton provider 인스턴스를 미리 해석해 둔다.
  */
 async function resolveLifecycleInstances(container: Container, providers: Provider[]): Promise<unknown[]> {
-  const tokens: Token[] = [];
+  const lifecycleEntries: Array<{ token: Token; useValue?: unknown }> = [];
   const seen = new Set<Token>();
 
   for (const provider of providers) {
-    if (!isDirectSingletonContextProvider(provider)) {
-      continue;
-    }
-
     const token = providerToken(provider);
 
     if (seen.has(token)) {
       continue;
     }
 
+    if (isHookBearingValueProvider(provider)) {
+      seen.add(token);
+      lifecycleEntries.push({ token, useValue: provider.useValue });
+      continue;
+    }
+
+    if (!isDirectSingletonContextProvider(provider)) {
+      continue;
+    }
+
     seen.add(token);
-    tokens.push(token);
+    lifecycleEntries.push({ token });
   }
 
-  return Promise.all(tokens.map((token) => container.resolve(token)));
+  return Promise.all(lifecycleEntries.map((entry) => entry.useValue ?? container.resolve(entry.token)));
 }
 
 function createContextCacheableTokenSet(
@@ -757,13 +764,41 @@ function isDirectSingletonContextProvider(provider: Provider): boolean {
   return providerScope(provider) === 'singleton';
 }
 
-function installContextCacheInvalidation(container: Container, cache: ContextResolutionCache): void {
+function isHookBearingValueProvider(provider: Provider): provider is Provider & { useValue: unknown } {
+  return typeof provider === 'object'
+    && provider !== null
+    && 'useValue' in provider
+    && hasLifecycleHook(provider.useValue);
+}
+
+function hasLifecycleHook(value: unknown): boolean {
+  return isOnModuleInit(value)
+    || isOnApplicationBootstrap(value)
+    || isOnModuleDestroy(value)
+    || isOnApplicationShutdown(value);
+}
+
+function installContextCacheInvalidation(
+  container: Container,
+  cache: ContextResolutionCache,
+  cacheableTokens: ContextCacheableTokens,
+): void {
   const cacheInvalidatingContainer = container as CacheInvalidatingContainer;
   const override = cacheInvalidatingContainer.override.bind(container);
 
   cacheInvalidatingContainer.override = (...providers: Provider[]): Container => {
     const result = override(...providers);
     cache.clear();
+
+    for (const provider of providers) {
+      const token = providerToken(provider);
+
+      if (isDirectSingletonContextProvider(provider)) {
+        cacheableTokens.add(token);
+      } else {
+        cacheableTokens.delete(token);
+      }
+    }
 
     return result;
   };
