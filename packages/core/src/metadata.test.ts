@@ -21,6 +21,7 @@ import {
   getRouteMetadata,
 } from './metadata.js';
 import {
+  getOwnStandardConstructorMetadataBag,
   getStandardConstructorMetadataBag,
   getStandardConstructorMetadataMap,
   getStandardConstructorMetadataRecord,
@@ -812,6 +813,47 @@ describe('metadata helpers', () => {
         nativeInjectionMetadata,
       );
       expect(metadataSymbol).toBe(nativeSymbol);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(Symbol, 'metadata', originalDescriptor);
+      } else {
+        delete (Symbol as typeof Symbol & { metadata?: symbol }).metadata;
+      }
+      ensureMetadataSymbol();
+    }
+  });
+
+  it('prefers own fallback-era standard metadata before inherited active metadata', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(Symbol, 'metadata');
+    const fallbackSymbol = ensureMetadataSymbol();
+    const nativeSymbol = Symbol('native.metadata');
+    const inheritedNativeBag: StandardMetadataBag = {
+      [standardMetadataKeys.controller]: { basePath: '/base-native' },
+    };
+    const ownFallbackBag: StandardMetadataBag = {
+      [standardMetadataKeys.controller]: { basePath: '/child-fallback' },
+    };
+
+    class BaseController {}
+    class ChildController extends BaseController {}
+
+    Object.defineProperty(Symbol, 'metadata', {
+      configurable: true,
+      value: nativeSymbol,
+    });
+    Object.defineProperty(BaseController, nativeSymbol, {
+      configurable: true,
+      value: inheritedNativeBag,
+    });
+    Object.defineProperty(ChildController, fallbackSymbol, {
+      configurable: true,
+      value: ownFallbackBag,
+    });
+
+    try {
+      expect(getStandardMetadataBag(ChildController)).toBe(ownFallbackBag);
+      expect(getStandardConstructorMetadataBag(ChildController.prototype)).toBe(ownFallbackBag);
+      expect(getOwnStandardConstructorMetadataBag(ChildController)).toBe(ownFallbackBag);
     } finally {
       if (originalDescriptor) {
         Object.defineProperty(Symbol, 'metadata', originalDescriptor);

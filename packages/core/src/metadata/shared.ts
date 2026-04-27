@@ -45,7 +45,11 @@ function getActiveMetadataSymbol(): symbol {
   return metadataSymbol;
 }
 
-function getStandardMetadataBagFromSymbol(target: object, symbol: symbol): StandardMetadataBag | undefined {
+function getOwnStandardMetadataBagFromSymbol(target: object, symbol: symbol): StandardMetadataBag | undefined {
+  if (!Object.prototype.hasOwnProperty.call(target, symbol)) {
+    return undefined;
+  }
+
   const metadata = Reflect.get(target, symbol);
 
   if (typeof metadata !== 'object' || metadata === null) {
@@ -53,6 +57,20 @@ function getStandardMetadataBagFromSymbol(target: object, symbol: symbol): Stand
   }
 
   return metadata as StandardMetadataBag;
+}
+
+function getOwnStandardMetadataBagForEra(target: object, activeMetadataSymbol: symbol): StandardMetadataBag | undefined {
+  const activeMetadata = getOwnStandardMetadataBagFromSymbol(target, activeMetadataSymbol);
+
+  if (activeMetadata) {
+    return activeMetadata;
+  }
+
+  if (activeMetadataSymbol !== fallbackMetadataSymbol) {
+    return getOwnStandardMetadataBagFromSymbol(target, fallbackMetadataSymbol);
+  }
+
+  return undefined;
 }
 
 function isPlainObject(value: unknown): value is Record<PropertyKey, unknown> {
@@ -175,20 +193,7 @@ export function mergeUnique<T>(existing: readonly T[] | undefined, values: reado
  * @returns The own metadata bag when present, otherwise `undefined`.
  */
 export function getOwnStandardConstructorMetadataBag(constructor: Function): StandardMetadataBag | undefined {
-  const activeMetadataSymbol = getActiveMetadataSymbol();
-
-  if (Object.prototype.hasOwnProperty.call(constructor, activeMetadataSymbol)) {
-    return getStandardMetadataBagFromSymbol(constructor, activeMetadataSymbol);
-  }
-
-  if (
-    activeMetadataSymbol !== fallbackMetadataSymbol &&
-    Object.prototype.hasOwnProperty.call(constructor, fallbackMetadataSymbol)
-  ) {
-    return getStandardMetadataBagFromSymbol(constructor, fallbackMetadataSymbol);
-  }
-
-  return undefined;
+  return getOwnStandardMetadataBagForEra(constructor, getActiveMetadataSymbol());
 }
 
 /**
@@ -199,14 +204,22 @@ export function getOwnStandardConstructorMetadataBag(constructor: Function): Sta
  */
 export function getStandardMetadataBag(target: object): StandardMetadataBag | undefined {
   const activeMetadataSymbol = getActiveMetadataSymbol();
-  const activeMetadata = getStandardMetadataBagFromSymbol(target, activeMetadataSymbol);
+  const ownMetadata = getOwnStandardMetadataBagForEra(target, activeMetadataSymbol);
 
-  if (activeMetadata) {
-    return activeMetadata;
+  if (ownMetadata) {
+    return ownMetadata;
   }
 
-  if (activeMetadataSymbol !== fallbackMetadataSymbol) {
-    return getStandardMetadataBagFromSymbol(target, fallbackMetadataSymbol);
+  let prototype = Object.getPrototypeOf(target) as object | null;
+
+  while (prototype) {
+    const inheritedMetadata = getOwnStandardMetadataBagForEra(prototype, activeMetadataSymbol);
+
+    if (inheritedMetadata) {
+      return inheritedMetadata;
+    }
+
+    prototype = Object.getPrototypeOf(prototype) as object | null;
   }
 
   return undefined;
