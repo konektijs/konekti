@@ -422,6 +422,30 @@ describe('@fluojs/redis', () => {
     });
   });
 
+  it('reports stable default and named component ids with Redis-owned resources', () => {
+    const defaultSnapshot = createRedisPlatformStatusSnapshot({
+      componentId: 'redis.default',
+      status: 'ready',
+    });
+    const namedSnapshot = createRedisPlatformStatusSnapshot({
+      componentId: 'redis.cache',
+      status: 'wait',
+    });
+
+    expect(defaultSnapshot.details).toMatchObject({
+      componentId: 'redis.default',
+      connectionState: 'ready',
+      lazyConnect: true,
+    });
+    expect(defaultSnapshot.ownership).toEqual({ externallyManaged: false, ownsResources: true });
+    expect(namedSnapshot.details).toMatchObject({
+      componentId: 'redis.cache',
+      connectionState: 'wait',
+      lazyConnect: true,
+    });
+    expect(namedSnapshot.ownership).toEqual({ externallyManaged: false, ownsResources: true });
+  });
+
   it('separates wait-state readiness from health', () => {
     const snapshot = createRedisPlatformStatusSnapshot({
       status: 'wait',
