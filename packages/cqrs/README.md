@@ -11,6 +11,7 @@ CQRS primitives for fluo applications with bootstrap-time handler discovery, com
 - [Quick Start](#quick-start)
 - [Common Patterns](#common-patterns)
   - [Saga Process Managers](#saga-process-managers)
+  - [Event Publishing Contracts](#event-publishing-contracts)
   - [Symbol Tokens](#symbol-tokens)
 - [Public API Overview](#public-api-overview)
 - [Related Packages](#related-packages)
@@ -106,6 +107,14 @@ class UserSaga implements ISaga<UserCreatedEvent> {
 ```
 
 Saga execution now fails fast with `SagaTopologyError` when an in-process publish chain re-enters the same saga route cyclically or exceeds 32 nested saga hops. Multi-stage sagas may still react to different event types in sequence, but in-process saga graphs must stay acyclic overall; move intentionally cyclic or long-running feedback loops behind an external transport, scheduler, or other bounded boundary.
+
+### Event Publishing Contracts
+
+`CqrsEventBusService.publish(event)` runs the CQRS event pipeline in a fixed order: matching `@EventHandler(...)` providers first, matching `@Saga(...)` providers second, and delegated `@fluojs/event-bus` publication last. `publishAll(events)` preserves the input order by awaiting each event's CQRS handlers, sagas, and delegated publication call before publishing the next event. When `CqrsModule.forRoot({ eventBus: { publish: { waitForHandlers: false } } })` is configured, the delegated publication call can resolve before matching `@OnEvent(...)` subscribers finish, so `publish(...)` and `publishAll(...)` do not imply subscriber completion in that mode.
+
+Each CQRS event handler and saga receives an isolated event copy with the matched event prototype restored. Mutating that copy is local to the current handler or saga route; those mutations are not visible to other CQRS handlers, sagas, the original event object, or delegated `@fluojs/event-bus` subscribers. The delegated event-bus publication receives the original event after CQRS side effects complete, so `@OnEvent(...)` projections and transports observe the caller-owned payload rather than a CQRS handler's mutated copy.
+
+Event classes should keep their payload state cloneable and enumerable. String-keyed and symbol-keyed enumerable payload fields are preserved by the shared core clone fallback, while intentionally non-cloneable resources such as open sockets, functions, or process-local handles should be represented by IDs or other serializable boundaries before publishing.
 
 ### Symbol Tokens
 
