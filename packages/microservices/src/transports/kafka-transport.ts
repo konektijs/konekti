@@ -210,6 +210,10 @@ export class KafkaMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once the event is published.
    */
   async emit(pattern: string, payload: unknown): Promise<void> {
+    if (this.closing) {
+      throw new Error('KafkaMicroserviceTransport is closing. Wait for close() to complete before emit().');
+    }
+
     const message: KafkaTransportMessage = {
       kind: 'event',
       pattern,

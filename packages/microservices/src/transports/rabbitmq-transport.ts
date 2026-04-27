@@ -35,6 +35,7 @@ export interface RabbitMqMicroserviceTransportOptions {
  * a queue-oriented topology while still consuming the generic Fluo transport API.
  */
 export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
+  private closing = false;
   private handler: TransportHandler | undefined;
   private listening = false;
   private listenPromise: Promise<void> | undefined;
@@ -68,6 +69,7 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once queue consumers are registered.
    */
   async listen(handler: TransportHandler): Promise<void> {
+    this.closing = false;
     this.handler = handler;
 
     if (this.listening) {
@@ -119,6 +121,10 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @returns The remote handler response payload.
    */
   async send(pattern: string, payload: unknown, signal?: AbortSignal): Promise<unknown> {
+    if (this.closing) {
+      throw new Error('RabbitMqMicroserviceTransport is closing. Wait for close() to complete before send().');
+    }
+
     if (this.listenPromise) {
       await this.listenPromise;
     }
@@ -179,7 +185,15 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
         signal.addEventListener('abort', abortHandler, { once: true });
       }
 
-      void this.options.publisher.publish(this.messageQueue, JSON.stringify(message)).catch((error: unknown) => {
+      void Promise.resolve().then(async () => {
+        if (this.closing) {
+          cleanup();
+          reject(new Error('RabbitMQ microservice transport closed before request dispatch.'));
+          return;
+        }
+
+        await this.options.publisher.publish(this.messageQueue, JSON.stringify(message));
+      }).catch((error: unknown) => {
         cleanup();
         reject(error instanceof Error ? error : new Error('Failed to publish RabbitMQ request.'));
       });
@@ -194,6 +208,10 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once the event is published.
    */
   async emit(pattern: string, payload: unknown): Promise<void> {
+    if (this.closing) {
+      throw new Error('RabbitMqMicroserviceTransport is closing. Wait for close() to complete before emit().');
+    }
+
     const message: RabbitMqTransportMessage = {
       kind: 'event',
       pattern,
@@ -209,6 +227,7 @@ export class RabbitMqMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once shutdown cleanup completes.
    */
   async close(): Promise<void> {
+    this.closing = true;
     let closeError: unknown;
 
     if (this.listenPromise) {
