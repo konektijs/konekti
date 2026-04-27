@@ -11,8 +11,13 @@ import { serialize } from './serialize.js';
  * automatically.
  */
 export class SerializerInterceptor implements Interceptor {
-  async intercept(_context: InterceptorContext, next: CallHandler): Promise<unknown> {
+  async intercept(context: InterceptorContext, next: CallHandler): Promise<unknown> {
     const value = await next.handle();
+
+    if (context.requestContext.response.committed) {
+      return value;
+    }
+
     return serialize(value);
   }
 }
