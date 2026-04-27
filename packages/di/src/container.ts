@@ -948,10 +948,8 @@ export class Container {
   }
 
   private resolveForwardRefToken(forwardRefEntry: ForwardRefFn): Token {
-    const cachedToken = this.forwardRefTokenCache.get(forwardRefEntry);
-
-    if (cachedToken) {
-      return cachedToken;
+    if (this.forwardRefTokenCache.has(forwardRefEntry)) {
+      return this.forwardRefTokenCache.get(forwardRefEntry)!;
     }
 
     const resolvedToken = forwardRefEntry.forwardRef();

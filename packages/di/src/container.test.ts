@@ -337,6 +337,30 @@ describe('Container', () => {
       expect(resolveServiceB).toHaveBeenCalledTimes(1);
     });
 
+    it('memoizes forwardRef token lookup when the resolved token is an empty string', async () => {
+      const emptyToken = '';
+
+      class ServiceA {
+        constructor(readonly value: string) {}
+      }
+
+      const resolveEmptyToken = vi.fn(() => emptyToken);
+      const container = new Container().register(
+        { provide: emptyToken, useValue: 'empty-token-value' },
+        { provide: ServiceA, scope: Scope.TRANSIENT, useClass: ServiceA, inject: [forwardRef(resolveEmptyToken)] },
+      );
+
+      expect(container.has(emptyToken)).toBe(true);
+
+      const first = await container.resolve(ServiceA);
+      const second = await container.resolve(ServiceA);
+
+      expect(first).not.toBe(second);
+      expect(first.value).toBe('empty-token-value');
+      expect(second.value).toBe('empty-token-value');
+      expect(resolveEmptyToken).toHaveBeenCalledTimes(1);
+    });
+
     it('fails fast for a true circular dependency even when both sides use forwardRef', async () => {
       class ServiceA {
         constructor(public b: ServiceB) {}
