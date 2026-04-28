@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { getModuleMetadata } from '@fluojs/core/internal';
 import { Controller, Get, UnauthorizedException, createDispatcher, createHandlerMapping } from '@fluojs/http';
@@ -7,7 +7,9 @@ import type { FrameworkRequest, FrameworkResponse, GuardContext } from '@fluojs/
 import { Container } from '@fluojs/di';
 import { DefaultJwtVerifier } from '@fluojs/jwt';
 
-import { RequireScopes, UseAuth } from './decorators.js';
+import { RequireScopes, UseAuth, UseOptionalAuth } from './decorators.js';
+import { CookieAuthModule } from './cookie/cookie-auth-module.js';
+import { COOKIE_AUTH_STRATEGY_NAME, CookieAuthStrategy } from './cookie/cookie-auth.js';
 import { AuthenticationExpiredError, AuthenticationFailedError, AuthenticationRequiredError } from './errors.js';
 import { AuthGuard } from './guard.js';
 import { PassportModule } from './module.js';
@@ -30,6 +32,18 @@ function createPassportModuleProviders(
   return metadata.providers;
 }
 
+function createCookieAuthModuleProviders(config?: Parameters<typeof CookieAuthModule.forRoot>[0]): Provider[] {
+  const metadata = getModuleMetadata(CookieAuthModule.forRoot(config)) as {
+    providers?: Provider[];
+  };
+
+  if (!Array.isArray(metadata.providers)) {
+    throw new Error('Expected CookieAuthModule.forRoot(...) to expose runtime providers.');
+  }
+
+  return metadata.providers;
+}
+
 function createRequest(path: string, headers: FrameworkRequest['headers'] = {}): FrameworkRequest {
   return {
     body: undefined,
@@ -42,6 +56,28 @@ function createRequest(path: string, headers: FrameworkRequest['headers'] = {}):
     raw: {},
     url: path,
   };
+}
+
+function createCookieRequest(
+  path: string,
+  cookies: FrameworkRequest['cookies'],
+  headers: FrameworkRequest['headers'] = {},
+): FrameworkRequest {
+  return {
+    ...createRequest(path, headers),
+    cookies,
+  };
+}
+
+function createMockVerifier(overrides: Partial<DefaultJwtVerifier> = {}): DefaultJwtVerifier {
+  return {
+    verifyAccessToken: vi.fn().mockResolvedValue({
+      claims: { sub: 'user-1', scopes: ['profile:read'] },
+      scopes: ['profile:read'],
+      subject: 'user-1',
+    }),
+    ...overrides,
+  } as unknown as DefaultJwtVerifier;
 }
 
 function createResponse(): FrameworkResponse & { body?: unknown } {
@@ -229,6 +265,181 @@ describe('AuthGuard', () => {
         status: 403,
       },
     });
+  });
+
+  it('rejects protected cookie-auth routes without an access token cookie even when requireAccessToken is false', async () => {
+    const verifier = createMockVerifier();
+
+    @Controller('/cookie-protected')
+    class ProtectedController {
+      @Get('/')
+      @UseAuth(COOKIE_AUTH_STRATEGY_NAME)
+      getProfile() {
+        return { ok: true };
+      }
+    }
+
+    const root = new Container().register(
+      ProtectedController,
+      {
+        provide: DefaultJwtVerifier,
+        useValue: verifier,
+      },
+      ...createCookieAuthModuleProviders({
+        cookieAuth: { requireAccessToken: false },
+      }),
+      ...createPassportModuleProviders(
+        { defaultStrategy: COOKIE_AUTH_STRATEGY_NAME },
+        [{ name: COOKIE_AUTH_STRATEGY_NAME, token: CookieAuthStrategy }],
+      ),
+    );
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
+      rootContainer: root,
+    });
+    const response = createResponse();
+
+    await dispatcher.dispatch(createRequest('/cookie-protected', { 'x-request-id': 'req-cookie-protected' }), response);
+
+    expect(response.statusCode).toBe(401);
+    expect(verifier.verifyAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('authenticates protected cookie-auth routes when a valid cookie is present', async () => {
+    const verifier = createMockVerifier();
+
+    @Controller('/cookie-protected')
+    class ProtectedController {
+      @Get('/')
+      @UseAuth(COOKIE_AUTH_STRATEGY_NAME)
+      getProfile(_input: unknown, ctx: { principal?: { subject: string } }) {
+        return { subject: ctx.principal?.subject };
+      }
+    }
+
+    const root = new Container().register(
+      ProtectedController,
+      {
+        provide: DefaultJwtVerifier,
+        useValue: verifier,
+      },
+      ...createCookieAuthModuleProviders({
+        cookieAuth: { requireAccessToken: false },
+      }),
+      ...createPassportModuleProviders(
+        { defaultStrategy: COOKIE_AUTH_STRATEGY_NAME },
+        [{ name: COOKIE_AUTH_STRATEGY_NAME, token: CookieAuthStrategy }],
+      ),
+    );
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: ProtectedController }]),
+      rootContainer: root,
+    });
+    const response = createResponse();
+
+    await dispatcher.dispatch(
+      createCookieRequest('/cookie-protected', { access_token: 'valid-cookie-token' }),
+      response,
+    );
+
+    expect(response.body).toEqual({ subject: 'user-1' });
+    expect(verifier.verifyAccessToken).toHaveBeenCalledWith('valid-cookie-token');
+  });
+
+  it('allows explicit optional cookie-auth routes to continue without a principal', async () => {
+    const verifier = createMockVerifier();
+
+    @Controller('/cookie-optional')
+    class OptionalController {
+      @Get('/')
+      @UseOptionalAuth(COOKIE_AUTH_STRATEGY_NAME)
+      getFeed(_input: unknown, ctx: { principal?: { subject: string } }) {
+        return { subject: ctx.principal?.subject ?? null };
+      }
+    }
+
+    const root = new Container().register(
+      OptionalController,
+      {
+        provide: DefaultJwtVerifier,
+        useValue: verifier,
+      },
+      ...createCookieAuthModuleProviders({
+        cookieAuth: { requireAccessToken: false },
+      }),
+      ...createPassportModuleProviders(
+        { defaultStrategy: COOKIE_AUTH_STRATEGY_NAME },
+        [{ name: COOKIE_AUTH_STRATEGY_NAME, token: CookieAuthStrategy }],
+      ),
+    );
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: OptionalController }]),
+      rootContainer: root,
+    });
+    const response = createResponse();
+
+    await dispatcher.dispatch(createRequest('/cookie-optional'), response);
+
+    expect(response.body).toEqual({ subject: null });
+    expect(verifier.verifyAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('preserves scope enforcement for cookie-auth routes when credentials are missing or valid', async () => {
+    const verifier = createMockVerifier({
+      verifyAccessToken: vi.fn().mockResolvedValue({
+        claims: { sub: 'scoped-user', scopes: ['profile:read'] },
+        scopes: ['profile:read'],
+        subject: 'scoped-user',
+      }),
+    });
+
+    @Controller('/cookie-scoped')
+    class ScopedController {
+      @Get('/')
+      @UseAuth(COOKIE_AUTH_STRATEGY_NAME)
+      @RequireScopes('profile:read')
+      getProfile(_input: unknown, ctx: { principal?: { subject: string } }) {
+        return { subject: ctx.principal?.subject };
+      }
+    }
+
+    const root = new Container().register(
+      ScopedController,
+      {
+        provide: DefaultJwtVerifier,
+        useValue: verifier,
+      },
+      ...createCookieAuthModuleProviders({
+        cookieAuth: { requireAccessToken: false },
+      }),
+      ...createPassportModuleProviders(
+        { defaultStrategy: COOKIE_AUTH_STRATEGY_NAME },
+        [{ name: COOKIE_AUTH_STRATEGY_NAME, token: CookieAuthStrategy }],
+      ),
+    );
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: ScopedController }]),
+      rootContainer: root,
+    });
+
+    const missingCookieResponse = createResponse();
+
+    await dispatcher.dispatch(
+      createRequest('/cookie-scoped', { 'x-request-id': 'req-cookie-scoped-missing' }),
+      missingCookieResponse,
+    );
+
+    expect(missingCookieResponse.statusCode).toBe(401);
+
+    const authenticatedResponse = createResponse();
+
+    await dispatcher.dispatch(
+      createCookieRequest('/cookie-scoped', { access_token: 'scoped-cookie-token' }),
+      authenticatedResponse,
+    );
+
+    expect(authenticatedResponse.body).toEqual({ subject: 'scoped-user' });
+    expect(verifier.verifyAccessToken).toHaveBeenCalledWith('scoped-cookie-token');
   });
 
   it('adapts a Passport.js-style strategy success callback to principal population', async () => {

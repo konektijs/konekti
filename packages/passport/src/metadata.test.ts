@@ -1,7 +1,7 @@
 import { Controller, Get } from '@fluojs/http';
 import { describe, expect, it } from 'vitest';
 
-import { RequireScopes, UseAuth } from './decorators.js';
+import { RequireScopes, UseAuth, UseOptionalAuth } from './decorators.js';
 import { getAuthRequirement } from './metadata.js';
 
 describe('auth metadata scope merge', () => {
@@ -20,10 +20,12 @@ describe('auth metadata scope merge', () => {
     }
 
     expect(getAuthRequirement(ProfileController)).toEqual({
+      optional: false,
       scopes: ['profile:read', 'profile:write'],
       strategy: 'jwt',
     });
     expect(getAuthRequirement(ProfileController, 'getProfile')).toEqual({
+      optional: false,
       scopes: ['profile:read', 'profile:write'],
       strategy: 'jwt',
     });
@@ -43,8 +45,30 @@ describe('auth metadata scope merge', () => {
     }
 
     expect(getAuthRequirement(ProfileController, 'getProfile')).toEqual({
+      optional: false,
       scopes: ['profile:read', 'profile:write'],
       strategy: 'session',
+    });
+  });
+
+  it('lets protected routes override optional controller-level auth requirements', () => {
+    @Controller('/metadata')
+    @UseOptionalAuth('cookie')
+    class ProfileController {
+      @Get('/')
+      @UseAuth('cookie')
+      getProfile() {
+        return undefined;
+      }
+    }
+
+    expect(getAuthRequirement(ProfileController)).toEqual({
+      optional: true,
+      strategy: 'cookie',
+    });
+    expect(getAuthRequirement(ProfileController, 'getProfile')).toEqual({
+      optional: false,
+      strategy: 'cookie',
     });
   });
 
