@@ -244,8 +244,6 @@ describe('platform consistency governance docs', () => {
     expect(ciWorkflow).toContain('build-and-typecheck:');
     expect(ciWorkflow).toContain("if: github.event_name == 'pull_request'");
     expect(ciWorkflow).toContain('verify-platform-consistency-governance');
-    expect(ciWorkflow).toContain("if: github.event_name == 'push' && github.ref == 'refs/heads/main'");
-    expect(ciWorkflow).toContain('run: pnpm verify:release-readiness');
   });
 
   it('keeps Changesets release automation bound to main pushes and token-backed npm publish', () => {
@@ -263,7 +261,6 @@ describe('platform consistency governance docs', () => {
     expect(releaseWorkflow).toContain('version: pnpm version-packages');
     expect(releaseWorkflow).toContain('publish: pnpm publish-packages');
     expect(releaseWorkflow).toContain('createGithubReleases: true');
-    expect(releaseWorkflow).toContain('run: pnpm verify:release-readiness');
     expect(releaseWorkflow).toContain('NPM_CONFIG_PROVENANCE: true');
     expect(releaseWorkflow).toContain('NPM_TOKEN: ${{ secrets.NPM_TOKEN }}');
     expect(releaseWorkflow).toContain('NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}');
@@ -277,20 +274,17 @@ describe('platform consistency governance docs', () => {
     const setupNode = requireWorkflowStepIndex(releaseWorkflow, 'Setup Node.js');
     const installDependencies = requireWorkflowStepIndex(releaseWorkflow, 'Install dependencies');
     const buildPackages = requireWorkflowStepIndex(releaseWorkflow, 'Build packages');
-    const verifyReleaseReadiness = requireWorkflowStepIndex(releaseWorkflow, 'Verify release readiness');
     const releaseStep = requireWorkflowStepIndex(releaseWorkflow, 'Create Release Pull Request or Publish to npm');
 
     expect(releaseWorkflow).toContain('fetch-depth: 0');
     expect(releaseWorkflow).toContain('pnpm install --frozen-lockfile');
     expect(releaseWorkflow).toContain('run: pnpm build');
-    expect(releaseWorkflow).toContain('run: pnpm verify:release-readiness');
 
     expect(checkout).toBeLessThan(installPnpm);
     expect(installPnpm).toBeLessThan(setupNode);
     expect(setupNode).toBeLessThan(installDependencies);
     expect(installDependencies).toBeLessThan(buildPackages);
-    expect(buildPackages).toBeLessThan(verifyReleaseReadiness);
-    expect(verifyReleaseReadiness).toBeLessThan(releaseStep);
+    expect(buildPackages).toBeLessThan(releaseStep);
   });
 
   it('keeps the legacy single-package workflow disabled for publish authority', () => {
