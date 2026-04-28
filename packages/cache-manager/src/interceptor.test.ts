@@ -80,13 +80,14 @@ function createContext(
   methodName: string,
   requestContext: RequestContext,
   requestMethod: HttpMethod = 'GET',
+  routePath = requestContext.request.path,
 ): InterceptorContext {
   return {
     handler: {
       controllerToken: controllerToken as InterceptorContext['handler']['controllerToken'],
       metadata: {
         controllerPath: '',
-        effectivePath: requestContext.request.path,
+        effectivePath: routePath,
         effectiveVersion: undefined,
         moduleMiddleware: [],
         moduleType: undefined,
@@ -95,7 +96,7 @@ function createContext(
       methodName,
       route: {
         method: requestMethod,
-        path: requestContext.request.path,
+        path: routePath,
       },
     },
     requestContext,
@@ -140,14 +141,14 @@ describe('CacheInterceptor', () => {
     expect(next.handle).toHaveBeenCalledTimes(1);
   });
 
-  it('uses effective route path by default when @CacheKey is absent', async () => {
+  it('uses the concrete request path by default when @CacheKey is absent', async () => {
     class ProductController {
       list() {}
     }
 
     const { interceptor } = createInterceptor();
-    const firstContext = createContext(ProductController, 'list', createRequestContext('GET', '/products?page=2', '/products'));
-    const secondContext = createContext(ProductController, 'list', createRequestContext('GET', '/products?page=9', '/products'));
+    const firstContext = createContext(ProductController, 'list', createRequestContext('GET', '/products?page=2', '/products'), 'GET', '/products');
+    const secondContext = createContext(ProductController, 'list', createRequestContext('GET', '/products?page=9', '/products'), 'GET', '/products');
     const next: CallHandler = {
       handle: vi.fn(async () => ({ count: 1 })),
     };
@@ -156,6 +157,31 @@ describe('CacheInterceptor', () => {
     await interceptor.intercept(secondContext, next);
 
     expect(next.handle).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not collapse parameterized routes that share the same route template', async () => {
+    class UserController {
+      @CacheTTL(120)
+      getById() {}
+    }
+
+    const { interceptor, cacheService } = createInterceptor({ httpKeyStrategy: 'route' });
+    const firstContext = createContext(UserController, 'getById', createRequestContext('GET', '/users/1', '/users/1'), 'GET', '/users/:id');
+    const secondContext = createContext(UserController, 'getById', createRequestContext('GET', '/users/2', '/users/2'), 'GET', '/users/:id');
+    const next: CallHandler = {
+      handle: vi
+        .fn<CallHandler['handle']>()
+        .mockResolvedValueOnce({ id: '1' })
+        .mockResolvedValueOnce({ id: '2' }),
+    };
+
+    await interceptor.intercept(firstContext, next);
+    await interceptor.intercept(secondContext, next);
+
+    expect(next.handle).toHaveBeenCalledTimes(2);
+    expect(await cacheService.get('/users/1')).toEqual({ id: '1' });
+    expect(await cacheService.get('/users/2')).toEqual({ id: '2' });
+    expect(await cacheService.get('/users/:id')).toBeUndefined();
   });
 
   it('does not perform read-through caching for non-GET handlers', async () => {
@@ -370,6 +396,31 @@ describe('CacheInterceptor', () => {
       expect(await cacheService.get('/products')).toEqual({ page: 1 });
     });
 
+    it('strategy "route" distinguishes concrete path params even when route metadata is templated', async () => {
+      class UserController {
+        @CacheTTL(120)
+        getById() {}
+      }
+
+      const { interceptor, cacheService } = createInterceptor({ httpKeyStrategy: 'route' });
+      const firstContext = createContext(UserController, 'getById', createRequestContext('GET', '/users/1', '/users/1'), 'GET', '/users/:id');
+      const secondContext = createContext(UserController, 'getById', createRequestContext('GET', '/users/2', '/users/2'), 'GET', '/users/:id');
+      const next: CallHandler = {
+        handle: vi
+          .fn<CallHandler['handle']>()
+          .mockResolvedValueOnce({ id: '1' })
+          .mockResolvedValueOnce({ id: '2' }),
+      };
+
+      await interceptor.intercept(firstContext, next);
+      await interceptor.intercept(secondContext, next);
+
+      expect(next.handle).toHaveBeenCalledTimes(2);
+      expect(await cacheService.get('/users/1')).toEqual({ id: '1' });
+      expect(await cacheService.get('/users/2')).toEqual({ id: '2' });
+      expect(await cacheService.get('/users/:id')).toBeUndefined();
+    });
+
     it('strategy "route" isolates authenticated principals by default', async () => {
       class ProductController {
         @CacheTTL(120)
@@ -489,6 +540,31 @@ describe('CacheInterceptor', () => {
       expect(next.handle).toHaveBeenCalledTimes(2);
       expect(await cacheService.get('/products?page=1&sort=asc')).toEqual({ data: 'response' });
       expect(await cacheService.get('/products?page=2&sort=asc')).toEqual({ data: 'response' });
+    });
+
+    it('strategy "route+query" distinguishes concrete path params before appending query scope', async () => {
+      class UserController {
+        @CacheTTL(120)
+        getById() {}
+      }
+
+      const { interceptor, cacheService } = createInterceptor({ httpKeyStrategy: 'route+query' });
+      const firstContext = createContext(UserController, 'getById', createRequestContext('GET', '/users/1?include=posts', '/users/1'), 'GET', '/users/:id');
+      const secondContext = createContext(UserController, 'getById', createRequestContext('GET', '/users/2?include=posts', '/users/2'), 'GET', '/users/:id');
+      const next: CallHandler = {
+        handle: vi
+          .fn<CallHandler['handle']>()
+          .mockResolvedValueOnce({ id: '1', include: 'posts' })
+          .mockResolvedValueOnce({ id: '2', include: 'posts' }),
+      };
+
+      await interceptor.intercept(firstContext, next);
+      await interceptor.intercept(secondContext, next);
+
+      expect(next.handle).toHaveBeenCalledTimes(2);
+      expect(await cacheService.get('/users/1?include=posts')).toEqual({ id: '1', include: 'posts' });
+      expect(await cacheService.get('/users/2?include=posts')).toEqual({ id: '2', include: 'posts' });
+      expect(await cacheService.get('/users/:id?include=posts')).toBeUndefined();
     });
 
     it('strategy "route+query" produces same key regardless of query param order', async () => {
@@ -619,6 +695,31 @@ describe('CacheInterceptor', () => {
       expect(next.handle).toHaveBeenCalledTimes(2);
       expect(await cacheService.get('/products?page=1&sort=asc')).toEqual({ data: 'response' });
       expect(await cacheService.get('/products?page=2&sort=asc')).toEqual({ data: 'response' });
+    });
+
+    it('strategy "full" distinguishes concrete path params before query normalization', async () => {
+      class UserController {
+        @CacheTTL(120)
+        getById() {}
+      }
+
+      const { interceptor, cacheService } = createInterceptor({ httpKeyStrategy: 'full' });
+      const firstContext = createContext(UserController, 'getById', createRequestContext('GET', '/users/1?include=posts&sort=asc', '/users/1'), 'GET', '/users/:id');
+      const secondContext = createContext(UserController, 'getById', createRequestContext('GET', '/users/2?sort=asc&include=posts', '/users/2'), 'GET', '/users/:id');
+      const next: CallHandler = {
+        handle: vi
+          .fn<CallHandler['handle']>()
+          .mockResolvedValueOnce({ id: '1', include: 'posts' })
+          .mockResolvedValueOnce({ id: '2', include: 'posts' }),
+      };
+
+      await interceptor.intercept(firstContext, next);
+      await interceptor.intercept(secondContext, next);
+
+      expect(next.handle).toHaveBeenCalledTimes(2);
+      expect(await cacheService.get('/users/1?include=posts&sort=asc')).toEqual({ id: '1', include: 'posts' });
+      expect(await cacheService.get('/users/2?include=posts&sort=asc')).toEqual({ id: '2', include: 'posts' });
+      expect(await cacheService.get('/users/:id?include=posts&sort=asc')).toBeUndefined();
     });
   });
 });
