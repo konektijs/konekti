@@ -16,6 +16,7 @@ import type {
   AuthHandledResult,
   AuthStrategy,
   AuthStrategyResult,
+  AuthUnauthenticatedResult,
   AuthStrategyRegistry,
   PassportModuleOptions,
 } from './types.js';
@@ -24,9 +25,17 @@ function isAuthHandledResult(result: AuthStrategyResult): result is AuthHandledR
   return typeof result === 'object' && result !== null && 'handled' in result && result.handled === true;
 }
 
+function isAuthUnauthenticatedResult(result: AuthStrategyResult): result is AuthUnauthenticatedResult {
+  return typeof result === 'object' && result !== null && 'authenticated' in result && result.authenticated === false;
+}
+
 function resolvePrincipal(result: AuthStrategyResult): Principal | undefined {
   if (isAuthHandledResult(result)) {
     return result.principal;
+  }
+
+  if (isAuthUnauthenticatedResult(result)) {
+    return undefined;
   }
 
   return result;
@@ -161,6 +170,15 @@ export class AuthGuard implements AuthGuardContract {
 
     try {
       const result = await strategy.authenticate(context);
+
+      if (isAuthUnauthenticatedResult(result)) {
+        if (requirement?.optional && !requirement.scopes?.length) {
+          return true;
+        }
+
+        throw new AuthenticationRequiredError('Authentication strategy did not authenticate the request.');
+      }
+
       const principal = resolvePrincipal(result);
 
       if (isAuthHandledResult(result) && !principal) {

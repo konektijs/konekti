@@ -7,6 +7,8 @@ export interface AuthRequirement {
   strategy?: string;
   /** Required scopes that must be present on the resolved principal. */
   scopes?: string[];
+  /** Whether missing credentials may continue as an unauthenticated request. */
+  optional?: boolean;
 }
 
 /** Authentication result variant used when a strategy fully handled the response. */
@@ -15,8 +17,13 @@ export interface AuthHandledResult {
   principal?: Principal;
 }
 
+/** Authentication result variant used when a strategy intentionally leaves the request unauthenticated. */
+export interface AuthUnauthenticatedResult {
+  authenticated: false;
+}
+
 /** Return type of an `AuthStrategy.authenticate(...)` call. */
-export type AuthStrategyResult = Principal | AuthHandledResult;
+export type AuthStrategyResult = Principal | AuthHandledResult | AuthUnauthenticatedResult;
 
 /** Strategy contract implemented by authentication adapters. */
 export interface AuthStrategy {

@@ -17,14 +17,16 @@ function normalizeRequirement(requirement: AuthRequirement | undefined): AuthReq
     return undefined;
   }
 
+  const optional = requirement.optional;
   const strategy = requirement.strategy;
   const scopes = normalizeDeclaredScopes(requirement.scopes);
 
-  if (!strategy && !scopes) {
+  if (!strategy && !scopes && optional !== true) {
     return undefined;
   }
 
   return {
+    optional,
     scopes,
     strategy,
   };

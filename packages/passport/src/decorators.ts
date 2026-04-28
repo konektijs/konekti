@@ -97,7 +97,28 @@ function createAuthRequirementDecorator(patch: RequirementPatch): ClassOrMethodD
  * @returns A class-or-method decorator that stores the auth requirement metadata.
  */
 export function UseAuth(strategy: string): ClassOrMethodDecoratorLike {
-  return createAuthRequirementDecorator({ strategy });
+  return createAuthRequirementDecorator({ optional: false, strategy });
+}
+
+/**
+ * Declares an explicit optional-auth route that may continue without a principal when the strategy reports missing credentials.
+ *
+ * @remarks
+ * Use this for guest-capable endpoints that should still populate `requestContext.principal`
+ * when credentials are present. Protected routes should keep using {@link UseAuth}.
+ *
+ * @example
+ * ```ts
+ * @UseOptionalAuth('cookie')
+ * @Get('/feed')
+ * getFeed() {}
+ * ```
+ *
+ * @param strategy Strategy name previously registered through `PassportModule.forRoot(...)`.
+ * @returns A class-or-method decorator that stores an optional-auth requirement.
+ */
+export function UseOptionalAuth(strategy: string): ClassOrMethodDecoratorLike {
+  return createAuthRequirementDecorator({ optional: true, strategy });
 }
 
 /**
