@@ -283,14 +283,19 @@ export class RuntimePlatformShell implements PlatformShell {
     }
 
     const components: PlatformSnapshot[] = [];
+    const readinessReports: PlatformReadinessReport[] = [];
+    const healthReports: PlatformHealthReport[] = [];
+
     for (const registration of this.registeredComponents) {
+      let snapshot: PlatformSnapshot;
+
       try {
-        const snapshot = registration.component.snapshot();
-        components.push(normalizeSnapshot(snapshot, registration.component, registration.dependencies));
+        const componentSnapshot = registration.component.snapshot();
+        snapshot = normalizeSnapshot(componentSnapshot, registration.component, registration.dependencies);
       } catch (error) {
         const issue = createUnknownFailureIssue(registration.component.id, 'snapshot', error);
         this.diagnostics.push(issue);
-        components.push({
+        snapshot = {
           dependencies: [...registration.dependencies],
           details: {},
           health: {
@@ -313,11 +318,22 @@ export class RuntimePlatformShell implements PlatformShell {
             namespace: 'fluo.platform',
             tags: {},
           },
-        });
+        };
+      }
+
+      components.push(snapshot);
+
+      if (snapshot.readiness) {
+        readinessReports.push(snapshot.readiness);
+      }
+
+      if (snapshot.health) {
+        healthReports.push(snapshot.health);
       }
     }
 
-    const [readiness, health] = await Promise.all([this.ready(), this.health()]);
+    const readiness = aggregateReadiness(readinessReports);
+    const health = aggregateHealth(healthReports);
 
     return {
       components,

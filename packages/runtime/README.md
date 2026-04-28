@@ -124,6 +124,7 @@ class UsersModule {}
 
 - Request body parsing enforces `maxBodySize` while bytes are still streaming for both Web-standard and Node-backed requests.
 - Node-backed cookies/query values and Web-standard headers are snapshotted when the request wrapper is created, then lazily normalized and memoized per request; later upstream object mutations do not change the `FrameworkRequest` view.
+- Request body and raw body parsing is memoized per request; the body is parsed once during request creation and subsequent accesses return the same parsed result without re-parsing.
 - `ApplicationContext.get()` and `Application.get()` memoize only direct root singleton class/factory provider lookups known at bootstrap, while preserving alias, request, transient, post-close, multi-provider, and `container.override()` resolution semantics.
 - `multi: true` provider tokens are not context-cache memoized: each `get()` call delegates to DI so the container can assemble a fresh contribution array while still reusing each contribution according to its own provider scope.
 - When `duplicateProviderPolicy` is `warn` or `ignore`, context-cache eligibility and lifecycle hook execution are based on the effective winning provider selected by bootstrap; stale losing providers do not seed cache entries or lifecycle hooks.

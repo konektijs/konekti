@@ -164,4 +164,46 @@ describe('createWebFrameworkRequest', () => {
     expect(secondHeaders).toBe(firstHeaders);
     expect(secondHeaders['x-runtime']).toBe('before');
   });
+
+  it('memoizes body result across multiple accesses', async () => {
+    const request = new Request('https://runtime.test/body', {
+      body: '{"key":"value"}',
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+
+    const frameworkRequest = await createWebFrameworkRequest(request, new AbortController().signal);
+
+    const firstBody = frameworkRequest.body;
+    const secondBody = frameworkRequest.body;
+
+    expect(firstBody).toEqual({ key: 'value' });
+    expect(secondBody).toBe(firstBody);
+  });
+
+  it('memoizes rawBody result when preserveRawBody is true', async () => {
+    const request = new Request('https://runtime.test/body', {
+      body: 'raw-body-content',
+      headers: {
+        'content-type': 'text/plain',
+      },
+      method: 'POST',
+    });
+
+    const frameworkRequest = await createWebFrameworkRequest(
+      request,
+      new AbortController().signal,
+      undefined,
+      undefined,
+      true,
+    );
+
+    const firstRawBody = frameworkRequest.rawBody;
+    const secondRawBody = frameworkRequest.rawBody;
+
+    expect(firstRawBody).toBeInstanceOf(Uint8Array);
+    expect(secondRawBody).toBe(firstRawBody);
+  });
 });

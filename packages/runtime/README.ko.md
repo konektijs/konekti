@@ -124,6 +124,7 @@ class UsersModule {}
 
 - 요청 바디 파싱은 Web 표준 요청과 Node 기반 요청 모두에서 바이트가 스트리밍되는 동안 `maxBodySize`를 강제합니다.
 - Node 기반 쿠키/쿼리 값과 Web 표준 헤더는 요청 wrapper가 생성되는 시점에 snapshot으로 고정된 뒤 요청별로 lazy하게 normalize되고 memoize됩니다. 이후 upstream 객체가 변경되어도 `FrameworkRequest` view는 바뀌지 않습니다.
+- 요청 바디와 raw body 파싱은 요청별로 memoize됩니다. 바디는 요청 생성 시점에 한 번 파싱되고 이후 접근은 재파싱 없이 동일한 결과를 반환합니다.
 - `ApplicationContext.get()`과 `Application.get()`은 bootstrap 시점에 알려진 직접 root singleton class/factory provider 조회만 memoize하며, alias, request, transient, 종료 이후, multi-provider, `container.override()` 해석 의미는 그대로 유지합니다.
 - `multi: true` provider token은 context cache에 memoize되지 않습니다. 각 `get()` 호출은 DI로 위임되어 컨테이너가 새로운 contribution 배열을 조립하며, 각 contribution 자체는 해당 provider scope에 따라 재사용됩니다.
 - `duplicateProviderPolicy`가 `warn` 또는 `ignore`일 때 context cache 적격성과 lifecycle hook 실행은 bootstrap이 선택한 effective winning provider를 기준으로 결정됩니다. stale losing provider는 cache entry나 lifecycle hook을 만들지 않습니다.

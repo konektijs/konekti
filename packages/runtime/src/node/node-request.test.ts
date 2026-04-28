@@ -173,4 +173,48 @@ describe('node request adapter', () => {
     response.emit('finish');
     expect(destroyed).toBe(true);
   });
+
+  it('memoizes body result across multiple accesses', async () => {
+    const request = createIncomingMessage({
+      body: '{"key":"value"}',
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+      url: '/body',
+    });
+
+    const frameworkRequest = await createFrameworkRequest(request, new AbortController().signal);
+
+    const firstBody = frameworkRequest.body;
+    const secondBody = frameworkRequest.body;
+
+    expect(firstBody).toEqual({ key: 'value' });
+    expect(secondBody).toBe(firstBody);
+  });
+
+  it('memoizes rawBody result when preserveRawBody is true', async () => {
+    const request = createIncomingMessage({
+      body: 'raw-body-content',
+      headers: {
+        'content-type': 'text/plain',
+      },
+      method: 'POST',
+      url: '/body',
+    });
+
+    const frameworkRequest = await createFrameworkRequest(
+      request,
+      new AbortController().signal,
+      undefined,
+      undefined,
+      true,
+    );
+
+    const firstRawBody = frameworkRequest.rawBody;
+    const secondRawBody = frameworkRequest.rawBody;
+
+    expect(firstRawBody).toBeInstanceOf(Uint8Array);
+    expect(secondRawBody).toBe(firstRawBody);
+  });
 });

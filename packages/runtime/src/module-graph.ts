@@ -363,6 +363,33 @@ function createExportedTokenSet(
   return exportedTokens;
 }
 
+function computeTransitiveExportedTokens(
+  compiledModule: CompiledModule,
+  compiledByType: Map<ModuleType, CompiledModule>,
+  cache: Map<CompiledModule, Set<Token>>,
+): Set<Token> {
+  const cached = cache.get(compiledModule);
+  if (cached) {
+    return cached;
+  }
+
+  const transitiveTokens = new Set<Token>();
+  const importedModules = resolveImportedModules(compiledModule, compiledByType);
+
+  for (const importedModule of importedModules) {
+    const importedTokens = computeTransitiveExportedTokens(importedModule, compiledByType, cache);
+    for (const token of importedTokens) {
+      transitiveTokens.add(token);
+    }
+    for (const token of importedModule.definition.exports ?? []) {
+      transitiveTokens.add(token);
+    }
+  }
+
+  cache.set(compiledModule, transitiveTokens);
+  return transitiveTokens;
+}
+
 function validateCompiledModules(
   modules: CompiledModule[],
   runtimeProviders: Provider[],
@@ -370,6 +397,7 @@ function validateCompiledModules(
 ): void {
   const compiledByType = new Map(modules.map((compiledModule) => [compiledModule.type, compiledModule]));
   const globalExportedTokens = new Set<Token>();
+  const transitiveTokenCache = new Map<CompiledModule, Set<Token>>();
 
   for (const provider of runtimeProviders) {
     validateProviderInjectionMetadata(provider, 'bootstrap runtime');
@@ -387,7 +415,7 @@ function validateCompiledModules(
 
   for (const compiledModule of modules) {
     const scope = `module ${compiledModule.type.name}`;
-    const importedExportedTokens = createImportedExportedTokenSet(resolveImportedModules(compiledModule, compiledByType));
+    const importedExportedTokens = computeTransitiveExportedTokens(compiledModule, compiledByType, transitiveTokenCache);
     const accessibleTokens = createAccessibleTokenSet(
       runtimeProviderTokens,
       compiledModule.providerTokens,

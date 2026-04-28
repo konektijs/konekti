@@ -74,6 +74,12 @@ type WebFrameworkRequest = FrameworkRequest & {
 
 type MemoizedValue<T> = () => T;
 
+type LazyBodyResult = {
+  body: unknown;
+  files?: UploadedFile[];
+  rawBody?: Uint8Array;
+};
+
 class WebResponseStream implements WebFrameworkResponseStream {
   private readonly closeListeners = new Set<() => void>();
   private controller?: ReadableStreamDefaultController<Uint8Array>;
@@ -308,6 +314,47 @@ export async function dispatchWebRequest({
  * @param preserveRawBody - Whether to retain the raw request body bytes.
  * @returns The normalized framework request used by the dispatcher.
  */
+function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
+  let initialized = false;
+  let value: T;
+
+  return () => {
+    if (!initialized) {
+      value = factory();
+      initialized = true;
+    }
+
+    return value;
+  };
+}
+
+function createLazyBody(
+  request: Request,
+  contentType: string | undefined,
+  multipartOptions: MultipartOptions | undefined,
+  maxBodySize: number,
+  preserveRawBody: boolean,
+): MemoizedValue<Promise<LazyBodyResult>> {
+  const isMultipart = typeof contentType === 'string' && contentType.includes('multipart/form-data');
+
+  return createMemoizedValue(() => {
+    if (isMultipart) {
+      return parseMultipart(request.clone(), {
+        ...multipartOptions,
+        maxTotalSize: multipartOptions?.maxTotalSize ?? maxBodySize,
+      }).then((result) => ({
+        body: result.fields,
+        files: result.files,
+      }));
+    }
+
+    return readWebRequestBody(request.clone(), contentType, maxBodySize, preserveRawBody).then((result) => ({
+      body: result.body,
+      rawBody: result.rawBody,
+    }));
+  });
+}
+
 export async function createWebFrameworkRequest(
   request: Request,
   signal: AbortSignal,
@@ -323,29 +370,16 @@ export async function createWebFrameworkRequest(
   const cookies = createMemoizedValue(() => parseCookieHeader(cookieHeader));
   const query = createMemoizedValue(() => parseQueryParams(searchParams));
   const contentType = request.headers.get('content-type') ?? undefined;
-  const isMultipart = typeof contentType === 'string' && contentType.includes('multipart/form-data');
-
-  let body: unknown;
-  let files: UploadedFile[] | undefined;
-  let rawBody: Uint8Array | undefined;
-
-  if (isMultipart) {
-    const result = await parseMultipart(request.clone(), {
-      ...multipartOptions,
-      maxTotalSize: multipartOptions?.maxTotalSize ?? maxBodySize,
-    });
-    body = result.fields;
-    files = result.files;
-  } else {
-    const bodyResult = await readWebRequestBody(request.clone(), contentType, maxBodySize, preserveRawBody);
-    body = bodyResult.body;
-    rawBody = bodyResult.rawBody;
-  }
+  const lazyBody = createLazyBody(request, contentType, multipartOptions, maxBodySize, preserveRawBody);
+  const bodyResult = await lazyBody();
 
   const frameworkRequest: WebFrameworkRequest = {
-    body,
+    body: bodyResult.body,
     get cookies() {
       return cookies();
+    },
+    get files() {
+      return bodyResult.files;
     },
     get headers() {
       return headers();
@@ -356,34 +390,15 @@ export async function createWebFrameworkRequest(
     get query() {
       return query();
     },
+    get rawBody() {
+      return bodyResult.rawBody;
+    },
     raw: request,
     signal,
     url: url.pathname + url.search,
   };
 
-  if (files) {
-    frameworkRequest.files = files;
-  }
-
-  if (rawBody) {
-    frameworkRequest.rawBody = rawBody;
-  }
-
   return frameworkRequest;
-}
-
-function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
-  let initialized = false;
-  let value: T;
-
-  return () => {
-    if (!initialized) {
-      value = factory();
-      initialized = true;
-    }
-
-    return value;
-  };
 }
 
 function parseQueryParams(searchParams: URLSearchParams): Record<string, string | string[]> {

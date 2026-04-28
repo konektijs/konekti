@@ -25,6 +25,12 @@ type NodeFrameworkRequest = FrameworkRequest & {
 
 type MemoizedValue<T> = () => T;
 
+type LazyBodyResult = {
+  body: unknown;
+  files?: UploadedFile[];
+  rawBody?: Uint8Array;
+};
+
 /**
  * HTTP payload-size error that closes the underlying Node request stream after the response commits.
  */
@@ -46,6 +52,57 @@ export class NodeRequestPayloadTooLargeException extends PayloadTooLargeExceptio
     response.once('close', destroyRequest);
     this.request.pause();
   }
+}
+
+function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
+  let initialized = false;
+  let value: T;
+
+  return () => {
+    if (!initialized) {
+      value = factory();
+      initialized = true;
+    }
+
+    return value;
+  };
+}
+
+function createLazyBody(
+  request: IncomingMessage,
+  headers: FrameworkRequest['headers'],
+  multipartOptions: MultipartOptions | undefined,
+  maxBodySize: number,
+  preserveRawBody: boolean,
+): MemoizedValue<Promise<LazyBodyResult>> {
+  const contentType = readPrimaryHeaderValue(headers['content-type']);
+  const isMultipart = typeof contentType === 'string' && contentType.includes('multipart/form-data');
+  const url = new URL(request.url ?? '/', 'http://localhost');
+
+  return createMemoizedValue(() => {
+    if (isMultipart) {
+      return parseMultipart(
+        {
+          body: Readable.toWeb(request),
+          headers,
+          method: request.method,
+          url: url.toString(),
+        },
+        {
+          ...multipartOptions,
+          maxTotalSize: multipartOptions?.maxTotalSize ?? maxBodySize,
+        },
+      ).then((result) => ({
+        body: result.fields,
+        files: result.files,
+      }));
+    }
+
+    return readRequestBody(request, headers['content-type'], maxBodySize, preserveRawBody).then((result) => ({
+      body: result.body,
+      rawBody: result.rawBody,
+    }));
+  });
 }
 
 /**
@@ -71,36 +128,11 @@ export async function createFrameworkRequest(
   const searchParams = new URLSearchParams(url.searchParams);
   const cookies = createMemoizedValue(() => parseCookieHeader(cookieHeader));
   const query = createMemoizedValue(() => parseQueryParams(searchParams));
-  const contentType = readPrimaryHeaderValue(headers['content-type']);
-  const isMultipart = typeof contentType === 'string' && contentType.includes('multipart/form-data');
-
-  let body: unknown;
-  let files: UploadedFile[] | undefined;
-  let rawBody: Uint8Array | undefined;
-
-  if (isMultipart) {
-    const result = await parseMultipart(
-      {
-        body: Readable.toWeb(request),
-        headers,
-        method: request.method,
-        url: url.toString(),
-      },
-      {
-        ...multipartOptions,
-        maxTotalSize: multipartOptions?.maxTotalSize ?? maxBodySize,
-      },
-    );
-    body = result.fields;
-    files = result.files;
-  } else {
-    const bodyResult = await readRequestBody(request, headers['content-type'], maxBodySize, preserveRawBody);
-    body = bodyResult.body;
-    rawBody = bodyResult.rawBody;
-  }
+  const lazyBody = createLazyBody(request, headers, multipartOptions, maxBodySize, preserveRawBody);
+  const bodyResult = await lazyBody();
 
   const frameworkRequest: NodeFrameworkRequest = {
-    body,
+    body: bodyResult.body,
     get cookies() {
       return cookies();
     },
@@ -116,29 +148,15 @@ export async function createFrameworkRequest(
     url: url.pathname + url.search,
   };
 
-  if (files) {
-    frameworkRequest.files = files;
+  if (bodyResult.files) {
+    frameworkRequest.files = bodyResult.files;
   }
 
-  if (rawBody) {
-    frameworkRequest.rawBody = rawBody;
+  if (bodyResult.rawBody) {
+    frameworkRequest.rawBody = bodyResult.rawBody;
   }
 
   return frameworkRequest;
-}
-
-function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
-  let initialized = false;
-  let value: T;
-
-  return () => {
-    if (!initialized) {
-      value = factory();
-      initialized = true;
-    }
-
-    return value;
-  };
 }
 
 /**
