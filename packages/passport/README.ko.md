@@ -114,6 +114,32 @@ export class AuthModule {}
 
 `CookieAuthStrategy`는 `@fluojs/jwt`가 정규화한 JWT principal 계약을 보존하며, `subject`, `claims`, `issuer`, `audience`, `roles`, `scopes`를 그대로 전달합니다.
 
+보호된 라우트는 계속 `@UseAuth(COOKIE_AUTH_STRATEGY_NAME)`를 사용해야 합니다. `cookieAuth.requireAccessToken`을 `false`로 설정하더라도, 쿠키가 없으면 이제 익명 principal이 아니라 명시적인 미인증 결과를 반환하고 `AuthGuard`는 보호된 라우트를 계속 거부합니다.
+
+게스트 접근을 의도적으로 허용하는 엔드포인트에서만 `@UseOptionalAuth(COOKIE_AUTH_STRATEGY_NAME)`를 사용하세요. 유효한 쿠키가 있을 때는 `requestContext.principal`을 채우고, 쿠키가 없을 때만 미인증 상태로 통과시킵니다.
+
+```typescript
+import { Controller, Get, type RequestContext } from '@fluojs/http';
+import { COOKIE_AUTH_STRATEGY_NAME, UseAuth, UseOptionalAuth } from '@fluojs/passport';
+
+@Controller('/feed')
+export class FeedController {
+  @Get('/me')
+  @UseAuth(COOKIE_AUTH_STRATEGY_NAME)
+  getProtectedFeed(_input: never, ctx: RequestContext) {
+    return { user: ctx.principal };
+  }
+
+  @Get('/public')
+  @UseOptionalAuth(COOKIE_AUTH_STRATEGY_NAME)
+  getPublicFeed(_input: never, ctx: RequestContext) {
+    return { user: ctx.principal ?? null };
+  }
+}
+```
+
+`@RequireScopes(...)`는 계속 인증된 principal을 요구합니다. optional auth는 scope 검사를 우회하지 않습니다.
+
 ### 리프레시 토큰 수명 주기
 
 패키지에서 제공하는 `RefreshTokenStrategy`와 `RefreshTokenService`를 사용하여 안전한 토큰 로테이션 및 폐기 기능을 구현할 수 있습니다.
@@ -157,6 +183,7 @@ export class AuthController {
 
 ### 데코레이터
 - `@UseAuth(strategyName)`: `AuthGuard`를 부착하고 사용할 전략을 설정합니다.
+- `@UseOptionalAuth(strategyName)`: 전략이 인증 정보를 찾지 못했을 때 게스트 허용 라우트가 계속 진행되도록 합니다.
 - `@RequireScopes(...scopes)`: 특정 권한(스코프) 요구 사항을 강제합니다.
 
 ### 주요 클래스

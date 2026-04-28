@@ -114,6 +114,32 @@ Import `CookieAuthModule.forRoot(...)` alongside `PassportModule.forRoot(...)` w
 
 `CookieAuthStrategy` preserves the normalized JWT principal contract from `@fluojs/jwt`, including `subject`, `claims`, `issuer`, `audience`, `roles`, and `scopes`.
 
+Protected routes must keep using `@UseAuth(COOKIE_AUTH_STRATEGY_NAME)`. If `cookieAuth.requireAccessToken` is set to `false`, a missing cookie now yields an explicit unauthenticated result instead of an anonymous principal, and `AuthGuard` still rejects protected routes.
+
+Use `@UseOptionalAuth(COOKIE_AUTH_STRATEGY_NAME)` only for endpoints that intentionally allow guest access while still populating `requestContext.principal` when a valid cookie is present.
+
+```typescript
+import { Controller, Get, type RequestContext } from '@fluojs/http';
+import { COOKIE_AUTH_STRATEGY_NAME, UseAuth, UseOptionalAuth } from '@fluojs/passport';
+
+@Controller('/feed')
+export class FeedController {
+  @Get('/me')
+  @UseAuth(COOKIE_AUTH_STRATEGY_NAME)
+  getProtectedFeed(_input: never, ctx: RequestContext) {
+    return { user: ctx.principal };
+  }
+
+  @Get('/public')
+  @UseOptionalAuth(COOKIE_AUTH_STRATEGY_NAME)
+  getPublicFeed(_input: never, ctx: RequestContext) {
+    return { user: ctx.principal ?? null };
+  }
+}
+```
+
+`@RequireScopes(...)` continues to enforce authenticated access. Optional auth does not bypass scope checks.
+
 ### Refresh Token Lifecycle
 
 The package provides a built-in `RefreshTokenStrategy` and `RefreshTokenService` to handle secure token rotation and revocation.
@@ -157,6 +183,7 @@ Import `RefreshTokenModule.forRoot(...)` alongside `PassportModule.forRoot(...)`
 
 ### Decorators
 - `@UseAuth(strategyName)`: Attaches `AuthGuard` and sets the active strategy.
+- `@UseOptionalAuth(strategyName)`: Allows guest-capable routes to continue when the strategy reports missing credentials.
 - `@RequireScopes(...scopes)`: Enforces specific scope requirements.
 
 ### Core Classes
