@@ -2,6 +2,7 @@ import type { AsyncModuleOptions } from '@fluojs/core';
 import type { Provider } from '@fluojs/di';
 import { defineModule, type ModuleType } from '@fluojs/runtime';
 
+import { PRISMA_REGISTRATIONS, type PrismaModuleRegistration } from './internal-tokens.js';
 import { PrismaService } from './service.js';
 import { PRISMA_CLIENT, PRISMA_OPTIONS } from './tokens.js';
 import { PrismaTransactionInterceptor } from './transaction.js';
@@ -43,8 +44,14 @@ function createPrismaRuntimeProviders<
   TTransactionOptions,
 >(
   normalizedOptionsProvider: Provider,
+  registration: PrismaModuleRegistration,
 ): Provider[] {
   return [
+    {
+      multi: true,
+      provide: PRISMA_REGISTRATIONS,
+      useValue: registration,
+    },
     normalizedOptionsProvider,
     {
       inject: [PRISMA_NORMALIZED_OPTIONS],
@@ -79,7 +86,7 @@ function buildPrismaModule<
     providers: createPrismaRuntimeProviders<TClient, TTransactionClient, TTransactionOptions>({
       provide: PRISMA_NORMALIZED_OPTIONS,
       useValue: normalizePrismaModuleOptions(options),
-    }),
+    }, { mode: 'sync' }),
   });
 }
 
@@ -102,7 +109,9 @@ function buildPrismaModuleAsync<
 
   return defineModule(PrismaAsyncModuleDefinition, {
     exports: PRISMA_MODULE_EXPORTS,
-    providers: createPrismaRuntimeProviders<TClient, TTransactionClient, TTransactionOptions>(normalizedOptionsProvider),
+    providers: createPrismaRuntimeProviders<TClient, TTransactionClient, TTransactionOptions>(normalizedOptionsProvider, {
+      mode: 'async',
+    }),
   });
 }
 

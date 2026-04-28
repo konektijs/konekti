@@ -192,6 +192,40 @@ describe('@fluojs/prisma', () => {
     expect(events).toEqual(['connect', 'disconnect']);
   });
 
+  it('rejects duplicate unnamed PrismaModule registrations in the same application container', async () => {
+    const primaryConnect = vi.fn(async () => undefined);
+    const primaryDisconnect = vi.fn(async () => undefined);
+    const secondaryConnect = vi.fn(async () => undefined);
+    const secondaryDisconnect = vi.fn(async () => undefined);
+    const primaryClient = {
+      $connect: primaryConnect,
+      $disconnect: primaryDisconnect,
+    };
+    const secondaryClient = {
+      $connect: secondaryConnect,
+      $disconnect: secondaryDisconnect,
+    };
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [PrismaModule.forRoot({ client: primaryClient }), PrismaModule.forRoot({ client: secondaryClient })],
+    });
+
+    await expect(
+      bootstrapApplication({
+        rootModule: AppModule,
+      }),
+    ).rejects.toThrow(
+      'Duplicate unnamed PrismaModule registrations are not supported within the same application container.',
+    );
+
+    expect(primaryConnect).not.toHaveBeenCalled();
+    expect(primaryDisconnect).not.toHaveBeenCalled();
+    expect(secondaryConnect).not.toHaveBeenCalled();
+    expect(secondaryDisconnect).not.toHaveBeenCalled();
+  });
+
   it('rolls back open request transactions before disconnect on shutdown', async () => {
     const events: string[] = [];
     const transactionClient = {};

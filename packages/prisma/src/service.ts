@@ -9,6 +9,7 @@ import {
 import type { OnApplicationShutdown, OnModuleInit } from '@fluojs/runtime';
 import { Inject } from '@fluojs/core';
 
+import { PRISMA_REGISTRATIONS, type PrismaModuleRegistration } from './internal-tokens.js';
 import { createPrismaPlatformStatusSnapshot } from './status.js';
 import { PRISMA_CLIENT, PRISMA_OPTIONS } from './tokens.js';
 import type {
@@ -20,6 +21,8 @@ import type {
 
 const NESTED_TRANSACTION_OPTIONS_NOT_SUPPORTED_ERROR =
   'Nested Prisma transaction options are not supported because the active transaction context is reused.';
+const DUPLICATE_UNNAMED_PRISMA_MODULE_REGISTRATIONS_ERROR =
+  'Duplicate unnamed PrismaModule registrations are not supported within the same application container. Register PrismaModule only once per container until named Prisma registrations are introduced.';
 
 interface PrismaServiceOptions {
   strictTransactions: boolean;
@@ -44,7 +47,7 @@ type TransactionAbortSignalSupport = 'unknown' | 'supported' | 'unsupported';
  * @typeParam TTransactionClient Transaction-scoped client resolved inside `$transaction(...)` callbacks.
  * @typeParam TTransactionOptions Options forwarded to Prisma interactive transactions.
  */
-@Inject(PRISMA_CLIENT, PRISMA_OPTIONS)
+@Inject(PRISMA_CLIENT, PRISMA_OPTIONS, PRISMA_REGISTRATIONS)
 export class PrismaService<
   TClient extends PrismaClientLike<TTransactionClient, TTransactionOptions>,
   TTransactionClient = InferPrismaTransactionClient<TClient>,
@@ -60,7 +63,12 @@ export class PrismaService<
   constructor(
     private readonly client: TClient,
     private readonly serviceOptions: PrismaServiceOptions = { strictTransactions: false },
-  ) {}
+    registrations: readonly PrismaModuleRegistration[] = [],
+  ) {
+    if (registrations.length > 1) {
+      throw new Error(DUPLICATE_UNNAMED_PRISMA_MODULE_REGISTRATIONS_ERROR);
+    }
+  }
 
   /**
    * Returns the active Prisma handle for the current async context.
