@@ -236,6 +236,46 @@ describe('@fluojs/platform-fastify', () => {
     await app.close();
   });
 
+  it('preserves exact raw body bytes for byte-sensitive text requests when enabled', async () => {
+    @Controller('/webhooks')
+    class WebhookController {
+      @Post('/bytes')
+      handleBytes(_input: undefined, context: RequestContext) {
+        return {
+          rawHex: Buffer.from(context.request.rawBody ?? new Uint8Array()).toString('hex'),
+        };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      controllers: [WebhookController],
+    });
+
+    const payload = Buffer.from([0x66, 0x6c, 0x75, 0x6f, 0x00, 0xc3, 0x28, 0xff]);
+    const port = await findAvailablePort();
+    const app = await bootstrapFastifyApplication(AppModule, {
+      cors: false,
+      port,
+      rawBody: true,
+    });
+
+    await app.listen();
+
+    const response = await fetch(`http://127.0.0.1:${String(port)}/webhooks/bytes`, {
+      body: payload,
+      headers: { 'content-type': 'text/plain' },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      rawHex: payload.toString('hex'),
+    });
+
+    await app.close();
+  });
+
   it('supports SSE streaming', async () => {
     @Controller('/events')
     class EventsController {

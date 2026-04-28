@@ -70,6 +70,7 @@ export type CorsInput = false | string | string[] | CorsOptions;
 
 const DEFAULT_MAX_BODY_SIZE = 1 * 1024 * 1024;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
+const RAW_BODY_BUFFER_CONTENT_TYPES = ['application/x-www-form-urlencoded', 'text/plain'] as const;
 
 /**
  * Bootstrap options for creating a Fastify-backed application without
@@ -203,8 +204,10 @@ export class FastifyHttpApplicationAdapter implements HttpApplicationAdapter {
     await this.app.register(multipart);
 
     if (this.preserveRawBody) {
+      registerRawBodyBufferParsers(this.app);
+
       await this.app.register(fastifyRawBody, {
-        encoding: 'utf8',
+        encoding: false,
         field: 'rawBody',
         global: true,
         runFirst: true,
@@ -396,6 +399,29 @@ function createFrameworkResponse(reply: FastifyReply): FastifyFrameworkResponse 
   };
 }
 
+function registerRawBodyBufferParsers(app: ReturnType<typeof fastify>): void {
+  app.addContentTypeParser(
+    RAW_BODY_BUFFER_CONTENT_TYPES,
+    { parseAs: 'buffer' },
+    (request: FastifyRequest, body: Buffer, done: (error: Error | null, body?: unknown) => void) => {
+    if (body.length === 0) {
+      done(null, undefined);
+      return;
+    }
+
+    const bodyText = body.toString('utf8');
+    const primaryContentType = readPrimaryHeaderValue(request.headers['content-type']);
+
+    if (typeof primaryContentType === 'string' && primaryContentType.includes('application/x-www-form-urlencoded')) {
+      done(null, parseUrlEncodedBody(bodyText));
+      return;
+    }
+
+    done(null, bodyText);
+    },
+  );
+}
+
 function createFrameworkResponseStream(reply: FastifyReply): FrameworkResponseStream {
   let hijacked = false;
 
@@ -505,10 +531,10 @@ async function createFrameworkRequest(
   }
 
   if (preserveRawBody && !isMultipart) {
-    const rawBodyValue = (request as FastifyRequest & { rawBody?: Buffer | string }).rawBody;
+    const rawBodyValue = (request as FastifyRequest & { rawBody?: Uint8Array }).rawBody;
 
-    if (rawBodyValue !== undefined) {
-      frameworkRequest.rawBody = typeof rawBodyValue === 'string' ? Buffer.from(rawBodyValue, 'utf8') : rawBodyValue;
+    if (rawBodyValue instanceof Uint8Array) {
+      frameworkRequest.rawBody = rawBodyValue;
     }
   }
 
@@ -579,6 +605,37 @@ async function parseMultipartRequest(
   }
 
   return { fields, files };
+}
+
+function parseUrlEncodedBody(bodyText: string): Record<string, string | string[]> {
+  const fields: Record<string, string | string[]> = {};
+  const searchParams = new URLSearchParams(bodyText);
+
+  for (const [key, value] of searchParams.entries()) {
+    const existing = fields[key];
+
+    if (existing === undefined) {
+      fields[key] = value;
+      continue;
+    }
+
+    if (Array.isArray(existing)) {
+      existing.push(value);
+      continue;
+    }
+
+    fields[key] = [existing, value];
+  }
+
+  return fields;
+}
+
+function readPrimaryHeaderValue(headerValue: string | string[] | undefined): string | undefined {
+  if (Array.isArray(headerValue)) {
+    return headerValue[0];
+  }
+
+  return headerValue;
 }
 
 /**
