@@ -122,7 +122,7 @@ import { DrizzleTransactionInterceptor } from '@fluojs/drizzle';
 
 @UseInterceptors(DrizzleTransactionInterceptor)
 export class OrderController {
-  @Post()
+  @Post('/checkout')
   async checkout() {
     // 이 메서드 안의 모든 리포지토리 호출은 단일 트랜잭션을 공유합니다.
   }
