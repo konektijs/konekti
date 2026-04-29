@@ -33,6 +33,7 @@ import {
   fluoFactory,
   type ApplicationLogger,
 } from '@fluojs/runtime';
+import { createHttpAdapterPortabilityHarness } from '@fluojs/testing/http-adapter-portability';
 
 import {
   bootstrapExpressApplication,
@@ -191,7 +192,58 @@ fHFvqyh6pXZV7XKcPxCTNuIw2rpw2WqY5/H+lTmUFmSXieFZAAMRueGH8Y5trCHU
 JNCDpGwh8us=
 -----END CERTIFICATE-----`;
 
+const expressPortabilityHarness = createHttpAdapterPortabilityHarness({
+  bootstrap: bootstrapExpressApplication,
+  name: 'express',
+  run: runExpressApplication,
+});
+
 describe('@fluojs/platform-express', () => {
+  describe('adapter portability', () => {
+    it('preserves malformed cookie values', async () => {
+      await expressPortabilityHarness.assertPreservesMalformedCookieValues();
+    });
+
+    it('preserves raw body for JSON and text requests when enabled', async () => {
+      await expressPortabilityHarness.assertPreservesRawBodyForJsonAndText();
+    });
+
+    it('preserves exact raw body bytes for byte-sensitive payloads', async () => {
+      await expressPortabilityHarness.assertPreservesExactRawBodyBytesForByteSensitivePayloads();
+    });
+
+    it('does not preserve rawBody for multipart requests', async () => {
+      await expressPortabilityHarness.assertExcludesRawBodyForMultipart();
+    });
+
+    it('defaults multipart.maxTotalSize to maxBodySize', async () => {
+      await expressPortabilityHarness.assertDefaultsMultipartTotalLimitToMaxBodySize();
+    });
+
+    it('supports SSE streaming', async () => {
+      await expressPortabilityHarness.assertSupportsSseStreaming();
+    });
+
+    it('settles stream drain waits when the stream closes first', async () => {
+      await expressPortabilityHarness.assertSettlesStreamDrainWaitOnClose();
+    });
+
+    it('reports the configured host in startup logs', async () => {
+      await expressPortabilityHarness.assertReportsConfiguredHostInStartupLogs();
+    });
+
+    it('supports https startup and reports the https listen URL', async () => {
+      await expressPortabilityHarness.assertReportsHttpsStartupUrl({
+        cert: TEST_TLS_CERTIFICATE,
+        key: TEST_TLS_PRIVATE_KEY,
+      });
+    });
+
+    it('removes registered shutdown signal listeners after close', async () => {
+      await expressPortabilityHarness.assertRemovesShutdownSignalListenersAfterClose();
+    });
+  });
+
   it('uses the runtime default port instead of process.env.PORT', async () => {
     const previousPort = process.env.PORT;
     process.env.PORT = '4321';
