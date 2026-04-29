@@ -32,7 +32,6 @@ import {
   type FrameworkResponseStream,
   type HandlerDescriptor,
   type HttpApplicationAdapter,
-  type HttpMethod,
   type MiddlewareLike,
   type SecurityHeadersOptions,
 } from '@fluojs/http';
@@ -155,6 +154,7 @@ interface ExpressNativeRouteCandidate {
 
 type ExpressFrameworkResponse = FrameworkResponse & {
   raw: ExpressResponse;
+  sendSimpleJson(body: Record<string, unknown> | unknown[]): ReturnType<FrameworkResponse['send']>;
   statusSet?: boolean;
 };
 
@@ -534,6 +534,15 @@ function createFrameworkResponse(response: ExpressResponse): ExpressFrameworkRes
 
       this.committed = true;
       response.send(serialized.payload);
+    },
+    async sendSimpleJson(body: Record<string, unknown> | unknown[]) {
+      if (response.writableEnded) {
+        this.committed = true;
+        return;
+      }
+
+      this.committed = true;
+      response.json(body);
     },
     setHeader(name: string, value: string | string[]) {
       const lowerName = name.toLowerCase();

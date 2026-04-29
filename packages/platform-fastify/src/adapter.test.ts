@@ -12,7 +12,10 @@ import {
   createDispatcher,
   createHandlerMapping,
   Get,
+  Header,
+  HttpCode,
   Post,
+  Redirect,
   SseResponse,
   UseGuards,
   UseInterceptors,
@@ -234,6 +237,102 @@ describe('@fluojs/platform-fastify', () => {
       });
     } finally {
       await adapter.close();
+    }
+  });
+
+  it('preserves response parity for simple JSON and non-fast-path responses', async () => {
+    @Controller('/responses')
+    class ResponsesController {
+      @Get('/object')
+      getObject() {
+        return { ok: true };
+      }
+
+      @Get('/array')
+      getArray() {
+        return [{ ok: true }];
+      }
+
+      @Get('/string')
+      getString() {
+        return 'plain';
+      }
+
+      @Get('/bytes')
+      getBytes() {
+        return Uint8Array.from([65, 66]);
+      }
+
+      @Get('/buffer')
+      getBuffer() {
+        return Uint8Array.from([67, 68]).buffer;
+      }
+
+      @Header('X-Contract', 'preserved')
+      @HttpCode(202)
+      @Get('/headers')
+      getHeaders() {
+        return { ok: true };
+      }
+
+      @Redirect('/responses/object', 302)
+      @Get('/redirect')
+      getRedirect() {
+        return { ignored: true };
+      }
+
+      @Get('/error')
+      getError() {
+        throw new Error('fastify response parity error');
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [ResponsesController] });
+
+    const port = await findAvailablePort();
+    const app = await fluoFactory.create(AppModule, {
+      adapter: createFastifyAdapter({ port }),
+    });
+
+    await app.listen();
+
+    try {
+      const objectResponse = await requestHttp({ path: '/responses/object', port });
+      const arrayResponse = await requestHttp({ path: '/responses/array', port });
+      const stringResponse = await requestHttp({ path: '/responses/string', port });
+      const bytesResponse = await requestHttp({ path: '/responses/bytes', port });
+      const bufferResponse = await requestHttp({ path: '/responses/buffer', port });
+      const headerResponse = await requestHttp({ path: '/responses/headers', port });
+      const redirectResponse = await requestHttp({ path: '/responses/redirect', port });
+      const errorResponse = await requestHttp({ path: '/responses/error', port });
+
+      expect(objectResponse.statusCode).toBe(200);
+      expect(objectResponse.headers['content-type']).toContain('application/json');
+      expect(JSON.parse(objectResponse.body)).toEqual({ ok: true });
+      expect(arrayResponse.statusCode).toBe(200);
+      expect(arrayResponse.headers['content-type']).toContain('application/json');
+      expect(JSON.parse(arrayResponse.body)).toEqual([{ ok: true }]);
+      expect(stringResponse.headers['content-type']).toContain('text/plain');
+      expect(stringResponse.body).toBe('plain');
+      expect(bytesResponse.headers['content-type']).toContain('application/octet-stream');
+      expect(bytesResponse.body).toBe('AB');
+      expect(bufferResponse.headers['content-type']).toContain('application/octet-stream');
+      expect(bufferResponse.body).toBe('CD');
+      expect(headerResponse.statusCode).toBe(202);
+      expect(headerResponse.headers['x-contract']).toBe('preserved');
+      expect(JSON.parse(headerResponse.body)).toEqual({ ok: true });
+      expect(redirectResponse.statusCode).toBe(302);
+      expect(redirectResponse.headers.location).toBe('/responses/object');
+      expect(errorResponse.statusCode).toBe(500);
+      expect(JSON.parse(errorResponse.body)).toMatchObject({
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          status: 500,
+        },
+      });
+    } finally {
+      await app.close();
     }
   });
 

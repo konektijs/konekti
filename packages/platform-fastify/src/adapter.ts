@@ -122,6 +122,7 @@ interface FastifyListenTarget {
 
 type FastifyFrameworkResponse = FrameworkResponse & {
   raw: FastifyReply;
+  sendSimpleJson(body: Record<string, unknown> | unknown[]): ReturnType<FrameworkResponse['send']>;
   statusSet?: boolean;
 };
 
@@ -489,6 +490,19 @@ function createFrameworkResponse(reply: FastifyReply): FastifyFrameworkResponse 
 
       this.committed = true;
       await reply.send(serialized.payload);
+    },
+    async sendSimpleJson(body: Record<string, unknown> | unknown[]) {
+      if (reply.sent) {
+        this.committed = true;
+        return;
+      }
+
+      if (!reply.hasHeader('content-type')) {
+        reply.header('content-type', 'application/json; charset=utf-8');
+      }
+
+      this.committed = true;
+      await reply.send(body);
     },
     setHeader(name: string, value: string | string[]) {
       const lowerName = name.toLowerCase();
