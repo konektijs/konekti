@@ -109,7 +109,7 @@ import { MongooseTransactionInterceptor } from '@fluojs/mongoose';
 @UseInterceptors(MongooseTransactionInterceptor)
 @Controller('orders')
 export class OrderController {
-  @Post()
+  @Post('/')
   async createOrder() {
     // 저장소의 쓰기 작업은 여전히 conn.currentSession()을 명시적으로 전달해야 합니다.
   }

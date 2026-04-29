@@ -109,7 +109,7 @@ import { MongooseTransactionInterceptor } from '@fluojs/mongoose';
 @UseInterceptors(MongooseTransactionInterceptor)
 @Controller('orders')
 export class OrderController {
-  @Post()
+  @Post('/')
   async createOrder() {
     // Repository writes still pass conn.currentSession() into Mongoose operations explicitly.
   }
