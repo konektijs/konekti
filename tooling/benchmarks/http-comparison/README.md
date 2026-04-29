@@ -1,18 +1,16 @@
 # HTTP runtime benchmark
 
-Runs a small HTTP throughput/latency comparison between published fluo beta packages and NestJS v11 across five targets:
+Runs a small HTTP throughput/latency comparison between published fluo beta packages and NestJS v11 across three targets:
 
 - `Nest+Fastify`
-- `Nest+Express`
 - `fluo+Fastify`
-- `fluo+Express`
 - `fluo+Bun`
 
 ## Scenarios
 
 - `baseline`: pure controller routing with an identical `{ "ok": true }` JSON response.
 - `di-chain`: controller → service → repository constructor injection with an identical user JSON response.
-- `di-chain-random-3`, `di-chain-random-5`, `di-chain-random-20`: the same DI path across randomly selected route families, used to expose route matching overhead as route count increases.
+- `di-chain-random-10`: the same DI path across randomly selected 10-route families, used to expose route matching overhead.
 
 ## Run
 
@@ -40,6 +38,5 @@ The report prints those counters with throughput and latency metrics.
 
 - This measures the released npm beta surface, not unpublished workspace source changes.
 - fluo uses TC39 standard decorators without `emitDecoratorMetadata`; NestJS uses legacy decorators with `emitDecoratorMetadata` through `nestjs/tsconfig.json`.
-- Fastify and Express adapter comparisons should be read as framework-plus-adapter measurements, not pure framework-core measurements.
 - `fluo+Bun` is a runtime comparison, not a same-adapter comparison. Treat it as “same fluo app graph on Bun’s native server” versus the Node.js adapter targets.
 - The suite only covers routing and one constructor-DI path. It does not measure validation, serialization plugins, guards, pipes, database access, or production middleware.
