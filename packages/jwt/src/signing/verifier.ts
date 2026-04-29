@@ -301,11 +301,15 @@ export class DefaultJwtVerifier {
     token: string,
     overrides: Partial<AccessTokenVerificationOverrides>,
   ): Promise<JwtPrincipal> {
+    const algorithms = overrides.algorithms ?? this.options.algorithms;
+
+    assertJwtAlgorithms(algorithms, 'JWT verifier');
+
     return this.verifyToken(
       token,
       {
         ...this.options,
-        algorithms: overrides.algorithms ?? this.options.algorithms,
+        algorithms,
         audience: overrides.audience ?? this.options.audience,
         clockSkewSeconds: overrides.clockSkewSeconds ?? this.options.clockSkewSeconds,
         issuer: overrides.issuer ?? this.options.issuer,

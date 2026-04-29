@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { JwtService } from './service.js';
 import { DefaultJwtSigner } from './signing/signer.js';
-import { JwtInvalidTokenError } from './errors.js';
+import { JwtConfigurationError, JwtInvalidTokenError } from './errors.js';
 import type { JwtVerifierOptions } from './types.js';
 import { DefaultJwtVerifier } from './signing/verifier.js';
 
@@ -41,7 +41,7 @@ async function expectVerifyOverrideParity(
   overrides: Parameters<JwtService['verify']>[1],
 ): Promise<void> {
   const service = createJwtService(options);
-  const mergedVerifier = new DefaultJwtVerifier({
+  const mergedOptions: JwtVerifierOptions = {
     ...options,
     algorithms: overrides?.algorithms ?? options.algorithms,
     audience: overrides?.audience ?? options.audience,
@@ -49,9 +49,10 @@ async function expectVerifyOverrideParity(
     issuer: overrides?.issuer ?? options.issuer,
     maxAge: overrides?.maxAge ?? options.maxAge,
     requireExp: overrides?.requireExp ?? options.requireExp,
-  });
+  };
 
   try {
+    const mergedVerifier = new DefaultJwtVerifier(mergedOptions);
     const [serviceClaims, verifierPrincipal] = await Promise.all([
       service.verify<Record<string, unknown>>(token, overrides),
       mergedVerifier.verifyAccessToken(token),
@@ -60,7 +61,13 @@ async function expectVerifyOverrideParity(
     expect(serviceClaims).toEqual(verifierPrincipal.claims);
   } catch (error) {
     await expect(service.verify(token, overrides)).rejects.toThrow((error as Error).message);
-    await expect(mergedVerifier.verifyAccessToken(token)).rejects.toThrow((error as Error).message);
+
+    try {
+      const mergedVerifier = new DefaultJwtVerifier(mergedOptions);
+      await expect(mergedVerifier.verifyAccessToken(token)).rejects.toThrow((error as Error).message);
+    } catch (verifierError) {
+      expect((verifierError as Error).message).toBe((error as Error).message);
+    }
   }
 }
 
@@ -237,5 +244,39 @@ describe('JwtService', () => {
       issuer: 'jwt-service-tests',
       requireExp: false,
     });
+  });
+
+  it('fails fast for an empty algorithms override with verifier reconstruction parity', async () => {
+    const options: JwtVerifierOptions = {
+      algorithms: ['HS256'],
+      issuer: 'jwt-service-tests',
+      secret: 'service-secret',
+    };
+    const token = createHs256Token(options.secret!, {
+      exp: Math.floor(Date.now() / 1000) + 60,
+      iss: 'jwt-service-tests',
+      sub: 'empty-algorithms-user',
+    });
+
+    await expect(createJwtService(options).verify(token, { algorithms: [] })).rejects.toBeInstanceOf(JwtConfigurationError);
+    await expectVerifyOverrideParity(options, token, { algorithms: [] });
+  });
+
+  it('fails fast for unsupported algorithms override values with verifier reconstruction parity', async () => {
+    const options: JwtVerifierOptions = {
+      algorithms: ['HS256'],
+      issuer: 'jwt-service-tests',
+      secret: 'service-secret',
+    };
+    const token = createHs256Token(options.secret!, {
+      exp: Math.floor(Date.now() / 1000) + 60,
+      iss: 'jwt-service-tests',
+      sub: 'unsupported-algorithms-user',
+    });
+
+    await expect(
+      createJwtService(options).verify(token, { algorithms: ['HS999' as never] }),
+    ).rejects.toBeInstanceOf(JwtConfigurationError);
+    await expectVerifyOverrideParity(options, token, { algorithms: ['HS999' as never] });
   });
 });
