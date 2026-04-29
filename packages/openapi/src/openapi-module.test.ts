@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { IsArray, IsBoolean, IsOptional, IsString, MinLength, ValidateNested } from '@fluojs/validation';
 import { IntersectionType, OmitType, PartialType, PickType } from '@fluojs/validation';
-import { Controller, Get, Post, Version, createHandlerMapping, type FrameworkRequest, type FrameworkResponse } from '@fluojs/http';
+import { Controller, Get, Post, Produces, Version, createHandlerMapping, type FrameworkRequest, type FrameworkResponse } from '@fluojs/http';
 import { FromBody, FromCookie, FromHeader, FromPath, FromQuery, RequestDto } from '@fluojs/http';
 import { bootstrapApplication, defineModule } from '@fluojs/runtime';
 import { bootstrapNodeApplication } from '@fluojs/runtime/node';
@@ -308,6 +308,73 @@ describe('OpenApiModule', () => {
         },
       }),
     );
+  });
+
+  it('keeps Chapter 10 supported OpenAPI examples aligned with the shipped API surface', async () => {
+    class UserListResponse {
+      @IsString()
+      id = '';
+    }
+
+    @ApiTag('Users')
+    @Controller('/users')
+    class UsersController {
+      @ApiOperation({ summary: 'List all users' })
+      @ApiResponse(200, { description: 'Success', type: UserListResponse })
+      @Produces('application/json')
+      @Get('/')
+      list() {
+        return [{ id: '1' }];
+      }
+    }
+
+    const openApiModule = OpenApiModule.forRoot({
+      sources: [{ controllerToken: UsersController }],
+      title: 'My API',
+      ui: true,
+      version: '1.0.0',
+    });
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      controllers: [UsersController],
+      imports: [openApiModule],
+    });
+
+    const app = registerAppForCleanup(await bootstrapApplication({ rootModule: AppModule }));
+    const response = createResponse();
+
+    await app.dispatch(createRequest('GET', '/openapi.json'), response);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toMatchObject({
+      info: {
+        title: 'My API',
+        version: '1.0.0',
+      },
+      openapi: '3.1.0',
+      paths: {
+        '/users': {
+          get: {
+            responses: {
+              '200': {
+                content: {
+                  'application/json': {
+                    schema: {
+                      $ref: '#/components/schemas/UserListResponse',
+                    },
+                  },
+                },
+                description: 'Success',
+              },
+            },
+            summary: 'List all users',
+            tags: ['Users'],
+          },
+        },
+      },
+    });
   });
 
   it('serves Swagger UI at /docs when ui is enabled', async () => {

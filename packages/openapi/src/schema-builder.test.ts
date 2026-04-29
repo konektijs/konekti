@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { IsArray, IsEnum, IsOptional, IsString, MinLength, ValidateNested } from '@fluojs/validation';
-import { Controller, FromBody, Get, Post, RequestDto, createHandlerMapping } from '@fluojs/http';
+import { Controller, FromBody, Get, Post, Produces, RequestDto, createHandlerMapping } from '@fluojs/http';
 
 import { ApiBearerAuth, ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiSecurity } from './decorators.js';
 import { buildOpenApiDocument } from './schema-builder.js';
@@ -262,6 +262,92 @@ describe('buildOpenApiDocument', () => {
         type: 'http',
       },
     });
+  });
+
+  it('emits declared produces media types for schema responses', () => {
+    class ExportResponse {
+      @IsString()
+      value = '';
+    }
+
+    @Controller('/exports')
+    class ExportController {
+      @Produces('application/json', 'application/problem+json')
+      @ApiResponse(200, { description: 'Exported payload', type: ExportResponse })
+      @Get('/')
+      list() {
+        return { value: 'ok' };
+      }
+    }
+
+    const descriptors = createHandlerMapping([{ controllerToken: ExportController }]).descriptors;
+    const document = buildOpenApiDocument({
+      defaultErrorResponsesPolicy: 'omit',
+      descriptors,
+      title: 'Export API',
+      version: '1.0.0',
+    });
+
+    expect(document.paths['/exports']?.get?.responses['200']).toEqual({
+      content: {
+        'application/json': {
+          schema: {
+            $ref: '#/components/schemas/ExportResponse',
+          },
+        },
+        'application/problem+json': {
+          schema: {
+            $ref: '#/components/schemas/ExportResponse',
+          },
+        },
+      },
+      description: 'Exported payload',
+    });
+  });
+
+  it('merges stacked same-scheme ApiSecurity scopes into a cumulative requirement', () => {
+    @Controller('/reports')
+    class ReportsController {
+      @ApiSecurity('oauth2Auth', ['reports:read'])
+      @ApiSecurity('oauth2Auth', ['reports:write', 'reports:read'])
+      @ApiSecurity('apiKeyAuth')
+      @Get('/')
+      list() {
+        return { ok: true };
+      }
+    }
+
+    const descriptors = createHandlerMapping([{ controllerToken: ReportsController }]).descriptors;
+    const document = buildOpenApiDocument({
+      defaultErrorResponsesPolicy: 'omit',
+      descriptors,
+      securitySchemes: {
+        apiKeyAuth: {
+          in: 'header',
+          name: 'x-api-key',
+          type: 'apiKey',
+        },
+        oauth2Auth: {
+          flows: {
+            clientCredentials: {
+              scopes: {
+                'reports:read': 'Read reports',
+                'reports:write': 'Write reports',
+              },
+              tokenUrl: 'https://example.com/oauth/token',
+            },
+          },
+          type: 'oauth2',
+        },
+      },
+      title: 'Reports API',
+      version: '1.0.0',
+    });
+
+    expect(document.paths['/reports']?.get?.security).toEqual([
+      { apiKeyAuth: [] },
+      { oauth2Auth: ['reports:write', 'reports:read'] },
+    ]);
   });
 
   it('applies documentTransform when provided and keeps defaults when absent', () => {

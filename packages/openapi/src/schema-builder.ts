@@ -1022,6 +1022,7 @@ function mergeOperationRequestBody(
 
 function createResponseObject(
   response: ApiResponseMetadata,
+  mediaTypes: readonly string[],
   componentSchemas: Record<string, OpenApiSchemaObject>,
   context: BuildSchemaContext,
 ): OpenApiResponseObject {
@@ -1035,11 +1036,14 @@ function createResponseObject(
     description: response.description ?? 'OK',
     ...(schema
       ? {
-          content: {
-            'application/json': {
-              schema,
-            },
-          },
+          content: Object.fromEntries(
+            mediaTypes.map((mediaType) => [
+              mediaType,
+              {
+                schema,
+              } satisfies OpenApiMediaTypeObject,
+            ]),
+          ),
         }
       : {}),
   };
@@ -1053,10 +1057,11 @@ function createOperationResponses(
   context: BuildSchemaContext,
 ): Record<string, OpenApiResponseObject> {
   const responses: Record<string, OpenApiResponseObject> = {};
+  const responseMediaTypes = descriptor.route.produces?.length ? descriptor.route.produces : ['application/json'];
 
   if (methodMeta?.responses && methodMeta.responses.length > 0) {
     for (const response of methodMeta.responses) {
-      responses[String(response.status)] = createResponseObject(response, componentSchemas, context);
+      responses[String(response.status)] = createResponseObject(response, responseMediaTypes, componentSchemas, context);
     }
   } else {
     responses[String(descriptor.route.successStatus ?? 200)] = { description: 'OK' };
@@ -1073,7 +1078,23 @@ function createOperationSecurity(
   methodMeta: MethodApiMetadata | undefined,
 ): OpenApiSecurityRequirementObject[] | undefined {
   if (methodMeta?.securityRequirements && methodMeta.securityRequirements.length > 0) {
-    return methodMeta.securityRequirements.map((requirement) => ({ ...requirement }));
+    const mergedRequirements = new Map<string, string[]>();
+
+    for (const requirement of methodMeta.securityRequirements) {
+      for (const [scheme, scopes] of Object.entries(requirement)) {
+        const existingScopes = mergedRequirements.get(scheme) ?? [];
+
+        for (const scope of scopes) {
+          if (!existingScopes.includes(scope)) {
+            existingScopes.push(scope);
+          }
+        }
+
+        mergedRequirements.set(scheme, existingScopes);
+      }
+    }
+
+    return Array.from(mergedRequirements.entries()).map(([scheme, scopes]) => ({ [scheme]: scopes }));
   }
 
   if (!methodMeta?.security || methodMeta.security.length === 0) {
