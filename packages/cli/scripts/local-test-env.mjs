@@ -149,6 +149,13 @@ function isGeneratedSandboxDirectory(projectDirectory) {
   }
 }
 
+function isTransientSandboxDirectory(projectDirectory) {
+  const entries = readdirSync(projectDirectory, { withFileTypes: true });
+
+  return entries.length > 0
+    && entries.every((entry) => entry.isDirectory() && entry.name === 'node_modules');
+}
+
 function assertSafeToResetSandbox(projectDirectory) {
   const resolvedProjectDirectory = resolve(projectDirectory);
 
@@ -160,6 +167,7 @@ function assertSafeToResetSandbox(projectDirectory) {
     isManagedSandboxDirectory(resolvedProjectDirectory)
     || isLegacySandboxDirectory(resolvedProjectDirectory)
     || isGeneratedSandboxDirectory(resolvedProjectDirectory)
+    || isTransientSandboxDirectory(resolvedProjectDirectory)
   ) {
     return;
   }
