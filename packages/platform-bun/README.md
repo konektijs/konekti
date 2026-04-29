@@ -104,7 +104,7 @@ The adapter also exports the typed Bun integration seams used by realtime packag
 
 ## Conformance Coverage
 
-`packages/platform-bun/src/adapter.test.ts` is the package-local regression target for the documented contract. It includes Bun fetch-style portability assertions for malformed cookies, JSON/text raw-body preservation, multipart raw-body exclusion, SSE framing, native-route param parity, and same-shape route fallback, plus focused tests for startup logging, shutdown listener cleanup, in-flight drain behavior, timeout reporting, and websocket binding delegation.
+`packages/platform-bun/src/adapter.test.ts` is the package-local regression target for the documented contract. It includes Bun fetch-style portability assertions for malformed cookies, JSON/text raw-body preservation, multipart raw-body exclusion, SSE framing, native-route param parity, same-path multi-method handoff, versioning fallback, normalization-sensitive fallback, OPTIONS/CORS ownership, and same-shape route fallback, plus focused tests for startup logging, shutdown listener cleanup, in-flight drain behavior, timeout reporting, and websocket binding delegation.
 
 The broader repository suite also exercises Bun through `createWebRuntimeHttpAdapterPortabilityHarness(...)` alongside Deno and Cloudflare Workers in `packages/testing/src/portability/web-runtime-adapter-portability.test.ts`, keeping the shared web-runtime portability baseline aligned across fetch-style platforms.
 
