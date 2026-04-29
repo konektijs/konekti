@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { All, Controller, Get, Post, SseResponse, type FrameworkRequest, type FrameworkResponse, type RequestContext } from '@fluojs/http';
+import { All, Controller, createDispatcher, createHandlerMapping, Get, Post, SseResponse, type FrameworkRequest, type FrameworkResponse, type RequestContext } from '@fluojs/http';
 import { defineModule, type ApplicationLogger } from '@fluojs/runtime';
 
 import {
@@ -605,6 +605,59 @@ describe('@fluojs/platform-bun', () => {
       });
     } finally {
       await app.close();
+    }
+  });
+
+  it('hands safe Bun native routes to the dispatcher without rematching', async () => {
+    const mockBun = installMockBun();
+
+    @Controller('/native')
+    class NativeController {
+      @Get('/:id')
+      getById(_input: undefined, context: RequestContext) {
+        return { id: context.request.params.id };
+      }
+    }
+
+    const baseMapping = createHandlerMapping([{ controllerToken: NativeController }]);
+    const dispatcher = createDispatcher({
+      handlerMapping: {
+        descriptors: baseMapping.descriptors,
+        match: vi.fn(() => {
+          throw new Error('Bun native handoff should bypass handlerMapping.match');
+        }),
+      },
+      rootContainer: {
+        createRequestScope() {
+          return {
+            async dispose() {},
+            resolve() {
+              return new NativeController();
+            },
+          };
+        },
+      } as never,
+    });
+    const adapter = createBunAdapter({
+      hostname: '127.0.0.1',
+      port: 4320,
+    }) as BunHttpApplicationAdapter;
+
+    await adapter.listen(dispatcher);
+
+    try {
+      expect(mockBun.lastOptions?.routes).toMatchObject({
+        '/native/:id': {
+          GET: expect.any(Function),
+        },
+      });
+
+      const response = await mockBun.lastServer?.fetch(new Request('http://127.0.0.1:4320/native/123'));
+
+      expect(response?.status).toBe(200);
+      await expect(response?.json()).resolves.toEqual({ id: '123' });
+    } finally {
+      await adapter.close();
     }
   });
 

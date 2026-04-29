@@ -74,7 +74,7 @@ export class MyGateway {}
 ### Native `routes` Object Acceleration
 On Bun `>=1.2.3`, the adapter opportunistically registers safe static and parameterized fluo routes through `Bun.serve({ routes })` while still routing matched requests back through the shared fluo dispatcher.
 
-This keeps raw body, multipart, SSE, error responses, shutdown drain behavior, and websocket upgrade delegation on the same shared execution path. If route shape parity is unsafe, such as same-shape parameter routes with different param names or `ALL`-method handlers, the adapter falls back to fetch-only dispatch for those routes instead of changing fluo semantics.
+For semantically safe unversioned routes, Bun hands the pre-matched descriptor and params to the shared dispatcher so duplicate route matching is skipped while raw body, multipart, SSE, error responses, shutdown drain behavior, and websocket upgrade delegation stay on the same shared execution path. If route shape parity is unsafe, such as same-shape parameter routes with different param names, `ALL`-method handlers, normalization-sensitive paths, or non-URI versioning, the adapter falls back to fetch-only dispatch for those routes instead of changing fluo semantics.
 
 ## Public API Overview
 
