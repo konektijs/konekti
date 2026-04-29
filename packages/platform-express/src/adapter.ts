@@ -30,7 +30,9 @@ import {
   type FrameworkRequest,
   type FrameworkResponse,
   type FrameworkResponseStream,
+  type HandlerDescriptor,
   type HttpApplicationAdapter,
+  type HttpMethod,
   type MiddlewareLike,
   type SecurityHeadersOptions,
 } from '@fluojs/http';
@@ -88,6 +90,13 @@ export type CorsInput = false | string | string[] | CorsOptions;
 
 const DEFAULT_MAX_BODY_SIZE = 1 * 1024 * 1024;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
+const EXPRESS_NATIVE_ROUTE_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'] as const;
+
+type ExpressNativeRouteMethod = (typeof EXPRESS_NATIVE_ROUTE_METHODS)[number];
+
+type RouteDescribingDispatcher = Dispatcher & {
+  describeRoutes?: () => readonly HandlerDescriptor[];
+};
 
 /**
  * Describes the bootstrap express application options contract.
@@ -125,6 +134,15 @@ interface ExpressListenTarget {
 
 type ExpressServer = ReturnType<typeof createHttpServer> | ReturnType<typeof createHttpsServer>;
 
+interface ExpressNativeRouteDefinition {
+  method: ExpressNativeRouteMethod;
+  path: string;
+}
+
+interface ExpressNativeRouteCandidate extends ExpressNativeRouteDefinition {
+  shapeKey: string;
+}
+
 type ExpressFrameworkResponse = FrameworkResponse & {
   raw: ExpressResponse;
   statusSet?: boolean;
@@ -144,11 +162,13 @@ export class ExpressHttpApplicationAdapter implements HttpApplicationAdapter {
   private closeInFlight?: Promise<void>;
   private dispatcher?: Dispatcher;
   private readonly app: Express;
+  private nativeRoutesReady = false;
   private readonly requestResponseFactory: RequestResponseFactory<
     ExpressRequest,
     ExpressResponse,
     ExpressFrameworkResponse
   >;
+  private readonly router = express.Router();
   private readonly server: ExpressServer;
   private readonly sockets = new Set<Socket>();
 
@@ -170,6 +190,7 @@ export class ExpressHttpApplicationAdapter implements HttpApplicationAdapter {
       this.preserveRawBody,
     );
     this.server = createExpressServer(this.httpsOptions, this.app);
+    this.app.use(this.router);
     this.app.use((request: ExpressRequest, response: ExpressResponse) => {
       void this.handleRequest(request, response);
     });
@@ -195,6 +216,7 @@ export class ExpressHttpApplicationAdapter implements HttpApplicationAdapter {
 
   async listen(dispatcher: Dispatcher): Promise<void> {
     this.dispatcher = dispatcher;
+    this.registerNativeRoutes(dispatcher);
     await this.listenWithRetry();
   }
 
@@ -239,6 +261,20 @@ export class ExpressHttpApplicationAdapter implements HttpApplicationAdapter {
     }
   }
 
+  private registerNativeRoutes(dispatcher: Dispatcher): void {
+    if (this.nativeRoutesReady) {
+      return;
+    }
+
+    for (const route of createExpressNativeRoutes(resolveDispatcherRouteDescriptors(dispatcher))) {
+      this.router[route.method.toLowerCase() as Lowercase<ExpressNativeRouteMethod>](route.path, (request, response) => {
+        void this.handleRequest(request, response);
+      });
+    }
+
+    this.nativeRoutesReady = true;
+  }
+
   private async handleRequest(request: ExpressRequest, response: ExpressResponse): Promise<void> {
     await dispatchWithRequestResponseFactory({
       dispatcher: this.dispatcher,
@@ -248,6 +284,68 @@ export class ExpressHttpApplicationAdapter implements HttpApplicationAdapter {
       rawResponse: response,
     });
   }
+}
+
+function resolveDispatcherRouteDescriptors(dispatcher: Dispatcher): readonly HandlerDescriptor[] {
+  return (dispatcher as RouteDescribingDispatcher).describeRoutes?.() ?? [];
+}
+
+function createExpressNativeRoutes(descriptors: readonly HandlerDescriptor[]): ExpressNativeRouteDefinition[] {
+  const candidates = new Map<string, ExpressNativeRouteCandidate>();
+  const shapePaths = new Map<string, Set<string>>();
+
+  for (const descriptor of descriptors) {
+    if (descriptor.route.method === 'ALL') {
+      continue;
+    }
+
+    registerExpressNativeRouteCandidate(candidates, shapePaths, descriptor.route.method, descriptor.route.path);
+  }
+
+  return [...candidates.values()]
+    .filter((candidate) => shapePaths.get(candidate.shapeKey)?.size === 1)
+    .map(({ method, path }) => ({ method, path }));
+}
+
+function registerExpressNativeRouteCandidate(
+  candidates: Map<string, ExpressNativeRouteCandidate>,
+  shapePaths: Map<string, Set<string>>,
+  method: HttpMethod,
+  path: string,
+): void {
+  if (!EXPRESS_NATIVE_ROUTE_METHODS.includes(method as ExpressNativeRouteMethod)) {
+    return;
+  }
+
+  const nativeMethod = method as ExpressNativeRouteMethod;
+  const routeKey = `${nativeMethod}:${path}`;
+  const shapeKey = `${nativeMethod}:${canonicalizeExpressRouteShape(path)}`;
+
+  if (!candidates.has(routeKey)) {
+    candidates.set(routeKey, {
+      method: nativeMethod,
+      path,
+      shapeKey,
+    });
+  }
+
+  let paths = shapePaths.get(shapeKey);
+
+  if (!paths) {
+    paths = new Set<string>();
+    shapePaths.set(shapeKey, paths);
+  }
+
+  paths.add(path);
+}
+
+function canonicalizeExpressRouteShape(path: string): string {
+  const segments = path
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => segment.startsWith(':') ? ':' : segment);
+
+  return segments.length === 0 ? '/' : `/${segments.join('/')}`;
 }
 
 function createExpressRequestResponseFactory(

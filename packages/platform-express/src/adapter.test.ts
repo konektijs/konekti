@@ -8,17 +8,29 @@ import { createServer as createNetServer } from 'node:net';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  All,
+  type CallHandler,
   Controller,
   Get,
   Post,
   SseResponse,
+  UseGuards,
+  UseInterceptors,
+  Version,
+  VersioningType,
   type FrameworkRequest,
   type FrameworkResponse,
+  type GuardContext,
+  type InterceptorContext,
+  type MiddlewareContext,
+  type RequestObservationContext,
   type RequestContext,
+  type RequestObserver,
 } from '@fluojs/http';
 import {
   createHealthModule,
   defineModule,
+  fluoFactory,
   type ApplicationLogger,
 } from '@fluojs/runtime';
 
@@ -88,6 +100,46 @@ async function requestHttps(url: string): Promise<{ body: string; statusCode: nu
     });
 
     request.on('error', reject);
+    request.end();
+  });
+}
+
+async function requestHttp(options: {
+  body?: string;
+  headers?: Record<string, string>;
+  method?: string;
+  path: string;
+  port: number;
+}): Promise<{ body: string; headers: Headers; statusCode: number }> {
+  return await new Promise((resolve, reject) => {
+    const request = httpRequest({
+      headers: options.headers,
+      host: '127.0.0.1',
+      method: options.method,
+      path: options.path,
+      port: options.port,
+    }, (response) => {
+      const chunks: Buffer[] = [];
+
+      response.on('data', (chunk) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
+      response.on('end', () => {
+        resolve({
+          body: Buffer.concat(chunks).toString('utf8'),
+          headers: new Headers(response.headers as Record<string, string>),
+          statusCode: response.statusCode ?? 0,
+        });
+      });
+      response.on('error', reject);
+    });
+
+    request.on('error', reject);
+
+    if (options.body) {
+      request.write(options.body);
+    }
+
     request.end();
   });
 }
@@ -580,6 +632,305 @@ describe('@fluojs/platform-express', () => {
     expect(body).toContain('data: {"ready":true}');
 
     await app.close();
+  });
+
+  it('registers native Express router routes while preserving fluo matching, versioning, lifecycle, and fallback semantics', async () => {
+    const lifecycle: string[] = [];
+
+    const appMiddleware = {
+      async handle(context: MiddlewareContext, next: () => Promise<void>) {
+        lifecycle.push(`middleware:before:${context.request.method}`);
+        await next();
+        lifecycle.push(`middleware:after:${context.request.method}`);
+      },
+    };
+
+    const guard = {
+      canActivate(context: GuardContext) {
+        lifecycle.push(`guard:${context.handler.route.path}:${context.requestContext.request.params.id ?? '-'}`);
+        return true;
+      },
+    };
+
+    const interceptor = {
+      async intercept(context: InterceptorContext, next: CallHandler) {
+        lifecycle.push(`interceptor:before:${context.handler.route.path}`);
+        const result = await next.handle();
+        lifecycle.push(`interceptor:after:${context.handler.route.path}`);
+        return result;
+      },
+    };
+
+    const observer: RequestObserver = {
+      onHandlerMatched(context: RequestObservationContext) {
+        lifecycle.push(`observer:matched:${context.handler?.route.method}:${context.handler?.route.path}`);
+      },
+      onRequestError(_context: RequestObservationContext, error: unknown) {
+        lifecycle.push(`observer:error:${error instanceof Error ? error.message : String(error)}`);
+      },
+      onRequestFinish(context: RequestObservationContext) {
+        lifecycle.push(`observer:finish:${context.requestContext.request.method}`);
+      },
+      onRequestStart(context: RequestObservationContext) {
+        lifecycle.push(`observer:start:${context.requestContext.request.method}`);
+      },
+      onRequestSuccess(_context: RequestObservationContext, value: unknown) {
+        lifecycle.push(`observer:success:${typeof value === 'object' && value && 'route' in value ? String((value as { route: string }).route) : typeof value}`);
+      },
+    };
+
+    @Controller('/users')
+    class UsersController {
+      @Get('/:id')
+      @UseGuards(guard)
+      @UseInterceptors(interceptor)
+      getUser(_input: undefined, context: RequestContext) {
+        const queryTag = context.request.query.tag;
+
+        return {
+          id: context.request.params.id,
+          queryTag,
+          route: 'user',
+        };
+      }
+    }
+
+    @Controller('/versions')
+    class VersionedController {
+      @Get('/')
+      @Version('1')
+      v1() {
+        return { route: 'version', version: '1' };
+      }
+
+      @Get('/')
+      latest() {
+        return { route: 'version', version: 'latest' };
+      }
+    }
+
+    @Controller('/errors')
+    class ErrorsController {
+      @Get('/')
+      explode() {
+        throw new Error('native route boom');
+      }
+    }
+
+    @Controller('/fallback')
+    class FallbackController {
+      @All('/')
+      handle(_input: undefined, context: RequestContext) {
+        return { method: context.request.method, route: 'all' };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      controllers: [UsersController, VersionedController, ErrorsController, FallbackController],
+    });
+
+    const port = await findAvailablePort();
+    const adapter = createExpressAdapter({ port }) as ExpressHttpApplicationAdapter;
+    const app = await fluoFactory.create(AppModule, {
+      adapter,
+      middleware: [appMiddleware],
+      observers: [observer],
+      versioning: {
+        header: 'x-api-version',
+        type: VersioningType.HEADER,
+      },
+    });
+
+    await app.listen();
+
+    try {
+      const router = Reflect.get(adapter, 'router') as { stack?: Array<{ route?: { methods: Record<string, boolean>; path: string } }> };
+      const nativeRoutes = (router.stack ?? [])
+        .flatMap((layer) => layer.route
+          ? Object.keys(layer.route.methods)
+            .filter((method) => layer.route?.methods[method])
+            .map((method) => `${method.toUpperCase()}:${layer.route?.path}`)
+          : []);
+
+      expect(nativeRoutes).toContain('GET:/users/:id');
+      expect(nativeRoutes).toContain('GET:/versions');
+      expect(nativeRoutes).toContain('GET:/errors');
+      expect(nativeRoutes).not.toContain('PATCH:/fallback');
+
+      lifecycle.length = 0;
+      const userResponse = await requestHttp({
+        method: 'GET',
+        path: '/users///123/?tag=a&tag=b',
+        port,
+      });
+
+      expect(userResponse.statusCode).toBe(200);
+      expect(JSON.parse(userResponse.body)).toEqual({
+        id: '123',
+        queryTag: ['a', 'b'],
+        route: 'user',
+      });
+      expect(lifecycle).toContain('observer:matched:GET:/users/:id');
+      expect(lifecycle).toContain('guard:/users/:id:123');
+      expect(lifecycle).toContain('interceptor:before:/users/:id');
+      expect(lifecycle).toContain('interceptor:after:/users/:id');
+      expect(lifecycle).toContain('observer:success:user');
+      expect(lifecycle.indexOf('observer:start:GET')).toBeLessThan(lifecycle.indexOf('middleware:before:GET'));
+      expect(lifecycle.indexOf('middleware:before:GET')).toBeLessThan(lifecycle.indexOf('observer:matched:GET:/users/:id'));
+      expect(lifecycle.indexOf('observer:matched:GET:/users/:id')).toBeLessThan(lifecycle.indexOf('guard:/users/:id:123'));
+      expect(lifecycle.indexOf('guard:/users/:id:123')).toBeLessThan(lifecycle.indexOf('interceptor:before:/users/:id'));
+      expect(lifecycle.indexOf('interceptor:before:/users/:id')).toBeLessThan(lifecycle.indexOf('interceptor:after:/users/:id'));
+      expect(lifecycle.indexOf('interceptor:after:/users/:id')).toBeLessThan(lifecycle.indexOf('observer:success:user'));
+      expect(lifecycle.indexOf('observer:success:user')).toBeLessThan(lifecycle.indexOf('middleware:after:GET'));
+      expect(lifecycle.indexOf('middleware:after:GET')).toBeLessThan(lifecycle.indexOf('observer:finish:GET'));
+
+      const versionedResponse = await requestHttp({
+        headers: { 'x-api-version': '1' },
+        method: 'GET',
+        path: '/versions/',
+        port,
+      });
+      expect(versionedResponse.statusCode).toBe(200);
+      expect(JSON.parse(versionedResponse.body)).toEqual({ route: 'version', version: '1' });
+
+      const unversionedResponse = await requestHttp({
+        method: 'GET',
+        path: '/versions',
+        port,
+      });
+      expect(unversionedResponse.statusCode).toBe(200);
+      expect(JSON.parse(unversionedResponse.body)).toEqual({ route: 'version', version: 'latest' });
+
+      const allResponse = await requestHttp({
+        method: 'PATCH',
+        path: '/fallback',
+        port,
+      });
+      expect(allResponse.statusCode).toBe(200);
+      expect(JSON.parse(allResponse.body)).toEqual({ method: 'PATCH', route: 'all' });
+
+      lifecycle.length = 0;
+      const errorResponse = await requestHttp({
+        method: 'GET',
+        path: '/errors',
+        port,
+      });
+      expect(errorResponse.statusCode).toBe(500);
+      expect(JSON.parse(errorResponse.body)).toEqual({
+        error: {
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Internal server error.',
+          status: 500,
+        },
+      });
+      expect(lifecycle).toContain('observer:error:native route boom');
+
+      const missingResponse = await requestHttp({
+        method: 'GET',
+        path: '/missing',
+        port,
+      });
+      expect(missingResponse.statusCode).toBe(404);
+      expect(JSON.parse(missingResponse.body)).toEqual({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'No handler registered for GET /missing.',
+          status: 404,
+        },
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('falls back to dispatcher-only routing for overlapping same-shape param routes and ALL handlers', async () => {
+    @Controller('/matches')
+    class MatchesController {
+      @Get('/:id')
+      firstMatch(_input: undefined, context: RequestContext) {
+        return {
+          paramName: 'id',
+          route: 'first',
+          value: context.request.params.id,
+        };
+      }
+
+      @Get('/:slug')
+      secondMatch(_input: undefined, context: RequestContext) {
+        return {
+          paramName: 'slug',
+          route: 'second',
+          value: context.request.params.slug,
+        };
+      }
+    }
+
+    @Controller('/catch-all')
+    class CatchAllController {
+      @All('/:slug')
+      catchAll(_input: undefined, context: RequestContext) {
+        return {
+          method: context.request.method,
+          route: 'all',
+          slug: context.request.params.slug,
+        };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      controllers: [MatchesController, CatchAllController],
+    });
+
+    const port = await findAvailablePort();
+    const adapter = createExpressAdapter({ port }) as ExpressHttpApplicationAdapter;
+    const app = await fluoFactory.create(AppModule, { adapter });
+
+    await app.listen();
+
+    try {
+      const router = Reflect.get(adapter, 'router') as { stack?: Array<{ route?: { methods: Record<string, boolean>; path: string } }> };
+      const nativeRoutes = (router.stack ?? [])
+        .flatMap((layer) => layer.route
+          ? Object.keys(layer.route.methods)
+            .filter((method) => layer.route?.methods[method])
+            .map((method) => `${method.toUpperCase()}:${layer.route?.path}`)
+          : []);
+
+      expect(nativeRoutes).not.toContain('GET:/matches/:id');
+      expect(nativeRoutes).not.toContain('GET:/matches/:slug');
+      expect(nativeRoutes).not.toContain('PATCH:/catch-all/:slug');
+
+      const [shapeConflictResponse, fallbackResponse] = await Promise.all([
+        requestHttp({
+          method: 'GET',
+          path: '/matches/42',
+          port,
+        }),
+        requestHttp({
+          method: 'PATCH',
+          path: '/catch-all/fallback-check',
+          port,
+        }),
+      ]);
+
+      expect(shapeConflictResponse.statusCode).toBe(200);
+      expect(JSON.parse(shapeConflictResponse.body)).toEqual({
+        paramName: 'id',
+        route: 'first',
+        value: '42',
+      });
+
+      expect(fallbackResponse.statusCode).toBe(200);
+      expect(JSON.parse(fallbackResponse.body)).toEqual({
+        method: 'PATCH',
+        route: 'all',
+        slug: 'fallback-check',
+      });
+    } finally {
+      await app.close();
+    }
   });
 
   it('supports https startup and reports the https listen URL', async () => {
