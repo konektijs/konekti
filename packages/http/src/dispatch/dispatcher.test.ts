@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { Inject, Scope as ScopeDecorator } from '@fluojs/core';
 import { Container } from '@fluojs/di';
 
 import type {
@@ -13,10 +14,11 @@ import type {
   Next,
   RequestContext,
   RequestObservationContext,
-} from '@fluojs/http';
+} from '../index.js';
 import {
   Convert,
   FromBody,
+  FromPath,
   FromQuery,
   createCorrelationMiddleware,
   createDispatcher,
@@ -34,7 +36,7 @@ import {
   UseInterceptors,
   type assertRequestContext,
   getCurrentRequestContext,
-} from '@fluojs/http';
+} from '../index.js';
 import { IsNumber, IsString, MinLength, ValidateNested } from '@fluojs/validation';
 
 import { IntersectionType, OmitType, PartialType, PickType } from '@fluojs/validation';
@@ -84,7 +86,247 @@ function createRequest(
   };
 }
 
+class CountingContainer extends Container {
+  requestScopeCreateCount = 0;
+  requestScopeDisposeCount = 0;
+
+  override createRequestScope(): Container {
+    this.requestScopeCreateCount += 1;
+    const scope = super.createRequestScope();
+    const dispose = scope.dispose.bind(scope);
+
+    scope.dispose = async () => {
+      this.requestScopeDisposeCount += 1;
+      await dispose();
+    };
+
+    return scope;
+  }
+}
+
 describe('dispatcher runtime', () => {
+  it('skips request-scope container creation for singleton-only routes', async () => {
+    @Controller('/singleton-only')
+    class SingletonOnlyController {
+      @Get('/')
+      getValue() {
+        return { ok: true };
+      }
+    }
+
+    const root = new CountingContainer().register(SingletonOnlyController);
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: SingletonOnlyController }]),
+      rootContainer: root,
+    });
+
+    const firstResponse = createResponse();
+    await dispatcher.dispatch(createRequest('/singleton-only', 'GET'), firstResponse);
+
+    const secondResponse = createResponse();
+    await dispatcher.dispatch(createRequest('/singleton-only', 'GET'), secondResponse);
+
+    expect(firstResponse.body).toEqual({ ok: true });
+    expect(secondResponse.body).toEqual({ ok: true });
+    expect(root.requestScopeCreateCount).toBe(0);
+    expect(root.requestScopeDisposeCount).toBe(0);
+  });
+
+  it('uses request scope when a handler declares RequestContext access', async () => {
+    @Controller('/context-aware')
+    class ContextAwareController {
+      @Get('/')
+      getValue(_input: undefined, ctx: RequestContext) {
+        return { hasContainer: Boolean(ctx.container) };
+      }
+    }
+
+    const root = new CountingContainer().register(ContextAwareController);
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: ContextAwareController }]),
+      rootContainer: root,
+    });
+    const response = createResponse();
+
+    await dispatcher.dispatch(createRequest('/context-aware', 'GET'), response);
+
+    expect(response.body).toEqual({ hasContainer: true });
+    expect(root.requestScopeCreateCount).toBe(1);
+    expect(root.requestScopeDisposeCount).toBe(1);
+  });
+
+  it('creates and disposes isolated request scopes for request-scoped controllers', async () => {
+    const instanceIds: number[] = [];
+    let nextId = 0;
+
+    @ScopeDecorator('request')
+    @Controller('/request-controller')
+    class RequestController {
+      private readonly instanceId = ++nextId;
+
+      @Get('/')
+      getValue() {
+        instanceIds.push(this.instanceId);
+        return { id: this.instanceId };
+      }
+    }
+
+    const root = new CountingContainer().register(RequestController);
+    const dispatcher = createDispatcher({
+      handlerMapping: createHandlerMapping([{ controllerToken: RequestController }]),
+      rootContainer: root,
+    });
+
+    const firstResponse = createResponse();
+    await dispatcher.dispatch(createRequest('/request-controller', 'GET'), firstResponse);
+
+    const secondResponse = createResponse();
+    await dispatcher.dispatch(createRequest('/request-controller', 'GET'), secondResponse);
+
+    expect(firstResponse.body).toEqual({ id: 1 });
+    expect(secondResponse.body).toEqual({ id: 2 });
+    expect(instanceIds).toEqual([1, 2]);
+    expect(root.requestScopeCreateCount).toBe(2);
+    expect(root.requestScopeDisposeCount).toBe(2);
+  });
+
+  it('keeps request-scoped middleware, observers, guards, interceptors, converters, and services isolated', async () => {
+    const events: string[] = [];
+    let nextStoreId = 0;
+
+    @ScopeDecorator('request')
+    class RequestStore {
+      readonly id = ++nextStoreId;
+    }
+
+    @Inject(RequestStore)
+    @ScopeDecorator('request')
+    class ScopedObserver {
+      constructor(private readonly store: RequestStore) {}
+
+      onRequestFinish() {
+        events.push(`finish:${this.store.id}`);
+      }
+
+      onRequestStart() {
+        events.push(`start:${this.store.id}`);
+      }
+    }
+
+    @Inject(RequestStore)
+    @ScopeDecorator('request')
+    class ScopedMiddleware implements Middleware {
+      constructor(private readonly store: RequestStore) {}
+
+      async handle(_context: MiddlewareContext, next: Next) {
+        events.push(`middleware:${this.store.id}`);
+        await next();
+      }
+    }
+
+    @Inject(RequestStore)
+    @ScopeDecorator('request')
+    class ScopedGuard {
+      constructor(private readonly store: RequestStore) {}
+
+      canActivate() {
+        events.push(`guard:${this.store.id}`);
+        return true;
+      }
+    }
+
+    @Inject(RequestStore)
+    @ScopeDecorator('request')
+    class ScopedInterceptor {
+      constructor(private readonly store: RequestStore) {}
+
+      async intercept(_context: InterceptorContext, next: CallHandler) {
+        events.push(`interceptor-before:${this.store.id}`);
+        const value = await next.handle();
+        events.push(`interceptor-after:${this.store.id}`);
+        return value;
+      }
+    }
+
+    @Inject(RequestStore)
+    @ScopeDecorator('request')
+    class ScopedConverter {
+      constructor(private readonly store: RequestStore) {}
+
+      convert(value: unknown) {
+        events.push(`converter:${this.store.id}`);
+        return `${String(value)}:${this.store.id}`;
+      }
+    }
+
+    class ScopedDto {
+      @Convert(ScopedConverter)
+      @FromPath('id')
+      id!: string;
+    }
+
+    @Inject(RequestStore)
+    @ScopeDecorator('request')
+    @Controller('/request-pipeline')
+    @UseGuards(ScopedGuard)
+    @UseInterceptors(ScopedInterceptor)
+    class RequestPipelineController {
+      constructor(private readonly store: RequestStore) {}
+
+      @Get('/:id')
+      @RequestDto(ScopedDto)
+      getValue(input: ScopedDto) {
+        events.push(`handler:${this.store.id}:${input.id}`);
+        return { id: input.id, store: this.store.id };
+      }
+    }
+
+    const root = new CountingContainer().register(
+      RequestStore,
+      ScopedObserver,
+      ScopedMiddleware,
+      ScopedGuard,
+      ScopedInterceptor,
+      ScopedConverter,
+      RequestPipelineController,
+    );
+    const dispatcher = createDispatcher({
+      appMiddleware: [ScopedMiddleware],
+      handlerMapping: createHandlerMapping([{ controllerToken: RequestPipelineController }]),
+      observers: [ScopedObserver],
+      rootContainer: root,
+    });
+
+    const firstResponse = createResponse();
+    await dispatcher.dispatch(createRequest('/request-pipeline/one', 'GET'), firstResponse);
+
+    const secondResponse = createResponse();
+    await dispatcher.dispatch(createRequest('/request-pipeline/two', 'GET'), secondResponse);
+
+    expect(firstResponse.body).toEqual({ id: 'one:1', store: 1 });
+    expect(secondResponse.body).toEqual({ id: 'two:2', store: 2 });
+    expect(events).toEqual([
+      'start:1',
+      'middleware:1',
+      'guard:1',
+      'interceptor-before:1',
+      'converter:1',
+      'handler:1:one:1',
+      'interceptor-after:1',
+      'finish:1',
+      'start:2',
+      'middleware:2',
+      'guard:2',
+      'interceptor-before:2',
+      'converter:2',
+      'handler:2:two:2',
+      'interceptor-after:2',
+      'finish:2',
+    ]);
+    expect(root.requestScopeCreateCount).toBe(2);
+    expect(root.requestScopeDisposeCount).toBe(2);
+  });
+
   it('keeps JSON response behavior when no formatters are configured', async () => {
     @Controller('/negotiation')
     class NegotiationController {
