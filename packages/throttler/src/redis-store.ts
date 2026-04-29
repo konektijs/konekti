@@ -5,8 +5,11 @@ import { validateThrottlerStoreEntry } from './validation.js';
 
 const CONSUME_LUA = [
   "local key = KEYS[1]",
-  "local now = tonumber(ARGV[1])",
-  "local ttlMs = tonumber(ARGV[2])",
+  "local ttlMs = tonumber(ARGV[1])",
+  "local time = redis.call('TIME')",
+  "local nowSeconds = tonumber(time[1])",
+  "local nowMicros = tonumber(time[2])",
+  'local now = math.floor((nowSeconds * 1000) + (nowMicros / 1000))',
   "local raw = redis.call('GET', key)",
   "local count",
   "local resetAt",
@@ -66,7 +69,6 @@ export class RedisThrottlerStore implements ThrottlerStore {
       CONSUME_LUA,
       1,
       key,
-      String(input.now),
       String(input.ttlSeconds * 1000),
     );
 
