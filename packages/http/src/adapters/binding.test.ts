@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import type { Token } from '@fluojs/core';
 
 import {
   Convert,
   FromBody,
-  FromQuery,
+  FromCookie,
+  FromHeader,
   FromPath,
+  FromQuery,
   Optional,
 } from '../decorators.js';
 import {
@@ -16,8 +19,8 @@ import {
   ValidateIf,
   ValidateNested,
 } from '@fluojs/validation';
-import { BadRequestException } from '../exceptions.js';
 import { DefaultBinder } from './binding.js';
+import { getCompiledDtoBindingPlan } from './dto-binding-plan.js';
 import { HttpDtoValidationAdapter } from './dto-validation-adapter.js';
 import type { ArgumentResolverContext, FrameworkRequest, FrameworkResponse } from '../types.js';
 
@@ -60,7 +63,12 @@ function createResponse(): FrameworkResponse {
   };
 }
 
-function createContext(request: FrameworkRequest): ArgumentResolverContext {
+function createContext(
+  request: FrameworkRequest,
+  resolve: <T>(token: Token<T>) => Promise<T> = async () => {
+    throw new Error('not used');
+  },
+): ArgumentResolverContext {
   return {
     handler: {
       controllerToken: class ExampleController {},
@@ -82,8 +90,8 @@ function createContext(request: FrameworkRequest): ArgumentResolverContext {
         async dispose() {
           return undefined;
         },
-        resolve() {
-          throw new Error('not used');
+        async resolve(token) {
+          return resolve(token);
         },
       },
       metadata: {},
@@ -141,7 +149,55 @@ describe('DefaultBinder', () => {
           }),
         ),
       ),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toMatchObject({
+      details: [
+        {
+          code: 'DANGEROUS_KEY',
+          field: '__proto__',
+          message: 'Dangerous body key __proto__ is not allowed.',
+          source: 'body',
+        },
+        {
+          code: 'UNKNOWN_FIELD',
+          field: 'extra',
+          message: 'Unknown body field extra.',
+          source: 'body',
+        },
+      ],
+      status: 400,
+    });
+  });
+
+  it('binds header and cookie fields while preserving symbol property keys', async () => {
+    const sessionToken = Symbol('sessionToken');
+
+    class AuthenticatedRequest {
+      @FromHeader('x-request-id')
+      requestId = '';
+
+      @FromCookie('session')
+      [sessionToken] = '';
+
+      @FromBody('nickname')
+      @Optional()
+      nickname?: string;
+    }
+
+    const binder = new DefaultBinder();
+    const bound = (await binder.bind(
+      AuthenticatedRequest,
+      createContext(
+        createRequest({
+          body: {},
+          cookies: { session: 'cookie-123' },
+          headers: { 'x-request-id': 'req-123' },
+        }),
+      ),
+    )) as AuthenticatedRequest;
+
+    expect(bound.requestId).toBe('req-123');
+    expect(bound[sessionToken]).toBe('cookie-123');
+    expect(bound.nickname).toBeUndefined();
   });
 
   it('preserves single-element arrays for query bindings', async () => {
@@ -233,6 +289,39 @@ describe('DefaultBinder', () => {
 
     expect(bound.name).toBe('field:global:Ada');
   });
+
+  it('reuses compiled DTO binding plans without reusing request-scoped converters', async () => {
+    const requestScopedConverter = Symbol('requestScopedConverter');
+
+    class SearchUsersRequest {
+      @FromQuery('id')
+      id = '';
+    }
+
+    const binder = new DefaultBinder([requestScopedConverter]);
+    const plan = getCompiledDtoBindingPlan(SearchUsersRequest);
+
+    expect(getCompiledDtoBindingPlan(SearchUsersRequest)).toBe(plan);
+
+    const resolveCalls: string[] = [];
+    const createRequestScopedContext = (prefix: string) =>
+      createContext(createRequest({ query: { id: '42' } }), async <T>(token: Token<T>) => {
+        expect(token).toBe(requestScopedConverter);
+        resolveCalls.push(prefix);
+        return {
+          convert(value: unknown) {
+            return `${prefix}:${String(value)}`;
+          },
+        } as T;
+      });
+
+    const first = (await binder.bind(SearchUsersRequest, createRequestScopedContext('first'))) as SearchUsersRequest;
+    const second = (await binder.bind(SearchUsersRequest, createRequestScopedContext('second'))) as SearchUsersRequest;
+
+    expect(first.id).toBe('first:42');
+    expect(second.id).toBe('second:42');
+    expect(resolveCalls).toEqual(['first', 'second']);
+  });
 });
 
 describe('HttpDtoValidationAdapter', () => {
@@ -302,7 +391,7 @@ describe('HttpDtoValidationAdapter', () => {
   it('supports conditional and optional validator decorators', async () => {
     class PasswordResetRequest {
       @FromBody('password')
-      @ValidateIf((dto) => Boolean((dto as { enabled?: boolean }).enabled))
+      @ValidateIf((dto: unknown) => Boolean((dto as PasswordResetRequest).enabled))
       @MinLength(8, { message: 'password must have length at least 8' })
       password = '';
 

@@ -1,10 +1,10 @@
 import { type Constructor } from '@fluojs/core';
-import { getDtoBindingSchema } from '@fluojs/core/internal';
 import { DefaultValidator as BaseDefaultValidator, DtoValidationError } from '@fluojs/validation';
 
 import { BadRequestException } from '../exceptions.js';
 import { toInputErrorDetail } from '../input-error-detail.js';
 import type { ValidationIssue, Validator } from '../types.js';
+import { getCompiledDtoBindingPlan } from './dto-binding-plan.js';
 
 /**
  * Represents the http dto validation adapter.
@@ -26,9 +26,9 @@ export class HttpDtoValidationAdapter implements Validator {
     const source = value as Record<PropertyKey, unknown>;
     const filtered: Record<PropertyKey, unknown> = Object.create(Object.getPrototypeOf(value));
 
-    for (const binding of getDtoBindingSchema(target)) {
-      if (Object.hasOwn(source, binding.propertyKey)) {
-        filtered[binding.propertyKey] = source[binding.propertyKey];
+    for (const propertyKey of getCompiledDtoBindingPlan(target).propertyKeys) {
+      if (Object.hasOwn(source, propertyKey)) {
+        filtered[propertyKey] = source[propertyKey];
       }
     }
 
