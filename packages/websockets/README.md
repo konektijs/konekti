@@ -101,7 +101,7 @@ WebSocketModule.forRoot({
 });
 ```
 
-When omitted, `@fluojs/websockets` now applies bounded defaults for concurrent connections and inbound payload size. Server-backed Node listeners also enable heartbeat timers unless you explicitly set `heartbeat.enabled` to `false`. Across Node.js, Bun, Deno, and Cloudflare Workers, application shutdown closes tracked websocket clients and gives `@OnDisconnect()` cleanup a chance to finish within `shutdown.timeoutMs`.
+When omitted, `@fluojs/websockets` now applies bounded defaults for concurrent connections and inbound payload size. Server-backed Node listeners also enable heartbeat timers unless you explicitly set `heartbeat.enabled` to `false`. The official fetch-style runtime modules (`@fluojs/websockets/bun`, `@fluojs/websockets/deno`, and `@fluojs/websockets/cloudflare-workers`) close tracked websocket clients during application shutdown and give `@OnDisconnect()` cleanup a bounded chance to finish within `shutdown.timeoutMs`.
 
 ## Public API Overview
 
@@ -131,3 +131,5 @@ Use the runtime subpaths when you want an explicit runtime binding instead of th
 - `packages/websockets/src/public-surface.test.ts`
 - `packages/websockets/src/node/node.test.ts`
 - `packages/websockets/src/bun/bun.test.ts`
+- `packages/websockets/src/deno/deno.test.ts`
+- `packages/websockets/src/cloudflare-workers/cloudflare-workers.test.ts`
