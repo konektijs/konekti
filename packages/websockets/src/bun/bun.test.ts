@@ -61,6 +61,7 @@ class TestBunAdapter implements HttpApplicationAdapter, BunWebSocketBindingHost 
 class TestBunServer implements BunServerLike {
   closeDeliveryPromise?: Promise<void>;
   lastSocket?: MockSocket;
+  openDeliveryPromise?: Promise<void>;
 
   constructor(private readonly binding?: BunWebSocketBinding<unknown>) {}
 
@@ -105,7 +106,15 @@ class TestBunServer implements BunServerLike {
       return deliver();
     });
     this.lastSocket = socket;
-    void Promise.resolve(this.binding.websocket.open?.(socket));
+
+    const deliverOpen = () => Promise.resolve(this.binding?.websocket.open?.(socket));
+
+    if (this.openDeliveryPromise) {
+      void this.openDeliveryPromise.then(deliverOpen);
+    } else {
+      void deliverOpen();
+    }
+
     return true;
   }
 }
@@ -766,6 +775,85 @@ describe('@fluojs/websockets/bun', () => {
 
     expect(state.connectCount).toBe(1);
     expect(state.disconnectCount).toBe(1);
+  });
+
+  it('keeps shutdown pending across the Bun upgrade-success before open-callback race', async () => {
+    const adapter = new TestBunAdapter();
+    const openGate = createDeferred<void>();
+
+    class GatewayState {
+      connectCount = 0;
+      disconnectCount = 0;
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/shutdown-open-race' })
+    class ShutdownGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      onConnect() {
+        this.state.connectCount += 1;
+      }
+
+      @OnDisconnect()
+      onDisconnect() {
+        this.state.disconnectCount += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [BunWebSocketModule.forRoot({ shutdown: { timeoutMs: 200 } })],
+      providers: [GatewayState, ShutdownGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+    const service = await app.container.resolve(BunWebSocketGatewayLifecycleService);
+    await app.listen();
+
+    const server = adapter.getServer();
+
+    if (!server) {
+      throw new Error('Expected Bun test server to be available after application listen.');
+    }
+
+    server.openDeliveryPromise = openGate.promise;
+
+    const upgradeResponse = await server.fetch(new Request('http://127.0.0.1:3000/shutdown-open-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    const socket = server.lastSocket;
+
+    expect(upgradeResponse).toBeUndefined();
+
+    if (!socket) {
+      throw new Error('Expected Bun test socket to be available after websocket upgrade.');
+    }
+
+    let closed = false;
+    const closePromise = app.close().then(() => {
+      closed = true;
+    });
+
+    await flushAsyncWork();
+
+    expect(closed).toBe(false);
+    expect(socket.closeCalls).toEqual([]);
+    expect((Reflect.get(service, 'socketRegistry') as Map<string, MockSocket>).size).toBe(0);
+
+    openGate.resolve();
+    await closePromise;
+    await flushAsyncWork();
+
+    expect(closed).toBe(true);
+    expect(socket.closeCalls).toEqual([{ code: 1001, reason: 'Server shutting down' }]);
+    expect(socket.readyState).toBe(WEBSOCKET_CLOSED_READY_STATE);
+    expect(state.connectCount).toBe(1);
+    expect(state.disconnectCount).toBe(1);
+    expect((Reflect.get(service, 'socketRegistry') as Map<string, MockSocket>).size).toBe(0);
   });
 
   it('closes Bun sockets when inbound payloads exceed the configured limit', async () => {

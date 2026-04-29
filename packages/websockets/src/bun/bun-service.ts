@@ -46,10 +46,13 @@ interface ConnectionHandlerState {
   enqueuedMessageCount: number;
   handlerQueue: Promise<void>;
   handlersReady: boolean;
+  openRegistrationSettled: boolean;
+  openRegistrationPromise: Promise<void>;
   processingMessageQueue: boolean;
     queuedMessages: BunWebSocketMessage[];
     queuedMessagesStartIndex: number;
     request: Request;
+    resolveOpenRegistration: () => void;
     resolveConnectLifecycle: () => void;
     resolveDisconnectLifecycle: () => void;
     resolved: ResolvedGatewayInstance[];
@@ -307,16 +310,19 @@ export class BunWebSocketGatewayLifecycleService
     }
 
     const state = this.createConnectionHandlerState(request, [...descriptors]);
+    void this.trackPendingUpgradeOperation(state.openRegistrationPromise);
     let upgraded = false;
 
     try {
       upgraded = server.upgrade(request, { data: { state } });
     } catch (error) {
+      this.settleOpenRegistration(state);
       this.releaseUpgradeReservation();
       throw error;
     }
 
     if (!upgraded) {
+      this.settleOpenRegistration(state);
       this.releaseUpgradeReservation();
       return new Response(null, { status: 400 });
     }
@@ -330,6 +336,7 @@ export class BunWebSocketGatewayLifecycleService
     this.releaseUpgradeReservation();
     this.socketRegistry.set(state.socketId, socket);
     this.socketStates.set(state.socketId, state);
+    this.settleOpenRegistration(state);
 
     try {
       await this.resolveConnectionGateways(state);
@@ -355,6 +362,7 @@ export class BunWebSocketGatewayLifecycleService
   ): ConnectionHandlerState {
     const connectLifecycle = createCompletionSignal();
     const disconnectLifecycle = createCompletionSignal();
+    const openRegistration = createCompletionSignal();
 
     return {
       bufferedDisconnect: undefined,
@@ -368,15 +376,27 @@ export class BunWebSocketGatewayLifecycleService
       enqueuedMessageCount: 0,
       handlerQueue: Promise.resolve(),
       handlersReady: false,
+      openRegistrationSettled: false,
+      openRegistrationPromise: openRegistration.promise,
       processingMessageQueue: false,
       queuedMessages: [],
       queuedMessagesStartIndex: 0,
       request,
+      resolveOpenRegistration: openRegistration.resolve,
       resolveConnectLifecycle: connectLifecycle.resolve,
       resolveDisconnectLifecycle: disconnectLifecycle.resolve,
       resolved: [],
       socketId: crypto.randomUUID(),
     };
+  }
+
+  private settleOpenRegistration(state: ConnectionHandlerState): void {
+    if (state.openRegistrationSettled) {
+      return;
+    }
+
+    state.openRegistrationSettled = true;
+    state.resolveOpenRegistration();
   }
 
   private settleConnectLifecycle(state: ConnectionHandlerState): void {
