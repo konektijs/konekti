@@ -222,6 +222,31 @@ describe('platform consistency governance docs', () => {
     expect(packageChooserKo).toContain('@fluojs/email/node');
   });
 
+  it('keeps the websockets README shutdown contract scoped to fetch-style runtimes with linked regression evidence', () => {
+    const websocketsReadme = readFileSync(resolve(repoRoot, 'packages/websockets/README.md'), 'utf8');
+    const websocketsReadmeKo = readFileSync(resolve(repoRoot, 'packages/websockets/README.ko.md'), 'utf8');
+
+    expect(websocketsReadme).toContain('@fluojs/websockets/bun');
+    expect(websocketsReadme).toContain('@fluojs/websockets/deno');
+    expect(websocketsReadme).toContain('@fluojs/websockets/cloudflare-workers');
+    expect(websocketsReadme).toContain('close tracked websocket clients during application shutdown');
+    expect(websocketsReadme).toContain('bounded chance to finish within `shutdown.timeoutMs`');
+    expect(websocketsReadme).not.toContain('Across Node.js, Bun, Deno, and Cloudflare Workers');
+    expect(websocketsReadme).toContain('packages/websockets/src/bun/bun.test.ts');
+    expect(websocketsReadme).toContain('packages/websockets/src/deno/deno.test.ts');
+    expect(websocketsReadme).toContain('packages/websockets/src/cloudflare-workers/cloudflare-workers.test.ts');
+
+    expect(websocketsReadmeKo).toContain('@fluojs/websockets/bun');
+    expect(websocketsReadmeKo).toContain('@fluojs/websockets/deno');
+    expect(websocketsReadmeKo).toContain('@fluojs/websockets/cloudflare-workers');
+    expect(websocketsReadmeKo).toContain('애플리케이션 shutdown 시 추적 중인 websocket 클라이언트를 닫고');
+    expect(websocketsReadmeKo).toContain('`shutdown.timeoutMs` 범위 안에서 `@OnDisconnect()` cleanup');
+    expect(websocketsReadmeKo).not.toContain('Node.js, Bun, Deno, Cloudflare Workers 전반에서');
+    expect(websocketsReadmeKo).toContain('packages/websockets/src/bun/bun.test.ts');
+    expect(websocketsReadmeKo).toContain('packages/websockets/src/deno/deno.test.ts');
+    expect(websocketsReadmeKo).toContain('packages/websockets/src/cloudflare-workers/cloudflare-workers.test.ts');
+  });
+
   it('keeps PR CI governance-gated while reserving release-readiness for main pushes', () => {
     const ciWorkflow = readFileSync(resolve(repoRoot, '.github/workflows/ci.yml'), 'utf8');
     const vitestConfig = readFileSync(resolve(repoRoot, 'vitest.config.ts'), 'utf8');

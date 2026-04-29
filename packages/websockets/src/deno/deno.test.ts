@@ -33,6 +33,7 @@ class MockDenoSocket implements DenoServerWebSocket {
     message: [],
   };
   #readyState: number = WEBSOCKET_OPEN_READY_STATE;
+  #closeDeliveryPromise?: Promise<void>;
 
   readonly sentMessages: string[] = [];
 
@@ -70,9 +71,22 @@ class MockDenoSocket implements DenoServerWebSocket {
       reason: { value: reason ?? '' },
     });
 
-    for (const listener of this.#listeners.close) {
-      listener(event);
+    const dispatch = () => {
+      for (const listener of this.#listeners.close) {
+        listener(event);
+      }
+    };
+
+    if (this.#closeDeliveryPromise) {
+      void this.#closeDeliveryPromise.then(dispatch);
+      return;
     }
+
+    dispatch();
+  }
+
+  delayCloseUntil(promise: Promise<void>): void {
+    this.#closeDeliveryPromise = promise;
   }
 
   emitError(): void {
@@ -450,6 +464,357 @@ describe('@fluojs/websockets/deno', () => {
     expect((await firstUpgradePromise)?.status).toBe(200);
 
     await app.close();
+  });
+
+  it('rejects in-flight Deno upgrades once shutdown begins during an async guard', async () => {
+    const adapter = new TestDenoAdapter();
+    const guardGate = createDeferred<void>();
+
+    @WebSocketGateway({ path: '/shutdown-guard-race' })
+    class GuardedGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [DenoWebSocketModule.forRoot({
+        upgrade: {
+          async guard() {
+            await guardGate.promise;
+            return true;
+          },
+        },
+      })],
+      providers: [GuardedGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    await app.listen();
+
+    const server = adapter.getServer();
+    const upgradePromise = server?.fetch(new Request('https://runtime.test/shutdown-guard-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const closePromise = app.close();
+
+    guardGate.resolve();
+
+    const response = await upgradePromise;
+
+    expect(response?.status).toBe(503);
+    expect(await response?.text()).toBe('WebSocket server is shutting down.');
+    expect(server?.lastSocket).toBeUndefined();
+
+    await closePromise;
+  });
+
+  it('closes Deno sockets and runs disconnect cleanup during application shutdown', async () => {
+    const adapter = new TestDenoAdapter();
+    const connected = createDeferred<void>();
+
+    class GatewayState {
+      connectCount = 0;
+      disconnectCount = 0;
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/shutdown' })
+    class ShutdownGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      onConnect() {
+        this.state.connectCount += 1;
+        connected.resolve();
+      }
+
+      @OnDisconnect()
+      onDisconnect() {
+        this.state.disconnectCount += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [DenoWebSocketModule.forRoot({
+        shutdown: { timeoutMs: 200 },
+      })],
+      providers: [GatewayState, ShutdownGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+    const service = await app.container.resolve(DenoWebSocketGatewayLifecycleService);
+    await app.listen();
+
+    const server = adapter.getServer();
+    const upgradeResponse = await server?.fetch(new Request('https://runtime.test/shutdown', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const socket = server?.lastSocket;
+    expect(upgradeResponse?.status).toBe(200);
+
+    if (!socket) {
+      throw new Error('Expected Deno test socket to be available after websocket upgrade.');
+    }
+
+    await connected.promise;
+    await app.close();
+    await flushAsyncWork();
+
+    expect(socket.readyState).toBe(WEBSOCKET_CLOSED_READY_STATE);
+    expect(state.connectCount).toBe(1);
+    expect(state.disconnectCount).toBe(1);
+    expect((Reflect.get(service, 'socketRegistry') as Map<string, MockDenoSocket>).size).toBe(0);
+  });
+
+  it('waits for asynchronously delivered Deno close events during shutdown', async () => {
+    const adapter = new TestDenoAdapter();
+    const connected = createDeferred<void>();
+    const closeGate = createDeferred<void>();
+
+    class GatewayState {
+      disconnectCount = 0;
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/shutdown-async-close' })
+    class ShutdownGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      onConnect() {
+        connected.resolve();
+      }
+
+      @OnDisconnect()
+      onDisconnect() {
+        this.state.disconnectCount += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [DenoWebSocketModule.forRoot({ shutdown: { timeoutMs: 200 } })],
+      providers: [GatewayState, ShutdownGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+    await app.listen();
+
+    const server = adapter.getServer();
+    await server?.fetch(new Request('https://runtime.test/shutdown-async-close', {
+      headers: { upgrade: 'websocket' },
+    }));
+    await flushAsyncWork();
+
+    const socket = server?.lastSocket;
+
+    if (!socket) {
+      throw new Error('Expected Deno test socket to be available after websocket upgrade.');
+    }
+
+    await connected.promise;
+    socket.delayCloseUntil(closeGate.promise);
+
+    let closed = false;
+    const closePromise = app.close().then(() => {
+      closed = true;
+    });
+
+    await flushAsyncWork();
+
+    expect(closed).toBe(false);
+    expect(state.disconnectCount).toBe(0);
+
+    closeGate.resolve();
+    await closePromise;
+
+    expect(state.disconnectCount).toBe(1);
+  });
+
+  it('waits for asynchronous Deno disconnect cleanup before finishing shutdown', async () => {
+    const adapter = new TestDenoAdapter();
+    const connected = createDeferred<void>();
+    const disconnectGate = createDeferred<void>();
+
+    class GatewayState {
+      disconnectCount = 0;
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/shutdown-async-disconnect' })
+    class ShutdownGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      onConnect() {
+        connected.resolve();
+      }
+
+      @OnDisconnect()
+      async onDisconnect() {
+        await disconnectGate.promise;
+        this.state.disconnectCount += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [DenoWebSocketModule.forRoot({ shutdown: { timeoutMs: 200 } })],
+      providers: [GatewayState, ShutdownGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+    await app.listen();
+
+    const server = adapter.getServer();
+    await server?.fetch(new Request('https://runtime.test/shutdown-async-disconnect', {
+      headers: { upgrade: 'websocket' },
+    }));
+    await flushAsyncWork();
+
+    await connected.promise;
+
+    let closed = false;
+    const closePromise = app.close().then(() => {
+      closed = true;
+    });
+
+    await flushAsyncWork();
+
+    expect(closed).toBe(false);
+    expect(state.disconnectCount).toBe(0);
+
+    disconnectGate.resolve();
+    await closePromise;
+
+    expect(state.disconnectCount).toBe(1);
+  });
+
+  it('bounds Deno disconnect cleanup waits by shutdown.timeoutMs', async () => {
+    const adapter = new TestDenoAdapter();
+    const connected = createDeferred<void>();
+    const disconnectGate = createDeferred<void>();
+
+    class GatewayState {
+      disconnectCount = 0;
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/shutdown-disconnect-timeout' })
+    class ShutdownGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      onConnect() {
+        connected.resolve();
+      }
+
+      @OnDisconnect()
+      async onDisconnect() {
+        await disconnectGate.promise;
+        this.state.disconnectCount += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [DenoWebSocketModule.forRoot({ shutdown: { timeoutMs: 1 } })],
+      providers: [GatewayState, ShutdownGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+    await app.listen();
+
+    const server = adapter.getServer();
+    await server?.fetch(new Request('https://runtime.test/shutdown-disconnect-timeout', {
+      headers: { upgrade: 'websocket' },
+    }));
+    await flushAsyncWork();
+
+    await connected.promise;
+
+    let closed = false;
+    const closePromise = app.close().then(() => {
+      closed = true;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await closePromise;
+
+    expect(closed).toBe(true);
+    expect(state.disconnectCount).toBe(0);
+  });
+
+  it('waits for in-flight Deno connect handlers to replay buffered disconnects during shutdown', async () => {
+    const adapter = new TestDenoAdapter();
+    const connectGate = createDeferred<void>();
+
+    class GatewayState {
+      connectCount = 0;
+      disconnectCount = 0;
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/shutdown-connect-in-flight' })
+    class ShutdownGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      async onConnect() {
+        await connectGate.promise;
+        this.state.connectCount += 1;
+      }
+
+      @OnDisconnect()
+      onDisconnect() {
+        this.state.disconnectCount += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [DenoWebSocketModule.forRoot({ shutdown: { timeoutMs: 200 } })],
+      providers: [GatewayState, ShutdownGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+    await app.listen();
+
+    const server = adapter.getServer();
+    await server?.fetch(new Request('https://runtime.test/shutdown-connect-in-flight', {
+      headers: { upgrade: 'websocket' },
+    }));
+    await flushAsyncWork();
+
+    let closed = false;
+    const closePromise = app.close().then(() => {
+      closed = true;
+    });
+
+    await flushAsyncWork();
+
+    expect(closed).toBe(false);
+    expect(state.connectCount).toBe(0);
+    expect(state.disconnectCount).toBe(0);
+
+    connectGate.resolve();
+    await closePromise;
+
+    expect(state.connectCount).toBe(1);
+    expect(state.disconnectCount).toBe(1);
   });
 
   it('closes Deno sockets when string payloads exceed the configured limit', async () => {
