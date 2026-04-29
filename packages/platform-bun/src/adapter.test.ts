@@ -150,7 +150,7 @@ async function dispatchMockBunNativeRoute(
   request: Request,
   server: MockBunServer,
 ): Promise<{ matched: boolean; response?: Response }> {
-  const matched = matchMockBunRoute(options.routes, new URL(request.url).pathname);
+  const matched = matchMockBunRoute(options.routes, new URL(request.url).pathname, request.method.toUpperCase());
 
   if (!matched) {
     return { matched: false };
@@ -184,6 +184,7 @@ async function dispatchMockBunNativeRoute(
 function matchMockBunRoute(
   routes: BunServeOptions['routes'],
   path: string,
+  method: string,
 ): { params: Record<string, string>; value: NonNullable<BunServeOptions['routes']>[string] } | undefined {
   if (!routes) {
     return undefined;
@@ -193,7 +194,9 @@ function matchMockBunRoute(
 
   for (const [pattern, value] of entries) {
     if (pattern === path) {
-      return { params: {}, value };
+      return isMockBunRouteMethodSupported(value, method)
+        ? { params: {}, value }
+        : { params: {}, value: new Response(null, { status: 404 }) };
     }
   }
 
@@ -205,7 +208,9 @@ function matchMockBunRoute(
     const params = matchMockBunParamRoute(pattern, path);
 
     if (params) {
-      return { params, value };
+      return isMockBunRouteMethodSupported(value, method)
+        ? { params, value }
+        : { params, value: new Response(null, { status: 404 }) };
     }
   }
 
@@ -259,6 +264,14 @@ function resolveMockBunRouteValue(value: NonNullable<BunServeOptions['routes']>[
   }
 
   return value[method as keyof typeof value];
+}
+
+function isMockBunRouteMethodSupported(value: NonNullable<BunServeOptions['routes']>[string], method: string): boolean {
+  if (value instanceof Response || typeof value === 'function') {
+    return true;
+  }
+
+  return value[method as keyof typeof value] !== undefined;
 }
 
 function registerBunWebRuntimePortabilitySuite(): void {
@@ -544,6 +557,52 @@ describe('@fluojs/platform-bun', () => {
 
       expect(response?.status).toBe(200);
       await expect(response?.json()).resolves.toEqual({ userId: 'a%2Fb' });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('preserves shared dispatcher method-miss semantics for Bun native routes', async () => {
+    const mockBun = installMockBun();
+
+    @Controller('/users')
+    class UsersController {
+      @Get('/:userId')
+      getById(_input: undefined, context: RequestContext) {
+        return { userId: context.request.params.userId };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [UsersController] });
+
+    const app = await runBunApplication(AppModule, {
+      hostname: '127.0.0.1',
+      port: 4319,
+    });
+
+    try {
+      expect(mockBun.lastOptions?.routes).toMatchObject({
+        '/users/:userId': {
+          GET: expect.any(Function),
+          POST: expect.any(Function),
+        },
+      });
+
+      const response = await mockBun.lastServer?.fetch(new Request('http://127.0.0.1:4319/users/123', {
+        headers: { 'x-request-id': 'req-bun-method-miss' },
+        method: 'POST',
+      }));
+
+      expect(response?.status).toBe(404);
+      await expect(response?.json()).resolves.toMatchObject({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'No handler registered for POST /users/123.',
+          requestId: 'req-bun-method-miss',
+          status: 404,
+        },
+      });
     } finally {
       await app.close();
     }
