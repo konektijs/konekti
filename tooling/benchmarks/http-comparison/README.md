@@ -8,7 +8,11 @@ Runs a small HTTP throughput/latency comparison between published fluo beta pack
 
 ## Scenarios
 
-- `di-chain-random-20`: the same DI path (Controller → Service → Repository) across randomly selected 20-route families, used to expose route matching overhead.
+- `baseline`: a single no-param baseline route used to measure the adapter/framework response floor.
+- `di-chain-dto-deterministic-1`: one DTO-bound path route through Controller → Service → Repository.
+- `di-chain-dto-deterministic-20`: the same DTO-bound DI path across a deterministic 20-route cycle.
+- `di-chain-direct-param-deterministic-1`: one direct path-param route through Controller → Service → Repository.
+- `di-chain-direct-param-deterministic-20`: the same direct-param DI path across a deterministic 20-route cycle.
 
 ## Run
 
@@ -17,7 +21,13 @@ pnpm install --no-frozen-lockfile
 pnpm --filter @fluojs-internal/tooling-benchmarks-http bench
 ```
 
-The runner starts all servers, warms every target for each scenario, then measures with `autocannon` at 100 connections for 40 seconds. Measurement order rotates by scenario to avoid always giving one framework the same position.
+The runner starts an isolated server set for each scenario, so 1-route and 20-route scenarios register different app shapes instead of merely sending different request paths through the same route table. It warms every target for each scenario, then measures with `autocannon` at 100 connections for 40 seconds. Measurement order rotates by scenario to avoid always giving one framework the same position. Multi-route scenarios use a deterministic path cycle so every target sees the same request sequence.
+
+For quick directional runs, override the defaults with environment variables:
+
+```bash
+BENCH_WARMUP_SEC=3 BENCH_MEASURE_SEC=10 pnpm --filter @fluojs-internal/tooling-benchmarks-http bench
+```
 
 The `fluo+Bun` target requires the `bun` CLI because `@fluojs/platform-bun` uses `globalThis.Bun.serve()` at listen time.
 

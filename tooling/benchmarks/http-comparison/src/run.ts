@@ -1,5 +1,5 @@
 import autocannon, { type Result } from 'autocannon';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createConnection } from 'node:net';
 import { join } from 'node:path';
@@ -13,6 +13,7 @@ const WDIR = process.cwd();
 const FLUO_BUN_BUILD_DIR = join(WDIR, 'dist/fluo-bun');
 
 type TargetName = 'nestjs-fastify' | 'fluo-fastify' | 'fluo-bun';
+type AppShape = 'baseline' | 'dto-1' | 'dto-20' | 'direct-1' | 'direct-20';
 
 interface TargetConfig {
   name: TargetName;
@@ -47,23 +48,71 @@ const TARGETS: TargetConfig[] = [
 ];
 
 const USER_RESPONSE = JSON.stringify({ id: '1', name: 'Alice', email: 'alice@example.com' });
+const BASELINE_RESPONSE = JSON.stringify({ ok: true });
 
 function routePaths(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `/di-chain/r${String(index + 1).padStart(2, '0')}/1`);
 }
 
+function directRoutePaths(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => `/di-chain-direct/r${String(index + 1).padStart(2, '0')}/1`);
+}
+
 const SCENARIOS = [
   {
-    name: 'di-chain-random-20',
-    description: 'Random 20-route path DTO + 3-level DI chain',
+    name: 'baseline',
+    description: 'Single baseline route without DI-chain path param binding',
+    appShape: 'baseline',
+    path: '/baseline',
+    expectedBodies: [BASELINE_RESPONSE],
+  },
+  {
+    name: 'di-chain-dto-deterministic-1',
+    description: 'Deterministic 1-route path DTO + 3-level DI chain',
+    appShape: 'dto-1',
+    paths: ['/di-chain-one/r01/1'],
+    expectedBodies: [USER_RESPONSE],
+  },
+  {
+    name: 'di-chain-dto-deterministic-20',
+    description: 'Deterministic 20-route path DTO + 3-level DI chain',
+    appShape: 'dto-20',
     paths: routePaths(20),
+    expectedBodies: [USER_RESPONSE],
+  },
+  {
+    name: 'di-chain-direct-param-deterministic-1',
+    description: 'Deterministic 1-route direct param + 3-level DI chain',
+    appShape: 'direct-1',
+    paths: ['/di-chain-direct-one/r01/1'],
+    expectedBodies: [USER_RESPONSE],
+  },
+  {
+    name: 'di-chain-direct-param-deterministic-20',
+    description: 'Deterministic 20-route direct param + 3-level DI chain',
+    appShape: 'direct-20',
+    paths: directRoutePaths(20),
     expectedBodies: [USER_RESPONSE],
   },
 ] as const;
 
-const WARMUP_SEC = 10;
-const MEASURE_SEC = 40;
-const CONNECTIONS = 100;
+const WARMUP_SEC = readPositiveIntegerEnv('BENCH_WARMUP_SEC', 10);
+const MEASURE_SEC = readPositiveIntegerEnv('BENCH_MEASURE_SEC', 40);
+const CONNECTIONS = readPositiveIntegerEnv('BENCH_CONNECTIONS', 100);
+
+function readPositiveIntegerEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) {
+    return fallback;
+  }
+
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer, got ${raw}`);
+  }
+
+  return value;
+}
 
 function waitForPort(port: number, timeoutMs = 20_000): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -98,8 +147,13 @@ function assertCleanResult(label: string, result: Result): void {
   }
 }
 
-function randomPath(paths: readonly string[]): string {
-  return paths[Math.floor(Math.random() * paths.length)] ?? paths[0] ?? '/';
+function createDeterministicPathSequence(paths: readonly string[]): () => string {
+  let index = 0;
+  return () => {
+    const path = paths[index % paths.length] ?? paths[0] ?? '/';
+    index += 1;
+    return path;
+  };
 }
 
 function shoot(
@@ -110,6 +164,8 @@ function shoot(
   paths?: readonly string[],
 ): Promise<Result> {
   return new Promise((resolve, reject) => {
+    const nextPath = paths ? createDeterministicPathSequence(paths) : undefined;
+
     autocannon({
       url,
       connections: CONNECTIONS,
@@ -120,7 +176,7 @@ function shoot(
         ? {
             requests: [{
               setupRequest(request) {
-                request.path = randomPath(paths);
+                request.path = nextPath?.() ?? request.path;
                 return request;
               },
             }],
@@ -151,34 +207,48 @@ async function measure(
 }
 
 async function runScenario(s: (typeof SCENARIOS)[number], index: number): Promise<ScenarioResult> {
+  const processes = startTargets(s.appShape);
+  const cleanup = (): void => {
+    for (const child of processes) {
+      child.kill();
+    }
+  };
+
+  await Promise.all(TARGETS.map((target) => waitForPort(target.port)));
+
   const scenarioTargets = rotationFor(index).map((target) => ({
     target,
     url: `http://127.0.0.1:${target.port}${'path' in s ? s.path : ''}`,
   }));
 
-  process.stdout.write(`  [${s.name}] warm-up (${WARMUP_SEC}s)...`);
-  await Promise.all(scenarioTargets.map(({ target, url }) => (
-    shoot(url, WARMUP_SEC, s.expectedBodies, `${s.name}/${target.label} warm-up`, 'paths' in s ? s.paths : undefined)
-  )));
-  process.stdout.write(' done\n');
+  try {
+    process.stdout.write(`  [${s.name}] warm-up (${WARMUP_SEC}s)...`);
+    await Promise.all(scenarioTargets.map(({ target, url }) => (
+      shoot(url, WARMUP_SEC, s.expectedBodies, `${s.name}/${target.label} warm-up`, 'paths' in s ? s.paths : undefined)
+    )));
+    process.stdout.write(' done\n');
 
-  const measured: TargetResult[] = [];
-  for (const { target, url } of scenarioTargets) {
-    measured.push({
-      label: target.label,
-      result: await measure(target.label, url, s.expectedBodies, 'paths' in s ? s.paths : undefined),
-    });
-  }
-
-  const targets = TARGETS.map((target) => {
-    const result = measured.find((item) => item.label === target.label);
-    if (!result) {
-      throw new Error(`missing result for ${target.label}`);
+    const measured: TargetResult[] = [];
+    for (const { target, url } of scenarioTargets) {
+      measured.push({
+        label: target.label,
+        result: await measure(target.label, url, s.expectedBodies, 'paths' in s ? s.paths : undefined),
+      });
     }
-    return result;
-  });
 
-  return { name: s.name, description: s.description, targets };
+    const targets = TARGETS.map((target) => {
+      const result = measured.find((item) => item.label === target.label);
+      if (!result) {
+        throw new Error(`missing result for ${target.label}`);
+      }
+      return result;
+    });
+
+    return { name: s.name, description: s.description, targets };
+  } finally {
+    cleanup();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
 }
 
 function rotationFor(index: number): TargetConfig[] {
@@ -205,6 +275,19 @@ function runCommand(command: string, args: string[]): Promise<void> {
   });
 }
 
+function startTargets(appShape: AppShape): ChildProcess[] {
+  return TARGETS.map((target) => {
+    const child = spawn(target.command, target.args, {
+      cwd: WDIR,
+      env: { ...process.env, BENCH_APP_SHAPE: appShape, PORT: String(target.port) },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    child.stderr?.on('data', (d: Buffer) => process.stderr.write(`[${target.name}] ${String(d)}`));
+    return child;
+  });
+}
+
 async function buildBunTarget(): Promise<void> {
   await rm(FLUO_BUN_BUILD_DIR, { force: true, recursive: true });
   await runCommand('tsc', [
@@ -221,40 +304,13 @@ async function buildBunTarget(): Promise<void> {
 async function main(): Promise<void> {
   await buildBunTarget();
 
-  const processes = TARGETS.map((target) => {
-    const child = spawn(target.command, target.args, {
-      cwd: WDIR,
-      env: { ...process.env, PORT: String(target.port) },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    child.stderr?.on('data', (d: Buffer) => process.stderr.write(`[${target.name}] ${String(d)}`));
-    return child;
-  });
-
-  const cleanup = (): void => {
-    for (const child of processes) {
-      child.kill();
-    }
-  };
-  process.on('exit', cleanup);
-  process.on('SIGINT', () => { cleanup(); process.exit(130); });
-
-  try {
-    console.log('\nWaiting for servers...');
-    await Promise.all(TARGETS.map((target) => waitForPort(target.port)));
-    console.log('All servers ready\n');
-
-    const results: ScenarioResult[] = [];
-    for (const [index, s] of SCENARIOS.entries()) {
-      console.log(`Scenario: ${s.name}`);
-      results.push(await runScenario(s, index));
-    }
-
-    printReport(results);
-  } finally {
-    cleanup();
+  const results: ScenarioResult[] = [];
+  for (const [index, s] of SCENARIOS.entries()) {
+    console.log(`Scenario: ${s.name}`);
+    results.push(await runScenario(s, index));
   }
+
+  printReport(results, { connections: CONNECTIONS, duration: MEASURE_SEC });
 }
 
 main().catch((err) => {
