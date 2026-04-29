@@ -33,7 +33,7 @@ const CONSUME_LUA = [
   'return {count, resetAt, ttlMsLeft}',
 ].join('\n');
 
-function parseConsumeResult(result: unknown, observedNow: number): ThrottlerStoreEntry {
+function parseConsumeResult(result: unknown): ThrottlerStoreEntry {
   if (!Array.isArray(result) || result.length < 2) {
     throw new Error('Redis throttler consume script returned an invalid response.');
   }
@@ -48,7 +48,7 @@ function parseConsumeResult(result: unknown, observedNow: number): ThrottlerStor
 
   const entry = validateThrottlerStoreEntry({
     count,
-    resetAt: Number.isFinite(retryAfterMs) ? observedNow + retryAfterMs : resetAt,
+    resetAt,
   });
 
   if (Number.isFinite(retryAfterMs)) {
@@ -88,6 +88,6 @@ export class RedisThrottlerStore implements ThrottlerStore {
       String(input.ttlSeconds * 1000),
     );
 
-    return parseConsumeResult(result, input.now);
+    return parseConsumeResult(result);
   }
 }

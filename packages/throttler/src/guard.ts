@@ -123,13 +123,14 @@ export class ThrottlerGuard implements Guard {
     const handlerKey = buildHandlerKey(handler);
     const storeKey = buildStoreKey(handlerKey, clientKey);
     const now = Date.now();
-    const entry = validateThrottlerStoreEntry(await this.store.consume(storeKey, {
+    const rawEntry = await this.store.consume(storeKey, {
       now,
       ttlSeconds,
-    }));
+    });
+    const entry = validateThrottlerStoreEntry(rawEntry);
 
     if (entry.count > limit) {
-      const retryAfter = resolveRetryAfterSeconds(entry, now);
+      const retryAfter = resolveRetryAfterSeconds(rawEntry, now);
       requestContext.response.setHeader('Retry-After', String(retryAfter));
       throw new TooManyRequestsException('Too Many Requests', { meta: { retryAfter } });
     }

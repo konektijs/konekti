@@ -92,9 +92,9 @@ describe('RedisThrottlerStore', () => {
       ttlSeconds: 60,
     });
 
-    expect(first).toEqual({ count: 1, resetAt: baseNow + 30_000 });
-    expect(second).toEqual({ count: 2, resetAt: baseNow + 31_000 });
-    expect(third).toEqual({ count: 1, resetAt: baseNow + 15_000 });
+    expect(first).toEqual({ count: 1, resetAt: baseNow + 60_000 });
+    expect(second).toEqual({ count: 2, resetAt: baseNow + 60_000 });
+    expect(third).toEqual({ count: 1, resetAt: baseNow + 120_001 });
     expect(client.eval).toHaveBeenCalledTimes(3);
   });
 
