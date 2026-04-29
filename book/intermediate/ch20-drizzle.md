@@ -150,8 +150,10 @@ Using `DrizzleDatabase` lets services coordinate complex multi-table insert oper
 `DrizzleDatabase.createPlatformStatusSnapshot()` lets you connect SQL connection status to health checks and operational metrics.
 
 ```typescript
+import { Inject } from '@fluojs/core';
 import { DrizzleDatabase } from '@fluojs/drizzle';
 
+@Inject(DrizzleDatabase)
 export class DrizzleHealthReporter {
   constructor(private readonly drizzleDatabase: DrizzleDatabase) {}
 
