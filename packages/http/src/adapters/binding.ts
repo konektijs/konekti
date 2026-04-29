@@ -1,9 +1,9 @@
-import { InvariantError, type Constructor, type MetadataPropertyKey, type MetadataSource, type Token } from '@fluojs/core';
-import { getDtoBindingSchema } from '@fluojs/core/internal';
+import { InvariantError, type Constructor, type Token } from '@fluojs/core';
 
 import { BadRequestException, type HttpExceptionDetail } from '../exceptions.js';
 import { toInputErrorDetail } from '../input-error-detail.js';
 import type { ArgumentResolverContext, Binder, Converter, ConverterLike, ConverterTarget, FrameworkRequest } from '../types.js';
+import { getCompiledDtoBindingPlan } from './dto-binding-plan.js';
 
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
@@ -15,50 +15,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   const prototype = Object.getPrototypeOf(value);
 
   return prototype === Object.prototype || prototype === null;
-}
-
-function toFieldName(propertyKey: MetadataPropertyKey): string {
-  return typeof propertyKey === 'string' ? propertyKey : String(propertyKey);
-}
-
-function resolveSourceKey(propertyKey: MetadataPropertyKey, key?: string): string {
-  return key ?? toFieldName(propertyKey);
-}
-
-function readHeader(request: FrameworkRequest, key: string): string | string[] | undefined {
-  return request.headers[key.toLowerCase()] ?? request.headers[key];
-}
-
-function readSourceValue(
-  request: FrameworkRequest,
-  source: MetadataSource,
-  propertyKey: MetadataPropertyKey,
-  key?: string,
-): unknown {
-  const resolvedKey = resolveSourceKey(propertyKey, key);
-
-  switch (source) {
-    case 'path':
-      return request.params[resolvedKey];
-    case 'query':
-      return request.query[resolvedKey];
-    case 'header':
-      return readHeader(request, resolvedKey);
-    case 'cookie':
-      return request.cookies[resolvedKey];
-    case 'body': {
-      if (!isPlainObject(request.body)) {
-        if (request.body !== undefined && request.body !== null) {
-          throw new BadRequestException('Request body must be a plain object.', {
-            details: [toInputErrorDetail({ code: 'INVALID_BODY', message: 'Request body must be a plain object.', source: 'body' })],
-          });
-        }
-        return undefined;
-      }
-
-      return request.body[resolvedKey];
-    }
-  }
 }
 
 function validateBodyKeys(
@@ -166,42 +122,31 @@ export class DefaultBinder implements Binder {
   constructor(private readonly converters: readonly ConverterLike[] = []) {}
 
   async bind(dto: Constructor, context: ArgumentResolverContext): Promise<unknown> {
-    const schema = getDtoBindingSchema(dto);
-    type BindingSchemaEntry = (typeof schema)[number];
+    const plan = getCompiledDtoBindingPlan(dto);
     const value = new dto() as Record<string | symbol, unknown>;
     const converterCache = new Map<unknown, Converter>();
-    const bodyKeys = new Set<string>(
-      schema
-        .filter((entry: BindingSchemaEntry) => entry.metadata.source === 'body')
-        .map((entry: BindingSchemaEntry) => resolveSourceKey(entry.propertyKey, entry.metadata.key)),
-    );
     const globalConverters = (
       await Promise.all(this.converters.map((converter) => resolveConverter(converter, context, converterCache)))
     ).filter((converter): converter is Converter => Boolean(converter));
 
-    validateBodyKeys(context.requestContext.request, bodyKeys);
+    validateBodyKeys(context.requestContext.request, plan.bodyKeys);
 
     const details: HttpExceptionDetail[] = [];
 
-    for (const entry of schema) {
-      const rawValue = readSourceValue(
-        context.requestContext.request,
-        entry.metadata.source,
-        entry.propertyKey,
-        entry.metadata.key,
-      );
+    for (const entry of plan.entries) {
+      const rawValue = entry.read(context.requestContext.request);
 
       if (rawValue === undefined) {
-        if (entry.metadata.optional) {
+        if (entry.optional) {
           continue;
         }
 
         details.push(
           toInputErrorDetail({
             code: 'MISSING_FIELD',
-            field: toFieldName(entry.propertyKey),
-            message: `Missing required ${entry.metadata.source} field ${resolveSourceKey(entry.propertyKey, entry.metadata.key)}.`,
-            source: entry.metadata.source,
+            field: entry.fieldName,
+            message: `Missing required ${entry.source} field ${entry.sourceKey}.`,
+            source: entry.source,
           }),
         );
         continue;
@@ -210,10 +155,10 @@ export class DefaultBinder implements Binder {
       const target: ConverterTarget = {
         dto,
         handler: context.handler,
-        key: resolveSourceKey(entry.propertyKey, entry.metadata.key),
+        key: entry.sourceKey,
         propertyKey: entry.propertyKey,
         requestContext: context.requestContext,
-        source: entry.metadata.source,
+        source: entry.source,
       };
 
       let convertedValue: unknown = rawValue;
@@ -222,7 +167,7 @@ export class DefaultBinder implements Binder {
         convertedValue = await converter.convert(convertedValue, target);
       }
 
-      const fieldConverter = await resolveConverter(entry.metadata.converter, context, converterCache);
+      const fieldConverter = await resolveConverter(entry.converter, context, converterCache);
 
       if (fieldConverter) {
         convertedValue = await fieldConverter.convert(convertedValue, target);
