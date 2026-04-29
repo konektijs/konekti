@@ -74,7 +74,9 @@ export class MyGateway {}
 ### 네이티브 `routes` Object 가속
 Bun `>=1.2.3`에서는 어댑터가 의미 보존이 가능한 static/param fluo route를 `Bun.serve({ routes })`에 선택적으로 등록한 뒤, 매칭된 요청도 다시 shared fluo dispatcher로 흘려보냅니다.
 
-이 방식은 raw body, multipart, SSE, error response, shutdown drain, websocket upgrade delegation을 모두 기존 shared 실행 경로에 유지합니다. same-shape param route처럼 의미가 어긋날 수 있는 경우나 `ALL` 메서드 handler처럼 안전하게 선등록할 수 없는 경우에는 의미를 바꾸지 않도록 해당 route를 fetch-only dispatch로 폴백합니다.
+의미 보존이 가능한 unversioned route에서는 Bun이 미리 고른 descriptor와 params를 공유 dispatcher에 전달하므로 duplicate route matching을 건너뛰면서도 raw body, multipart, SSE, error response, shutdown drain, websocket upgrade delegation을 모두 기존 shared 실행 경로에 유지합니다. same-shape param route처럼 의미가 어긋날 수 있는 경우, `ALL` 메서드 handler, normalization-sensitive path, non-URI versioning처럼 안전하게 선등록할 수 없는 경우에는 의미를 바꾸지 않도록 해당 route를 fetch-only dispatch로 폴백합니다.
+
+Native handoff가 붙은 뒤 app middleware가 framework request의 method 또는 path를 rewrite하면 dispatcher는 stale handoff를 버리고 rewrite된 요청을 다시 매칭합니다. `OPTIONS` 같은 미지원 메서드와 CORS preflight 동작은 fluo route가 명시적으로 소유하지 않는 한 공유 dispatcher/middleware 경로가 계속 소유합니다.
 
 ## 공개 API 개요
 
@@ -94,7 +96,7 @@ Bun `>=1.2.3`에서는 어댑터가 의미 보존이 가능한 static/param fluo
 
 - **런타임 host**: 이 패키지는 listen 시점에 `globalThis.Bun.serve()`가 필요합니다. 테스트에서는 Bun 호환 test double을 제공할 수 있지만, production 사용은 Bun 전용입니다.
 - **요청 portability**: Fetch 요청은 shared web dispatcher를 통해 변환되며 malformed cookie 값, query 배열, `rawBody: true`일 때 JSON/text raw body, SSE framing을 보존합니다.
-- **네이티브 route 가속**: Bun의 `routes` object를 사용할 수 있고 fluo route shape를 의미 보존 상태로 선등록할 수 있을 때만 Bun이 path matching을 먼저 처리하고, 이후 요청은 다시 shared dispatcher로 넘깁니다. 지원하지 않거나 모호한 route shape는 일반 `fetch` 경로로 폴백합니다.
+- **네이티브 route 가속**: Bun의 `routes` object를 사용할 수 있고 fluo route shape를 의미 보존 상태로 선등록할 수 있을 때만 Bun이 path matching을 먼저 처리하고, 이후 요청은 다시 shared dispatcher로 넘깁니다. 지원하지 않거나 모호한 route shape는 일반 `fetch` 경로로 폴백하며, middleware가 handler matching 전에 method/path를 rewrite하면 stale handoff는 무시됩니다.
 - **Multipart 동작**: Multipart 요청은 `rawBody`를 노출하지 않으며 multipart limit은 shared runtime parser를 통해 계속 적용됩니다.
 - **시작 target**: `hostname`, `port`, `tls`는 `Bun.serve()`로 전달됩니다. 시작 로그는 설정된 HTTP 또는 HTTPS listen URL을 보고합니다.
 - **종료 소유권**: `close()`는 새 유입을 중단하고, in-flight HTTP handler를 기다린 뒤, drain이 끝나면 adapter state를 정리하며 `runBunApplication()`이 등록한 signal listener를 제거합니다.
