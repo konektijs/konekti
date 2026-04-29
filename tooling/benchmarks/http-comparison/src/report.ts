@@ -49,13 +49,18 @@ function row(cols: string[], widths: number[]): string {
   return '  ' + cols.map((c, i) => c.padEnd(widths[i])).join('  ');
 }
 
-export function printReport(results: ScenarioResult[]): void {
+export interface ReportOptions {
+  connections: number;
+  duration: number;
+}
+
+export function printReport(results: ScenarioResult[], options: ReportOptions): void {
   const bar = '═'.repeat(112);
   const sep = '─'.repeat(108);
   const W = [22, 16, 14, 14, 18, 18];
 
   console.log('\n\n' + bar);
-  console.log('  HTTP runtime benchmark  —  NestJS vs fluo across Fastify, Express, and Bun  —  c=100 d=40s');
+  console.log(`  HTTP runtime benchmark  —  NestJS vs fluo across Fastify and Bun  —  c=${options.connections} d=${options.duration}s`);
   console.log(bar);
 
   for (const r of results) {
