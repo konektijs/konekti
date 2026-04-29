@@ -101,7 +101,7 @@ WebSocketModule.forRoot({
 });
 ```
 
-옵션을 생략하면 `@fluojs/websockets`는 동시 연결 수와 인바운드 페이로드 크기에 대해 기본 제한값을 적용합니다. 또한 server-backed Node 리스너는 `heartbeat.enabled`를 명시적으로 `false`로 두지 않는 한 heartbeat 타이머를 활성화합니다.
+옵션을 생략하면 `@fluojs/websockets`는 동시 연결 수와 인바운드 페이로드 크기에 대해 기본 제한값을 적용합니다. 또한 server-backed Node 리스너는 `heartbeat.enabled`를 명시적으로 `false`로 두지 않는 한 heartbeat 타이머를 활성화합니다. Node.js, Bun, Deno, Cloudflare Workers 전반에서 애플리케이션 shutdown 시 추적 중인 websocket 클라이언트를 닫고 `shutdown.timeoutMs` 범위 안에서 `@OnDisconnect()` cleanup이 마무리될 기회를 제공합니다.
 
 ## 공개 API 개요
 

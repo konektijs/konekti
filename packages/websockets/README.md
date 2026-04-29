@@ -101,7 +101,7 @@ WebSocketModule.forRoot({
 });
 ```
 
-When omitted, `@fluojs/websockets` now applies bounded defaults for concurrent connections and inbound payload size. Server-backed Node listeners also enable heartbeat timers unless you explicitly set `heartbeat.enabled` to `false`.
+When omitted, `@fluojs/websockets` now applies bounded defaults for concurrent connections and inbound payload size. Server-backed Node listeners also enable heartbeat timers unless you explicitly set `heartbeat.enabled` to `false`. Across Node.js, Bun, Deno, and Cloudflare Workers, application shutdown closes tracked websocket clients and gives `@OnDisconnect()` cleanup a chance to finish within `shutdown.timeoutMs`.
 
 ## Public API Overview
 
