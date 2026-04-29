@@ -348,7 +348,10 @@ export function createDispatcher(options: CreateDispatcherOptions): Dispatcher {
   const contentNegotiation = resolveContentNegotiation(options.contentNegotiation);
   const observers = options.observers ?? [];
 
-  return {
+  const dispatcher = {
+    describeRoutes() {
+      return options.handlerMapping.descriptors;
+    },
     async dispatch(request: FrameworkRequest, response: FrameworkResponse): Promise<void> {
       const phaseContext: DispatchPhaseContext = {
         contentNegotiation,
@@ -375,4 +378,6 @@ export function createDispatcher(options: CreateDispatcherOptions): Dispatcher {
       });
     },
   };
+
+  return dispatcher as Dispatcher;
 }
