@@ -1,5 +1,11 @@
 # @fluojs/websockets
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- [#1435](https://github.com/fluojs/fluo/pull/1435) [`53d3fbb`](https://github.com/fluojs/fluo/commit/53d3fbb2475d43a12c148e078dc6b7942a1edc6d) Thanks [@ayden94](https://github.com/ayden94)! - Close active Bun, Deno, and Cloudflare Workers websocket clients during application shutdown and wait up to `shutdown.timeoutMs` for `@OnDisconnect()` cleanup to drain before teardown completes.
+
 ## 1.0.0-beta.3
 
 ### Patch Changes
