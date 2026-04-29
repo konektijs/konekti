@@ -653,10 +653,9 @@ export class HttpAdapterPortabilityHarness<
       port,
       shutdownSignals: [signal],
     } as TRunOptions);
+    const registeredListeners = process.listeners(signal).filter((listener) => !listenersBefore.has(listener));
 
     try {
-      const registeredListeners = process.listeners(signal).filter((listener) => !listenersBefore.has(listener));
-
       if (registeredListeners.length === 0) {
         throw new Error(`${this.options.name} adapter did not register the expected shutdown listener.`);
       }
@@ -664,7 +663,8 @@ export class HttpAdapterPortabilityHarness<
       await closeSilently(app);
     }
 
-    const leakedListeners = process.listeners(signal).filter((listener) => !listenersBefore.has(listener));
+    const remainingListeners = process.listeners(signal);
+    const leakedListeners = registeredListeners.filter((listener) => remainingListeners.includes(listener));
     if (leakedListeners.length > 0) {
       throw new Error(`${this.options.name} adapter leaked shutdown signal listeners after close().`);
     }
