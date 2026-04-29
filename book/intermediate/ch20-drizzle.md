@@ -114,6 +114,7 @@ await this.db.transaction(async () => {
 With `DrizzleTransactionInterceptor`, you can wrap an entire Controller action in a transaction. This is a good fit for guaranteeing atomicity when multiple repository calls make up one business operation. If the request fails, changes inside the same boundary can roll back together, which is safer for flows such as checkout.
 
 ```typescript
+import { Post } from '@fluojs/core';
 import { UseInterceptors } from '@fluojs/http';
 import { DrizzleTransactionInterceptor } from '@fluojs/drizzle';
 
@@ -151,11 +152,11 @@ Using `DrizzleDatabase` lets services coordinate complex multi-table insert oper
 
 ```typescript
 import { Inject } from '@fluojs/core';
-import { DrizzleDatabase } from '@fluojs/drizzle';
+import { DrizzleDatabase, type DrizzleDatabaseLike } from '@fluojs/drizzle';
 
 @Inject(DrizzleDatabase)
 export class DrizzleHealthReporter {
-  constructor(private readonly drizzleDatabase: DrizzleDatabase) {}
+  constructor(private readonly drizzleDatabase: DrizzleDatabase<DrizzleDatabaseLike>) {}
 
   logSnapshot() {
     const status = this.drizzleDatabase.createPlatformStatusSnapshot();

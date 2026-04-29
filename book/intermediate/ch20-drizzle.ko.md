@@ -114,6 +114,7 @@ await this.db.transaction(async () => {
 `DrizzleTransactionInterceptor`를 사용하면 컨트롤러 액션 전체를 트랜잭션으로 묶을 수 있습니다. 여러 리포지토리 호출이 하나의 비즈니스 작업을 이루는 경우 원자성(atomicity)을 보장하는 데 적합합니다. 요청이 실패하면 같은 경계 안의 변경 사항을 함께 되돌릴 수 있어 주문 처리 같은 흐름을 더 안전하게 다룰 수 있습니다.
 
 ```typescript
+import { Post } from '@fluojs/core';
 import { UseInterceptors } from '@fluojs/http';
 import { DrizzleTransactionInterceptor } from '@fluojs/drizzle';
 
@@ -149,11 +150,11 @@ export const orders = pgTable('orders', {
 
 ```typescript
 import { Inject } from '@fluojs/core';
-import { DrizzleDatabase } from '@fluojs/drizzle';
+import { DrizzleDatabase, type DrizzleDatabaseLike } from '@fluojs/drizzle';
 
 @Inject(DrizzleDatabase)
 export class DrizzleHealthReporter {
-  constructor(private readonly drizzleDatabase: DrizzleDatabase) {}
+  constructor(private readonly drizzleDatabase: DrizzleDatabase<DrizzleDatabaseLike>) {}
 
   logSnapshot() {
     const status = this.drizzleDatabase.createPlatformStatusSnapshot();
