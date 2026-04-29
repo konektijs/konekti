@@ -2,6 +2,7 @@ import { Inject } from '@fluojs/core';
 
 import { DefaultJwtSigner } from './signing/signer.js';
 import type { JwtClaims, JwtVerifierOptions } from './types.js';
+import { verifyAccessTokenWithOverrides } from './signing/verifier-internal.js';
 import { DefaultJwtVerifier, JWT_OPTIONS } from './signing/verifier.js';
 
 type DurationUnit = 's' | 'm' | 'h' | 'd';
@@ -150,7 +151,7 @@ export interface VerifyOptions {
 @Inject(JWT_OPTIONS, DefaultJwtSigner, DefaultJwtVerifier)
 export class JwtService {
   constructor(
-    private readonly options: JwtVerifierOptions,
+    _options: JwtVerifierOptions,
     private readonly signer: DefaultJwtSigner,
     private readonly verifier: DefaultJwtVerifier,
   ) {}
@@ -209,18 +210,9 @@ export class JwtService {
    * @throws {JwtConfigurationError} When the active verifier configuration cannot validate the token.
    */
   async verify<T = unknown>(token: string, options?: VerifyOptions): Promise<T> {
-    const verifier = options
-      ? new DefaultJwtVerifier({
-          ...this.options,
-          algorithms: options.algorithms ?? this.options.algorithms,
-          audience: options.audience ?? this.options.audience,
-          clockSkewSeconds: options.clockSkewSeconds ?? this.options.clockSkewSeconds,
-          issuer: options.issuer ?? this.options.issuer,
-          maxAge: options.maxAge ?? this.options.maxAge,
-          requireExp: options.requireExp ?? this.options.requireExp,
-        })
-      : this.verifier;
-    const principal = await verifier.verifyAccessToken(token);
+    const principal = options
+      ? await verifyAccessTokenWithOverrides(this.verifier, token, options)
+      : await this.verifier.verifyAccessToken(token);
 
     return principal.claims as T;
   }
