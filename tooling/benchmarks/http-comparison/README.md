@@ -38,6 +38,5 @@ The report prints those counters with throughput and latency metrics.
 
 - This measures the released npm beta surface, not unpublished workspace source changes.
 - fluo uses TC39 standard decorators without `emitDecoratorMetadata`; NestJS uses legacy decorators with `emitDecoratorMetadata` through `nestjs/tsconfig.json`.
-- Fastify and Express adapter comparisons should be read as framework-plus-adapter measurements, not pure framework-core measurements.
 - `fluo+Bun` is a runtime comparison, not a same-adapter comparison. Treat it as “same fluo app graph on Bun’s native server” versus the Node.js adapter targets.
 - The suite only covers routing and one constructor-DI path. It does not measure validation, serialization plugins, guards, pipes, database access, or production middleware.
