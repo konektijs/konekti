@@ -1,9 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { createSign, generateKeyPairSync, type KeyObject } from 'node:crypto';
+
+import { describe, expect, it, vi } from 'vitest';
 
 import { JwtService } from './service.js';
 import { DefaultJwtSigner } from './signing/signer.js';
 import type { JwtVerifierOptions } from './types.js';
 import { DefaultJwtVerifier } from './signing/verifier.js';
+
+function createRs256Token(privateKey: string | KeyObject, kid: string, issuer = 'jwt-service-tests'): string {
+  const headerSegment = Buffer.from(JSON.stringify({ alg: 'RS256', kid, typ: 'JWT' }), 'utf8').toString('base64url');
+  const payloadSegment = Buffer.from(
+    JSON.stringify({ aud: 'fluo-users', exp: Math.floor(Date.now() / 1000) + 60, iss: issuer, sub: 'jwks-user' }),
+    'utf8',
+  ).toString('base64url');
+  const signingInput = `${headerSegment}.${payloadSegment}`;
+  const signer = createSign('sha256');
+  signer.update(signingInput);
+  const signatureSegment = signer.sign(privateKey, 'base64url');
+
+  return `${headerSegment}.${payloadSegment}.${signatureSegment}`;
+}
 
 function createJwtService(options: JwtVerifierOptions): JwtService {
   return new JwtService(options, new DefaultJwtSigner(options), new DefaultJwtVerifier(options));
@@ -94,5 +110,37 @@ describe('JwtService', () => {
 
     expect(service.decode(token)).toMatchObject({ sub: 'decoded-user' });
     expect(service.decode('invalid-token')).toBeNull();
+  });
+
+  it('reuses the shared jwks cache when verify options override claim policy', async () => {
+    const originalFetch = globalThis.fetch;
+    const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const jwk = publicKey.export({ format: 'jwk' });
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ keys: [{ ...jwk, kid: 'key-1' }] }), {
+        headers: { 'content-type': 'application/json' },
+        status: 200,
+      }));
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    try {
+      const service = createJwtService({
+        algorithms: ['RS256'],
+        jwksCacheTtl: 30_000,
+        jwksUri: 'https://example.test/.well-known/jwks.json',
+      });
+      const token = createRs256Token(privateKey, 'key-1');
+
+      await expect(service.verify<{ sub?: string }>(token, { audience: 'fluo-users', issuer: 'jwt-service-tests' })).resolves.toMatchObject({
+        sub: 'jwks-user',
+      });
+      await expect(service.verify<{ sub?: string }>(token, { audience: 'fluo-users', issuer: 'jwt-service-tests' })).resolves.toMatchObject({
+        sub: 'jwks-user',
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+      vi.restoreAllMocks();
+    }
   });
 });
