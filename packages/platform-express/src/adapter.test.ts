@@ -745,13 +745,9 @@ describe('@fluojs/platform-express', () => {
     await app.listen();
 
     try {
-      const router = Reflect.get(adapter, 'router') as { stack?: Array<{ route?: { methods: Record<string, boolean>; path: string } }> };
-      const nativeRoutes = (router.stack ?? [])
-        .flatMap((layer) => layer.route
-          ? Object.keys(layer.route.methods)
-            .filter((method) => layer.route?.methods[method])
-            .map((method) => `${method.toUpperCase()}:${layer.route?.path}`)
-          : []);
+      const router = Reflect.get(adapter, 'router');
+      const nativeRoutes = (Reflect.get(router, '__fluoNativeRoutes') as Array<{ methods: string[]; path: string }>)
+        .flatMap((route) => route.methods.map((method) => `${method}:${route.path}`));
 
       expect(nativeRoutes).toContain('GET:/users/:id');
       expect(nativeRoutes).toContain('GET:/versions');
@@ -809,6 +805,30 @@ describe('@fluojs/platform-express', () => {
       });
       expect(allResponse.statusCode).toBe(200);
       expect(JSON.parse(allResponse.body)).toEqual({ method: 'PATCH', route: 'all' });
+
+      const optionsFallbackResponse = await requestHttp({
+        method: 'OPTIONS',
+        path: '/fallback',
+        port,
+      });
+      expect(optionsFallbackResponse.statusCode).toBe(200);
+      expect(optionsFallbackResponse.headers.get('allow')).toBeNull();
+      expect(JSON.parse(optionsFallbackResponse.body)).toEqual({ method: 'OPTIONS', route: 'all' });
+
+      const unsupportedOptionsResponse = await requestHttp({
+        method: 'OPTIONS',
+        path: '/users/123',
+        port,
+      });
+      expect(unsupportedOptionsResponse.statusCode).toBe(404);
+      expect(unsupportedOptionsResponse.headers.get('allow')).toBeNull();
+      expect(JSON.parse(unsupportedOptionsResponse.body)).toEqual({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'No handler registered for OPTIONS /users/123.',
+          status: 404,
+        },
+      });
 
       lifecycle.length = 0;
       const errorResponse = await requestHttp({
@@ -890,19 +910,15 @@ describe('@fluojs/platform-express', () => {
     await app.listen();
 
     try {
-      const router = Reflect.get(adapter, 'router') as { stack?: Array<{ route?: { methods: Record<string, boolean>; path: string } }> };
-      const nativeRoutes = (router.stack ?? [])
-        .flatMap((layer) => layer.route
-          ? Object.keys(layer.route.methods)
-            .filter((method) => layer.route?.methods[method])
-            .map((method) => `${method.toUpperCase()}:${layer.route?.path}`)
-          : []);
+      const router = Reflect.get(adapter, 'router');
+      const nativeRoutes = (Reflect.get(router, '__fluoNativeRoutes') as Array<{ methods: string[]; path: string }>)
+        .flatMap((route) => route.methods.map((method) => `${method}:${route.path}`));
 
       expect(nativeRoutes).not.toContain('GET:/matches/:id');
       expect(nativeRoutes).not.toContain('GET:/matches/:slug');
       expect(nativeRoutes).not.toContain('PATCH:/catch-all/:slug');
 
-      const [shapeConflictResponse, fallbackResponse] = await Promise.all([
+      const [shapeConflictResponse, fallbackResponse, optionsFallbackResponse] = await Promise.all([
         requestHttp({
           method: 'GET',
           path: '/matches/42',
@@ -910,6 +926,11 @@ describe('@fluojs/platform-express', () => {
         }),
         requestHttp({
           method: 'PATCH',
+          path: '/catch-all/fallback-check',
+          port,
+        }),
+        requestHttp({
+          method: 'OPTIONS',
           path: '/catch-all/fallback-check',
           port,
         }),
@@ -925,6 +946,14 @@ describe('@fluojs/platform-express', () => {
       expect(fallbackResponse.statusCode).toBe(200);
       expect(JSON.parse(fallbackResponse.body)).toEqual({
         method: 'PATCH',
+        route: 'all',
+        slug: 'fallback-check',
+      });
+
+      expect(optionsFallbackResponse.statusCode).toBe(200);
+      expect(optionsFallbackResponse.headers.get('allow')).toBeNull();
+      expect(JSON.parse(optionsFallbackResponse.body)).toEqual({
+        method: 'OPTIONS',
         route: 'all',
         slug: 'fallback-check',
       });

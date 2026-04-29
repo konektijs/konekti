@@ -90,7 +90,7 @@ export type CorsInput = false | string | string[] | CorsOptions;
 
 const DEFAULT_MAX_BODY_SIZE = 1 * 1024 * 1024;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
-const EXPRESS_NATIVE_ROUTE_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'] as const;
+const EXPRESS_NATIVE_ROUTE_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'] as const;
 
 type ExpressNativeRouteMethod = (typeof EXPRESS_NATIVE_ROUTE_METHODS)[number];
 
@@ -135,11 +135,13 @@ interface ExpressListenTarget {
 type ExpressServer = ReturnType<typeof createHttpServer> | ReturnType<typeof createHttpsServer>;
 
 interface ExpressNativeRouteDefinition {
-  method: ExpressNativeRouteMethod;
+  methods: readonly ExpressNativeRouteMethod[];
   path: string;
 }
 
-interface ExpressNativeRouteCandidate extends ExpressNativeRouteDefinition {
+interface ExpressNativeRouteCandidate {
+  method: ExpressNativeRouteMethod;
+  path: string;
   shapeKey: string;
 }
 
@@ -266,8 +268,16 @@ export class ExpressHttpApplicationAdapter implements HttpApplicationAdapter {
       return;
     }
 
-    for (const route of createExpressNativeRoutes(resolveDispatcherRouteDescriptors(dispatcher))) {
-      this.router[route.method.toLowerCase() as Lowercase<ExpressNativeRouteMethod>](route.path, (request, response) => {
+    const nativeRoutes = createExpressNativeRoutes(resolveDispatcherRouteDescriptors(dispatcher));
+    Reflect.set(this.router, '__fluoNativeRoutes', nativeRoutes);
+
+    for (const route of nativeRoutes) {
+      this.router.all(route.path, (request, response, next) => {
+        if (!route.methods.includes(request.method.toUpperCase() as ExpressNativeRouteMethod)) {
+          next();
+          return;
+        }
+
         void this.handleRequest(request, response);
       });
     }
@@ -302,9 +312,27 @@ function createExpressNativeRoutes(descriptors: readonly HandlerDescriptor[]): E
     registerExpressNativeRouteCandidate(candidates, shapePaths, descriptor.route.method, descriptor.route.path);
   }
 
-  return [...candidates.values()]
-    .filter((candidate) => shapePaths.get(candidate.shapeKey)?.size === 1)
-    .map(({ method, path }) => ({ method, path }));
+  const routesByPath = new Map<string, Set<ExpressNativeRouteMethod>>();
+
+  for (const candidate of candidates.values()) {
+    if (shapePaths.get(candidate.shapeKey)?.size !== 1) {
+      continue;
+    }
+
+    let methods = routesByPath.get(candidate.path);
+
+    if (!methods) {
+      methods = new Set<ExpressNativeRouteMethod>();
+      routesByPath.set(candidate.path, methods);
+    }
+
+    methods.add(candidate.method);
+  }
+
+  return [...routesByPath.entries()].map(([path, methods]) => ({
+    methods: [...methods],
+    path,
+  }));
 }
 
 function registerExpressNativeRouteCandidate(
