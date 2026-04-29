@@ -137,8 +137,10 @@ Using `MongooseConnection` keeps repository code from being tied to global state
 Database connection status is a core signal that backend operations need to check quickly. `MongooseConnection.createPlatformStatusSnapshot()` lets you connect Mongoose connection status to health checks.
 
 ```typescript
+import { Inject } from '@fluojs/core';
 import { MongooseConnection } from '@fluojs/mongoose';
 
+@Inject(MongooseConnection)
 export class MongoHealthReporter {
   constructor(private readonly mongooseConnection: MongooseConnection) {}
 

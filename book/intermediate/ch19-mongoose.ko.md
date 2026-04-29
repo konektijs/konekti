@@ -137,8 +137,10 @@ const Apparel = Product.discriminator('Apparel', new mongoose.Schema({ size: Str
 데이터베이스 연결 상태는 백엔드 운영에서 빠르게 확인해야 하는 핵심 지표입니다. `MongooseConnection.createPlatformStatusSnapshot()`을 사용하면 Mongoose 연결 상태를 헬스 체크에 연결할 수 있습니다.
 
 ```typescript
+import { Inject } from '@fluojs/core';
 import { MongooseConnection } from '@fluojs/mongoose';
 
+@Inject(MongooseConnection)
 export class MongoHealthReporter {
   constructor(private readonly mongooseConnection: MongooseConnection) {}
 
