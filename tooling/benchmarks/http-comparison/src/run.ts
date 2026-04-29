@@ -9,12 +9,10 @@ import { printReport, type ScenarioResult, type TargetResult } from './report';
 const FLUO_FASTIFY_PORT = 3001;
 const NESTJS_PORT = 3002;
 const FLUO_BUN_PORT = 3003;
-const NESTJS_EXPRESS_PORT = 3004;
-const FLUO_EXPRESS_PORT = 3005;
 const WDIR = process.cwd();
 const FLUO_BUN_BUILD_DIR = join(WDIR, 'dist/fluo-bun');
 
-type TargetName = 'nestjs-fastify' | 'fluo-fastify' | 'fluo-bun' | 'nestjs-express' | 'fluo-express';
+type TargetName = 'nestjs-fastify' | 'fluo-fastify' | 'fluo-bun';
 
 interface TargetConfig {
   name: TargetName;
@@ -33,25 +31,11 @@ const TARGETS: TargetConfig[] = [
     args: ['--transpile-only', '--project', 'nestjs/tsconfig.json', 'src/nestjs/server.ts'],
   },
   {
-    name: 'nestjs-express',
-    label: 'Nest+Express',
-    port: NESTJS_EXPRESS_PORT,
-    command: 'ts-node',
-    args: ['--transpile-only', '--project', 'nestjs/tsconfig.json', 'src/nestjs-express/server.ts'],
-  },
-  {
     name: 'fluo-fastify',
     label: 'fluo+Fastify',
     port: FLUO_FASTIFY_PORT,
     command: 'tsx',
     args: ['src/fluo/server.ts'],
-  },
-  {
-    name: 'fluo-express',
-    label: 'fluo+Express',
-    port: FLUO_EXPRESS_PORT,
-    command: 'tsx',
-    args: ['src/fluo-express/server.ts'],
   },
   {
     name: 'fluo-bun',
@@ -82,21 +66,9 @@ const SCENARIOS = [
     expectedBodies: [USER_RESPONSE],
   },
   {
-    name: 'di-chain-random-3',
-    description: 'Random 3-route path DTO + 3-level DI chain',
-    paths: routePaths(3),
-    expectedBodies: [USER_RESPONSE],
-  },
-  {
-    name: 'di-chain-random-5',
-    description: 'Random 5-route path DTO + 3-level DI chain',
-    paths: routePaths(5),
-    expectedBodies: [USER_RESPONSE],
-  },
-  {
-    name: 'di-chain-random-20',
-    description: 'Random 20-route path DTO + 3-level DI chain',
-    paths: routePaths(20),
+    name: 'di-chain-random-10',
+    description: 'Random 10-route path DTO + 3-level DI chain',
+    paths: routePaths(10),
     expectedBodies: [USER_RESPONSE],
   },
 ] as const;
