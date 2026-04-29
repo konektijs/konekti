@@ -1,5 +1,5 @@
 import { createServer } from 'node:net';
-import { Controller, FromBody, Get, Post, RequestDto } from '@fluojs/http';
+import { Controller, FromBody, Get, Post, RequestDto, type RequestContext } from '@fluojs/http';
 import { defineModule, FluoFactory } from '@fluojs/runtime';
 import {
   type BootstrapNodeApplicationOptions,
@@ -47,6 +47,15 @@ async function findAvailablePort(): Promise<number> {
     });
   });
 }
+
+type MultipartRequestWithFiles = RequestContext['request'] & {
+  files?: Array<{
+    fieldname: string;
+    mimetype: string;
+    originalname: string;
+    size: number;
+  }>;
+};
 
 describe('@fluojs/platform-nodejs', () => {
   it('re-exports the existing Node compatibility helpers through the platform package', () => {
@@ -159,6 +168,118 @@ describe('@fluojs/platform-nodejs', () => {
           message: 'Request body exceeds the size limit.',
           status: 413,
         },
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('parses mixed-case JSON content-type headers through the public Node adapter request path', async () => {
+    class JsonBody {
+      @FromBody()
+      ok!: boolean;
+    }
+
+    @Controller('/echo')
+    class EchoController {
+      @Post('/json')
+      @RequestDto(JsonBody)
+      echo(input: JsonBody, ctx: RequestContext) {
+        return {
+          dto: input,
+          requestBody: ctx.request.body,
+        };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [EchoController] });
+
+    const port = await findAvailablePort();
+    const app = await FluoFactory.create(AppModule, {
+      adapter: createNodejsAdapter({ port }),
+    });
+
+    try {
+      await app.listen();
+
+      const response = await fetch(`http://127.0.0.1:${String(port)}/echo/json`, {
+        body: JSON.stringify({ ok: true }),
+        headers: {
+          'content-type': 'Application/Json; Charset=UTF-8',
+        },
+        method: 'POST',
+      });
+
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toEqual({
+        dto: { ok: true },
+        requestBody: { ok: true },
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('parses mixed-case multipart content-type headers through the public Node adapter request path', async () => {
+    @Controller('/uploads')
+    class UploadController {
+      @Post('/')
+      upload(_input: undefined, ctx: RequestContext) {
+        const request = ctx.request as MultipartRequestWithFiles;
+
+        return {
+          body: ctx.request.body,
+          files: request.files?.map((file: NonNullable<MultipartRequestWithFiles['files']>[number]) => ({
+            fieldname: file.fieldname,
+            mimetype: file.mimetype,
+            originalname: file.originalname,
+            size: file.size,
+          })) ?? [],
+        };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [UploadController] });
+
+    const port = await findAvailablePort();
+    const app = await FluoFactory.create(AppModule, {
+      adapter: createNodejsAdapter({ port }),
+    });
+
+    try {
+      await app.listen();
+
+      const form = new FormData();
+      form.append('name', 'Ada');
+      form.append('payload', new Blob(['hello'], { type: 'text/plain' }), 'payload.txt');
+
+      const request = new Request(`http://127.0.0.1:${String(port)}/uploads`, {
+        body: form,
+        method: 'POST',
+      });
+      const response = await fetch(request.url, {
+        body: await request.arrayBuffer(),
+        headers: {
+          'content-type': request.headers
+            .get('content-type')
+            ?.replace('multipart/form-data', 'Multipart/Form-Data') ?? '',
+        },
+        method: request.method,
+      });
+
+      expect(response.status).toBe(201);
+      await expect(response.json()).resolves.toEqual({
+        body: { name: 'Ada' },
+        files: [
+          {
+            fieldname: 'payload',
+            mimetype: 'text/plain',
+            originalname: 'payload.txt',
+            size: 5,
+          },
+        ],
       });
     } finally {
       await app.close();
