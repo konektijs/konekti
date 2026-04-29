@@ -450,6 +450,69 @@ describe('@fluojs/websockets/cloudflare-workers', () => {
     await app.close();
   });
 
+  it('closes Worker sockets and runs disconnect cleanup during application shutdown', async () => {
+    const adapter = new TestWorkerAdapter();
+    const connected = createDeferred<void>();
+
+    class GatewayState {
+      connectCount = 0;
+      disconnectCount = 0;
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/shutdown' })
+    class ShutdownGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      onConnect() {
+        this.state.connectCount += 1;
+        connected.resolve();
+      }
+
+      @OnDisconnect()
+      onDisconnect() {
+        this.state.disconnectCount += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [CloudflareWorkersWebSocketModule.forRoot({
+        shutdown: { timeoutMs: 200 },
+      })],
+      providers: [GatewayState, ShutdownGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+    const service = await app.container.resolve(CloudflareWorkersWebSocketGatewayLifecycleService);
+    await app.listen();
+
+    const server = adapter.getServer();
+    const upgradeResponse = await server?.fetch(new Request('https://worker.test/shutdown', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const socket = server?.lastSocket;
+    expect(upgradeResponse?.status).toBe(200);
+
+    if (!socket) {
+      throw new Error('Expected Worker test socket to be available after websocket upgrade.');
+    }
+
+    await connected.promise;
+    await app.close();
+    await flushAsyncWork();
+
+    expect(socket.readyState).toBe(WEBSOCKET_CLOSED_READY_STATE);
+    expect(state.connectCount).toBe(1);
+    expect(state.disconnectCount).toBe(1);
+    expect((Reflect.get(service, 'socketRegistry') as Map<string, MockWorkerSocket>).size).toBe(0);
+  });
+
   it('closes Worker sockets when string payloads exceed the configured limit', async () => {
     const adapter = new TestWorkerAdapter();
 

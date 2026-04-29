@@ -22,6 +22,9 @@ type MockSocket = BunServerWebSocket<unknown> & {
   sentMessages: string[];
 };
 
+const WEBSOCKET_CLOSED_READY_STATE = 3;
+const WEBSOCKET_OPEN_READY_STATE = 1;
+
 class TestBunAdapter implements HttpApplicationAdapter, BunWebSocketBindingHost {
   private binding?: BunWebSocketBinding<unknown>;
   private server?: TestBunServer;
@@ -91,18 +94,31 @@ class TestBunServer implements BunServerLike {
       return false;
     }
 
-    const socket = createMockSocket(options?.data);
+    let socket!: MockSocket;
+    socket = createMockSocket(options?.data, (code, reason) => {
+      void Promise.resolve(this.binding?.websocket.close?.(socket, code ?? 1000, reason ?? ''));
+    });
     this.lastSocket = socket;
     void Promise.resolve(this.binding.websocket.open?.(socket));
     return true;
   }
 }
 
-function createMockSocket(data: unknown): MockSocket {
+function createMockSocket(
+  data: unknown,
+  onClose?: (code?: number, reason?: string) => void,
+): MockSocket {
   const subscriptions = new Set<string>();
+  let readyState = WEBSOCKET_OPEN_READY_STATE;
   const socket: MockSocket = {
     close(code?: number, reason?: string) {
+      if (readyState === WEBSOCKET_CLOSED_READY_STATE) {
+        return;
+      }
+
+      readyState = WEBSOCKET_CLOSED_READY_STATE;
       socket.closeCalls.push({ code, reason });
+      onClose?.(code, reason);
     },
     closeCalls: [],
     cork(callback: (target: BunServerWebSocket<unknown>) => void) {
@@ -113,7 +129,9 @@ function createMockSocket(data: unknown): MockSocket {
       return subscriptions.has(topic);
     },
     publish() {},
-    readyState: 1,
+    get readyState() {
+      return readyState;
+    },
     remoteAddress: '127.0.0.1',
     send(message: BunWebSocketMessage) {
       if (typeof message === 'string') {
@@ -392,6 +410,70 @@ describe('@fluojs/websockets/bun', () => {
     expect(await firstUpgradePromise).toBeUndefined();
 
     await app.close();
+  });
+
+  it('closes Bun sockets and runs disconnect cleanup during application shutdown', async () => {
+    const adapter = new TestBunAdapter();
+    const connected = createDeferred<void>();
+
+    class GatewayState {
+      connectCount = 0;
+      disconnectCount = 0;
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/shutdown' })
+    class ShutdownGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnConnect()
+      onConnect() {
+        this.state.connectCount += 1;
+        connected.resolve();
+      }
+
+      @OnDisconnect()
+      onDisconnect() {
+        this.state.disconnectCount += 1;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [BunWebSocketModule.forRoot({
+        shutdown: { timeoutMs: 200 },
+      })],
+      providers: [GatewayState, ShutdownGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+    const service = await app.container.resolve(BunWebSocketGatewayLifecycleService);
+    await app.listen();
+
+    const server = adapter.getServer();
+    const upgradeResponse = await server?.fetch(new Request('http://127.0.0.1:3000/shutdown', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const socket = server?.lastSocket;
+    expect(upgradeResponse).toBeUndefined();
+
+    if (!socket) {
+      throw new Error('Expected Bun test socket to be available after websocket upgrade.');
+    }
+
+    await connected.promise;
+    await app.close();
+    await flushAsyncWork();
+
+    expect(socket.closeCalls).toEqual([{ code: 1001, reason: 'Server shutting down' }]);
+    expect(socket.readyState).toBe(WEBSOCKET_CLOSED_READY_STATE);
+    expect(state.connectCount).toBe(1);
+    expect(state.disconnectCount).toBe(1);
+    expect((Reflect.get(service, 'socketRegistry') as Map<string, MockSocket>).size).toBe(0);
   });
 
   it('closes Bun sockets when inbound payloads exceed the configured limit', async () => {
