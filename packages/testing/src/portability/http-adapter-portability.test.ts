@@ -2,6 +2,7 @@ import { describe, it } from 'vitest';
 
 import {
   bootstrapFastifyApplication,
+  FastifyHttpApplicationAdapter,
   runFastifyApplication,
 } from '@fluojs/platform-fastify';
 import {
@@ -69,6 +70,7 @@ JNCDpGwh8us=
 interface PortabilityAssertions {
   assertDefaultsMultipartTotalLimitToMaxBodySize(): Promise<void>;
   assertExcludesRawBodyForMultipart(): Promise<void>;
+  assertPreservesExactRawBodyBytesForByteSensitivePayloads(): Promise<void>;
   assertPreservesMalformedCookieValues(): Promise<void>;
   assertPreservesRawBodyForJsonAndText(): Promise<void>;
   assertRemovesShutdownSignalListenersAfterClose(): Promise<void>;
@@ -78,7 +80,11 @@ interface PortabilityAssertions {
   assertSupportsSseStreaming(): Promise<void>;
 }
 
-function registerPortabilitySuite(name: string, harness: PortabilityAssertions, options: { streamDrainCloseEdge?: boolean } = {}): void {
+function registerPortabilitySuite(
+  name: string,
+  harness: PortabilityAssertions,
+  options: { exactByteCoverage?: boolean; streamDrainCloseEdge?: boolean } = {},
+): void {
   describe(`${name} adapter portability`, () => {
     it('preserves malformed cookie values', async () => {
       await harness.assertPreservesMalformedCookieValues();
@@ -87,6 +93,12 @@ function registerPortabilitySuite(name: string, harness: PortabilityAssertions, 
     it('preserves raw body for JSON and text requests when enabled', async () => {
       await harness.assertPreservesRawBodyForJsonAndText();
     });
+
+    if (options.exactByteCoverage !== false) {
+      it('preserves exact raw body bytes for byte-sensitive payloads', async () => {
+        await harness.assertPreservesExactRawBodyBytesForByteSensitivePayloads();
+      });
+    }
 
     it('does not preserve rawBody for multipart requests', async () => {
       await harness.assertExcludesRawBodyForMultipart();
@@ -150,12 +162,31 @@ registerPortabilitySuite(
   }),
 );
 
-registerPortabilitySuite(
-  'fastify',
-  createHttpAdapterPortabilityHarness({
-    bootstrap: bootstrapFastifyApplication,
-    name: 'fastify',
-    run: runFastifyApplication,
-  }),
-  { streamDrainCloseEdge: true },
-);
+const fastifyPortabilityHarness = createHttpAdapterPortabilityHarness({
+  bootstrap: bootstrapFastifyApplication,
+  exactRawBodyByteContentType: 'application/octet-stream',
+  name: 'fastify',
+  prepareExactRawBodyByteTest(app) {
+    const adapter = Reflect.get(app, 'adapter') as FastifyHttpApplicationAdapter;
+    const fastifyApp = Reflect.get(adapter, 'app') as {
+      addContentTypeParser: (
+        contentType: string,
+        options: { parseAs: 'buffer' },
+        parser: (
+          request: unknown,
+          body: Buffer,
+          done: (error: Error | null, body: Buffer) => void,
+        ) => void,
+      ) => void;
+    };
+
+    fastifyApp.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_request, body, done) => {
+      done(null, body);
+    });
+  },
+  run: runFastifyApplication,
+});
+
+registerPortabilitySuite('fastify', fastifyPortabilityHarness, {
+  streamDrainCloseEdge: true,
+});

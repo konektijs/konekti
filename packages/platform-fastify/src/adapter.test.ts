@@ -16,6 +16,7 @@ import {
   Version,
   VersioningType,
   type CallHandler,
+  type Dispatcher,
   type FrameworkRequest,
   type GuardContext,
   type InterceptorContext,
@@ -291,6 +292,117 @@ describe('@fluojs/platform-fastify', () => {
       parsed: 'ping=1',
       raw: 'ping=1',
     });
+
+    await app.close();
+  });
+
+  it('preserves raw body as exact bytes for byte-sensitive payloads when enabled', async () => {
+    const port = await findAvailablePort();
+    const adapter = createFastifyAdapter({ port, rawBody: true }) as FastifyHttpApplicationAdapter;
+    const app = Reflect.get(adapter, 'app') as {
+      addContentTypeParser: (
+        contentType: string,
+        options: { parseAs: 'buffer' },
+        parser: (
+          request: unknown,
+          body: Buffer,
+          done: (error: Error | null, body: Buffer) => void,
+        ) => void,
+      ) => void;
+    };
+
+    app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_request, body, done) => {
+      done(null, body);
+    });
+
+    const dispatcher: Dispatcher = {
+      async dispatch(request, response) {
+        response.setStatus(201);
+        await response.send({
+          rawBytes: Array.from(request.rawBody ?? new Uint8Array()),
+        });
+      },
+    };
+
+    await adapter.listen(dispatcher);
+
+    const bytes = Uint8Array.from([0x00, 0xff, 0x80, 0x41, 0x42]);
+    const response = await fetch(`http://127.0.0.1:${String(port)}/webhooks/bytes`, {
+      body: bytes,
+      headers: { 'content-type': 'application/octet-stream' },
+      method: 'POST',
+    });
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({
+      rawBytes: Array.from(bytes),
+    });
+
+    await adapter.close();
+  });
+
+  it('bypasses raw-body capture for multipart requests at the Fastify hook layer', async () => {
+    @Controller('/uploads')
+    class UploadController {
+      @Post('/')
+      upload() {
+        return { ok: true };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      controllers: [UploadController],
+    });
+
+    const port = await findAvailablePort();
+    const app = await bootstrapFastifyApplication(AppModule, {
+      cors: false,
+      port,
+      rawBody: true,
+    });
+    const adapter = Reflect.get(app, 'adapter') as FastifyHttpApplicationAdapter;
+    const fastifyApp = Reflect.get(adapter, 'app') as {
+      addHook: (name: 'preHandler', hook: (request: { rawBody?: Buffer; headers: Record<string, string | string[] | undefined> }) => void) => void;
+    };
+    const observedMultipartRawBodyStates: boolean[] = [];
+    const observedMultipartRequest = createDeferred<void>();
+
+    fastifyApp.addHook('preHandler', (request) => {
+      const contentType = request.headers['content-type'];
+      const primaryValue = Array.isArray(contentType) ? contentType[0] : contentType;
+
+      if (typeof primaryValue === 'string' && primaryValue.includes('multipart/form-data')) {
+        observedMultipartRawBodyStates.push(request.rawBody !== undefined);
+        observedMultipartRequest.resolve();
+      }
+    });
+
+    await app.listen();
+
+    const form = new FormData();
+    form.set('name', 'Ada');
+    form.set('payload', new Blob(['hello'], { type: 'text/plain' }), 'payload.txt');
+
+    const abortController = new AbortController();
+    const multipartRequest = fetch(`http://127.0.0.1:${String(port)}/uploads`, {
+      body: form,
+      method: 'POST',
+      signal: abortController.signal,
+    });
+
+    await expect(Promise.race([
+      observedMultipartRequest.promise,
+      new Promise<void>((_resolve, reject) => {
+        setTimeout(() => {
+          reject(new Error('Multipart request never reached Fastify preHandler hook.'));
+        }, 2_000);
+      }),
+    ])).resolves.toBeUndefined();
+
+    abortController.abort();
+    await multipartRequest.catch(() => undefined);
+    expect(observedMultipartRawBodyStates).toEqual([false]);
 
     await app.close();
   });
