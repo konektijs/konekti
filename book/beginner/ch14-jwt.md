@@ -47,7 +47,7 @@ Fluo provides the dedicated `@fluojs/jwt` package, built for the transport agnos
 ### Core Philosophy: Principal Normalization
 One of Fluo's most powerful features is **Principal Normalization**. In real projects, different systems may use different naming conventions for claims. For example, one system may use `uid`, another may use `sub`, and a legacy system may use `userId`. These inconsistencies often lead to messy code full of conditionals just to extract a user's identity.
 
-`@fluojs/jwt` automatically maps these variations into a unified `JwtPrincipal` object.
+`@fluojs/jwt` normalizes the verified payload into a unified `JwtPrincipal` object, but the subject must still arrive as the standard `sub` claim. If an upstream identity provider sends `uid` or `userId` instead, translate that value to `sub` at your application or identity-provider boundary before calling `signAccessToken(...)` or before handing the payload to your own verification wrapper.
 - `subject`: The user's unique ID, mapped from `sub`.
 - `roles`: A string array for RBAC, mapped from the `roles` claim.
 - `scopes`: Specific permission markers, mapped from a `scopes` array or a space separated `scope` claim.
@@ -244,9 +244,9 @@ JWT is the security backbone of FluoBlog. By using `@fluojs/jwt`, you can immedi
 In the next chapter, we will connect these tokens to the real HTTP request lifecycle with **Passport strategies** and **Guards**, turning signed tokens into a powerful access control system that governs every action in FluoBlog.
 
 ### Token Revocation and Whitelisting
-JWT is stateless, but certain security requirements may require revoking tokens before they naturally expire, such as when a user changes a password or reports a lost device. Fluo supports these scenarios through a hybrid approach. You can implement a **Revocation List**, or denylist, in a fast in-memory store such as Redis. Before accepting a token, `JwtVerifier` checks the token's unique ID (`jti`) against that list.
+JWT is stateless, but certain security requirements may require revoking tokens before they naturally expire, such as when a user changes a password or reports a lost device. The current `@fluojs/jwt` package does **not** include a built-in denylist or allowlist lookup inside `DefaultJwtVerifier`. Instead, treat revocation as an application-level pattern: verify the token first, then compare its `jti`, session identifier, or other revocation key against Redis or your primary data store before granting access.
 
-For extremely sensitive systems, you can instead use a **Whitelisting** strategy where only tokens explicitly present in storage are considered valid. This effectively turns JWT into a stateful mechanism for certain routes while preserving statelessness for others. Fluo's modular architecture lets you switch this behavior per service or per request, so you get the best of both worlds: high performance statelessness by default and full control when security must be stronger.
+For extremely sensitive systems, you can instead use a **Whitelisting** strategy where only tokens explicitly present in storage are considered valid. That policy is also application-managed today. In practice, you can wrap `verifyAccessToken(...)` with service logic that performs the storage lookup and rejects tokens that are missing, revoked, or no longer bound to the current device/session.
 
 ### Scaling Auth with Multi-Tenancy
 In a multi-tenant environment where a single Fluo application serves multiple organizations, JWT configuration must be more flexible. Each tenant may have its own signing secret or use an external identity provider. `JwtModule` supports dynamic configuration providers, allowing it to find the correct signing and verification settings based on request context, such as a tenant ID in a custom header.
@@ -399,7 +399,7 @@ In non-browser environments such as mobile apps, you do not have the same concer
 ### Token Revocation Strategies: Beyond the Denylist
 A denylist is effective, but it can become very large in high traffic systems. An alternative is a **Versioned Token** strategy. Add a `version` claim to the JWT and store each user's current valid version in the database. Then you can invalidate all active tokens for that user simply by incrementing the version number.
 
-After `JwtVerifier` validates the signature and standard claims, application code can compare the version claim with the value in a database or fast cache. This lets you revoke all of a user's sessions almost instantly after a password reset or security incident without tracking every individual token ID.
+After `JwtVerifier` validates the signature and standard claims, application code can compare the version claim with the value in a database or fast cache. `DefaultJwtVerifier` does not perform that lookup for you. This still lets you revoke all of a user's sessions almost instantly after a password reset or security incident without tracking every individual token ID, but the comparison must live in your own auth service, guard wrapper, or session policy layer.
 
 ### Designing for Federated Identity
 On the modern web, users often prefer "Sign in with Google" or GitHub instead of creating yet another password. This is called **Federated Identity**. By integrating with OAuth2 providers, a Fluo application can delegate initial Authentication to a trusted third party.
@@ -412,6 +412,6 @@ We have already mentioned refresh token rotation, but its importance in producti
 If an attacker tries to use an old refresh token, Fluo's detection mechanism identifies the reuse and immediately blocks that account's entire session family. This breach detection is an advanced security feature built into Fluo's Authentication package by default. When the package handles complex security boundaries, application code can focus more on business logic and policy decisions.
 
 ### Implementing Secure Default Claims
-Every JWT issued by a Fluo application should include a standard set of security claims. At minimum, this includes `iat` (issued at), `nbf` (not before), and `exp` (expiration time). These claims define the token's temporal validity and ensure it is not used before issuance or after expiration.
+Every JWT issued by a Fluo application should include a standard set of security claims. At minimum, most production flows should think about `iat` (issued at) and `exp` (expiration time), and many systems also choose to set `nbf` (not before) when a token must remain inactive until a specific moment.
 
-Fluo's `DefaultJwtSigner` handles these claims automatically, but you should still understand why they exist. These values reduce many attacks related to system clock mismatch or reuse of old tokens. Following industry standards makes tokens safe not only inside the application, but also across the broader ecosystem of security tools and services. Security is not an exceptional trick. It is the consistent application of proven rules.
+Fluo's `DefaultJwtSigner` currently auto-fills `iat`, `exp`, and configured `aud`/`iss` values when they are absent, but it does **not** auto-fill `nbf`. If your security policy depends on a not-before boundary, set `nbf` explicitly in the payload you pass to `signAccessToken(...)` and make sure the value matches your clock-skew policy. Security is not an exceptional trick. It is the consistent application of proven rules.
