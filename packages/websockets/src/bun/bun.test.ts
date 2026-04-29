@@ -418,6 +418,52 @@ describe('@fluojs/websockets/bun', () => {
     await app.close();
   });
 
+  it('rejects in-flight Bun upgrades once shutdown begins during an async guard', async () => {
+    const adapter = new TestBunAdapter();
+    const guardGate = createDeferred<void>();
+
+    @WebSocketGateway({ path: '/shutdown-guard-race' })
+    class GuardedGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [BunWebSocketModule.forRoot({
+        upgrade: {
+          async guard() {
+            await guardGate.promise;
+            return true;
+          },
+        },
+      })],
+      providers: [GuardedGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    await app.listen();
+
+    const server = adapter.getServer();
+    const upgradePromise = server?.fetch(new Request('http://127.0.0.1:3000/shutdown-guard-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const closePromise = app.close();
+
+    guardGate.resolve();
+
+    const response = await upgradePromise;
+
+    expect(response?.status).toBe(503);
+    expect(await response?.text()).toBe('WebSocket server is shutting down.');
+    expect(server?.lastSocket).toBeUndefined();
+
+    await closePromise;
+  });
+
   it('closes Bun sockets and runs disconnect cleanup during application shutdown', async () => {
     const adapter = new TestBunAdapter();
     const connected = createDeferred<void>();

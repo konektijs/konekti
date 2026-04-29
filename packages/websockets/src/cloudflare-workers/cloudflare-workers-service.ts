@@ -151,6 +151,8 @@ function createCompletionSignal(): { promise: Promise<void>; resolve: () => void
 export class CloudflareWorkersWebSocketGatewayLifecycleService
   implements OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, WebSocketRoomService
 {
+  private isShuttingDown = false;
+  private readonly pendingUpgradeOperations = new Set<Promise<void>>();
   private pendingUpgradeReservations = 0;
   private readonly roomSockets = new Map<string, Set<string>>();
   private shutdownPromise: Promise<void> | undefined;
@@ -212,53 +214,66 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
     const descriptorsByPath = this.groupDescriptorsByPath(descriptors);
 
     return {
-      fetch: async (request, host) => {
-        if (!isWebSocketUpgradeRequest(request)) {
-          return new Response(null, { status: 426 });
-        }
-
-        let targetPath: string;
-
-        try {
-          targetPath = normalizeGatewayPath(new URL(request.url).pathname);
-        } catch {
-          return new Response(null, { status: 400 });
-        }
-
-        const matchedDescriptors = descriptorsByPath.get(targetPath);
-
-        if (!matchedDescriptors) {
-          return new Response(null, { status: 404 });
-        }
-
-        const rejection = await this.resolveUpgradeRejection(request, targetPath);
-
-        if (rejection) {
-          return new Response(rejection.body ?? null, {
-            headers: rejection.headers,
-            status: rejection.status,
-          });
-        }
-
-        let response: Response;
-        let serverSocket: CloudflareWorkerWebSocket;
-
-        try {
-          ({ response, serverSocket } = host.upgrade(request));
-        } catch (error) {
-          this.releaseUpgradeReservation();
-          throw error;
-        }
-
-        serverSocket.accept();
-        void this.bindConnectionHandlers(serverSocket, request, matchedDescriptors).catch((error) => {
-          this.unregisterSocket(this.findSocketId(serverSocket));
-          this.logger.error('WebSocket gateway open lifecycle failed.', error, LIFECYCLE_LOG_CONTEXT);
-          serverSocket.close(1011, 'Internal server error');
-        });
-        return response;
-      },
+      fetch: (request, host) => this.trackPendingUpgradeOperation(
+        this.handleUpgradeRequest(request, host, descriptorsByPath),
+      ),
     };
+  }
+
+  private async handleUpgradeRequest(
+    request: Request,
+    host: import('./cloudflare-workers-types.js').CloudflareWorkerWebSocketUpgradeHost,
+    descriptorsByPath: ReadonlyMap<string, readonly WebSocketGatewayDescriptor[]>,
+  ): Promise<Response> {
+    if (!isWebSocketUpgradeRequest(request)) {
+      return new Response(null, { status: 426 });
+    }
+
+    let targetPath: string;
+
+    try {
+      targetPath = normalizeGatewayPath(new URL(request.url).pathname);
+    } catch {
+      return new Response(null, { status: 400 });
+    }
+
+    const matchedDescriptors = descriptorsByPath.get(targetPath);
+
+    if (!matchedDescriptors) {
+      return new Response(null, { status: 404 });
+    }
+
+    const rejection = await this.resolveUpgradeRejection(request, targetPath);
+
+    if (rejection) {
+      return new Response(rejection.body ?? null, {
+        headers: rejection.headers,
+        status: rejection.status,
+      });
+    }
+
+    if (this.isShuttingDown) {
+      this.releaseUpgradeReservation();
+      return new Response('WebSocket server is shutting down.', { status: 503 });
+    }
+
+    let response: Response;
+    let serverSocket: CloudflareWorkerWebSocket;
+
+    try {
+      ({ response, serverSocket } = host.upgrade(request));
+    } catch (error) {
+      this.releaseUpgradeReservation();
+      throw error;
+    }
+
+    serverSocket.accept();
+    void this.trackPendingUpgradeOperation(this.bindConnectionHandlers(serverSocket, request, matchedDescriptors)).catch((error) => {
+      this.unregisterSocket(this.findSocketId(serverSocket));
+      this.logger.error('WebSocket gateway open lifecycle failed.', error, LIFECYCLE_LOG_CONTEXT);
+      serverSocket.close(1011, 'Internal server error');
+    });
+    return response;
   }
 
   private groupDescriptorsByPath(
@@ -296,6 +311,11 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
       await this.resolveConnectionGateways(state);
       await this.runConnectHandlers(state, socket);
       await this.finalizeConnectionBinding(state, socket, request);
+
+      if (this.isShuttingDown && socket.readyState === WEBSOCKET_OPEN_READY_STATE) {
+        socket.close(1001, 'Server shutting down');
+        await state.disconnectLifecyclePromise;
+      }
     } finally {
       if (!state.handlersReady && state.bufferedDisconnect) {
         this.settleDisconnectLifecycle(state);
@@ -661,6 +681,13 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
     request: Request,
     path: string,
   ): Promise<WebSocketUpgradeRejection | undefined> {
+    if (this.isShuttingDown) {
+      return {
+        body: 'WebSocket server is shutting down.',
+        status: 503,
+      };
+    }
+
     if (!this.tryReserveUpgradeSlot()) {
       return {
         body: 'WebSocket connection limit exceeded.',
@@ -787,12 +814,15 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
   }
 
   private async runShutdownLifecycle(): Promise<void> {
+    this.isShuttingDown = true;
+
     if (hasCloudflareWorkerWebSocketBindingHost(this.adapter)) {
       this.adapter.configureWebSocketBinding(undefined);
     }
 
     const shutdownTimeoutMs = this.resolveShutdownTimeoutMs();
 
+    await this.awaitPendingUpgradeOperations(shutdownTimeoutMs);
     await this.closeActiveSockets(shutdownTimeoutMs);
 
     this.pendingUpgradeReservations = 0;
@@ -800,6 +830,75 @@ export class CloudflareWorkersWebSocketGatewayLifecycleService
     this.socketRooms.clear();
     this.socketStates.clear();
     this.roomSockets.clear();
+  }
+
+  private trackPendingUpgradeOperation<TArgs extends unknown[], TResult>(
+    operation: (...args: TArgs) => Promise<TResult>,
+  ): (...args: TArgs) => Promise<TResult>;
+  private trackPendingUpgradeOperation<TResult>(operation: Promise<TResult>): Promise<TResult>;
+  private trackPendingUpgradeOperation<TArgs extends unknown[], TResult>(
+    operation: Promise<TResult> | ((...args: TArgs) => Promise<TResult>),
+  ): Promise<TResult> | ((...args: TArgs) => Promise<TResult>) {
+    if (typeof operation === 'function') {
+      return (...args: TArgs) => this.trackPendingUpgradeOperation(operation(...args));
+    }
+
+    let trackedOperation: Promise<void> | undefined;
+
+    trackedOperation = operation
+      .then(() => undefined, () => undefined)
+      .finally(() => {
+        if (trackedOperation) {
+          this.pendingUpgradeOperations.delete(trackedOperation);
+        }
+      });
+
+    this.pendingUpgradeOperations.add(trackedOperation);
+    return operation;
+  }
+
+  private async awaitPendingUpgradeOperations(timeoutMs: number): Promise<void> {
+    if (this.pendingUpgradeOperations.size === 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        reject(new Error(`Timed out while waiting for in-flight Cloudflare Worker websocket upgrades after ${String(timeoutMs)}ms.`));
+      }, timeoutMs);
+
+      Promise.all([...this.pendingUpgradeOperations])
+        .then(() => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          clearTimeout(timeout);
+          resolve();
+        })
+        .catch((error) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          clearTimeout(timeout);
+          reject(error);
+        });
+    }).catch((error) => {
+      this.logger.error(
+        `Failed to wait for in-flight Cloudflare Worker websocket upgrades within ${String(timeoutMs)}ms.`,
+        error,
+        LIFECYCLE_LOG_CONTEXT,
+      );
+    });
   }
 
   private async closeActiveSockets(timeoutMs: number): Promise<void> {

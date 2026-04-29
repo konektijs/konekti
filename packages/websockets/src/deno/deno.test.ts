@@ -466,6 +466,52 @@ describe('@fluojs/websockets/deno', () => {
     await app.close();
   });
 
+  it('rejects in-flight Deno upgrades once shutdown begins during an async guard', async () => {
+    const adapter = new TestDenoAdapter();
+    const guardGate = createDeferred<void>();
+
+    @WebSocketGateway({ path: '/shutdown-guard-race' })
+    class GuardedGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [DenoWebSocketModule.forRoot({
+        upgrade: {
+          async guard() {
+            await guardGate.promise;
+            return true;
+          },
+        },
+      })],
+      providers: [GuardedGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    await app.listen();
+
+    const server = adapter.getServer();
+    const upgradePromise = server?.fetch(new Request('https://runtime.test/shutdown-guard-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const closePromise = app.close();
+
+    guardGate.resolve();
+
+    const response = await upgradePromise;
+
+    expect(response?.status).toBe(503);
+    expect(await response?.text()).toBe('WebSocket server is shutting down.');
+    expect(server?.lastSocket).toBeUndefined();
+
+    await closePromise;
+  });
+
   it('closes Deno sockets and runs disconnect cleanup during application shutdown', async () => {
     const adapter = new TestDenoAdapter();
     const connected = createDeferred<void>();

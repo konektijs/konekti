@@ -464,6 +464,52 @@ describe('@fluojs/websockets/cloudflare-workers', () => {
     await app.close();
   });
 
+  it('rejects in-flight Worker upgrades once shutdown begins during an async guard', async () => {
+    const adapter = new TestWorkerAdapter();
+    const guardGate = createDeferred<void>();
+
+    @WebSocketGateway({ path: '/shutdown-guard-race' })
+    class GuardedGateway {
+      @OnMessage('ping')
+      onPing() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [CloudflareWorkersWebSocketModule.forRoot({
+        upgrade: {
+          async guard() {
+            await guardGate.promise;
+            return true;
+          },
+        },
+      })],
+      providers: [GuardedGateway],
+    });
+
+    const app = await bootstrapApplication({ adapter, rootModule: AppModule });
+    await app.listen();
+
+    const server = adapter.getServer();
+    const upgradePromise = server?.fetch(new Request('https://worker.test/shutdown-guard-race', {
+      headers: { upgrade: 'websocket' },
+    }));
+
+    await flushAsyncWork();
+
+    const closePromise = app.close();
+
+    guardGate.resolve();
+
+    const response = await upgradePromise;
+
+    expect(response?.status).toBe(503);
+    expect(await response?.text()).toBe('WebSocket server is shutting down.');
+    expect(server?.lastSocket).toBeUndefined();
+
+    await closePromise;
+  });
+
   it('closes Worker sockets and runs disconnect cleanup during application shutdown', async () => {
     const adapter = new TestWorkerAdapter();
     const connected = createDeferred<void>();

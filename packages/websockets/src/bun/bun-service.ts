@@ -155,6 +155,8 @@ function createCompletionSignal(): { promise: Promise<void>; resolve: () => void
 export class BunWebSocketGatewayLifecycleService
   implements OnApplicationBootstrap, OnApplicationShutdown, OnModuleDestroy, WebSocketRoomService
 {
+  private isShuttingDown = false;
+  private readonly pendingUpgradeOperations = new Set<Promise<void>>();
   private pendingUpgradeReservations = 0;
   private readonly roomSockets = new Map<string, Set<string>>();
   private shutdownPromise: Promise<void> | undefined;
@@ -217,7 +219,9 @@ export class BunWebSocketGatewayLifecycleService
     const descriptorsByPath = this.groupDescriptorsByPath(descriptors);
 
     return {
-      fetch: (request, server) => this.handleUpgradeRequest(request, server, descriptorsByPath),
+      fetch: (request, server) => this.trackPendingUpgradeOperation(
+        this.handleUpgradeRequest(request, server, descriptorsByPath),
+      ),
       websocket: {
         backpressureLimit: this.resolveBackpressureLimit(),
         close: (socket, code, reason) => {
@@ -235,7 +239,7 @@ export class BunWebSocketGatewayLifecycleService
           this.handleSocketMessage(socket, message);
         },
         open: (socket) => {
-          void this.bindConnectionHandlers(socket).catch((error) => {
+          void this.trackPendingUpgradeOperation(this.bindConnectionHandlers(socket)).catch((error) => {
             this.unregisterSocket(socket.data.state.socketId);
             this.logger.error('WebSocket gateway open lifecycle failed.', error, LIFECYCLE_LOG_CONTEXT);
             socket.close(1011, 'Internal server error');
@@ -297,6 +301,11 @@ export class BunWebSocketGatewayLifecycleService
       });
     }
 
+    if (this.isShuttingDown) {
+      this.releaseUpgradeReservation();
+      return new Response('WebSocket server is shutting down.', { status: 503 });
+    }
+
     const state = this.createConnectionHandlerState(request, [...descriptors]);
     let upgraded = false;
 
@@ -326,6 +335,11 @@ export class BunWebSocketGatewayLifecycleService
       await this.resolveConnectionGateways(state);
       await this.runConnectHandlers(state, socket);
       await this.finalizeConnectionBinding(state, socket);
+
+      if (this.isShuttingDown && socket.readyState === 1) {
+        socket.close(1001, 'Server shutting down');
+        await state.disconnectLifecyclePromise;
+      }
     } finally {
       if (!state.handlersReady && state.bufferedDisconnect) {
         this.settleDisconnectLifecycle(state);
@@ -655,6 +669,13 @@ export class BunWebSocketGatewayLifecycleService
     request: Request,
     path: string,
   ): Promise<WebSocketUpgradeRejection | undefined> {
+    if (this.isShuttingDown) {
+      return {
+        body: 'WebSocket server is shutting down.',
+        status: 503,
+      };
+    }
+
     if (!this.tryReserveUpgradeSlot()) {
       return {
         body: 'WebSocket connection limit exceeded.',
@@ -795,6 +816,8 @@ export class BunWebSocketGatewayLifecycleService
   }
 
   private async runShutdownLifecycle(): Promise<void> {
+    this.isShuttingDown = true;
+
     if (hasBunWebSocketBindingHost(this.adapter)) {
       const bunAdapter = this.adapter as HttpApplicationAdapter & BunWebSocketBindingHost;
       bunAdapter.configureWebSocketBinding(undefined);
@@ -802,6 +825,7 @@ export class BunWebSocketGatewayLifecycleService
 
     const shutdownTimeoutMs = this.resolveShutdownTimeoutMs();
 
+    await this.awaitPendingUpgradeOperations(shutdownTimeoutMs);
     await this.closeActiveSockets(shutdownTimeoutMs);
 
     this.pendingUpgradeReservations = 0;
@@ -809,6 +833,65 @@ export class BunWebSocketGatewayLifecycleService
     this.socketRooms.clear();
     this.socketStates.clear();
     this.roomSockets.clear();
+  }
+
+  private trackPendingUpgradeOperation<T>(operation: Promise<T>): Promise<T> {
+    let trackedOperation: Promise<void> | undefined;
+
+    trackedOperation = operation
+      .then(() => undefined, () => undefined)
+      .finally(() => {
+        if (trackedOperation) {
+          this.pendingUpgradeOperations.delete(trackedOperation);
+        }
+      });
+
+    this.pendingUpgradeOperations.add(trackedOperation);
+    return operation;
+  }
+
+  private async awaitPendingUpgradeOperations(timeoutMs: number): Promise<void> {
+    if (this.pendingUpgradeOperations.size === 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        reject(new Error(`Timed out while waiting for in-flight Bun websocket upgrades after ${String(timeoutMs)}ms.`));
+      }, timeoutMs);
+
+      Promise.all([...this.pendingUpgradeOperations])
+        .then(() => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          clearTimeout(timeout);
+          resolve();
+        })
+        .catch((error) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          clearTimeout(timeout);
+          reject(error);
+        });
+    }).catch((error) => {
+      this.logger.error(
+        `Failed to wait for in-flight Bun websocket upgrades within ${String(timeoutMs)}ms.`,
+        error,
+        LIFECYCLE_LOG_CONTEXT,
+      );
+    });
   }
 
   private async closeActiveSockets(timeoutMs: number): Promise<void> {
