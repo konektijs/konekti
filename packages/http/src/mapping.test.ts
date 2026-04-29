@@ -401,4 +401,46 @@ describe('handler mapping', () => {
     expect(match?.descriptor.methodName).toBe('firstMatch');
     expect(match?.params).toEqual({ id: '42' });
   });
+
+  it('prefers method-specific static routes before ALL fallbacks on the same path', () => {
+    @Controller('/health')
+    class HealthController {
+      @Get('/')
+      getHealth() {
+        return { route: 'get' };
+      }
+    }
+
+    class AnyMethodController {
+      any() {
+        return { route: 'all' };
+      }
+    }
+
+    defineControllerMetadata(AnyMethodController, { basePath: '/health' });
+    defineRouteMetadata(AnyMethodController.prototype, 'any', {
+      method: 'ALL',
+      path: '/',
+    } as any);
+
+    const mapping = createHandlerMapping([
+      { controllerToken: AnyMethodController },
+      { controllerToken: HealthController },
+    ]);
+
+    const match = mapping.match({
+      body: undefined,
+      cookies: {},
+      headers: {},
+      method: 'GET',
+      params: {},
+      path: '/health',
+      query: {},
+      raw: {},
+      url: '/health',
+    });
+
+    expect(match?.descriptor.methodName).toBe('getHealth');
+    expect(match?.descriptor.route.method).toBe('GET');
+  });
 });
