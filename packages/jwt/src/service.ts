@@ -2,7 +2,6 @@ import { Inject } from '@fluojs/core';
 
 import { DefaultJwtSigner } from './signing/signer.js';
 import type { JwtClaims, JwtVerifierOptions } from './types.js';
-import { verifyAccessTokenWithOverrides } from './signing/verifier-internal.js';
 import { DefaultJwtVerifier, JWT_OPTIONS } from './signing/verifier.js';
 
 type DurationUnit = 's' | 'm' | 'h' | 'd';
@@ -211,7 +210,7 @@ export class JwtService {
    */
   async verify<T = unknown>(token: string, options?: VerifyOptions): Promise<T> {
     const principal = options
-      ? await verifyAccessTokenWithOverrides(this.verifier, token, options)
+      ? await this.verifier.verifyAccessTokenWithOverrides(token, options)
       : await this.verifier.verifyAccessToken(token);
 
     return principal.claims as T;
