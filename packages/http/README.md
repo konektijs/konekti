@@ -117,7 +117,7 @@ stream(_input: undefined, ctx: RequestContext) {
 
 ## Request Cleanup and Portability
 
-The dispatcher binds `RequestContext` with `AsyncLocalStorage` for the active dispatch only and disposes the request-scoped DI container from its `finally` path after request observers finish. This keeps per-request providers from leaking across normal success, handled error, and aborted request paths.
+The dispatcher binds `RequestContext` with `AsyncLocalStorage` for the active dispatch only. When a request may use request-scoped DI through its controller graph, middleware, guards, interceptors, observers, DTO converters, or a custom binder, the dispatcher creates and disposes an isolated request-scoped DI container from its `finally` path after request observers finish. Singleton-only routes skip that container lifecycle so the baseline path avoids unnecessary per-request allocation while preserving request-scoped provider isolation whenever the graph is ambiguous or request-scoped.
 
 Adapters should pass an `AbortSignal` on `FrameworkRequest.signal` when the platform exposes one. For SSE, adapters should also expose `FrameworkResponse.stream.onClose(...)` when possible; `SseResponse` listens to both request abort and raw stream close, closes idempotently, and removes registered listeners when either side terminates first.
 
