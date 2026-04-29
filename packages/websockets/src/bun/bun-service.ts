@@ -57,6 +57,7 @@ interface BunSocketData {
 const DEFAULT_MAX_PENDING_MESSAGES_PER_SOCKET = 256;
 const DEFAULT_MAX_WEBSOCKET_CONNECTIONS = 1_000;
 const DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES = 1_048_576;
+const DEFAULT_WEBSOCKET_SHUTDOWN_TIMEOUT_MS = 5_000;
 const LIFECYCLE_LOG_CONTEXT = 'WebSocketGatewayLifecycleService';
 
 type FetchStyleRealtimeCapability = {
@@ -144,6 +145,7 @@ export class BunWebSocketGatewayLifecycleService
   private shutdownPromise: Promise<void> | undefined;
   private readonly socketRegistry = new Map<string, BunServerWebSocket<BunSocketData>>();
   private readonly socketRooms = new Map<string, Set<string>>();
+  private readonly socketStates = new Map<string, ConnectionHandlerState>();
 
   constructor(
     private readonly runtimeContainer: Container,
@@ -303,6 +305,7 @@ export class BunWebSocketGatewayLifecycleService
 
     this.releaseUpgradeReservation();
     this.socketRegistry.set(state.socketId, socket);
+    this.socketStates.set(state.socketId, state);
 
     await this.resolveConnectionGateways(state);
     await this.runConnectHandlers(state, socket);
@@ -718,6 +721,16 @@ export class BunWebSocketGatewayLifecycleService
     return Math.max(1, Math.ceil(configured / 1000));
   }
 
+  private resolveShutdownTimeoutMs(): number {
+    const configured = this.moduleOptions.shutdown?.timeoutMs;
+
+    if (typeof configured !== 'number' || !Number.isFinite(configured) || configured <= 0) {
+      return DEFAULT_WEBSOCKET_SHUTDOWN_TIMEOUT_MS;
+    }
+
+    return Math.floor(configured);
+  }
+
   private async shutdown(): Promise<void> {
     if (this.shutdownPromise) {
       await this.shutdownPromise;
@@ -734,10 +747,82 @@ export class BunWebSocketGatewayLifecycleService
       bunAdapter.configureWebSocketBinding(undefined);
     }
 
+    const shutdownTimeoutMs = this.resolveShutdownTimeoutMs();
+
+    await this.closeActiveSockets(shutdownTimeoutMs);
+
     this.pendingUpgradeReservations = 0;
     this.socketRegistry.clear();
     this.socketRooms.clear();
+    this.socketStates.clear();
     this.roomSockets.clear();
+  }
+
+  private async closeActiveSockets(timeoutMs: number): Promise<void> {
+    const activeSockets = [...this.socketRegistry.entries()];
+
+    if (activeSockets.length === 0) {
+      return;
+    }
+
+    const activeStates = activeSockets
+      .map(([socketId]) => this.socketStates.get(socketId))
+      .filter((state): state is ConnectionHandlerState => state !== undefined);
+
+    for (const [, socket] of activeSockets) {
+      if (socket.readyState === 1) {
+        socket.close(1001, 'Server shutting down');
+      }
+    }
+
+    await this.awaitHandlerQueueDrain(activeStates, timeoutMs);
+  }
+
+  private async awaitHandlerQueueDrain(
+    states: readonly ConnectionHandlerState[],
+    timeoutMs: number,
+  ): Promise<void> {
+    if (states.length === 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        reject(new Error(`Timed out while closing Bun websocket connections after ${String(timeoutMs)}ms.`));
+      }, timeoutMs);
+
+      Promise.all(states.map(async (state) => await state.handlerQueue))
+        .then(() => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          clearTimeout(timeout);
+          resolve();
+        })
+        .catch((error) => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          clearTimeout(timeout);
+          reject(error);
+        });
+    }).catch((error) => {
+      this.logger.error(
+        `Failed to close Bun websocket connections within ${String(timeoutMs)}ms.`,
+        error,
+        LIFECYCLE_LOG_CONTEXT,
+      );
+    });
   }
 
   joinRoom(socketId: string, room: string): void {
@@ -813,6 +898,7 @@ export class BunWebSocketGatewayLifecycleService
 
   private unregisterSocket(socketId: string): void {
     this.socketRegistry.delete(socketId);
+    this.socketStates.delete(socketId);
 
     const rooms = this.socketRooms.get(socketId);
     if (rooms) {
