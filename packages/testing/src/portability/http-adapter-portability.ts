@@ -49,6 +49,11 @@ export interface HttpAdapterPortabilityHarnessOptions<
   bootstrap: (rootModule: ModuleType, options: TBootstrapOptions) => Promise<TApp>;
 
   /**
+   * Optional adapter-specific preparation used before the exact-byte raw-body portability assertion.
+   */
+  prepareExactRawBodyByteTest?: (app: TApp) => void | Promise<void>;
+
+  /**
    * The name of the adapter being tested.
    */
   name: string;
@@ -215,6 +220,8 @@ export class HttpAdapterPortabilityHarness<
     const port = await findAvailablePort();
     const app = await this.options.bootstrap(AppModule, { cors: false, port, rawBody: true } as TBootstrapOptions);
 
+    await this.options.prepareExactRawBodyByteTest?.(app);
+
     await app.listen();
 
     try {
@@ -243,6 +250,48 @@ export class HttpAdapterPortabilityHarness<
 
       if (JSON.stringify(textBody) !== JSON.stringify({ parsed: 'ping=1', raw: 'ping=1' })) {
         throw new Error(`${this.options.name} adapter changed text rawBody semantics.`);
+      }
+    } finally {
+      await closeSilently(app);
+    }
+  }
+
+  async assertPreservesExactRawBodyBytesForByteSensitivePayloads(): Promise<void> {
+    @Controller('/webhooks')
+    class WebhookController {
+      @Post('/bytes')
+      handleBytes(_input: undefined, context: RequestContext) {
+        return {
+          rawBytes: Array.from(context.request.rawBody ?? new Uint8Array()),
+        };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      controllers: [WebhookController],
+    });
+
+    const port = await findAvailablePort();
+    const app = await this.options.bootstrap(AppModule, { cors: false, port, rawBody: true } as TBootstrapOptions);
+
+    await app.listen();
+
+    try {
+      const payload = Uint8Array.from([0xe9, 0x41]);
+      const response = await fetch(`http://127.0.0.1:${String(port)}/webhooks/bytes`, {
+        body: payload,
+        headers: { 'content-type': 'text/plain; charset=latin1' },
+        method: 'POST',
+      });
+
+      if (response.status !== 201) {
+        throw new Error(`${this.options.name} adapter changed byte-sensitive rawBody response status semantics.`);
+      }
+
+      const body = await response.json();
+      if (JSON.stringify(body) !== JSON.stringify({ rawBytes: Array.from(payload) })) {
+        throw new Error(`${this.options.name} adapter changed exact-byte rawBody semantics.`);
       }
     } finally {
       await closeSilently(app);
@@ -632,7 +681,7 @@ export function createHttpAdapterPortabilityHarness<
   return new HttpAdapterPortabilityHarness(options);
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
   const timeoutPromise = new Promise<never>((_resolve, reject) => {
@@ -641,7 +690,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
     }, timeoutMs);
   });
 
-  return Promise.race([promise, timeoutPromise]).finally(() => {
+  return await Promise.race([promise, timeoutPromise]).finally(() => {
     if (timeout !== undefined) {
       clearTimeout(timeout);
     }

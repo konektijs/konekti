@@ -1,9 +1,14 @@
+import { createServer } from 'node:net';
+
 import { describe, it } from 'vitest';
 
 import {
   bootstrapFastifyApplication,
+  createFastifyAdapter,
+  FastifyHttpApplicationAdapter,
   runFastifyApplication,
 } from '@fluojs/platform-fastify';
+import { type Dispatcher } from '@fluojs/http';
 import {
   bootstrapExpressApplication,
   runExpressApplication,
@@ -69,6 +74,7 @@ JNCDpGwh8us=
 interface PortabilityAssertions {
   assertDefaultsMultipartTotalLimitToMaxBodySize(): Promise<void>;
   assertExcludesRawBodyForMultipart(): Promise<void>;
+  assertPreservesExactRawBodyBytesForByteSensitivePayloads(): Promise<void>;
   assertPreservesMalformedCookieValues(): Promise<void>;
   assertPreservesRawBodyForJsonAndText(): Promise<void>;
   assertRemovesShutdownSignalListenersAfterClose(): Promise<void>;
@@ -78,7 +84,36 @@ interface PortabilityAssertions {
   assertSupportsSseStreaming(): Promise<void>;
 }
 
-function registerPortabilitySuite(name: string, harness: PortabilityAssertions, options: { streamDrainCloseEdge?: boolean } = {}): void {
+async function findAvailablePort(): Promise<number> {
+  return await new Promise<number>((resolve, reject) => {
+    const server = createServer();
+
+    server.once('error', reject);
+    server.listen(0, () => {
+      const address = server.address();
+
+      if (!address || typeof address === 'string') {
+        reject(new Error('Failed to resolve an available port.'));
+        return;
+      }
+
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(address.port);
+      });
+    });
+  });
+}
+
+function registerPortabilitySuite(
+  name: string,
+  harness: PortabilityAssertions,
+  options: { exactByteCoverage?: boolean; streamDrainCloseEdge?: boolean } = {},
+): void {
   describe(`${name} adapter portability`, () => {
     it('preserves malformed cookie values', async () => {
       await harness.assertPreservesMalformedCookieValues();
@@ -87,6 +122,12 @@ function registerPortabilitySuite(name: string, harness: PortabilityAssertions, 
     it('preserves raw body for JSON and text requests when enabled', async () => {
       await harness.assertPreservesRawBodyForJsonAndText();
     });
+
+    if (options.exactByteCoverage !== false) {
+      it('preserves exact raw body bytes for byte-sensitive payloads', async () => {
+        await harness.assertPreservesExactRawBodyBytesForByteSensitivePayloads();
+      });
+    }
 
     it('does not preserve rawBody for multipart requests', async () => {
       await harness.assertExcludesRawBodyForMultipart();
@@ -150,12 +191,62 @@ registerPortabilitySuite(
   }),
 );
 
-registerPortabilitySuite(
-  'fastify',
-  createHttpAdapterPortabilityHarness({
-    bootstrap: bootstrapFastifyApplication,
-    name: 'fastify',
-    run: runFastifyApplication,
-  }),
-  { streamDrainCloseEdge: true },
-);
+const fastifyPortabilityHarness = createHttpAdapterPortabilityHarness({
+  bootstrap: bootstrapFastifyApplication,
+  name: 'fastify',
+  run: runFastifyApplication,
+});
+
+registerPortabilitySuite('fastify', fastifyPortabilityHarness, {
+  exactByteCoverage: false,
+  streamDrainCloseEdge: true,
+});
+
+describe('fastify adapter portability', () => {
+  it('preserves exact raw body bytes for byte-sensitive payloads', async () => {
+    const port = await findAvailablePort();
+    const adapter = createFastifyAdapter({ port, rawBody: true }) as FastifyHttpApplicationAdapter;
+    const fastifyApp = Reflect.get(adapter, 'app') as {
+      addContentTypeParser: (
+        contentType: string,
+        options: { parseAs: 'buffer' },
+        parser: (
+          request: unknown,
+          body: Buffer,
+          done: (error: Error | null, body: Buffer) => void,
+        ) => void,
+      ) => void;
+    };
+
+    fastifyApp.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_request, body, done) => {
+      done(null, body);
+    });
+
+    const dispatcher: Dispatcher = {
+      async dispatch(request, response) {
+        response.setStatus(201);
+        await response.send({
+          rawBytes: Array.from(request.rawBody ?? new Uint8Array()),
+        });
+      },
+    };
+
+    await adapter.listen(dispatcher);
+
+    try {
+      const payload = Uint8Array.from([0xff, 0x41, 0x00, 0x42]);
+      const response = await fetch(`http://127.0.0.1:${String(port)}/webhooks/bytes`, {
+        body: payload,
+        headers: { 'content-type': 'application/octet-stream' },
+        method: 'POST',
+      });
+      const body = await response.json();
+
+      if (response.status !== 201 || JSON.stringify(body) !== JSON.stringify({ rawBytes: Array.from(payload) })) {
+        throw new Error('fastify adapter changed exact-byte rawBody portability semantics.');
+      }
+    } finally {
+      await adapter.close();
+    }
+  });
+});
