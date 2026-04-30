@@ -13,7 +13,16 @@ const WDIR = process.cwd();
 const FLUO_BUN_BUILD_DIR = join(WDIR, 'dist/fluo-bun');
 
 type TargetName = 'nestjs-fastify' | 'fluo-fastify' | 'fluo-bun';
-type AppShape = 'baseline' | 'dto-1' | 'dto-20' | 'direct-1' | 'direct-20' | 'query-1' | 'body-1';
+type AppShape =
+  | 'baseline'
+  | 'dto-1'
+  | 'dto-20'
+  | 'direct-1'
+  | 'direct-20'
+  | 'query-1'
+  | 'body-1'
+  | 'query-web-1'
+  | 'json-1';
 
 interface ScenarioRequestTemplate {
   readonly body?: string;
@@ -65,7 +74,7 @@ const TARGETS: TargetConfig[] = [
 
 const USER_RESPONSE = JSON.stringify({ id: '1', name: 'Alice', email: 'alice@example.com' });
 const BASELINE_RESPONSE = JSON.stringify({ ok: true });
-const QUERY_RESPONSE = JSON.stringify({
+const QUERY_DTO_RESPONSE = JSON.stringify({
   limit: '25',
   page: '2',
   region: 'west',
@@ -73,7 +82,7 @@ const QUERY_RESPONSE = JSON.stringify({
   sort: 'createdAt',
   term: 'alice',
 });
-const BODY_REQUEST = JSON.stringify({
+const BODY_DTO_REQUEST = JSON.stringify({
   email: 'alice@example.com',
   name: 'Alice',
   role: 'admin',
@@ -81,7 +90,7 @@ const BODY_REQUEST = JSON.stringify({
   team: 'platform',
   title: 'maintainer',
 });
-const BODY_RESPONSE = JSON.stringify({
+const BODY_DTO_RESPONSE = JSON.stringify({
   email: 'alice@example.com',
   name: 'Alice',
   role: 'admin',
@@ -89,6 +98,9 @@ const BODY_RESPONSE = JSON.stringify({
   team: 'platform',
   title: 'maintainer',
 });
+const QUERY_WEB_RESPONSE = JSON.stringify({ encoded: 'hello world', tag: ['one', 'two'] });
+const JSON_BODY_REQUEST = JSON.stringify({ count: 3, title: 'runtime-web' });
+const JSON_BODY_RESPONSE = JSON.stringify({ count: 3, title: 'runtime-web' });
 
 function routePaths(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `/di-chain/r${String(index + 1).padStart(2, '0')}/1`);
@@ -139,16 +151,37 @@ const SCENARIOS: readonly ScenarioConfig[] = [
     description: 'Single-route query DTO with six bound fields',
     appShape: 'query-1',
     path: '/query-dto-one/r01?term=alice&role=admin&region=west&sort=createdAt&page=2&limit=25',
-    expectedBodies: [QUERY_RESPONSE],
+    expectedBodies: [QUERY_DTO_RESPONSE],
   },
   {
     name: 'body-dto-deterministic-1',
     description: 'Single-route body DTO with six bound fields',
     appShape: 'body-1',
     path: '/body-dto-one/r01',
-    expectedBodies: [BODY_RESPONSE],
+    expectedBodies: [BODY_DTO_RESPONSE],
     request: {
-      body: BODY_REQUEST,
+      body: BODY_DTO_REQUEST,
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    },
+  },
+  {
+    name: 'query-deterministic-1',
+    description: 'Single query-focused route that reads repeated query parameters',
+    appShape: 'query-web-1',
+    path: '/query-one?tag=one&tag=two&encoded=hello+world',
+    expectedBodies: [QUERY_WEB_RESPONSE],
+  },
+  {
+    name: 'json-body-deterministic-1',
+    description: 'Single JSON body route that exercises request body materialization',
+    appShape: 'json-1',
+    path: '/body-one',
+    expectedBodies: [JSON_BODY_RESPONSE],
+    request: {
+      body: JSON_BODY_REQUEST,
       headers: {
         'content-type': 'application/json',
       },
@@ -290,13 +323,13 @@ async function runScenario(s: ScenarioConfig, index: number): Promise<ScenarioRe
 
   const scenarioTargets = rotationFor(index).map((target) => ({
     target,
-    url: `http://127.0.0.1:${target.port}${'path' in s ? s.path : ''}`,
+    url: `http://127.0.0.1:${target.port}${s.path ?? ''}`,
   }));
 
   try {
     process.stdout.write(`  [${s.name}] warm-up (${WARMUP_SEC}s)...`);
     await Promise.all(scenarioTargets.map(({ target, url }) => (
-      shoot(url, WARMUP_SEC, s.expectedBodies, `${s.name}/${target.label} warm-up`, s.request, 'paths' in s ? s.paths : undefined)
+      shoot(url, WARMUP_SEC, s.expectedBodies, `${s.name}/${target.label} warm-up`, s.request, s.paths)
     )));
     process.stdout.write(' done\n');
 
@@ -304,7 +337,7 @@ async function runScenario(s: ScenarioConfig, index: number): Promise<ScenarioRe
     for (const { target, url } of scenarioTargets) {
       measured.push({
         label: target.label,
-        result: await measure(target.label, url, s.expectedBodies, s.request, 'paths' in s ? s.paths : undefined),
+        result: await measure(target.label, url, s.expectedBodies, s.request, s.paths),
       });
     }
 
