@@ -1,5 +1,11 @@
 import { type Constructor, type MetadataPropertyKey, type MetadataSource } from '@fluojs/core';
-import { getDtoBindingSchema, type DtoBindingSchemaEntry, type DtoFieldBindingMetadata } from '@fluojs/core/internal';
+import {
+  getClassValidationRules,
+  getDtoBindingSchema,
+  getDtoValidationSchema,
+  type DtoBindingSchemaEntry,
+  type DtoFieldBindingMetadata,
+} from '@fluojs/core/internal';
 
 import type { FrameworkRequest } from '../types.js';
 
@@ -28,7 +34,10 @@ export interface CompiledDtoBindingPlanEntry {
 export interface CompiledDtoBindingPlan {
   readonly bodyKeys: ReadonlySet<string>;
   readonly entries: readonly CompiledDtoBindingPlanEntry[];
+  readonly hasFieldConverters: boolean;
+  readonly needsValidation: boolean;
   readonly propertyKeys: readonly MetadataPropertyKey[];
+  readonly toValidationValue: (value: unknown) => unknown;
 }
 
 const dtoBindingPlanCache = new WeakMap<Constructor, CompiledDtoBindingPlan>();
@@ -48,6 +57,31 @@ function createSourceReader(source: MetadataSource, sourceKey: string): (request
     default:
       return () => undefined;
   }
+}
+
+function identityValidationValue(value: unknown): unknown {
+  return value;
+}
+
+function createValidationValueFilter(
+  propertyKeys: readonly MetadataPropertyKey[],
+): (value: unknown) => unknown {
+  return (value: unknown): unknown => {
+    if (typeof value !== 'object' || value === null) {
+      return value;
+    }
+
+    const source = value as Record<PropertyKey, unknown>;
+    const filtered: Record<PropertyKey, unknown> = Object.create(Object.getPrototypeOf(value));
+
+    for (const propertyKey of propertyKeys) {
+      if (Object.hasOwn(source, propertyKey)) {
+        filtered[propertyKey] = source[propertyKey];
+      }
+    }
+
+    return filtered;
+  };
 }
 
 export function getCompiledDtoBindingPlan(dto: Constructor): CompiledDtoBindingPlan {
@@ -70,10 +104,21 @@ export function getCompiledDtoBindingPlan(dto: Constructor): CompiledDtoBindingP
       sourceKey,
     } satisfies CompiledDtoBindingPlanEntry;
   });
+  const propertyKeys = entries.map((entry: CompiledDtoBindingPlanEntry) => entry.propertyKey);
+  const boundPropertyKeys = new Set(propertyKeys);
+  const validationPropertyKeys = getDtoValidationSchema(dto).map((entry: { propertyKey: MetadataPropertyKey }) => entry.propertyKey);
+  const hasClassValidationRules = getClassValidationRules(dto).length > 0;
+  const needsValidation = hasClassValidationRules || validationPropertyKeys.length > 0;
+  const requiresValidationFilter = hasClassValidationRules
+    || validationPropertyKeys.some((propertyKey: MetadataPropertyKey) => !boundPropertyKeys.has(propertyKey));
+
   const next: CompiledDtoBindingPlan = {
     bodyKeys: new Set(entries.filter((entry: CompiledDtoBindingPlanEntry) => entry.source === 'body').map((entry: CompiledDtoBindingPlanEntry) => entry.sourceKey)),
     entries,
-    propertyKeys: entries.map((entry: CompiledDtoBindingPlanEntry) => entry.propertyKey),
+    hasFieldConverters: entries.some((entry: CompiledDtoBindingPlanEntry) => entry.converter !== undefined),
+    needsValidation,
+    propertyKeys,
+    toValidationValue: requiresValidationFilter ? createValidationValueFilter(propertyKeys) : identityValidationValue,
   };
 
   dtoBindingPlanCache.set(dto, next);

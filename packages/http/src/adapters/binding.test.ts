@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Token } from '@fluojs/core';
 
 import {
@@ -12,6 +12,7 @@ import {
 } from '../decorators.js';
 import {
   ArrayMinSize,
+  DefaultValidator as BaseDefaultValidator,
   IsEmail,
   IsOptional,
   IsString,
@@ -38,6 +39,10 @@ function createRequest(overrides: Partial<FrameworkRequest> = {}): FrameworkRequ
     ...overrides,
   };
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function createResponse(): FrameworkResponse {
   return {
@@ -481,6 +486,48 @@ describe('HttpDtoValidationAdapter', () => {
       ],
       status: 400,
     });
+  });
+
+  it('skips validation engine work when a RequestDto has no validation rules', async () => {
+    class SearchRequest {
+      @FromQuery('q')
+      query = '';
+    }
+
+    const validateSpy = vi.spyOn(BaseDefaultValidator.prototype, 'validate');
+    const validator = new HttpDtoValidationAdapter();
+
+    await expect(
+      validator.validate(
+        Object.assign(new SearchRequest(), {
+          query: 'fluo',
+        }),
+        SearchRequest,
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(validateSpy).not.toHaveBeenCalled();
+  });
+
+  it('reuses the bound DTO instance when every validated property is request-bound', async () => {
+    class SearchRequest {
+      @FromQuery('q')
+      @IsString()
+      @MinLength(1, { code: 'QUERY_REQUIRED', message: 'q is required' })
+      query = '';
+    }
+
+    const validateSpy = vi.spyOn(BaseDefaultValidator.prototype, 'validate');
+    const validator = new HttpDtoValidationAdapter();
+    const input = Object.assign(new SearchRequest(), {
+      query: 'fluo',
+    });
+
+    await expect(validator.validate(input, SearchRequest)).resolves.toBeUndefined();
+
+    expect(validateSpy).toHaveBeenCalledOnce();
+    expect(validateSpy.mock.calls[0]?.[0]).toBe(input);
+    expect(validateSpy.mock.calls[0]?.[1]).toBe(SearchRequest);
   });
 
   it('preserves symbol-backed bound fields while filtering unbound validation properties', async () => {
