@@ -234,6 +234,7 @@ const DEFAULT_PORT = 3000;
 const DEFAULT_DISPATCHER_NOT_READY_MESSAGE = 'Bun adapter received a request before dispatcher binding completed.';
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
 const MINIMUM_BUN_NATIVE_ROUTES_VERSION = '1.2.3';
+const EMPTY_NATIVE_ROUTE_PARAMS: Readonly<Record<string, string>> = Object.freeze({});
 const BUN_WEBSOCKET_SUPPORT_REASON =
   'Bun exposes Bun.serve() + server.upgrade() request-upgrade hosting. Use @fluojs/websockets/bun for the official raw websocket binding.';
 
@@ -251,8 +252,10 @@ export class BunHttpApplicationAdapter implements HttpApplicationAdapter, BunWeb
   constructor(options: BunAdapterOptions = {}) {
     this.options = options;
     this.webRequestResponseFactory = createWebRequestResponseFactory({
+      consumeOriginalBody: true,
       maxBodySize: options.maxBodySize,
       multipart: options.multipart,
+      preferNativeJsonBodyReader: true,
       rawBody: options.rawBody,
     });
   }
@@ -433,8 +436,10 @@ export function createBunFetchHandler({
   rawBody,
 }: CreateBunFetchHandlerOptions): (request: Request) => Promise<Response> {
   const factory = createWebRequestResponseFactory({
+    consumeOriginalBody: true,
     maxBodySize,
     multipart,
+    preferNativeJsonBodyReader: true,
     rawBody,
   });
 
@@ -673,8 +678,12 @@ function createBunRouteShapeKey(path: string): string {
   return `/${segments.map((segment) => segment.startsWith(':') ? ':' : segment).join('/')}`;
 }
 
-function normalizeNativeRouteParams(params: Readonly<Record<string, string>> | undefined): Record<string, string> {
-  return params ? { ...params } : {};
+function normalizeNativeRouteParams(params: Readonly<Record<string, string>> | undefined): Readonly<Record<string, string>> {
+  if (!params || Object.keys(params).length === 0) {
+    return EMPTY_NATIVE_ROUTE_PARAMS;
+  }
+
+  return { ...params };
 }
 
 function hasNativeRouteParamSeparators(params: Readonly<Record<string, string>>): boolean {
