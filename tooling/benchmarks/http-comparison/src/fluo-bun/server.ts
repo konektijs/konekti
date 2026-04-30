@@ -1,11 +1,11 @@
 import { ensureMetadataSymbol, Inject, Module } from '@fluojs/core';
-import { Controller, FromPath, Get, RequestDto, type RequestContext } from '@fluojs/http';
+import { Controller, FromBody, FromPath, FromQuery, Get, Post, RequestDto, type RequestContext } from '@fluojs/http';
 import { createBunAdapter } from '@fluojs/platform-bun';
 import { FluoFactory } from '@fluojs/runtime';
 
 ensureMetadataSymbol();
 
-type AppShape = 'baseline' | 'dto-1' | 'dto-20' | 'direct-1' | 'direct-20';
+type AppShape = 'baseline' | 'dto-1' | 'dto-20' | 'direct-1' | 'direct-20' | 'query-1' | 'body-1';
 
 @Controller('/baseline')
 class BaselineController {
@@ -26,12 +26,74 @@ class GetUserRequest {
   id = '';
 }
 
+class SearchUsersRequest {
+  @FromQuery('term')
+  term = '';
+
+  @FromQuery('role')
+  role = '';
+
+  @FromQuery('region')
+  region = '';
+
+  @FromQuery('sort')
+  sort = '';
+
+  @FromQuery('page')
+  page = '';
+
+  @FromQuery('limit')
+  limit = '';
+}
+
+class CreateUserRequest {
+  @FromBody('name')
+  name = '';
+
+  @FromBody('email')
+  email = '';
+
+  @FromBody('role')
+  role = '';
+
+  @FromBody('team')
+  team = '';
+
+  @FromBody('title')
+  title = '';
+
+  @FromBody('status')
+  status = '';
+}
+
 @Inject(UsersRepository)
 class UsersService {
   constructor(private readonly repo: UsersRepository) {}
 
   getUser(id: string): { id: string; name: string; email: string } {
     return this.repo.findOne(id);
+  }
+
+  searchUsers(input: SearchUsersRequest) {
+    return {
+      limit: input.limit,
+      page: input.page,
+      region: input.region,
+      role: input.role,
+      sort: input.sort,
+      term: input.term,
+    };
+  }
+
+  createUser(input: CreateUserRequest) {
+    return {
+      email: input.email,
+      name: input.name,
+      role: input.role,
+      status: input.status,
+      team: input.team,
+      title: input.title,
+    };
   }
 }
 
@@ -176,6 +238,30 @@ class DirectParamTwentyController {
   getR20(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
 }
 
+@Inject(UsersService)
+@Controller('/query-dto-one')
+class QueryDtoOneController {
+  constructor(private readonly service: UsersService) {}
+
+  @RequestDto(SearchUsersRequest)
+  @Get('/r01')
+  getR01(input: SearchUsersRequest) {
+    return this.service.searchUsers(input);
+  }
+}
+
+@Inject(UsersService)
+@Controller('/body-dto-one')
+class BodyDtoOneController {
+  constructor(private readonly service: UsersService) {}
+
+  @RequestDto(CreateUserRequest)
+  @Post('/r01')
+  createR01(input: CreateUserRequest) {
+    return this.service.createUser(input);
+  }
+}
+
 @Module({ controllers: [BaselineController] })
 class BaselineModule {}
 
@@ -191,6 +277,12 @@ class DirectOneModule {}
 @Module({ controllers: [DirectParamTwentyController], providers: [UsersRepository, UsersService] })
 class DirectTwentyModule {}
 
+@Module({ controllers: [QueryDtoOneController], providers: [UsersRepository, UsersService] })
+class QueryOneModule {}
+
+@Module({ controllers: [BodyDtoOneController], providers: [UsersRepository, UsersService] })
+class BodyOneModule {}
+
 function resolveAppModule(shape: AppShape) {
   switch (shape) {
     case 'baseline': return BaselineModule;
@@ -198,12 +290,14 @@ function resolveAppModule(shape: AppShape) {
     case 'dto-20': return DtoTwentyModule;
     case 'direct-1': return DirectOneModule;
     case 'direct-20': return DirectTwentyModule;
+    case 'query-1': return QueryOneModule;
+    case 'body-1': return BodyOneModule;
   }
 }
 
 function readAppShape(): AppShape {
   const raw = process.env['BENCH_APP_SHAPE'] ?? 'dto-20';
-  if (raw === 'baseline' || raw === 'dto-1' || raw === 'dto-20' || raw === 'direct-1' || raw === 'direct-20') {
+  if (raw === 'baseline' || raw === 'dto-1' || raw === 'dto-20' || raw === 'direct-1' || raw === 'direct-20' || raw === 'query-1' || raw === 'body-1') {
     return raw;
   }
   throw new Error(`Unsupported BENCH_APP_SHAPE: ${raw}`);

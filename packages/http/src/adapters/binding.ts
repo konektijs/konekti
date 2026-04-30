@@ -6,6 +6,7 @@ import type { ArgumentResolverContext, Binder, Converter, ConverterLike, Convert
 import { getCompiledDtoBindingPlan } from './dto-binding-plan.js';
 
 const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const NO_CONVERTERS: readonly Converter[] = [];
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null) {
@@ -123,18 +124,56 @@ export class DefaultBinder implements Binder {
 
   async bind(dto: Constructor, context: ArgumentResolverContext): Promise<unknown> {
     const plan = getCompiledDtoBindingPlan(dto);
+    const request = context.requestContext.request;
     const value = new dto() as Record<string | symbol, unknown>;
-    const converterCache = new Map<unknown, Converter>();
-    const globalConverters = (
-      await Promise.all(this.converters.map((converter) => resolveConverter(converter, context, converterCache)))
-    ).filter((converter): converter is Converter => Boolean(converter));
 
-    validateBodyKeys(context.requestContext.request, plan.bodyKeys);
+    if (request.body !== undefined && request.body !== null) {
+      validateBodyKeys(request, plan.bodyKeys);
+    }
 
     const details: HttpExceptionDetail[] = [];
 
+    if (this.converters.length === 0 && !plan.hasFieldConverters) {
+      for (const entry of plan.entries) {
+        const rawValue = entry.read(request);
+
+        if (rawValue === undefined) {
+          if (entry.optional) {
+            continue;
+          }
+
+          details.push(
+            toInputErrorDetail({
+              code: 'MISSING_FIELD',
+              field: entry.fieldName,
+              message: `Missing required ${entry.source} field ${entry.sourceKey}.`,
+              source: entry.source,
+            }),
+          );
+          continue;
+        }
+
+        value[entry.propertyKey] = rawValue;
+      }
+
+      if (details.length > 0) {
+        throw new BadRequestException('Request binding failed.', {
+          details,
+        });
+      }
+
+      return value;
+    }
+
+    const converterCache = new Map<unknown, Converter>();
+    const globalConverters = this.converters.length === 0
+      ? NO_CONVERTERS
+      : (
+          await Promise.all(this.converters.map((converter) => resolveConverter(converter, context, converterCache)))
+        ).filter((converter): converter is Converter => Boolean(converter));
+
     for (const entry of plan.entries) {
-      const rawValue = entry.read(context.requestContext.request);
+      const rawValue = entry.read(request);
 
       if (rawValue === undefined) {
         if (entry.optional) {
@@ -167,10 +206,12 @@ export class DefaultBinder implements Binder {
         convertedValue = await converter.convert(convertedValue, target);
       }
 
-      const fieldConverter = await resolveConverter(entry.converter, context, converterCache);
+      if (entry.converter !== undefined) {
+        const fieldConverter = await resolveConverter(entry.converter, context, converterCache);
 
-      if (fieldConverter) {
-        convertedValue = await fieldConverter.convert(convertedValue, target);
+        if (fieldConverter) {
+          convertedValue = await fieldConverter.convert(convertedValue, target);
+        }
       }
 
       value[entry.propertyKey] = convertedValue;
