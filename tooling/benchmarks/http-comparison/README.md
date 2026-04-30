@@ -1,6 +1,6 @@
 # HTTP runtime benchmark
 
-Runs a small HTTP throughput/latency comparison between published fluo beta packages and NestJS v11 across three targets:
+Runs a small HTTP throughput/latency comparison between the local fluo worktree packages and NestJS v11 across three targets:
 
 - `Nest+Fastify`
 - `fluo+Fastify`
@@ -25,7 +25,7 @@ pnpm --dir tooling/benchmarks/http-comparison --ignore-workspace install --froze
 pnpm --dir tooling/benchmarks/http-comparison --ignore-workspace bench
 ```
 
-This benchmark has its own lockfile and is intentionally excluded from the root pnpm workspace. It consumes the versions that are already published to npm so repository release jobs do not need unpublished package versions before they can publish them.
+This benchmark has its own lockfile and is intentionally excluded from the root pnpm workspace. The fluo dependencies are linked to `../../../packages/*`, so build the local packages before measuring if you want benchmark results to include unpublished worktree changes.
 
 The runner starts an isolated server set for each scenario, so 1-route and 20-route scenarios register different app shapes instead of merely sending different request paths through the same route table. It warms every target for each scenario, then measures with `autocannon` at 100 connections for 40 seconds. Measurement order rotates by scenario to avoid always giving one framework the same position. Multi-route scenarios use a deterministic path cycle so every target sees the same request sequence.
 
@@ -33,6 +33,14 @@ For quick directional runs, override the defaults with environment variables:
 
 ```bash
 BENCH_WARMUP_SEC=3 BENCH_MEASURE_SEC=10 pnpm --dir tooling/benchmarks/http-comparison --ignore-workspace bench
+```
+
+By default, the runner rebuilds the linked local fluo packages before measuring so uncommitted source changes are reflected in `dist/`. Set `BENCH_BUILD_LOCAL_FLUO_PACKAGES=0` to skip that rebuild when you have already built the packages.
+
+To collect a repeat-average for specific scenarios, set `BENCH_RUNS` and a comma-separated `BENCH_SCENARIOS` list:
+
+```bash
+BENCH_RUNS=5 BENCH_SCENARIOS=query-deterministic-1,json-body-deterministic-1 pnpm --dir tooling/benchmarks/http-comparison --ignore-workspace bench
 ```
 
 The `fluo+Bun` target requires the `bun` CLI because `@fluojs/platform-bun` uses `globalThis.Bun.serve()` at listen time.
@@ -50,7 +58,7 @@ The report prints those counters with throughput and latency metrics.
 
 ## Scope and caveats
 
-- This measures the released npm beta surface, not unpublished workspace source changes.
+- This measures the linked local worktree package builds, not the released npm beta surface.
 - fluo uses TC39 standard decorators without `emitDecoratorMetadata`; NestJS uses legacy decorators with `emitDecoratorMetadata` through `nestjs/tsconfig.json`.
 - `fluo+Bun` is a runtime comparison, not a same-adapter comparison. Treat it as “same fluo app graph on Bun’s native server” versus the Node.js adapter targets.
 - The suite covers routing plus DTO binding on path, query, and body inputs. It does not measure validation plugins, serialization plugins, guards, pipes, database access, or production middleware.
