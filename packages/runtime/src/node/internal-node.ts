@@ -20,11 +20,23 @@ import {
   compressNodeResponse,
 } from './internal-node-compression.js';
 import {
+  cloneHeaderValue,
+  cloneRequestHeaders,
+  createDeferredFrameworkRequestShell,
   createDeferredFrameworkRequest,
+  createMemoizedAsyncValue,
+  createMemoizedValue,
   NodeRequestPayloadTooLargeException,
+  normalizePrimaryContentType,
+  parseCookieHeader,
+  parseQueryParamsFromSearch,
   createRequestSignal,
   materializeFrameworkRequestBody,
+  readPrimaryHeaderValue,
+  resolveAbsoluteRequestUrl,
   resolveRequestIdFromHeaders,
+  snapshotSimpleQueryRecord,
+  splitRawRequestUrl,
 } from './internal-node-request.js';
 import {
   createFrameworkResponse,
@@ -321,11 +333,25 @@ export async function runNodeApplication(
 }
 
 export {
+  cloneHeaderValue,
+  cloneRequestHeaders,
   compressNodeResponse,
+  createDeferredFrameworkRequestShell,
+  createMemoizedAsyncValue,
+  createMemoizedValue,
+  createRequestSignal,
   createNodeResponseCompression,
   createNodeShutdownSignalRegistration,
   defaultNodeShutdownSignals,
+  normalizePrimaryContentType,
+  parseCookieHeader,
+  parseQueryParamsFromSearch,
+  readPrimaryHeaderValue,
   registerShutdownSignals,
+  resolveAbsoluteRequestUrl,
+  resolveRequestIdFromHeaders,
+  snapshotSimpleQueryRecord,
+  splitRawRequestUrl,
 };
 
 function createNodeServer(

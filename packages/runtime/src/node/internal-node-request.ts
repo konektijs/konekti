@@ -26,6 +26,22 @@ type NodeFrameworkRequest = FrameworkRequest & {
 
 type MemoizedValue<T> = () => T;
 
+type QueryRecord = Record<string, string | string[] | undefined>;
+
+export interface DeferredFrameworkRequestShellOptions<RawRequest> {
+  cookieHeader?: string | string[] | undefined;
+  headers?: FrameworkRequest['headers'];
+  headersFactory?: () => FrameworkRequest['headers'];
+  materializeBody?: () => Promise<void>;
+  method?: string;
+  path: string;
+  query?: QueryRecord;
+  queryFactory?: () => QueryRecord;
+  raw: RawRequest;
+  signal: AbortSignal;
+  url: string;
+}
+
 /**
  * HTTP payload-size error that closes the underlying Node request stream after the response commits.
  */
@@ -95,14 +111,12 @@ export function createDeferredFrameworkRequest(
   maxBodySize = 1 * 1024 * 1024,
   preserveRawBody = false,
 ): FrameworkRequest {
-  const url = new URL(request.url ?? '/', 'http://localhost');
+  const rawUrl = request.url ?? '/';
+  const urlParts = splitRawRequestUrl(rawUrl);
   const headers = cloneRequestHeaders(request.headers);
-  const cookieHeader = cloneHeaderValue(headers.cookie);
-  const searchParams = new URLSearchParams(url.searchParams);
-  const cookies = createMemoizedValue(() => parseCookieHeader(cookieHeader));
-  const query = createMemoizedValue(() => parseQueryParams(searchParams));
   const contentType = normalizePrimaryContentType(headers['content-type']);
   const isMultipart = contentType === 'multipart/form-data';
+  let frameworkRequest!: NodeFrameworkRequest;
   const materializeBody = createMemoizedAsyncValue(async () => {
     if (isMultipart) {
       const result = await parseMultipart(
@@ -110,7 +124,7 @@ export function createDeferredFrameworkRequest(
           body: Readable.toWeb(request),
           headers,
           method: request.method,
-          url: url.toString(),
+          url: resolveAbsoluteRequestUrl(rawUrl),
         },
         {
           ...multipartOptions,
@@ -135,22 +149,59 @@ export function createDeferredFrameworkRequest(
     }
   });
 
-  const frameworkRequest: NodeFrameworkRequest = {
-    get cookies() {
-      return cookies();
-    },
+  frameworkRequest = createDeferredFrameworkRequestShell({
+    cookieHeader: cloneHeaderValue(headers.cookie),
     headers,
-    method: request.method ?? 'GET',
-    params: {},
-    path: url.pathname,
-    get query() {
-      return query();
-    },
+    materializeBody,
+    method: request.method,
+    path: urlParts.path,
+    queryFactory: () => parseQueryParamsFromSearch(urlParts.search),
     raw: request,
     signal,
-    url: url.pathname + url.search,
-    materializeBody,
+    url: urlParts.path + urlParts.search,
+  }) as NodeFrameworkRequest;
+
+  return frameworkRequest;
+}
+
+export function createDeferredFrameworkRequestShell<RawRequest>({
+  cookieHeader,
+  headers,
+  headersFactory,
+  materializeBody,
+  method,
+  path,
+  query,
+  queryFactory,
+  raw,
+  signal,
+  url,
+}: DeferredFrameworkRequestShellOptions<RawRequest>): FrameworkRequest {
+  const resolveHeaders = headersFactory ? createMemoizedValue(headersFactory) : () => headers ?? {};
+  const resolveCookies = createMemoizedValue(() => parseCookieHeader(cookieHeader ?? resolveHeaders().cookie));
+  const resolveQuery = createMemoizedValue(() => query ?? queryFactory?.() ?? {});
+
+  const frameworkRequest: NodeFrameworkRequest = {
+    get cookies() {
+      return resolveCookies();
+    },
+    get headers() {
+      return resolveHeaders();
+    },
+    method: method ?? 'GET',
+    params: {},
+    path,
+    get query() {
+      return resolveQuery();
+    },
+    raw,
+    signal,
+    url,
   };
+
+  if (materializeBody) {
+    frameworkRequest.materializeBody = materializeBody;
+  }
 
   return frameworkRequest;
 }
@@ -184,7 +235,7 @@ export async function materializeFrameworkRequestBody(request: FrameworkRequest)
   delete (request as NodeFrameworkRequest).materializeBody;
 }
 
-function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
+export function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
   let initialized = false;
   let value: T;
 
@@ -198,7 +249,7 @@ function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
   };
 }
 
-function createMemoizedAsyncValue(factory: () => Promise<void>): () => Promise<void> {
+export function createMemoizedAsyncValue(factory: () => Promise<void>): () => Promise<void> {
   let promise: Promise<void> | undefined;
 
   return () => {
@@ -241,6 +292,10 @@ export function resolveRequestIdFromHeaders(headers: IncomingHttpHeaders): strin
   return Array.isArray(requestId) ? requestId[0] : requestId;
 }
 
+export function parseQueryParamsFromSearch(search: string): Record<string, string | string[]> {
+  return parseQueryParams(new URLSearchParams(search));
+}
+
 function parseQueryParams(searchParams: URLSearchParams): Record<string, string | string[]> {
   const query: Record<string, string | string[]> = {};
 
@@ -263,17 +318,41 @@ function parseQueryParams(searchParams: URLSearchParams): Record<string, string 
   return query;
 }
 
-function cloneRequestHeaders(headers: IncomingHttpHeaders): FrameworkRequest['headers'] {
+export function snapshotSimpleQueryRecord(query: unknown): QueryRecord | undefined {
+  if (typeof query !== 'object' || query === null) {
+    return undefined;
+  }
+
+  const snapshot: QueryRecord = {};
+
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === 'string' || value === undefined) {
+      snapshot[key] = value;
+      continue;
+    }
+
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      snapshot[key] = [...value];
+      continue;
+    }
+
+    return undefined;
+  }
+
+  return snapshot;
+}
+
+export function cloneRequestHeaders(headers: IncomingHttpHeaders): FrameworkRequest['headers'] {
   const clonedEntries = Object.entries(headers).map(([name, value]) => [name, cloneHeaderValue(value)]);
 
   return Object.fromEntries(clonedEntries);
 }
 
-function cloneHeaderValue<T extends string | string[] | undefined>(value: T): T {
+export function cloneHeaderValue<T extends string | string[] | undefined>(value: T): T {
   return (Array.isArray(value) ? [...value] : value) as T;
 }
 
-function readPrimaryHeaderValue(headerValue: string | string[] | undefined): string | undefined {
+export function readPrimaryHeaderValue(headerValue: string | string[] | undefined): string | undefined {
   if (Array.isArray(headerValue)) {
     return headerValue[0];
   }
@@ -281,7 +360,7 @@ function readPrimaryHeaderValue(headerValue: string | string[] | undefined): str
   return headerValue;
 }
 
-function normalizePrimaryContentType(headerValue: string | string[] | undefined): string | undefined {
+export function normalizePrimaryContentType(headerValue: string | string[] | undefined): string | undefined {
   const primaryHeaderValue = readPrimaryHeaderValue(headerValue);
 
   if (typeof primaryHeaderValue !== 'string') {
@@ -302,7 +381,7 @@ function decodeCookieValue(raw: string): string {
   }
 }
 
-function parseCookieHeader(cookieHeader: string | string[] | undefined): Record<string, string> {
+export function parseCookieHeader(cookieHeader: string | string[] | undefined): Record<string, string> {
   const normalizedCookieHeader = Array.isArray(cookieHeader) ? cookieHeader.join('; ') : cookieHeader;
 
   if (!normalizedCookieHeader) {
@@ -374,4 +453,39 @@ async function readRequestBody(
     body: bodyText,
     rawBody: preserveRawBody ? rawBody : undefined,
   };
+}
+
+export function splitRawRequestUrl(rawUrl: string | undefined): { path: string; search: string } {
+  const resolvedRawUrl = rawUrl ?? '/';
+
+  if (resolvedRawUrl.startsWith('http://') || resolvedRawUrl.startsWith('https://')) {
+    const url = new URL(resolvedRawUrl);
+    return { path: url.pathname, search: url.search };
+  }
+
+  const queryStart = resolvedRawUrl.indexOf('?');
+  const hashStart = resolvedRawUrl.indexOf('#');
+  const pathEndCandidates = [queryStart, hashStart].filter((index) => index >= 0);
+  const pathEnd = pathEndCandidates.length > 0 ? Math.min(...pathEndCandidates) : resolvedRawUrl.length;
+  const path = resolvedRawUrl.slice(0, pathEnd) || '/';
+
+  if (queryStart === -1) {
+    return { path, search: '' };
+  }
+
+  const searchEnd = hashStart >= 0 && hashStart > queryStart ? hashStart : resolvedRawUrl.length;
+  return {
+    path,
+    search: resolvedRawUrl.slice(queryStart, searchEnd),
+  };
+}
+
+export function resolveAbsoluteRequestUrl(rawUrl: string | undefined): string {
+  const resolvedRawUrl = rawUrl ?? '/';
+
+  if (resolvedRawUrl.startsWith('http://') || resolvedRawUrl.startsWith('https://')) {
+    return resolvedRawUrl;
+  }
+
+  return new URL(resolvedRawUrl, 'http://localhost').toString();
 }
