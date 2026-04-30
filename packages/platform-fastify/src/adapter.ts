@@ -87,6 +87,7 @@ export type CorsInput = false | string | string[] | CorsOptions;
 const DEFAULT_MAX_BODY_SIZE = 1 * 1024 * 1024;
 const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
 const FASTIFY_NATIVE_ROUTE_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'] as const;
+const EMPTY_NATIVE_ROUTE_PARAMS: Readonly<Record<string, string>> = Object.freeze({});
 
 type FastifyNativeRouteMethod = (typeof FASTIFY_NATIVE_ROUTE_METHODS)[number];
 
@@ -140,6 +141,15 @@ type FastifyFrameworkRequest = FrameworkRequest & {
   materializeBody?: () => Promise<void>;
   rawBody?: Uint8Array;
 };
+
+type FastifyRequestWithMultipartProbe = FastifyRequest & {
+  isMultipart?: () => boolean;
+};
+
+interface LazyFastifyRequestSignal {
+  isAborted(): boolean;
+  signal(): AbortSignal;
+}
 
 type FastifyMultipartLikeError = Error & {
   code?: unknown;
@@ -246,14 +256,12 @@ export class FastifyHttpApplicationAdapter implements HttpApplicationAdapter {
     for (const route of createFastifyNativeRoutes(descriptors)) {
       this.app.route({
         handler: async (request: FastifyRequest, reply: FastifyReply) => {
-          const requestPath = readRequestPathFromRawUrl(request.raw.url);
+          const urlParts = splitRawRequestUrl(request.raw.url ?? '/');
           const params = normalizeNativeRouteParams(request.params);
 
-          if (!isRoutePathNormalizationSensitive(requestPath) && !hasNativeRouteParamSeparators(params)) {
-            bindRawRequestNativeRouteHandoff(request.raw, {
-              descriptor: route.descriptor,
-              params,
-            });
+          if (!isRoutePathNormalizationSensitive(urlParts.path) && !hasNativeRouteParamSeparators(params)) {
+            await this.handleNativeRouteRequest(route.descriptor, params, urlParts, request, reply);
+            return;
           }
 
           await this.handleRequest(request, reply);
@@ -297,6 +305,170 @@ export class FastifyHttpApplicationAdapter implements HttpApplicationAdapter {
       rawResponse: reply,
     });
   }
+
+  private async handleNativeRouteRequest(
+    descriptor: HandlerDescriptor,
+    params: Readonly<Record<string, string>>,
+    urlParts: FastifyNativeRouteUrlParts,
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    if (isMultipartRequestContentType(request.raw.headers['content-type'])) {
+      bindRawRequestNativeRouteHandoff(request.raw, { descriptor, params });
+      await this.handleRequest(request, reply);
+      return;
+    }
+
+    const dispatcher = this.dispatcher;
+
+    if (!dispatcher?.dispatchNativeRoute) {
+      bindRawRequestNativeRouteHandoff(request.raw, { descriptor, params });
+      await this.handleRequest(request, reply);
+      return;
+    }
+
+    const factory = this.requestResponseFactory;
+    const frameworkResponse = factory.createResponse(reply, request);
+    const lazySignal = createLazyFastifyRequestSignal(reply, factory.createRequestSignal);
+
+    try {
+      const frameworkRequest = createNativeFastFrameworkRequest(request, lazySignal, urlParts, this.maxBodySize, this.preserveRawBody)
+        ?? await factory.createRequest(request, lazySignal.signal());
+
+      if (!isNativeFastFrameworkRequest(frameworkRequest)) {
+        await factory.materializeRequest?.(frameworkRequest);
+      }
+
+      const handled = await dispatcher.dispatchNativeRoute({ descriptor, params }, frameworkRequest, frameworkResponse);
+
+      if (!handled) {
+        bindRawRequestNativeRouteHandoff(request.raw, { descriptor, params });
+        await this.handleRequest(request, reply);
+        return;
+      }
+
+      if (!frameworkResponse.committed) {
+        await frameworkResponse.send(undefined);
+      }
+    } catch (error: unknown) {
+      if (lazySignal.isAborted() || frameworkResponse.committed) {
+        return;
+      }
+
+      await factory.writeErrorResponse(error, frameworkResponse, factory.resolveRequestId(request));
+    }
+  }
+}
+
+function createNativeFastFrameworkRequest(
+  request: FastifyRequest,
+  lazySignal: LazyFastifyRequestSignal,
+  urlParts: FastifyNativeRouteUrlParts,
+  maxBodySize: number,
+  preserveRawBody: boolean,
+): FastifyFrameworkRequest | undefined {
+  const contentType = request.headers['content-type'];
+
+  if (preserveRawBody || isFastifyMultipartRequest(request) || isMultipartRequestContentType(contentType)) {
+    return undefined;
+  }
+
+  const contentLength = Number(request.headers['content-length']);
+
+  if (Number.isFinite(contentLength) && contentLength > maxBodySize) {
+    throw new PayloadTooLargeException('Request body exceeds the size limit.');
+  }
+
+  const frameworkRequest = createDeferredFrameworkRequestShell({
+    cookieHeader: cloneHeaderValue(request.headers.cookie),
+    headersFactory: () => normalizeHeaders(cloneRequestHeaders(request.headers)),
+    method: request.method,
+    path: urlParts.path,
+    query: readSimpleQueryRecord(request.query),
+    queryFactory: () => parseQueryParamsFromSearch(urlParts.search),
+    raw: request.raw,
+    requestId: resolvePrimaryRequestIdFromHeaders(request.raw.headers),
+    signal: lazySignal.signal,
+    url: urlParts.path + urlParts.search,
+  }) as FastifyFrameworkRequest;
+
+  frameworkRequest.body = request.body;
+  frameworkRequest.isAborted = lazySignal.isAborted;
+  markNativeFastFrameworkRequest(frameworkRequest);
+  return frameworkRequest;
+}
+
+function createLazyFastifyRequestSignal(
+  reply: FastifyReply,
+  signalFactory: (reply: FastifyReply) => AbortSignal,
+): LazyFastifyRequestSignal {
+  let signal: AbortSignal | undefined;
+
+  return {
+    isAborted() {
+      return signal?.aborted ?? isFastifyReplyAborted(reply);
+    },
+    signal() {
+      if (!signal) {
+        signal = isFastifyReplyAborted(reply)
+          ? AbortSignal.abort(new Error('Response closed before response commit.'))
+          : signalFactory(reply);
+      }
+
+      return signal;
+    },
+  };
+}
+
+function isFastifyReplyAborted(reply: FastifyReply): boolean {
+  return reply.raw.destroyed && !reply.raw.writableEnded;
+}
+
+const NATIVE_FAST_FRAMEWORK_REQUEST = Symbol('fluo.fastify.nativeFastFrameworkRequest');
+
+type NativeFastFrameworkRequest = FastifyFrameworkRequest & {
+  [NATIVE_FAST_FRAMEWORK_REQUEST]?: true;
+};
+
+function markNativeFastFrameworkRequest(request: FastifyFrameworkRequest): void {
+  (request as NativeFastFrameworkRequest)[NATIVE_FAST_FRAMEWORK_REQUEST] = true;
+}
+
+function isNativeFastFrameworkRequest(request: FrameworkRequest): boolean {
+  return (request as NativeFastFrameworkRequest)[NATIVE_FAST_FRAMEWORK_REQUEST] === true;
+}
+
+function isFastifyMultipartRequest(request: FastifyRequest): boolean {
+  const probe = (request as FastifyRequestWithMultipartProbe).isMultipart;
+  return typeof probe === 'function' && probe.call(request) === true;
+}
+
+function readSimpleQueryRecord(query: unknown): Record<string, string | string[] | undefined> | undefined {
+  if (typeof query !== 'object' || query === null) {
+    return undefined;
+  }
+
+  const record = query as Record<string, unknown>;
+
+  for (const key in record) {
+    if (!Object.prototype.hasOwnProperty.call(record, key)) {
+      continue;
+    }
+
+    const value = record[key];
+
+    if (typeof value === 'string') {
+      continue;
+    }
+
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      continue;
+    }
+
+    return undefined;
+  }
+
+  return record as Record<string, string | string[] | undefined>;
 }
 
 function createFastifyRequestResponseFactory(
@@ -332,6 +504,11 @@ interface FastifyNativeRouteDefinition {
   descriptor: HandlerDescriptor;
   method: FastifyNativeRouteMethod;
   path: string;
+}
+
+interface FastifyNativeRouteUrlParts {
+  path: string;
+  search: string;
 }
 
 interface FastifyNativeRouteCandidate extends FastifyNativeRouteDefinition {
@@ -481,73 +658,86 @@ export async function runFastifyApplication(
   }, adapter);
 }
 
+class MutableFastifyFrameworkResponse implements FastifyFrameworkResponse {
+  committed: boolean;
+  headers: Record<string, string | string[]> = {};
+  raw: FastifyReply;
+  statusCode?: number;
+  statusSet = false;
+
+  private activeStream?: FrameworkResponseStream;
+
+  constructor(private readonly reply: FastifyReply) {
+    this.committed = reply.sent;
+    this.raw = reply;
+  }
+
+  get stream(): FrameworkResponseStream {
+    this.activeStream ??= createFrameworkResponseStream(this.reply);
+    return this.activeStream;
+  }
+
+  redirect(status: number, location: string): void {
+    this.setStatus(status);
+    this.setHeader('Location', location);
+    this.committed = true;
+    this.reply.redirect(location, status);
+  }
+
+  send(body: unknown): ReturnType<FrameworkResponse['send']> {
+    if (this.reply.sent) {
+      this.committed = true;
+      return;
+    }
+
+    const existingContentType = this.reply.getHeader('content-type');
+    const serialized = serializeResponseBody(body, typeof existingContentType === 'string' ? existingContentType : undefined);
+
+    if (!this.reply.hasHeader('content-type') && serialized.defaultContentType) {
+      this.reply.header('content-type', serialized.defaultContentType);
+    }
+
+    this.committed = true;
+    void this.reply.send(serialized.payload);
+  }
+
+  sendSimpleJson(body: Record<string, unknown> | unknown[]): ReturnType<FrameworkResponse['send']> {
+    if (this.reply.sent) {
+      this.committed = true;
+      return;
+    }
+
+    if (!this.reply.hasHeader('content-type')) {
+      this.reply.header('content-type', 'application/json; charset=utf-8');
+    }
+
+    this.committed = true;
+    void this.reply.send(JSON.stringify(body));
+  }
+
+  setHeader(name: string, value: string | string[]): void {
+    const lowerName = name.toLowerCase();
+
+    if (lowerName === 'set-cookie') {
+      const merged = mergeSetCookieHeader(this.reply.getHeader(name), value);
+      this.reply.header(name, merged);
+      this.headers[name] = merged;
+      return;
+    }
+
+    this.reply.header(name, value);
+    this.headers[name] = value;
+  }
+
+  setStatus(code: number): void {
+    this.reply.status(code);
+    this.statusCode = code;
+    this.statusSet = true;
+  }
+}
+
 function createFrameworkResponse(reply: FastifyReply): FastifyFrameworkResponse {
-  let activeStream: FrameworkResponseStream | undefined;
-
-  return {
-    committed: reply.sent,
-    headers: {},
-    raw: reply,
-    get stream() {
-      activeStream ??= createFrameworkResponseStream(reply);
-      return activeStream;
-    },
-    redirect(status: number, location: string) {
-      this.setStatus(status);
-      this.setHeader('Location', location);
-      this.committed = true;
-      reply.redirect(location, status);
-    },
-    async send(body: unknown) {
-      if (reply.sent) {
-        this.committed = true;
-        return;
-      }
-
-      const existingContentType = reply.getHeader('content-type');
-      const serialized = serializeResponseBody(body, typeof existingContentType === 'string' ? existingContentType : undefined);
-
-      if (!reply.hasHeader('content-type') && serialized.defaultContentType) {
-        reply.header('content-type', serialized.defaultContentType);
-      }
-
-      this.committed = true;
-      await reply.send(serialized.payload);
-    },
-    async sendSimpleJson(body: Record<string, unknown> | unknown[]) {
-      if (reply.sent) {
-        this.committed = true;
-        return;
-      }
-
-      if (!reply.hasHeader('content-type')) {
-        reply.header('content-type', 'application/json; charset=utf-8');
-      }
-
-      this.committed = true;
-      await reply.send(JSON.stringify(body));
-    },
-    setHeader(name: string, value: string | string[]) {
-      const lowerName = name.toLowerCase();
-
-      if (lowerName === 'set-cookie') {
-        const merged = mergeSetCookieHeader(reply.getHeader(name), value);
-        reply.header(name, merged);
-        this.headers[name] = merged;
-        return;
-      }
-
-      reply.header(name, value);
-      this.headers[name] = value;
-    },
-    setStatus(code: number) {
-      reply.status(code);
-      this.statusCode = code;
-      this.statusSet = true;
-    },
-    statusCode: undefined,
-    statusSet: false,
-  };
+  return new MutableFastifyFrameworkResponse(reply);
 }
 
 function createFrameworkResponseStream(reply: FastifyReply): FrameworkResponseStream {
@@ -640,7 +830,8 @@ function createDeferredFrameworkRequest(
   const querySnapshot = snapshotSimpleQueryRecord(request.query);
   const isMultipart = isMultipartRequestContentType(headerSnapshot['content-type']);
   let frameworkRequest!: FastifyFrameworkRequest;
-  const materializeBody = createMemoizedAsyncValue(async () => {
+  const needsDeferredBodyMaterialization = isMultipart || preserveRawBody;
+  const materializeBody = needsDeferredBodyMaterialization ? createMemoizedAsyncValue(async () => {
     let body = request.body;
     let files: UploadedFile[] | undefined;
 
@@ -666,7 +857,7 @@ function createDeferredFrameworkRequest(
         frameworkRequest.rawBody = rawBodyValue;
       }
     }
-  });
+  }) : undefined;
 
   frameworkRequest = createDeferredFrameworkRequestShell({
     cookieHeader: cloneHeaderValue(headerSnapshot.cookie),
@@ -677,9 +868,14 @@ function createDeferredFrameworkRequest(
     query: querySnapshot,
     queryFactory: () => parseQueryParamsFromSearch(urlParts.search),
     raw: request.raw,
+    requestId: resolvePrimaryRequestIdFromHeaders(headerSnapshot),
     signal,
     url: urlParts.path + urlParts.search,
   }) as FastifyFrameworkRequest;
+
+  if (!needsDeferredBodyMaterialization) {
+    frameworkRequest.body = request.body;
+  }
 
   const nativeRouteHandoff = consumeRawRequestNativeRouteHandoff(request.raw);
 
@@ -693,23 +889,39 @@ async function materializeFrameworkRequestBody(request: FrameworkRequest): Promi
   delete (request as FastifyFrameworkRequest).materializeBody;
 }
 
-function normalizeNativeRouteParams(params: unknown): Record<string, string> {
+function normalizeNativeRouteParams(params: unknown): Readonly<Record<string, string>> {
   if (typeof params !== 'object' || params === null) {
-    return {};
+    return EMPTY_NATIVE_ROUTE_PARAMS;
   }
 
-  return Object.fromEntries(
-    Object.entries(params).flatMap(([key, value]) =>
-      typeof value === 'string'
-        ? [[key, value] as const]
-        : value === undefined
-          ? []
-          : [[key, String(value)] as const]),
-  );
+  let normalized: Record<string, string> | undefined;
+
+  for (const key in params as Record<string, unknown>) {
+    if (!Object.prototype.hasOwnProperty.call(params, key)) {
+      continue;
+    }
+
+    const value = (params as Record<string, unknown>)[key];
+
+    if (value === undefined) {
+      continue;
+    }
+
+    normalized ??= {};
+    normalized[key] = typeof value === 'string' ? value : String(value);
+  }
+
+  return normalized ?? EMPTY_NATIVE_ROUTE_PARAMS;
 }
 
 function hasNativeRouteParamSeparators(params: Readonly<Record<string, string>>): boolean {
-  return Object.values(params).some((value) => value.includes('/'));
+  for (const key in params) {
+    if (Object.prototype.hasOwnProperty.call(params, key) && params[key]?.includes('/')) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function collectVersionSensitiveRouteKeys(descriptors: readonly HandlerDescriptor[]): Set<string> {
@@ -732,10 +944,6 @@ function collectVersionSensitiveRouteKeys(descriptors: readonly HandlerDescripto
       .filter(([, current]) => current.count > 1 || current.hasVersioned)
       .map(([routeKey]) => routeKey),
   );
-}
-
-function readRequestPathFromRawUrl(rawUrl: string | undefined): string {
-  return splitRawRequestUrl(rawUrl ?? '/').path;
 }
 
 async function parseMultipartRequest(
@@ -894,6 +1102,11 @@ function createRequestSignal(response: import('node:http').ServerResponse): Abor
 
 function resolveRequestIdFromHeaders(headers: IncomingHttpHeaders): string | undefined {
   const requestId = headers['x-request-id'] ?? headers['x-correlation-id'];
+  return Array.isArray(requestId) ? requestId[0] : requestId;
+}
+
+function resolvePrimaryRequestIdFromHeaders(headers: IncomingHttpHeaders): string | undefined {
+  const requestId = headers['x-request-id'];
   return Array.isArray(requestId) ? requestId[0] : requestId;
 }
 
