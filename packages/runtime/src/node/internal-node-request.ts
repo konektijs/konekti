@@ -326,7 +326,7 @@ export function snapshotSimpleQueryRecord(query: unknown): QueryRecord | undefin
   const snapshot: QueryRecord = {};
 
   for (const [key, value] of Object.entries(query)) {
-    if (typeof value === 'string' || value === undefined) {
+    if (typeof value === 'string') {
       snapshot[key] = value;
       continue;
     }
