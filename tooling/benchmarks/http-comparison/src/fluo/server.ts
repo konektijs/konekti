@@ -3,7 +3,16 @@ import { Controller, FromBody, FromPath, FromQuery, Get, Post, RequestDto, type 
 import { createFastifyAdapter } from '@fluojs/platform-fastify';
 import { FluoFactory } from '@fluojs/runtime';
 
-type AppShape = 'baseline' | 'dto-1' | 'dto-20' | 'direct-1' | 'direct-20' | 'query-1' | 'body-1';
+type AppShape =
+  | 'baseline'
+  | 'dto-1'
+  | 'dto-20'
+  | 'direct-1'
+  | 'direct-20'
+  | 'query-1'
+  | 'body-1'
+  | 'query-web-1'
+  | 'json-1';
 
 @Controller('/baseline')
 class BaselineController {
@@ -64,6 +73,11 @@ class CreateUserRequest {
   status = '';
 }
 
+class CreateMessageRequest {
+  count = 0;
+  title = '';
+}
+
 @Inject(UsersRepository)
 class UsersService {
   constructor(private readonly repo: UsersRepository) {}
@@ -97,6 +111,14 @@ class UsersService {
 
 function readPathId(context: RequestContext): string {
   return context.request.params['id'] ?? '';
+}
+
+function readRepeatedQueryValue(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  return value === undefined ? [] : [value];
 }
 
 @Inject(UsersService)
@@ -260,6 +282,30 @@ class BodyDtoOneController {
   }
 }
 
+@Controller('/query-one')
+class QueryOneController {
+  @Get('/')
+  read(_input: undefined, context: RequestContext): { encoded: string; tag: string[] } {
+    return {
+      encoded: String(context.request.query['encoded'] ?? ''),
+      tag: readRepeatedQueryValue(context.request.query['tag']),
+    };
+  }
+}
+
+@Controller('/body-one')
+class JsonBodyOneController {
+  @Post('/')
+  create(_input: undefined, context: RequestContext): { count: number; title: string } {
+    const body = context.request.body as Partial<CreateMessageRequest> | undefined;
+
+    return {
+      count: typeof body?.count === 'number' ? body.count : 0,
+      title: typeof body?.title === 'string' ? body.title : '',
+    };
+  }
+}
+
 @Module({ controllers: [BaselineController] })
 class BaselineModule {}
 
@@ -276,10 +322,16 @@ class DirectOneModule {}
 class DirectTwentyModule {}
 
 @Module({ controllers: [QueryDtoOneController], providers: [UsersRepository, UsersService] })
-class QueryOneModule {}
+class QueryDtoOneModule {}
 
 @Module({ controllers: [BodyDtoOneController], providers: [UsersRepository, UsersService] })
-class BodyOneModule {}
+class BodyDtoOneModule {}
+
+@Module({ controllers: [QueryOneController] })
+class QueryWebOneModule {}
+
+@Module({ controllers: [JsonBodyOneController] })
+class JsonBodyOneModule {}
 
 function resolveAppModule(shape: AppShape) {
   switch (shape) {
@@ -288,14 +340,26 @@ function resolveAppModule(shape: AppShape) {
     case 'dto-20': return DtoTwentyModule;
     case 'direct-1': return DirectOneModule;
     case 'direct-20': return DirectTwentyModule;
-    case 'query-1': return QueryOneModule;
-    case 'body-1': return BodyOneModule;
+    case 'query-1': return QueryDtoOneModule;
+    case 'body-1': return BodyDtoOneModule;
+    case 'query-web-1': return QueryWebOneModule;
+    case 'json-1': return JsonBodyOneModule;
   }
 }
 
 function readAppShape(): AppShape {
   const raw = process.env['BENCH_APP_SHAPE'] ?? 'dto-20';
-  if (raw === 'baseline' || raw === 'dto-1' || raw === 'dto-20' || raw === 'direct-1' || raw === 'direct-20' || raw === 'query-1' || raw === 'body-1') {
+  if (
+    raw === 'baseline'
+    || raw === 'dto-1'
+    || raw === 'dto-20'
+    || raw === 'direct-1'
+    || raw === 'direct-20'
+    || raw === 'query-1'
+    || raw === 'body-1'
+    || raw === 'query-web-1'
+    || raw === 'json-1'
+  ) {
     return raw;
   }
   throw new Error(`Unsupported BENCH_APP_SHAPE: ${raw}`);

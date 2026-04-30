@@ -103,6 +103,43 @@ describe('dispatchWebRequest', () => {
     expect(await response.text()).toBe('');
   });
 
+  it('preserves query decoding semantics for repeated, empty, and plus-separated values', async () => {
+    const response = await dispatchWebRequest({
+      dispatcher: {
+        async dispatch(request: FrameworkRequest, frameworkResponse: FrameworkResponse) {
+          expect(request.query).toEqual({
+            empty: '',
+            encoded: 'hello world',
+            flag: '',
+            plain: 'ok',
+            tag: ['one', 'two'],
+          });
+          await frameworkResponse.send({ ok: true });
+        },
+      },
+      request: new Request('https://runtime.test/query?tag=one&tag=two&empty=&flag&encoded=hello+world&plain=ok'),
+    });
+
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it('matches URLSearchParams semantics for malformed percent-encoded query values', async () => {
+    const response = await dispatchWebRequest({
+      dispatcher: {
+        async dispatch(request: FrameworkRequest, frameworkResponse: FrameworkResponse) {
+          expect(request.query).toEqual({
+            bad: '�%A',
+            ok: 'hello world',
+          });
+          await frameworkResponse.send({ ok: true });
+        },
+      },
+      request: new Request('https://runtime.test/query?bad=%E0%A4%A&ok=hello+world'),
+    });
+
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
   it('serializes framework errors into a Web Response', async () => {
     const response = await dispatchWebRequest({
       dispatcher: {
@@ -265,6 +302,33 @@ describe('dispatchWebRequest', () => {
 
     expect(Buffer.from(rawBody ?? new Uint8Array()).toString('utf8')).toBe('{"ok":true}');
   });
+
+  it('keeps the original Web request body readable after dispatch materializes JSON bodies', async () => {
+    const request = new Request('https://runtime.test/raw-observability', {
+      body: JSON.stringify({ ok: true }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+    let rawBodyUsedDuringDispatch: boolean | undefined;
+
+    const response = await dispatchWebRequest({
+      dispatcher: {
+        async dispatch(frameworkRequest, frameworkResponse) {
+          rawBodyUsedDuringDispatch = (frameworkRequest.raw as Request).bodyUsed;
+          await frameworkResponse.send({ ok: frameworkRequest.body });
+        },
+      },
+      request,
+    });
+
+    expect(rawBodyUsedDuringDispatch).toBe(false);
+    expect(request.bodyUsed).toBe(false);
+    await expect(request.json()).resolves.toEqual({ ok: true });
+    expect(request.bodyUsed).toBe(true);
+    await expect(response.json()).resolves.toEqual({ ok: { ok: true } });
+  });
 });
 
 describe('createWebFrameworkRequest', () => {
@@ -287,7 +351,7 @@ describe('createWebFrameworkRequest', () => {
     expect(secondHeaders['x-runtime']).toBe('before');
   });
 
-  it('creates the request shell before materializing body and rawBody', async () => {
+  it('creates the request shell before materializing body and rawBody while keeping the raw request readable', async () => {
     let pulls = 0;
     const request = new Request('https://runtime.test/body?tag=one', {
       body: new ReadableStream<Uint8Array>({
@@ -319,6 +383,7 @@ describe('createWebFrameworkRequest', () => {
     expect(cloneCalls).toBe(0);
     expect(frameworkRequest.path).toBe('/body');
     expect(frameworkRequest.query).toEqual({ tag: 'one' });
+    expect(request.bodyUsed).toBe(false);
 
     await factory.materializeRequest?.(frameworkRequest);
     await factory.materializeRequest?.(frameworkRequest);
@@ -327,6 +392,8 @@ describe('createWebFrameworkRequest', () => {
     expect(pulls).toBe(1);
     expect(frameworkRequest.body).toEqual({ ok: true });
     expect(Buffer.from(frameworkRequest.rawBody ?? new Uint8Array()).toString('utf8')).toBe('{"ok":true}');
+    expect(request.bodyUsed).toBe(false);
+    await expect(request.json()).resolves.toEqual({ ok: true });
   });
 
   it('skips clone-based body materialization for bodyless requests', async () => {
@@ -369,5 +436,36 @@ describe('createWebFrameworkRequest', () => {
     expect(frameworkRequest.body).toEqual({ title: 'before' });
     expect(frameworkRequest.headers['content-type']).toContain('multipart/form-data');
     expect(frameworkRequest.headers['x-runtime']).toBeUndefined();
+  });
+
+  it('materializes deferred multipart bodies via a clone so the raw request stays readable', async () => {
+    const formData = new FormData();
+    formData.set('title', 'before');
+    const request = new Request('https://runtime.test/upload', {
+      body: formData,
+      method: 'POST',
+    });
+    const originalClone = request.clone.bind(request);
+    let cloneCalls = 0;
+
+    Object.defineProperty(request, 'clone', {
+      value: () => {
+        cloneCalls += 1;
+        return originalClone();
+      },
+    });
+
+    const factory = createWebRequestResponseFactory();
+    const frameworkRequest = await factory.createRequest(request, new AbortController().signal);
+
+    await factory.materializeRequest?.(frameworkRequest);
+
+    expect(cloneCalls).toBe(1);
+    expect(frameworkRequest.body).toEqual({ title: 'before' });
+    expect(request.bodyUsed).toBe(false);
+
+    const rawFormData = await request.formData();
+
+    expect(rawFormData.get('title')).toBe('before');
   });
 });
