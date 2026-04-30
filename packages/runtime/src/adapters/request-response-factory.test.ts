@@ -36,6 +36,7 @@ describe('dispatchWithRequestResponseFactory', () => {
           raw: rawRequest,
           signal,
           url: '/',
+          materializeBody: () => Promise.resolve(),
         };
       },
       createRequestSignal() {

@@ -10,7 +10,16 @@ const FLUO_FASTIFY_PORT = 3001;
 const NESTJS_PORT = 3002;
 const FLUO_BUN_PORT = 3003;
 const WDIR = process.cwd();
+const REPO_ROOT = join(WDIR, '../../..');
 const FLUO_BUN_BUILD_DIR = join(WDIR, 'dist/fluo-bun');
+const LOCAL_FLUO_PACKAGES = [
+  '@fluojs/core',
+  '@fluojs/di',
+  '@fluojs/http',
+  '@fluojs/runtime',
+  '@fluojs/platform-fastify',
+  '@fluojs/platform-bun',
+] as const;
 
 type TargetName = 'nestjs-fastify' | 'fluo-fastify' | 'fluo-bun';
 type AppShape =
@@ -193,6 +202,36 @@ const SCENARIOS: readonly ScenarioConfig[] = [
 const WARMUP_SEC = readPositiveIntegerEnv('BENCH_WARMUP_SEC', 10);
 const MEASURE_SEC = readPositiveIntegerEnv('BENCH_MEASURE_SEC', 40);
 const CONNECTIONS = readPositiveIntegerEnv('BENCH_CONNECTIONS', 100);
+const RUNS = readPositiveIntegerEnv('BENCH_RUNS', 1);
+const BUILD_LOCAL_FLUO_PACKAGES = process.env.BENCH_BUILD_LOCAL_FLUO_PACKAGES !== '0';
+
+function readScenarioFilter(): Set<string> | undefined {
+  const raw = process.env.BENCH_SCENARIOS;
+  if (raw === undefined || raw.trim() === '') {
+    return undefined;
+  }
+
+  return new Set(raw.split(',').map((name) => name.trim()).filter((name) => name.length > 0));
+}
+
+function selectedScenarios(): readonly ScenarioConfig[] {
+  const filter = readScenarioFilter();
+  if (!filter) {
+    return SCENARIOS;
+  }
+
+  const selected = SCENARIOS.filter((scenario) => filter.has(scenario.name));
+  const knownNames = new Set(SCENARIOS.map((scenario) => scenario.name));
+  const unknown = [...filter].filter((name) => !knownNames.has(name));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown BENCH_SCENARIOS entries: ${unknown.join(', ')}`);
+  }
+  if (selected.length === 0) {
+    throw new Error('BENCH_SCENARIOS did not select any scenarios.');
+  }
+
+  return selected;
+}
 
 function readPositiveIntegerEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -313,11 +352,6 @@ async function measure(
 
 async function runScenario(s: ScenarioConfig, index: number): Promise<ScenarioResult> {
   const processes = startTargets(s.appShape);
-  const cleanup = (): void => {
-    for (const child of processes) {
-      child.kill();
-    }
-  };
 
   await Promise.all(TARGETS.map((target) => waitForPort(target.port)));
 
@@ -351,8 +385,7 @@ async function runScenario(s: ScenarioConfig, index: number): Promise<ScenarioRe
 
     return { name: s.name, description: s.description, targets };
   } finally {
-    cleanup();
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await stopTargets(processes);
   }
 }
 
@@ -384,6 +417,7 @@ function startTargets(appShape: AppShape): ChildProcess[] {
   return TARGETS.map((target) => {
     const child = spawn(target.command, target.args, {
       cwd: WDIR,
+      detached: true,
       env: { ...process.env, BENCH_APP_SHAPE: appShape, PORT: String(target.port) },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -391,6 +425,53 @@ function startTargets(appShape: AppShape): ChildProcess[] {
     child.stderr?.on('data', (d: Buffer) => process.stderr.write(`[${target.name}] ${String(d)}`));
     return child;
   });
+}
+
+function waitForChildExit(child: ChildProcess, timeoutMs: number): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    let timeout: NodeJS.Timeout | undefined;
+    const settle = (): void => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+
+      child.removeListener('exit', settle);
+      resolve();
+    };
+
+    timeout = setTimeout(settle, timeoutMs);
+    child.once('exit', settle);
+  });
+}
+
+function signalTarget(child: ChildProcess, signal: NodeJS.Signals): void {
+  if (child.exitCode !== null || child.signalCode !== null || child.pid === undefined) {
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    child.kill(signal);
+  }
+}
+
+async function stopTargets(processes: readonly ChildProcess[]): Promise<void> {
+  for (const child of processes) {
+    signalTarget(child, 'SIGTERM');
+  }
+
+  await Promise.all(processes.map((child) => waitForChildExit(child, 1_500)));
+
+  for (const child of processes) {
+    signalTarget(child, 'SIGKILL');
+  }
+
+  await Promise.all(processes.map((child) => waitForChildExit(child, 1_000)));
 }
 
 async function buildBunTarget(): Promise<void> {
@@ -406,16 +487,88 @@ async function buildBunTarget(): Promise<void> {
   ]);
 }
 
-async function main(): Promise<void> {
-  await buildBunTarget();
-
-  const results: ScenarioResult[] = [];
-  for (const [index, s] of SCENARIOS.entries()) {
-    console.log(`Scenario: ${s.name}`);
-    results.push(await runScenario(s, index));
+async function buildLocalFluoPackages(): Promise<void> {
+  if (!BUILD_LOCAL_FLUO_PACKAGES) {
+    return;
   }
 
-  printReport(results, { connections: CONNECTIONS, duration: MEASURE_SEC });
+  for (const packageName of LOCAL_FLUO_PACKAGES) {
+    process.stdout.write(`Building local ${packageName}...`);
+    await runCommand('pnpm', ['--dir', REPO_ROOT, '--filter', packageName, 'run', 'build']);
+    process.stdout.write(' done\n');
+  }
+}
+
+function average(values: readonly number[]): number {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function averageResult(results: readonly Result[]): Result {
+  const first = results[0];
+  if (!first) {
+    throw new Error('Cannot average an empty result set.');
+  }
+
+  return {
+    ...first,
+    errors: Math.round(average(results.map((result) => result.errors))),
+    mismatches: Math.round(average(results.map((result) => result.mismatches))),
+    non2xx: Math.round(average(results.map((result) => result.non2xx))),
+    requests: {
+      ...first.requests,
+      average: average(results.map((result) => result.requests.average)),
+    },
+    throughput: {
+      ...first.throughput,
+      average: average(results.map((result) => result.throughput.average)),
+    },
+    timeouts: Math.round(average(results.map((result) => result.timeouts))),
+    latency: {
+      ...first.latency,
+      average: average(results.map((result) => result.latency.average)),
+      p50: average(results.map((result) => result.latency.p50)),
+      p97_5: average(results.map((result) => result.latency.p97_5)),
+      p99: average(results.map((result) => result.latency.p99)),
+    },
+  };
+}
+
+function averageScenarioResults(runs: readonly ScenarioResult[][]): ScenarioResult[] {
+  const firstRun = runs[0];
+  if (!firstRun) {
+    throw new Error('Cannot average an empty run set.');
+  }
+
+  return firstRun.map((scenario, scenarioIndex) => ({
+    description: scenario.description,
+    name: `${scenario.name} (${String(runs.length)}-run avg)`,
+    targets: scenario.targets.map((target, targetIndex) => ({
+      label: target.label,
+      result: averageResult(runs.map((run) => run[scenarioIndex]?.targets[targetIndex]?.result).filter((result): result is Result => result !== undefined)),
+    })),
+  }));
+}
+
+async function main(): Promise<void> {
+  await buildLocalFluoPackages();
+  await buildBunTarget();
+
+  const scenarios = selectedScenarios();
+  const runs: ScenarioResult[][] = [];
+  for (let run = 0; run < RUNS; run += 1) {
+    if (RUNS > 1) {
+      console.log(`Run ${String(run + 1)} of ${String(RUNS)}`);
+    }
+
+    const results: ScenarioResult[] = [];
+    for (const [index, s] of scenarios.entries()) {
+      console.log(`Scenario: ${s.name}`);
+      results.push(await runScenario(s, index + run));
+    }
+    runs.push(results);
+  }
+
+  printReport(RUNS === 1 ? runs[0] ?? [] : averageScenarioResults(runs), { connections: CONNECTIONS, duration: MEASURE_SEC });
 }
 
 main().catch((err) => {

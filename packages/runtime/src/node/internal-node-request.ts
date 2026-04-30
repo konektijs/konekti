@@ -41,7 +41,8 @@ export interface DeferredFrameworkRequestShellOptions<RawRequest> {
   query?: QueryRecord;
   queryFactory?: () => QueryRecord;
   raw: RawRequest;
-  signal: AbortSignal;
+  requestId?: string;
+  signal: AbortSignal | (() => AbortSignal);
   url: string;
 }
 
@@ -160,6 +161,7 @@ export function createDeferredFrameworkRequest(
     path: urlParts.path,
     queryFactory: () => parseQueryParamsFromSearch(urlParts.search),
     raw: request,
+    requestId: resolvePrimaryRequestIdFromHeaders(headers),
     signal,
     url: urlParts.path + urlParts.search,
   }) as NodeFrameworkRequest;
@@ -183,14 +185,17 @@ export function createDeferredFrameworkRequestShell<RawRequest>({
   query,
   queryFactory,
   raw,
+  requestId,
   signal,
   url,
 }: DeferredFrameworkRequestShellOptions<RawRequest>): FrameworkRequest {
+  const hasQuerySnapshot = query !== undefined;
+  const hasLazySignal = typeof signal === 'function';
   const resolveHeaders = headersFactory ? createMemoizedValue(headersFactory) : () => headers ?? {};
   const resolveCookies = createMemoizedValue(() => parseCookieHeader(cookieHeader ?? resolveHeaders().cookie));
-  const resolveQuery = createMemoizedValue(() => query ?? queryFactory?.() ?? {});
+  const resolveQuery = hasQuerySnapshot ? undefined : createMemoizedValue(() => queryFactory?.() ?? {});
 
-  const frameworkRequest: NodeFrameworkRequest = {
+  const frameworkRequest = {
     get cookies() {
       return resolveCookies();
     },
@@ -200,13 +205,34 @@ export function createDeferredFrameworkRequestShell<RawRequest>({
     method: method ?? 'GET',
     params: {},
     path,
-    get query() {
-      return resolveQuery();
-    },
+    requestId,
     raw,
-    signal,
     url,
-  };
+  } as NodeFrameworkRequest;
+
+  if (hasLazySignal) {
+    Object.defineProperty(frameworkRequest, 'signal', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return signal();
+      },
+    });
+  } else {
+    frameworkRequest.signal = signal;
+  }
+
+  if (hasQuerySnapshot) {
+    frameworkRequest.query = query;
+  } else {
+    Object.defineProperty(frameworkRequest, 'query', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return resolveQuery!();
+      },
+    });
+  }
 
   if (materializeBody) {
     frameworkRequest.materializeBody = materializeBody;
@@ -310,6 +336,11 @@ export function createRequestSignal(response: ServerResponse): AbortSignal {
  */
 export function resolveRequestIdFromHeaders(headers: IncomingHttpHeaders): string | undefined {
   const requestId = headers['x-request-id'] ?? headers['x-correlation-id'];
+  return Array.isArray(requestId) ? requestId[0] : requestId;
+}
+
+function resolvePrimaryRequestIdFromHeaders(headers: IncomingHttpHeaders): string | undefined {
+  const requestId = headers['x-request-id'];
   return Array.isArray(requestId) ? requestId[0] : requestId;
 }
 

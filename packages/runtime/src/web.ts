@@ -39,8 +39,10 @@ const REQUEST_BODY_LIMIT_MESSAGE = 'Request body exceeds the size limit.';
  * Configures Web request parsing, multipart handling, and raw body preservation.
  */
 export interface CreateWebRequestResponseFactoryOptions {
+  consumeOriginalBody?: boolean;
   maxBodySize?: number;
   multipart?: MultipartOptions;
+  preferNativeJsonBodyReader?: boolean;
   rawBody?: boolean;
 }
 
@@ -291,6 +293,8 @@ export function createWebRequestResponseFactory(
         options.multipart,
         options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE,
         options.rawBody ?? false,
+        options.preferNativeJsonBodyReader ?? false,
+        options.consumeOriginalBody ?? false,
       );
     },
     materializeRequest(request) {
@@ -382,6 +386,8 @@ function createDeferredWebFrameworkRequest(
   multipartOptions?: MultipartOptions,
   maxBodySize = DEFAULT_MAX_BODY_SIZE,
   preserveRawBody = false,
+  preferNativeJsonBodyReader = false,
+  consumeOriginalBody = false,
 ): FrameworkRequest {
   const url = new URL(request.url);
   const requestHeaders = new Headers(request.headers);
@@ -391,15 +397,16 @@ function createDeferredWebFrameworkRequest(
   const query = createMemoizedValue(() => parseQueryString(url.search));
   const contentType = requestHeaders.get('content-type') ?? undefined;
   const isMultipart = typeof contentType === 'string' && contentType.includes('multipart/form-data');
-  const materializeBody = createMemoizedAsyncValue(async () => {
+  const hasRequestBody = request.body !== null;
+  const materializeBody = hasRequestBody ? createMemoizedAsyncValue(async () => {
     if (isMultipart) {
       const materializedRequest = request.clone();
-      const result = await parseMultipart({
-        body: materializedRequest.body,
-        headers: requestHeaders,
+      const result = await parseMultipart(createRequestWithSnapshotMetadata(
+        materializedRequest,
+        request.url,
         method,
-        url: request.url,
-      }, {
+        requestHeaders,
+      ), {
         ...multipartOptions,
         maxTotalSize: multipartOptions?.maxTotalSize ?? maxBodySize,
       });
@@ -415,13 +422,20 @@ function createDeferredWebFrameworkRequest(
       return;
     }
 
-    const bodyResult = await readWebRequestBody(request.clone(), contentType, maxBodySize, preserveRawBody);
+    const requestToRead = consumeOriginalBody ? request : request.clone();
+    const bodyResult = await readWebRequestBody(
+      requestToRead,
+      contentType,
+      maxBodySize,
+      preserveRawBody,
+      preferNativeJsonBodyReader,
+    );
     frameworkRequest.body = bodyResult.body;
 
     if (bodyResult.rawBody) {
       frameworkRequest.rawBody = bodyResult.rawBody;
     }
-  });
+  }) : undefined;
 
   const frameworkRequest: WebFrameworkRequest = {
     get cookies() {
@@ -437,16 +451,40 @@ function createDeferredWebFrameworkRequest(
       return query();
     },
     raw: request,
+    requestId: requestHeaders.get('x-request-id') ?? undefined,
     signal,
     url: url.pathname + url.search,
     materializeBody,
   };
+
+  if (!hasRequestBody) {
+    frameworkRequest.body = undefined;
+  }
 
   const nativeRouteHandoff = consumeRawRequestNativeRouteHandoff(request);
 
   return nativeRouteHandoff
     ? attachFrameworkRequestNativeRouteHandoff(frameworkRequest, nativeRouteHandoff)
     : frameworkRequest;
+}
+
+function createRequestWithSnapshotMetadata(
+  request: Request,
+  url: string,
+  method: string,
+  headers: Headers,
+): Request {
+  const init: RequestInit & { duplex?: 'half' } = {
+    headers: new Headers(headers),
+    method,
+  };
+
+  if (request.body) {
+    init.body = request.body;
+    init.duplex = 'half';
+  }
+
+  return new Request(url, init);
 }
 
 function validateWebRequestContentLength(request: Request, maxBodySize: number): void {
@@ -603,6 +641,7 @@ async function readWebRequestBody(
   contentType: string | undefined,
   maxBodySize = DEFAULT_MAX_BODY_SIZE,
   preserveRawBody = false,
+  preferNativeJsonBodyReader = false,
 ): Promise<{ body: unknown; rawBody?: Uint8Array }> {
   validateWebRequestContentLength(request, maxBodySize);
 
@@ -610,8 +649,24 @@ async function readWebRequestBody(
     return { body: undefined };
   }
 
-  const rawBody = await readByteLimitedStream(request.body, maxBodySize);
+  if (!preserveRawBody && isJsonContentType(contentType) && (preferNativeJsonBodyReader || isContentLengthWithinLimit(request, maxBodySize))) {
+    const rawBody = new Uint8Array(await request.arrayBuffer());
 
+    if (rawBody.byteLength > maxBodySize) {
+      throw new PayloadTooLargeException(REQUEST_BODY_LIMIT_MESSAGE);
+    }
+
+    return parseWebRequestRawBody(rawBody, contentType, preserveRawBody);
+  }
+
+  return parseWebRequestRawBody(await readByteLimitedStream(request.body, maxBodySize), contentType, preserveRawBody);
+}
+
+function parseWebRequestRawBody(
+  rawBody: Uint8Array,
+  contentType: string | undefined,
+  preserveRawBody: boolean,
+): { body: unknown; rawBody?: Uint8Array } {
   if (rawBody.byteLength === 0) {
     return { body: undefined };
   }
@@ -622,7 +677,7 @@ async function readWebRequestBody(
     return { body: undefined, rawBody: preserveRawBody ? rawBody : undefined };
   }
 
-  if (typeof contentType === 'string' && contentType.includes('application/json')) {
+  if (isJsonContentType(contentType)) {
     try {
       return {
         body: JSON.parse(bodyText) as unknown,
@@ -637,6 +692,17 @@ async function readWebRequestBody(
     body: bodyText,
     rawBody: preserveRawBody ? rawBody : undefined,
   };
+}
+
+function isContentLengthWithinLimit(request: Request, maxBodySize: number): boolean {
+  const contentLength = request.headers.get('content-length');
+
+  if (contentLength === null) {
+    return false;
+  }
+
+  const parsedContentLength = Number(contentLength);
+  return Number.isFinite(parsedContentLength) && parsedContentLength > 0 && parsedContentLength <= maxBodySize;
 }
 
 async function readByteLimitedStream(
