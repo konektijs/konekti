@@ -1,5 +1,13 @@
 # @fluojs/http
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- [#1478](https://github.com/fluojs/fluo/pull/1478) [`e1bce3d`](https://github.com/fluojs/fluo/commit/e1bce3d758794b5a58704f5ccda7e0bf4aed01f0) Thanks [@ayden94](https://github.com/ayden94)! - Reduce singleton-route dispatcher overhead by caching stable execution plans while preserving lazy request-scope promotion, route-matched middleware behavior, observer callbacks, and request-scoped DI isolation.
+
+- [#1475](https://github.com/fluojs/fluo/pull/1475) [`3baf5df`](https://github.com/fluojs/fluo/commit/3baf5dfc1e09d95f4869cd7d847b545c49609ed7) Thanks [@ayden94](https://github.com/ayden94)! - Improve `@RequestDto` request-pipeline throughput by skipping unnecessary validation work for DTOs without validation rules and by reducing per-request binding overhead on the common no-converter path.
+
 ## 1.0.0-beta.4
 
 ### Patch Changes
