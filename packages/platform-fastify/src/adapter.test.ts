@@ -1388,6 +1388,55 @@ describe('@fluojs/platform-fastify', () => {
     }
   });
 
+  it('snapshots request headers before middleware can mutate raw headers', async () => {
+    const mutatingMiddleware = {
+      async handle(context: MiddlewareContext, next: () => Promise<void>) {
+        const rawRequest = context.request.raw as { headers?: Record<string, string | string[] | undefined> };
+
+        if (rawRequest.headers) {
+          rawRequest.headers['x-request-id'] = 'mutated-after-wrapper-create';
+        }
+
+        await next();
+      },
+    };
+
+    @Controller('/snapshot')
+    class SnapshotController {
+      @Get('/headers')
+      getHeaders(_input: undefined, context: RequestContext) {
+        return {
+          requestId: context.request.headers['x-request-id'],
+        };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [SnapshotController] });
+
+    const port = await findAvailablePort();
+    const app = await fluoFactory.create(AppModule, {
+      adapter: createFastifyAdapter({ port }),
+      middleware: [mutatingMiddleware],
+    });
+
+    await app.listen();
+
+    try {
+      const response = await requestHttp({
+        headers: { 'x-request-id': 'original-at-wrapper-create' },
+        method: 'GET',
+        path: '/snapshot/headers',
+        port,
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body)).toEqual({ requestId: 'original-at-wrapper-create' });
+    } finally {
+      await app.close();
+    }
+  });
+
   it('supports https startup and reports the https listen URL', async () => {
     const loggerEvents: string[] = [];
     const logger: ApplicationLogger = {

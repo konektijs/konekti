@@ -628,11 +628,12 @@ function createDeferredFrameworkRequest(
 ): FrameworkRequest {
   const rawUrl = request.raw.url ?? '/';
   const urlParts = splitRawRequestUrl(rawUrl);
-  const headers = createMemoizedValue(() => normalizeHeaders(request.raw.headers));
-  const cookieHeader = cloneHeaderValue(request.raw.headers.cookie);
+  const headerSnapshot = cloneRequestHeaders(request.headers);
+  const headers = createMemoizedValue(() => normalizeHeaders(headerSnapshot));
+  const cookieHeader = cloneHeaderValue(headerSnapshot.cookie);
   const cookies = createMemoizedValue(() => parseCookieHeader(cookieHeader));
   const query = createMemoizedValue(() => parseQueryParamsFromSearch(urlParts.search));
-  const isMultipart = isMultipartRequestContentType(request.raw.headers['content-type']);
+  const isMultipart = isMultipartRequestContentType(headerSnapshot['content-type']);
   const materializeBody = createMemoizedAsyncValue(async () => {
     let body = request.body;
     let files: UploadedFile[] | undefined;
@@ -933,6 +934,12 @@ function createMemoizedAsyncValue(factory: () => Promise<void>): () => Promise<v
 
 function cloneHeaderValue<T extends string | string[] | undefined>(value: T): T {
   return (Array.isArray(value) ? [...value] : value) as T;
+}
+
+function cloneRequestHeaders(headers: FastifyRequest['headers']): IncomingHttpHeaders {
+  return Object.fromEntries(
+    Object.entries(headers).map(([name, value]) => [name, cloneHeaderValue(value)]),
+  );
 }
 
 function splitRawRequestUrl(rawUrl: string): { path: string; search: string } {
