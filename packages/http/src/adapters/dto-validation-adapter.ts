@@ -18,27 +18,19 @@ export class HttpDtoValidationAdapter implements Validator {
     });
   }
 
-  private filterUnboundRequestDtoFields(value: unknown, target: Constructor): unknown {
-    if (typeof value !== 'object' || value === null) {
-      return value;
-    }
-
-    const source = value as Record<PropertyKey, unknown>;
-    const filtered: Record<PropertyKey, unknown> = Object.create(Object.getPrototypeOf(value));
-
-    for (const propertyKey of getCompiledDtoBindingPlan(target).propertyKeys) {
-      if (Object.hasOwn(source, propertyKey)) {
-        filtered[propertyKey] = source[propertyKey];
-      }
-    }
-
-    return filtered;
+  private getValidationValue(value: unknown, target: Constructor): unknown {
+    return getCompiledDtoBindingPlan(target).toValidationValue(value);
   }
 
   async validate(value: unknown, target: Constructor): Promise<void> {
     try {
-      const filteredValue = this.filterUnboundRequestDtoFields(value, target);
-      await this.validator.validate(filteredValue, target);
+      const plan = getCompiledDtoBindingPlan(target);
+
+      if (!plan.needsValidation) {
+        return;
+      }
+
+      await this.validator.validate(this.getValidationValue(value, target), target);
     } catch (error: unknown) {
       if (error instanceof DtoValidationError) {
         this.throwBadRequestForValidationError(error);

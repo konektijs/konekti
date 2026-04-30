@@ -2,6 +2,7 @@ import { InvariantError, type Token } from '@fluojs/core';
 import type { RequestScopeContainer } from '@fluojs/di';
 
 import { DefaultBinder } from '../adapters/binding.js';
+import { getCompiledDtoBindingPlan } from '../adapters/dto-binding-plan.js';
 import { HttpDtoValidationAdapter } from '../adapters/dto-validation-adapter.js';
 import type { ArgumentResolverContext, Binder, HandlerDescriptor, RequestContext } from '../types.js';
 
@@ -36,12 +37,13 @@ export async function invokeControllerHandler(
     handler,
     requestContext,
   };
-  const input = handler.route.request
-    ? await binder.bind(handler.route.request, argumentResolverContext)
+  const requestDto = handler.route.request;
+  const input = requestDto
+    ? await binder.bind(requestDto, argumentResolverContext)
     : undefined;
 
-  if (handler.route.request) {
-    await defaultValidator.validate(input, handler.route.request);
+  if (requestDto && getCompiledDtoBindingPlan(requestDto).needsValidation) {
+    await defaultValidator.validate(input, requestDto);
   }
 
   return method.call(controller, input, requestContext);
