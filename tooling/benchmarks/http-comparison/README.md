@@ -17,16 +17,18 @@ Runs a small HTTP throughput/latency comparison between published fluo beta pack
 ## Run
 
 ```bash
-pnpm install --no-frozen-lockfile
-pnpm --filter @fluojs-internal/tooling-benchmarks-http bench
+pnpm --dir tooling/benchmarks/http-comparison --ignore-workspace install --frozen-lockfile
+pnpm --dir tooling/benchmarks/http-comparison --ignore-workspace bench
 ```
+
+This benchmark has its own lockfile and is intentionally excluded from the root pnpm workspace. It consumes the versions that are already published to npm so repository release jobs do not need unpublished package versions before they can publish them.
 
 The runner starts an isolated server set for each scenario, so 1-route and 20-route scenarios register different app shapes instead of merely sending different request paths through the same route table. It warms every target for each scenario, then measures with `autocannon` at 100 connections for 40 seconds. Measurement order rotates by scenario to avoid always giving one framework the same position. Multi-route scenarios use a deterministic path cycle so every target sees the same request sequence.
 
 For quick directional runs, override the defaults with environment variables:
 
 ```bash
-BENCH_WARMUP_SEC=3 BENCH_MEASURE_SEC=10 pnpm --filter @fluojs-internal/tooling-benchmarks-http bench
+BENCH_WARMUP_SEC=3 BENCH_MEASURE_SEC=10 pnpm --dir tooling/benchmarks/http-comparison --ignore-workspace bench
 ```
 
 The `fluo+Bun` target requires the `bun` CLI because `@fluojs/platform-bun` uses `globalThis.Bun.serve()` at listen time.
