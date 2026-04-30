@@ -5,7 +5,7 @@ import {
 import { request as httpsRequest } from 'node:https';
 import { createServer as createNetServer } from 'node:net';
 
-import type { Response as ExpressResponse } from 'express';
+import type { Request as ExpressRequest, Response as ExpressResponse } from 'express';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -351,6 +351,131 @@ describe('@fluojs/platform-express', () => {
           status: 500,
         },
       });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('preserves benchmark-style simple query and JSON body routes on the native request path', async () => {
+    @Controller('/')
+    class BenchmarkController {
+      @Get('/query-one')
+      readQuery(_input: undefined, context: RequestContext) {
+        return {
+          encoded: context.request.query.encoded,
+          tag: context.request.query.tag,
+        };
+      }
+
+      @Post('/body-one')
+      readBody(_input: undefined, context: RequestContext) {
+        return {
+          body: context.request.body,
+        };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [BenchmarkController] });
+
+    const port = await findAvailablePort();
+    const app = await fluoFactory.create(AppModule, {
+      adapter: createExpressAdapter({ port }),
+    });
+
+    await app.listen();
+
+    try {
+      const queryResponse = await requestHttp({
+        method: 'GET',
+        path: '/query-one?tag=one&tag=two&encoded=hello+world',
+        port,
+      });
+
+      expect(queryResponse.statusCode).toBe(200);
+      expect(JSON.parse(queryResponse.body)).toEqual({
+        encoded: 'hello world',
+        tag: ['one', 'two'],
+      });
+
+      const bodyResponse = await requestHttp({
+        body: JSON.stringify({ ok: true, source: 'express' }),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+        path: '/body-one',
+        port,
+      });
+
+      expect(bodyResponse.statusCode).toBe(201);
+      expect(JSON.parse(bodyResponse.body)).toEqual({
+        body: { ok: true, source: 'express' },
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('falls back to raw URL parsing when Express host query values are unsafe or non-simple', async () => {
+    @Controller('/query-fallback')
+    class QueryFallbackController {
+      @Get('/undefined')
+      readUndefined(_input: undefined, context: RequestContext) {
+        return context.request.query;
+      }
+
+      @Get('/object')
+      readObject(_input: undefined, context: RequestContext) {
+        return context.request.query;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [QueryFallbackController] });
+
+    const port = await findAvailablePort();
+    const adapter = createExpressAdapter({ port }) as ExpressHttpApplicationAdapter;
+    const router = (adapter as unknown as {
+      router: {
+        use: (handler: (request: ExpressRequest, response: ExpressResponse, next: () => void) => void) => void;
+      };
+    }).router;
+
+    router.use((request, _response, next) => {
+      const mutableQuery = request.query as Record<string, unknown>;
+
+      if (request.originalUrl.startsWith('/query-fallback/undefined')) {
+        mutableQuery.flag = undefined;
+      } else if (request.originalUrl.startsWith('/query-fallback/object')) {
+        mutableQuery.nested = { unsafe: 'true' };
+      }
+
+      next();
+    });
+
+    const app = await fluoFactory.create(AppModule, { adapter });
+
+    await app.listen();
+
+    try {
+      const undefinedResponse = await requestHttp({
+        method: 'GET',
+        path: '/query-fallback/undefined?flag',
+        port,
+      });
+
+      expect(undefinedResponse.statusCode).toBe(200);
+      expect(JSON.parse(undefinedResponse.body)).toEqual({ flag: '' });
+
+      const objectResponse = await requestHttp({
+        method: 'GET',
+        path: '/query-fallback/object?nested=1',
+        port,
+      });
+
+      expect(objectResponse.statusCode).toBe(200);
+      expect(JSON.parse(objectResponse.body)).toEqual({ nested: '1' });
     } finally {
       await app.close();
     }

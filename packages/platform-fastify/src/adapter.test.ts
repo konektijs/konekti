@@ -3,6 +3,8 @@ import { request as httpRequest } from 'node:http';
 import { createServer } from 'node:net';
 import { request as httpsRequest } from 'node:https';
 
+import type { FastifyReply, FastifyRequest } from 'fastify';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import { Container } from '@fluojs/di';
@@ -23,8 +25,9 @@ import {
   VersioningType,
   type CallHandler,
   type Dispatcher,
-  type FrameworkRequest,
-  type GuardContext,
+    type FrameworkRequest,
+    type FrameworkResponse,
+    type GuardContext,
   type InterceptorContext,
   type MiddlewareContext,
   type RequestObservationContext,
@@ -340,6 +343,136 @@ describe('@fluojs/platform-fastify', () => {
     }
   });
 
+  it('preserves benchmark-style simple query and JSON body routes on the native request path', async () => {
+    @Controller('/')
+    class BenchmarkController {
+      @Get('/query-one')
+      readQuery(_input: undefined, context: RequestContext) {
+        return {
+          encoded: context.request.query.encoded,
+          tag: context.request.query.tag,
+        };
+      }
+
+      @Post('/body-one')
+      readBody(_input: undefined, context: RequestContext) {
+        return {
+          body: context.request.body,
+        };
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [BenchmarkController] });
+
+    const port = await findAvailablePort();
+    const app = await fluoFactory.create(AppModule, {
+      adapter: createFastifyAdapter({ port }),
+    });
+
+    await app.listen();
+
+    try {
+      const queryResponse = await requestHttp({
+        method: 'GET',
+        path: '/query-one?tag=one&tag=two&encoded=hello+world',
+        port,
+      });
+
+      expect(queryResponse.statusCode).toBe(200);
+      expect(JSON.parse(queryResponse.body)).toEqual({
+        encoded: 'hello world',
+        tag: ['one', 'two'],
+      });
+
+      const bodyResponse = await requestHttp({
+        body: JSON.stringify({ ok: true, source: 'fastify' }),
+        headers: {
+          'content-type': 'application/json',
+        },
+        method: 'POST',
+        path: '/body-one',
+        port,
+      });
+
+      expect(bodyResponse.statusCode).toBe(201);
+      expect(JSON.parse(bodyResponse.body)).toEqual({
+        body: { ok: true, source: 'fastify' },
+      });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it('falls back to raw URL parsing when Fastify host query values are unsafe or non-simple', async () => {
+    @Controller('/query-fallback')
+    class QueryFallbackController {
+      @Get('/undefined')
+      readUndefined(_input: undefined, context: RequestContext) {
+        return context.request.query;
+      }
+
+      @Get('/object')
+      readObject(_input: undefined, context: RequestContext) {
+        return context.request.query;
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, { controllers: [QueryFallbackController] });
+
+    const port = await findAvailablePort();
+    const adapter = createFastifyAdapter({ port }) as FastifyHttpApplicationAdapter;
+    const fastifyApp = (adapter as unknown as {
+      app: {
+        addHook: (
+          name: 'preHandler',
+          hook: (
+            request: FastifyRequest & { query: Record<string, unknown> },
+            reply: FastifyReply,
+          ) => Promise<void>,
+        ) => void;
+      };
+    }).app;
+
+    fastifyApp.addHook('preHandler', async (request, _reply) => {
+      if (request.raw.url?.startsWith('/query-fallback/undefined')) {
+        request.query = { flag: undefined };
+        return;
+      }
+
+      if (request.raw.url?.startsWith('/query-fallback/object')) {
+        request.query = { nested: { unsafe: true } };
+      }
+    });
+
+    const app = await fluoFactory.create(AppModule, { adapter });
+
+    await app.listen();
+
+    try {
+      const undefinedResponse = await requestHttp({
+        method: 'GET',
+        path: '/query-fallback/undefined?flag',
+        port,
+      });
+
+      expect(undefinedResponse.statusCode).toBe(200);
+      expect(JSON.parse(undefinedResponse.body)).toEqual({ flag: '' });
+
+      const objectResponse = await requestHttp({
+        method: 'GET',
+        path: '/query-fallback/object?nested=1',
+        port,
+      });
+
+      expect(objectResponse.statusCode).toBe(200);
+      expect(JSON.parse(objectResponse.body)).toEqual({ nested: '1' });
+    } finally {
+      await app.close();
+    }
+  });
+
   it('keeps the simple JSON fast path off Fastify reply serialization overrides', async () => {
     @Controller('/serializer')
     class SerializerController {
@@ -460,7 +593,7 @@ describe('@fluojs/platform-fastify', () => {
     });
 
     const dispatcher: Dispatcher = {
-      async dispatch(request, response) {
+      async dispatch(request: FrameworkRequest, response: FrameworkResponse) {
         response.setStatus(201);
         await response.send({
           rawBytes: Array.from(request.rawBody ?? new Uint8Array()),

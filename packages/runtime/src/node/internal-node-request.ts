@@ -26,6 +26,25 @@ type NodeFrameworkRequest = FrameworkRequest & {
 
 type MemoizedValue<T> = () => T;
 
+type QueryRecord = Record<string, string | string[] | undefined>;
+
+/**
+ * Options for creating a deferred framework request shell from a Node-backed adapter.
+ */
+export interface DeferredFrameworkRequestShellOptions<RawRequest> {
+  cookieHeader?: string | string[] | undefined;
+  headers?: FrameworkRequest['headers'];
+  headersFactory?: () => FrameworkRequest['headers'];
+  materializeBody?: () => Promise<void>;
+  method?: string;
+  path: string;
+  query?: QueryRecord;
+  queryFactory?: () => QueryRecord;
+  raw: RawRequest;
+  signal: AbortSignal;
+  url: string;
+}
+
 /**
  * HTTP payload-size error that closes the underlying Node request stream after the response commits.
  */
@@ -95,14 +114,12 @@ export function createDeferredFrameworkRequest(
   maxBodySize = 1 * 1024 * 1024,
   preserveRawBody = false,
 ): FrameworkRequest {
-  const url = new URL(request.url ?? '/', 'http://localhost');
+  const rawUrl = request.url ?? '/';
+  const urlParts = splitRawRequestUrl(rawUrl);
   const headers = cloneRequestHeaders(request.headers);
-  const cookieHeader = cloneHeaderValue(headers.cookie);
-  const searchParams = new URLSearchParams(url.searchParams);
-  const cookies = createMemoizedValue(() => parseCookieHeader(cookieHeader));
-  const query = createMemoizedValue(() => parseQueryParams(searchParams));
   const contentType = normalizePrimaryContentType(headers['content-type']);
   const isMultipart = contentType === 'multipart/form-data';
+  let frameworkRequest!: NodeFrameworkRequest;
   const materializeBody = createMemoizedAsyncValue(async () => {
     if (isMultipart) {
       const result = await parseMultipart(
@@ -110,7 +127,7 @@ export function createDeferredFrameworkRequest(
           body: Readable.toWeb(request),
           headers,
           method: request.method,
-          url: url.toString(),
+          url: resolveAbsoluteRequestUrl(rawUrl),
         },
         {
           ...multipartOptions,
@@ -135,22 +152,65 @@ export function createDeferredFrameworkRequest(
     }
   });
 
-  const frameworkRequest: NodeFrameworkRequest = {
-    get cookies() {
-      return cookies();
-    },
+  frameworkRequest = createDeferredFrameworkRequestShell({
+    cookieHeader: cloneHeaderValue(headers.cookie),
     headers,
-    method: request.method ?? 'GET',
-    params: {},
-    path: url.pathname,
-    get query() {
-      return query();
-    },
+    materializeBody,
+    method: request.method,
+    path: urlParts.path,
+    queryFactory: () => parseQueryParamsFromSearch(urlParts.search),
     raw: request,
     signal,
-    url: url.pathname + url.search,
-    materializeBody,
+    url: urlParts.path + urlParts.search,
+  }) as NodeFrameworkRequest;
+
+  return frameworkRequest;
+}
+
+/**
+ * Creates a framework request shell from already-snapshotted Node adapter metadata.
+ *
+ * @param options - Raw request, metadata factories, and deferred body materialization hooks.
+ * @returns A framework request with lazy headers, cookies, query values, and optional body materialization.
+ */
+export function createDeferredFrameworkRequestShell<RawRequest>({
+  cookieHeader,
+  headers,
+  headersFactory,
+  materializeBody,
+  method,
+  path,
+  query,
+  queryFactory,
+  raw,
+  signal,
+  url,
+}: DeferredFrameworkRequestShellOptions<RawRequest>): FrameworkRequest {
+  const resolveHeaders = headersFactory ? createMemoizedValue(headersFactory) : () => headers ?? {};
+  const resolveCookies = createMemoizedValue(() => parseCookieHeader(cookieHeader ?? resolveHeaders().cookie));
+  const resolveQuery = createMemoizedValue(() => query ?? queryFactory?.() ?? {});
+
+  const frameworkRequest: NodeFrameworkRequest = {
+    get cookies() {
+      return resolveCookies();
+    },
+    get headers() {
+      return resolveHeaders();
+    },
+    method: method ?? 'GET',
+    params: {},
+    path,
+    get query() {
+      return resolveQuery();
+    },
+    raw,
+    signal,
+    url,
   };
+
+  if (materializeBody) {
+    frameworkRequest.materializeBody = materializeBody;
+  }
 
   return frameworkRequest;
 }
@@ -184,7 +244,13 @@ export async function materializeFrameworkRequestBody(request: FrameworkRequest)
   delete (request as NodeFrameworkRequest).materializeBody;
 }
 
-function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
+/**
+ * Creates a synchronous memoized value resolver.
+ *
+ * @param factory - Function that computes the value on first access.
+ * @returns A stable resolver that returns the cached value after the first call.
+ */
+export function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
   let initialized = false;
   let value: T;
 
@@ -198,7 +264,13 @@ function createMemoizedValue<T>(factory: () => T): MemoizedValue<T> {
   };
 }
 
-function createMemoizedAsyncValue(factory: () => Promise<void>): () => Promise<void> {
+/**
+ * Creates an async memoized side-effect resolver.
+ *
+ * @param factory - Async function to run at most once.
+ * @returns A resolver that returns the same in-flight or completed promise for every call.
+ */
+export function createMemoizedAsyncValue(factory: () => Promise<void>): () => Promise<void> {
   let promise: Promise<void> | undefined;
 
   return () => {
@@ -241,6 +313,16 @@ export function resolveRequestIdFromHeaders(headers: IncomingHttpHeaders): strin
   return Array.isArray(requestId) ? requestId[0] : requestId;
 }
 
+/**
+ * Parses a raw URL search string into the framework query shape.
+ *
+ * @param search - Raw search string, with or without a leading question mark.
+ * @returns Query values where repeated keys become string arrays.
+ */
+export function parseQueryParamsFromSearch(search: string): Record<string, string | string[]> {
+  return parseQueryParams(new URLSearchParams(search));
+}
+
 function parseQueryParams(searchParams: URLSearchParams): Record<string, string | string[]> {
   const query: Record<string, string | string[]> = {};
 
@@ -263,17 +345,65 @@ function parseQueryParams(searchParams: URLSearchParams): Record<string, string 
   return query;
 }
 
-function cloneRequestHeaders(headers: IncomingHttpHeaders): FrameworkRequest['headers'] {
+/**
+ * Snapshots host-parsed query values when they already match framework semantics.
+ *
+ * @param query - Host query object exposed by a Node-backed adapter.
+ * @returns A cloned query record when all values are strings or string arrays; otherwise `undefined` for raw URL fallback.
+ */
+export function snapshotSimpleQueryRecord(query: unknown): QueryRecord | undefined {
+  if (typeof query !== 'object' || query === null) {
+    return undefined;
+  }
+
+  const snapshot: QueryRecord = {};
+
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === 'string') {
+      snapshot[key] = value;
+      continue;
+    }
+
+    if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      snapshot[key] = [...value];
+      continue;
+    }
+
+    return undefined;
+  }
+
+  return snapshot;
+}
+
+/**
+ * Clones Node request headers into the framework header record shape.
+ *
+ * @param headers - Raw Node incoming headers.
+ * @returns A shallow header snapshot with array values cloned.
+ */
+export function cloneRequestHeaders(headers: IncomingHttpHeaders): FrameworkRequest['headers'] {
   const clonedEntries = Object.entries(headers).map(([name, value]) => [name, cloneHeaderValue(value)]);
 
   return Object.fromEntries(clonedEntries);
 }
 
-function cloneHeaderValue<T extends string | string[] | undefined>(value: T): T {
+/**
+ * Clones a single Node header value when it is array-backed.
+ *
+ * @param value - Header value to snapshot.
+ * @returns The original scalar value or a cloned array value.
+ */
+export function cloneHeaderValue<T extends string | string[] | undefined>(value: T): T {
   return (Array.isArray(value) ? [...value] : value) as T;
 }
 
-function readPrimaryHeaderValue(headerValue: string | string[] | undefined): string | undefined {
+/**
+ * Reads the primary value from a Node header value.
+ *
+ * @param headerValue - Header value that may contain multiple entries.
+ * @returns The first header value when present.
+ */
+export function readPrimaryHeaderValue(headerValue: string | string[] | undefined): string | undefined {
   if (Array.isArray(headerValue)) {
     return headerValue[0];
   }
@@ -281,7 +411,13 @@ function readPrimaryHeaderValue(headerValue: string | string[] | undefined): str
   return headerValue;
 }
 
-function normalizePrimaryContentType(headerValue: string | string[] | undefined): string | undefined {
+/**
+ * Normalizes a Node content-type header to its primary media type.
+ *
+ * @param headerValue - Raw content-type header value.
+ * @returns Lowercase primary media type without parameters, or `undefined` when absent.
+ */
+export function normalizePrimaryContentType(headerValue: string | string[] | undefined): string | undefined {
   const primaryHeaderValue = readPrimaryHeaderValue(headerValue);
 
   if (typeof primaryHeaderValue !== 'string') {
@@ -302,7 +438,13 @@ function decodeCookieValue(raw: string): string {
   }
 }
 
-function parseCookieHeader(cookieHeader: string | string[] | undefined): Record<string, string> {
+/**
+ * Parses a Node cookie header into framework cookie values.
+ *
+ * @param cookieHeader - Raw cookie header value or values.
+ * @returns Cookie name/value pairs with percent-decoded values when possible.
+ */
+export function parseCookieHeader(cookieHeader: string | string[] | undefined): Record<string, string> {
   const normalizedCookieHeader = Array.isArray(cookieHeader) ? cookieHeader.join('; ') : cookieHeader;
 
   if (!normalizedCookieHeader) {
@@ -374,4 +516,51 @@ async function readRequestBody(
     body: bodyText,
     rawBody: preserveRawBody ? rawBody : undefined,
   };
+}
+
+/**
+ * Splits a raw Node request URL into path and search components.
+ *
+ * @param rawUrl - Raw request URL, absolute URL, or undefined value from Node.
+ * @returns The pathname and search string used by framework request matching and query parsing.
+ */
+export function splitRawRequestUrl(rawUrl: string | undefined): { path: string; search: string } {
+  const resolvedRawUrl = rawUrl ?? '/';
+
+  if (resolvedRawUrl.startsWith('http://') || resolvedRawUrl.startsWith('https://')) {
+    const url = new URL(resolvedRawUrl);
+    return { path: url.pathname, search: url.search };
+  }
+
+  const queryStart = resolvedRawUrl.indexOf('?');
+  const hashStart = resolvedRawUrl.indexOf('#');
+  const pathEndCandidates = [queryStart, hashStart].filter((index) => index >= 0);
+  const pathEnd = pathEndCandidates.length > 0 ? Math.min(...pathEndCandidates) : resolvedRawUrl.length;
+  const path = resolvedRawUrl.slice(0, pathEnd) || '/';
+
+  if (queryStart === -1) {
+    return { path, search: '' };
+  }
+
+  const searchEnd = hashStart >= 0 && hashStart > queryStart ? hashStart : resolvedRawUrl.length;
+  return {
+    path,
+    search: resolvedRawUrl.slice(queryStart, searchEnd),
+  };
+}
+
+/**
+ * Resolves a raw Node request URL into an absolute URL string.
+ *
+ * @param rawUrl - Raw request URL, absolute URL, or undefined value from Node.
+ * @returns An absolute URL suitable for Web-standard parsers.
+ */
+export function resolveAbsoluteRequestUrl(rawUrl: string | undefined): string {
+  const resolvedRawUrl = rawUrl ?? '/';
+
+  if (resolvedRawUrl.startsWith('http://') || resolvedRawUrl.startsWith('https://')) {
+    return resolvedRawUrl;
+  }
+
+  return new URL(resolvedRawUrl, 'http://localhost').toString();
 }
