@@ -1,4 +1,4 @@
-import autocannon, { type Result } from 'autocannon';
+import autocannon, { type Request as AutocannonRequest, type Result } from 'autocannon';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createConnection } from 'node:net';
@@ -13,7 +13,13 @@ const WDIR = process.cwd();
 const FLUO_BUN_BUILD_DIR = join(WDIR, 'dist/fluo-bun');
 
 type TargetName = 'nestjs-fastify' | 'fluo-fastify' | 'fluo-bun';
-type AppShape = 'baseline' | 'dto-1' | 'dto-20' | 'direct-1' | 'direct-20';
+type AppShape = 'baseline' | 'dto-1' | 'dto-20' | 'direct-1' | 'direct-20' | 'query-1' | 'body-1';
+
+interface ScenarioRequestTemplate {
+  readonly body?: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly method?: 'GET' | 'POST';
+}
 
 interface TargetConfig {
   name: TargetName;
@@ -21,6 +27,16 @@ interface TargetConfig {
   port: number;
   command: string;
   args: string[];
+}
+
+interface ScenarioConfig {
+  readonly appShape: AppShape;
+  readonly description: string;
+  readonly expectedBodies: readonly string[];
+  readonly name: string;
+  readonly path?: string;
+  readonly paths?: readonly string[];
+  readonly request?: ScenarioRequestTemplate;
 }
 
 const TARGETS: TargetConfig[] = [
@@ -49,6 +65,30 @@ const TARGETS: TargetConfig[] = [
 
 const USER_RESPONSE = JSON.stringify({ id: '1', name: 'Alice', email: 'alice@example.com' });
 const BASELINE_RESPONSE = JSON.stringify({ ok: true });
+const QUERY_RESPONSE = JSON.stringify({
+  limit: '25',
+  page: '2',
+  region: 'west',
+  role: 'admin',
+  sort: 'createdAt',
+  term: 'alice',
+});
+const BODY_REQUEST = JSON.stringify({
+  email: 'alice@example.com',
+  name: 'Alice',
+  role: 'admin',
+  status: 'active',
+  team: 'platform',
+  title: 'maintainer',
+});
+const BODY_RESPONSE = JSON.stringify({
+  email: 'alice@example.com',
+  name: 'Alice',
+  role: 'admin',
+  status: 'active',
+  team: 'platform',
+  title: 'maintainer',
+});
 
 function routePaths(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `/di-chain/r${String(index + 1).padStart(2, '0')}/1`);
@@ -58,7 +98,7 @@ function directRoutePaths(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `/di-chain-direct/r${String(index + 1).padStart(2, '0')}/1`);
 }
 
-const SCENARIOS = [
+const SCENARIOS: readonly ScenarioConfig[] = [
   {
     name: 'baseline',
     description: 'Single baseline route without DI-chain path param binding',
@@ -94,7 +134,28 @@ const SCENARIOS = [
     paths: directRoutePaths(20),
     expectedBodies: [USER_RESPONSE],
   },
-] as const;
+  {
+    name: 'query-dto-deterministic-1',
+    description: 'Single-route query DTO with six bound fields',
+    appShape: 'query-1',
+    path: '/query-dto-one/r01?term=alice&role=admin&region=west&sort=createdAt&page=2&limit=25',
+    expectedBodies: [QUERY_RESPONSE],
+  },
+  {
+    name: 'body-dto-deterministic-1',
+    description: 'Single-route body DTO with six bound fields',
+    appShape: 'body-1',
+    path: '/body-dto-one/r01',
+    expectedBodies: [BODY_RESPONSE],
+    request: {
+      body: BODY_REQUEST,
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    },
+  },
+];
 
 const WARMUP_SEC = readPositiveIntegerEnv('BENCH_WARMUP_SEC', 10);
 const MEASURE_SEC = readPositiveIntegerEnv('BENCH_MEASURE_SEC', 40);
@@ -161,28 +222,38 @@ function shoot(
   duration: number,
   expectedBodies: readonly string[],
   label: string,
+  requestTemplate: ScenarioRequestTemplate = {},
   paths?: readonly string[],
 ): Promise<Result> {
   return new Promise((resolve, reject) => {
     const nextPath = paths ? createDeterministicPathSequence(paths) : undefined;
+    const hasCustomRequest = nextPath !== undefined
+      || requestTemplate.method !== undefined
+      || requestTemplate.body !== undefined
+      || requestTemplate.headers !== undefined;
 
     autocannon({
       url,
       connections: CONNECTIONS,
       duration,
-      verifyBody: (body) => expectedBodies.includes(String(body)),
+      verifyBody: (body: unknown) => expectedBodies.includes(String(body)),
       bailout: 1,
-      ...(paths
+      ...(hasCustomRequest
         ? {
             requests: [{
-              setupRequest(request) {
+              setupRequest(request: AutocannonRequest, _context: object) {
                 request.path = nextPath?.() ?? request.path;
+                request.method = requestTemplate.method ?? request.method;
+                request.body = requestTemplate.body ?? request.body;
+                request.headers = requestTemplate.headers
+                  ? { ...(request.headers ?? {}), ...requestTemplate.headers }
+                  : request.headers;
                 return request;
               },
             }],
           }
         : {}),
-    }, (err, result) => {
+    }, (err: Error | null, result: Result | undefined) => {
       if (err) {
         reject(err);
         return;
@@ -198,15 +269,16 @@ async function measure(
   label: string,
   url: string,
   expectedBodies: readonly string[],
+  requestTemplate: ScenarioRequestTemplate = {},
   paths?: readonly string[],
 ): Promise<Result> {
   process.stdout.write(`  measuring ${label.padEnd(6)} (${MEASURE_SEC}s)...`);
-  const result = await shoot(url, MEASURE_SEC, expectedBodies, label, paths);
+  const result = await shoot(url, MEASURE_SEC, expectedBodies, label, requestTemplate, paths);
   process.stdout.write(' done\n');
   return result;
 }
 
-async function runScenario(s: (typeof SCENARIOS)[number], index: number): Promise<ScenarioResult> {
+async function runScenario(s: ScenarioConfig, index: number): Promise<ScenarioResult> {
   const processes = startTargets(s.appShape);
   const cleanup = (): void => {
     for (const child of processes) {
@@ -224,7 +296,7 @@ async function runScenario(s: (typeof SCENARIOS)[number], index: number): Promis
   try {
     process.stdout.write(`  [${s.name}] warm-up (${WARMUP_SEC}s)...`);
     await Promise.all(scenarioTargets.map(({ target, url }) => (
-      shoot(url, WARMUP_SEC, s.expectedBodies, `${s.name}/${target.label} warm-up`, 'paths' in s ? s.paths : undefined)
+      shoot(url, WARMUP_SEC, s.expectedBodies, `${s.name}/${target.label} warm-up`, s.request, 'paths' in s ? s.paths : undefined)
     )));
     process.stdout.write(' done\n');
 
@@ -232,7 +304,7 @@ async function runScenario(s: (typeof SCENARIOS)[number], index: number): Promis
     for (const { target, url } of scenarioTargets) {
       measured.push({
         label: target.label,
-        result: await measure(target.label, url, s.expectedBodies, 'paths' in s ? s.paths : undefined),
+        result: await measure(target.label, url, s.expectedBodies, s.request, 'paths' in s ? s.paths : undefined),
       });
     }
 
@@ -264,7 +336,7 @@ function runCommand(command: string, args: string[]): Promise<void> {
     });
 
     child.on('error', reject);
-    child.on('exit', (code, signal) => {
+    child.on('exit', (code: number | null, signal: NodeJS.Signals | null) => {
       if (code === 0) {
         resolve();
         return;

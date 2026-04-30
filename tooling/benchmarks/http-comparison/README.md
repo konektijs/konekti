@@ -13,6 +13,8 @@ Runs a small HTTP throughput/latency comparison between published fluo beta pack
 - `di-chain-dto-deterministic-20`: the same DTO-bound DI path across a deterministic 20-route cycle.
 - `di-chain-direct-param-deterministic-1`: one direct path-param route through Controller → Service → Repository.
 - `di-chain-direct-param-deterministic-20`: the same direct-param DI path across a deterministic 20-route cycle.
+- `query-dto-deterministic-1`: one query-heavy DTO route with six bound query fields.
+- `body-dto-deterministic-1`: one body-heavy DTO route with six bound body fields.
 
 ## Run
 
@@ -49,4 +51,4 @@ The report prints those counters with throughput and latency metrics.
 - This measures the released npm beta surface, not unpublished workspace source changes.
 - fluo uses TC39 standard decorators without `emitDecoratorMetadata`; NestJS uses legacy decorators with `emitDecoratorMetadata` through `nestjs/tsconfig.json`.
 - `fluo+Bun` is a runtime comparison, not a same-adapter comparison. Treat it as “same fluo app graph on Bun’s native server” versus the Node.js adapter targets.
-- The suite only covers routing and one constructor-DI path. It does not measure validation, serialization plugins, guards, pipes, database access, or production middleware.
+- The suite covers routing plus DTO binding on path, query, and body inputs. It does not measure validation plugins, serialization plugins, guards, pipes, database access, or production middleware.
