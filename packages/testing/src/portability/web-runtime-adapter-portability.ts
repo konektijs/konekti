@@ -62,7 +62,7 @@ export class WebRuntimeHttpAdapterPortabilityHarness<
     const app = await this.options.bootstrap(AppModule, { cors: false } as TBootstrapOptions);
 
     try {
-      const response = await app.dispatch(new Request('https://runtime.test/query?tag=one&tag=two&encoded=hello+world&flag'));
+      const response = await app.dispatch(new Request('https://runtime.test/query?tag=one&tag=two&encoded=hello+world&flag&bad=%E0%A4%A'));
 
       if (response.status !== 200) {
         throw new Error(`${this.options.name} adapter changed query response status semantics.`);
@@ -72,6 +72,7 @@ export class WebRuntimeHttpAdapterPortabilityHarness<
       if (
         typeof body !== 'object'
         || body === null
+        || (body as Record<string, unknown>).bad !== '�%A'
         || (body as Record<string, unknown>).encoded !== 'hello world'
         || !Array.isArray((body as Record<string, unknown>).tag)
         || JSON.stringify((body as Record<string, unknown>).tag) !== JSON.stringify(['one', 'two'])

@@ -519,8 +519,8 @@ function parseQueryString(search: string): Record<string, string | string[]> {
       const separatorIndex = entry.indexOf('=');
       const rawKey = separatorIndex === -1 ? entry : entry.slice(0, separatorIndex);
       const rawValue = separatorIndex === -1 ? '' : entry.slice(separatorIndex + 1);
-      const key = decodeQueryComponent(rawKey);
-      const value = decodeQueryComponent(rawValue);
+      const key = decodeQueryComponent(rawKey, 'key');
+      const value = decodeQueryComponent(rawValue, 'value');
       const current = query[key];
 
       if (current === undefined) {
@@ -538,14 +538,24 @@ function parseQueryString(search: string): Record<string, string | string[]> {
   return query;
 }
 
-function decodeQueryComponent(value: string): string {
+function decodeQueryComponent(value: string, kind: 'key' | 'value'): string {
   const normalizedValue = value.includes('+') ? value.replaceAll('+', ' ') : value;
 
   try {
     return decodeURIComponent(normalizedValue);
   } catch {
-    return normalizedValue;
+    return decodeQueryComponentLikeUrlSearchParams(value, kind);
   }
+}
+
+function decodeQueryComponentLikeUrlSearchParams(value: string, kind: 'key' | 'value'): string {
+  if (kind === 'key') {
+    const params = new URLSearchParams(`${value}=`);
+    return params.keys().next().value ?? '';
+  }
+
+  const params = new URLSearchParams(`x=${value}`);
+  return params.get('x') ?? '';
 }
 
 function cloneWebHeaders(headers: Headers): FrameworkRequest['headers'] {

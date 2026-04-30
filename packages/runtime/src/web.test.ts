@@ -123,6 +123,23 @@ describe('dispatchWebRequest', () => {
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
+  it('matches URLSearchParams semantics for malformed percent-encoded query values', async () => {
+    const response = await dispatchWebRequest({
+      dispatcher: {
+        async dispatch(request: FrameworkRequest, frameworkResponse: FrameworkResponse) {
+          expect(request.query).toEqual({
+            bad: '�%A',
+            ok: 'hello world',
+          });
+          await frameworkResponse.send({ ok: true });
+        },
+      },
+      request: new Request('https://runtime.test/query?bad=%E0%A4%A&ok=hello+world'),
+    });
+
+    await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
   it('serializes framework errors into a Web Response', async () => {
     const response = await dispatchWebRequest({
       dispatcher: {
