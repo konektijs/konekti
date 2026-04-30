@@ -48,7 +48,8 @@
     "@fluojs-internal/tooling-babel": "0.0.0",
     "@fluojs-internal/tooling-tsconfig": "0.0.0",
     "@fluojs-internal/tooling-vite": "0.0.0",
-    "@fluojs-internal/tooling-vitest": "0.0.0"
+    "@fluojs-internal/tooling-vitest": "0.0.0",
+    "@fluojs-internal/tooling-benchmarks-http": "0.0.0"
   },
   "changesets": [
     "beta-2-release",
@@ -69,6 +70,7 @@
     "email-queue-boundary",
     "fair-plants-nod",
     "fair-taxis-care",
+    "fastify-adapter-hot-path",
     "fastify-portability-stream-edge",
     "flat-bikes-fry",
     "friendly-lions-fry",
@@ -92,6 +94,7 @@
     "runtime-lifecycle-health-readiness",
     "runtime-normalization-lazy-hotpath",
     "runtime-request-bootstrap-hot-path",
+    "runtime-web-dispatch-factory-cache",
     "simple-json-response-fast-path",
     "skip-unneeded-request-scopes",
     "slack-lifecycle-tutorial-contracts",
