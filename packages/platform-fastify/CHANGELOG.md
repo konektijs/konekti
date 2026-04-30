@@ -1,5 +1,14 @@
 # @fluojs/platform-fastify
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- [#1465](https://github.com/fluojs/fluo/pull/1465) [`6130e63`](https://github.com/fluojs/fluo/commit/6130e6302669fa85b3416d243c4813df08b1fe47) Thanks [@ayden94](https://github.com/ayden94)! - Reduce Fastify adapter request and response hot-path overhead while preserving request headers, query, cookie, raw-body, multipart, streaming, and abort behavior.
+
+- Updated dependencies [[`c3ef937`](https://github.com/fluojs/fluo/commit/c3ef9375d83e9c3ee0e3caf52f6b3414c5b8e5d3)]:
+  - @fluojs/runtime@1.0.0-beta.6
+
 ## 1.0.0-beta.5
 
 ### Patch Changes
