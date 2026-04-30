@@ -285,6 +285,33 @@ describe('dispatchWebRequest', () => {
 
     expect(Buffer.from(rawBody ?? new Uint8Array()).toString('utf8')).toBe('{"ok":true}');
   });
+
+  it('keeps the original Web request body readable after dispatch materializes JSON bodies', async () => {
+    const request = new Request('https://runtime.test/raw-observability', {
+      body: JSON.stringify({ ok: true }),
+      headers: {
+        'content-type': 'application/json',
+      },
+      method: 'POST',
+    });
+    let rawBodyUsedDuringDispatch: boolean | undefined;
+
+    const response = await dispatchWebRequest({
+      dispatcher: {
+        async dispatch(frameworkRequest, frameworkResponse) {
+          rawBodyUsedDuringDispatch = (frameworkRequest.raw as Request).bodyUsed;
+          await frameworkResponse.send({ ok: frameworkRequest.body });
+        },
+      },
+      request,
+    });
+
+    expect(rawBodyUsedDuringDispatch).toBe(false);
+    expect(request.bodyUsed).toBe(false);
+    await expect(request.json()).resolves.toEqual({ ok: true });
+    expect(request.bodyUsed).toBe(true);
+    await expect(response.json()).resolves.toEqual({ ok: { ok: true } });
+  });
 });
 
 describe('createWebFrameworkRequest', () => {
@@ -307,7 +334,7 @@ describe('createWebFrameworkRequest', () => {
     expect(secondHeaders['x-runtime']).toBe('before');
   });
 
-  it('creates the request shell before materializing body and rawBody without cloning the request', async () => {
+  it('creates the request shell before materializing body and rawBody while keeping the raw request readable', async () => {
     let pulls = 0;
     const request = new Request('https://runtime.test/body?tag=one', {
       body: new ReadableStream<Uint8Array>({
@@ -339,14 +366,17 @@ describe('createWebFrameworkRequest', () => {
     expect(cloneCalls).toBe(0);
     expect(frameworkRequest.path).toBe('/body');
     expect(frameworkRequest.query).toEqual({ tag: 'one' });
+    expect(request.bodyUsed).toBe(false);
 
     await factory.materializeRequest?.(frameworkRequest);
     await factory.materializeRequest?.(frameworkRequest);
 
-    expect(cloneCalls).toBe(0);
+    expect(cloneCalls).toBe(1);
     expect(pulls).toBe(1);
     expect(frameworkRequest.body).toEqual({ ok: true });
     expect(Buffer.from(frameworkRequest.rawBody ?? new Uint8Array()).toString('utf8')).toBe('{"ok":true}');
+    expect(request.bodyUsed).toBe(false);
+    await expect(request.json()).resolves.toEqual({ ok: true });
   });
 
   it('skips clone-based body materialization for bodyless requests', async () => {
@@ -391,7 +421,7 @@ describe('createWebFrameworkRequest', () => {
     expect(frameworkRequest.headers['x-runtime']).toBeUndefined();
   });
 
-  it('materializes deferred multipart bodies without cloning the request stream', async () => {
+  it('materializes deferred multipart bodies via a clone so the raw request stays readable', async () => {
     const formData = new FormData();
     formData.set('title', 'before');
     const request = new Request('https://runtime.test/upload', {
@@ -413,7 +443,12 @@ describe('createWebFrameworkRequest', () => {
 
     await factory.materializeRequest?.(frameworkRequest);
 
-    expect(cloneCalls).toBe(0);
+    expect(cloneCalls).toBe(1);
     expect(frameworkRequest.body).toEqual({ title: 'before' });
+    expect(request.bodyUsed).toBe(false);
+
+    const rawFormData = await request.formData();
+
+    expect(rawFormData.get('title')).toBe('before');
   });
 });

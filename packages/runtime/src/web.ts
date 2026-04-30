@@ -393,8 +393,9 @@ function createDeferredWebFrameworkRequest(
   const isMultipart = typeof contentType === 'string' && contentType.includes('multipart/form-data');
   const materializeBody = createMemoizedAsyncValue(async () => {
     if (isMultipart) {
+      const materializedRequest = request.clone();
       const result = await parseMultipart({
-        body: request.body,
+        body: materializedRequest.body,
         headers: requestHeaders,
         method,
         url: request.url,
@@ -414,7 +415,7 @@ function createDeferredWebFrameworkRequest(
       return;
     }
 
-    const bodyResult = await readWebRequestBody(request, contentType, maxBodySize, preserveRawBody);
+    const bodyResult = await readWebRequestBody(request.clone(), contentType, maxBodySize, preserveRawBody);
     frameworkRequest.body = bodyResult.body;
 
     if (bodyResult.rawBody) {
