@@ -4,303 +4,148 @@ import { Body, Controller, Get, Injectable, Module, Param, Post, Query } from '@
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 
-type AppShape =
-  | 'baseline'
-  | 'dto-1'
-  | 'dto-20'
-  | 'direct-1'
-  | 'direct-20'
-  | 'query-1'
-  | 'body-1'
-  | 'query-web-1'
-  | 'json-1';
+import { jsonCommandLocal, readSearchLocal, restRouteMixLocal, type QuoteInput } from '../shared/workloads';
 
-@Injectable()
-class UsersRepository {
-  findOne(id: string): { id: string; name: string; email: string } {
-    return { id, name: 'Alice', email: 'alice@example.com' };
-  }
-}
+type AppShape = 'read-search-local' | 'json-command-local' | 'rest-route-mix-local';
 
-@Injectable()
-class UsersService {
-  constructor(private readonly repo: UsersRepository) {}
-
-  getUser(id: string): { id: string; name: string; email: string } {
-    return this.repo.findOne(id);
-  }
-
-  searchUsers(input: SearchUsersRequest) {
-    return {
-      limit: input.limit,
-      page: input.page,
-      region: input.region,
-      role: input.role,
-      sort: input.sort,
-      term: input.term,
-    };
-  }
-
-  createUser(input: CreateUserRequest) {
-    return {
-      email: input.email,
-      name: input.name,
-      role: input.role,
-      status: input.status,
-      team: input.team,
-      title: input.title,
-    };
-  }
-}
-
-class GetUserRequest {
-  id = '';
-}
-
-class SearchUsersRequest {
-  term = '';
+class ReadSearchQuery {
   role = '';
+  status = '';
   region = '';
   sort = '';
   page = '';
   limit = '';
 }
 
-class CreateUserRequest {
-  name = '';
-  email = '';
-  role = '';
-  team = '';
-  title = '';
-  status = '';
+class ProjectQuery {
+  include = '';
 }
 
-class CreateMessageRequest {
-  count = 0;
-  title = '';
+class TaskListQuery {
+  state = '';
+  priority = '';
 }
 
-@Controller('baseline')
-class BaselineController {
+class PreviewRequest {
+  action = '';
+  estimateHours = 0;
+}
+
+@Injectable()
+class UsersReadService {
+  search(tenantId: string, query: ReadSearchQuery) {
+    return readSearchLocal({ tenantId, ...query });
+  }
+}
+
+@Injectable()
+class QuoteService {
+  quote(input: QuoteInput) {
+    return jsonCommandLocal(input);
+  }
+}
+
+@Injectable()
+class ProjectService {
+  project(tenantId: string, projectId: string, query: ProjectQuery) {
+    return restRouteMixLocal('project', { tenantId, projectId, include: query.include });
+  }
+
+  tasks(tenantId: string, projectId: string, query: TaskListQuery) {
+    return restRouteMixLocal('task-list', { tenantId, projectId, state: query.state, priority: query.priority });
+  }
+
+  task(tenantId: string, projectId: string, taskId: string) {
+    return restRouteMixLocal('task-detail', { tenantId, projectId, taskId });
+  }
+
+  preview(tenantId: string, projectId: string, taskId: string, body: PreviewRequest) {
+    return restRouteMixLocal('preview', { tenantId, projectId, taskId, body });
+  }
+
+  comments(tenantId: string, projectId: string, taskId: string) {
+    return restRouteMixLocal('comments', { tenantId, projectId, taskId });
+  }
+}
+
+@Controller('tenants/:tenantId/users')
+class ReadSearchController {
+  constructor(private readonly service: UsersReadService) {}
+
   @Get()
-  health(): { ok: boolean } {
-    return { ok: true };
+  search(@Param('tenantId') tenantId: string, @Query() query: ReadSearchQuery) {
+    return this.service.search(tenantId, query);
   }
 }
 
-@Controller('di-chain-one')
-class DiChainOneController {
-  constructor(private readonly service: UsersService) {}
+@Controller('orders/quote')
+class QuoteController {
+  constructor(private readonly service: QuoteService) {}
 
-  @Get('r01/:id')
-  getR01(@Param() input: GetUserRequest): { id: string; name: string; email: string } {
-    return this.service.getUser(input.id);
-  }
-}
-
-@Controller('di-chain')
-class DiChainTwentyController {
-  constructor(private readonly service: UsersService) {}
-
-  @Get('r01/:id')
-  getR01(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r02/:id')
-  getR02(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r03/:id')
-  getR03(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r04/:id')
-  getR04(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r05/:id')
-  getR05(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r06/:id')
-  getR06(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r07/:id')
-  getR07(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r08/:id')
-  getR08(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r09/:id')
-  getR09(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r10/:id')
-  getR10(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r11/:id')
-  getR11(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r12/:id')
-  getR12(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r13/:id')
-  getR13(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r14/:id')
-  getR14(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r15/:id')
-  getR15(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r16/:id')
-  getR16(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r17/:id')
-  getR17(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r18/:id')
-  getR18(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r19/:id')
-  getR19(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @Get('r20/:id')
-  getR20(@Param() input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-}
-
-@Controller('di-chain-direct-one')
-class DirectParamOneController {
-  constructor(private readonly service: UsersService) {}
-
-  @Get('r01/:id')
-  getR01(@Param('id') id: string): { id: string; name: string; email: string } {
-    return this.service.getUser(id);
-  }
-}
-
-@Controller('di-chain-direct')
-class DirectParamTwentyController {
-  constructor(private readonly service: UsersService) {}
-
-  @Get('r01/:id')
-  getR01(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r02/:id')
-  getR02(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r03/:id')
-  getR03(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r04/:id')
-  getR04(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r05/:id')
-  getR05(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r06/:id')
-  getR06(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r07/:id')
-  getR07(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r08/:id')
-  getR08(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r09/:id')
-  getR09(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r10/:id')
-  getR10(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r11/:id')
-  getR11(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r12/:id')
-  getR12(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r13/:id')
-  getR13(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r14/:id')
-  getR14(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r15/:id')
-  getR15(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r16/:id')
-  getR16(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r17/:id')
-  getR17(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r18/:id')
-  getR18(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r19/:id')
-  getR19(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-  @Get('r20/:id')
-  getR20(@Param('id') id: string): { id: string; name: string; email: string } { return this.service.getUser(id); }
-}
-
-@Controller('query-dto-one')
-class QueryDtoOneController {
-  constructor(private readonly service: UsersService) {}
-
-  @Get('r01')
-  getR01(@Query() input: SearchUsersRequest) {
-    return this.service.searchUsers(input);
-  }
-}
-
-@Controller('body-dto-one')
-class BodyDtoOneController {
-  constructor(private readonly service: UsersService) {}
-
-  @Post('r01')
-  createR01(@Body() input: CreateUserRequest) {
-    return this.service.createUser(input);
-  }
-}
-
-@Controller('query-one')
-class QueryOneController {
-  @Get()
-  read(
-    @Query('encoded') encoded?: string,
-    @Query('tag') tag?: string | string[],
-  ): { encoded: string; tag: string[] } {
-    return {
-      encoded: encoded ?? '',
-      tag: Array.isArray(tag) ? tag : tag === undefined ? [] : [tag],
-    };
-  }
-}
-
-@Controller('body-one')
-class JsonBodyOneController {
   @Post()
-  create(@Body() input: CreateMessageRequest): { count: number; title: string } {
-    return {
-      count: input.count,
-      title: input.title,
-    };
+  quote(@Body() input: QuoteInput) {
+    return this.service.quote(input);
   }
 }
 
-@Module({ controllers: [BaselineController] })
-class BaselineModule {}
+@Controller('tenants/:tenantId/projects')
+class ProjectController {
+  constructor(private readonly service: ProjectService) {}
 
-@Module({ controllers: [DiChainOneController], providers: [UsersRepository, UsersService] })
-class DtoOneModule {}
+  @Get(':projectId')
+  project(@Param('tenantId') tenantId: string, @Param('projectId') projectId: string, @Query() query: ProjectQuery) {
+    return this.service.project(tenantId, projectId, query);
+  }
 
-@Module({ controllers: [DiChainTwentyController], providers: [UsersRepository, UsersService] })
-class DtoTwentyModule {}
+  @Get(':projectId/tasks')
+  tasks(@Param('tenantId') tenantId: string, @Param('projectId') projectId: string, @Query() query: TaskListQuery) {
+    return this.service.tasks(tenantId, projectId, query);
+  }
 
-@Module({ controllers: [DirectParamOneController], providers: [UsersRepository, UsersService] })
-class DirectOneModule {}
+  @Get(':projectId/tasks/:taskId')
+  task(@Param('tenantId') tenantId: string, @Param('projectId') projectId: string, @Param('taskId') taskId: string) {
+    return this.service.task(tenantId, projectId, taskId);
+  }
 
-@Module({ controllers: [DirectParamTwentyController], providers: [UsersRepository, UsersService] })
-class DirectTwentyModule {}
+  @Post(':projectId/tasks/:taskId/preview')
+  preview(
+    @Param('tenantId') tenantId: string,
+    @Param('projectId') projectId: string,
+    @Param('taskId') taskId: string,
+    @Body() body: PreviewRequest,
+  ) {
+    return this.service.preview(tenantId, projectId, taskId, body);
+  }
 
-@Module({ controllers: [QueryDtoOneController], providers: [UsersRepository, UsersService] })
-class QueryDtoOneModule {}
+  @Get(':projectId/tasks/:taskId/comments')
+  comments(@Param('tenantId') tenantId: string, @Param('projectId') projectId: string, @Param('taskId') taskId: string) {
+    return this.service.comments(tenantId, projectId, taskId);
+  }
+}
 
-@Module({ controllers: [BodyDtoOneController], providers: [UsersRepository, UsersService] })
-class BodyDtoOneModule {}
+@Module({ controllers: [ReadSearchController], providers: [UsersReadService] })
+class ReadSearchModule {}
 
-@Module({ controllers: [QueryOneController] })
-class QueryWebOneModule {}
+@Module({ controllers: [QuoteController], providers: [QuoteService] })
+class JsonCommandModule {}
 
-@Module({ controllers: [JsonBodyOneController] })
-class JsonBodyOneModule {}
+@Module({ controllers: [ProjectController], providers: [ProjectService] })
+class RestRouteMixModule {}
 
 function resolveAppModule(shape: AppShape) {
   switch (shape) {
-    case 'baseline': return BaselineModule;
-    case 'dto-1': return DtoOneModule;
-    case 'dto-20': return DtoTwentyModule;
-    case 'direct-1': return DirectOneModule;
-    case 'direct-20': return DirectTwentyModule;
-    case 'query-1': return QueryDtoOneModule;
-    case 'body-1': return BodyDtoOneModule;
-    case 'query-web-1': return QueryWebOneModule;
-    case 'json-1': return JsonBodyOneModule;
+    case 'read-search-local': return ReadSearchModule;
+    case 'json-command-local': return JsonCommandModule;
+    case 'rest-route-mix-local': return RestRouteMixModule;
   }
 }
 
 function readAppShape(): AppShape {
-  const raw = process.env['BENCH_APP_SHAPE'] ?? 'dto-20';
-  if (
-    raw === 'baseline'
-    || raw === 'dto-1'
-    || raw === 'dto-20'
-    || raw === 'direct-1'
-    || raw === 'direct-20'
-    || raw === 'query-1'
-    || raw === 'body-1'
-    || raw === 'query-web-1'
-    || raw === 'json-1'
-  ) {
+  const raw = process.env['BENCH_APP_SHAPE'] ?? 'read-search-local';
+  if (raw === 'read-search-local' || raw === 'json-command-local' || raw === 'rest-route-mix-local') {
     return raw;
   }
+
   throw new Error(`Unsupported BENCH_APP_SHAPE: ${raw}`);
 }
 
