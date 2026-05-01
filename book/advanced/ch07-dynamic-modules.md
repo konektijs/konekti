@@ -281,7 +281,7 @@ A typical static Module helper execution flow is:
 
 This pattern makes the Module registration process auditable. Instead of tracing Decorators spread across several files, you can inspect the full registration surface in one helper file.
 
-To see this process in practice, look at how `ConfigModule.forRoot()` wraps the result of configuration loading as a `ConfigService` Provider. The Dynamic Module does not leak environment files, defaults, or validation functions into global state directly. It binds them to a service Provider inside a controlled factory function.
+To see this process in practice, look at how `ConfigModule.forRoot()` wraps the result of configuration loading as a `ConfigService` Provider. The Dynamic Module does not leak environment files, defaults, or schema validators into global state directly. It binds them to a service Provider inside a controlled factory function.
 
 `path:packages/config/src/module.ts:30-45`
 ```typescript
