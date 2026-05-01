@@ -1,369 +1,148 @@
 import { ensureMetadataSymbol, Inject, Module } from '@fluojs/core';
-import { Controller, FromBody, FromPath, FromQuery, Get, Post, RequestDto, type RequestContext } from '@fluojs/http';
+import { Controller, Get, Post, type RequestContext } from '@fluojs/http';
 import { createBunAdapter } from '@fluojs/platform-bun';
 import { FluoFactory } from '@fluojs/runtime';
 
+import { jsonCommandLocal, QUOTE_REQUEST, readSearchLocal, restRouteMixLocal, type QuoteInput, type QuoteItem } from '../shared/workloads';
+
 ensureMetadataSymbol();
 
-type AppShape =
-  | 'baseline'
-  | 'dto-1'
-  | 'dto-20'
-  | 'direct-1'
-  | 'direct-20'
-  | 'query-1'
-  | 'body-1'
-  | 'query-web-1'
-  | 'json-1';
+type AppShape = 'read-search-local' | 'json-command-local' | 'rest-route-mix-local';
 
-@Controller('/baseline')
-class BaselineController {
+class UsersReadService {
+  search(context: RequestContext) {
+    return readSearchLocal({
+      tenantId: param(context, 'tenantId'),
+      role: query(context, 'role'),
+      status: query(context, 'status'),
+      region: query(context, 'region'),
+      sort: query(context, 'sort'),
+      page: query(context, 'page'),
+      limit: query(context, 'limit'),
+    });
+  }
+}
+
+class QuoteService {
+  quote(input: QuoteInput) {
+    return jsonCommandLocal(input);
+  }
+}
+
+class ProjectService {
+  project(context: RequestContext) {
+    return restRouteMixLocal('project', { tenantId: param(context, 'tenantId'), projectId: param(context, 'projectId'), include: query(context, 'include') });
+  }
+  tasks(context: RequestContext) {
+    return restRouteMixLocal('task-list', { tenantId: param(context, 'tenantId'), projectId: param(context, 'projectId'), state: query(context, 'state'), priority: query(context, 'priority') });
+  }
+  task(context: RequestContext) {
+    return restRouteMixLocal('task-detail', { tenantId: param(context, 'tenantId'), projectId: param(context, 'projectId'), taskId: param(context, 'taskId') });
+  }
+  preview(context: RequestContext) {
+    return restRouteMixLocal('preview', { tenantId: param(context, 'tenantId'), projectId: param(context, 'projectId'), taskId: param(context, 'taskId'), body: toPreviewBody(context.request.body) });
+  }
+  comments(context: RequestContext) {
+    return restRouteMixLocal('comments', { tenantId: param(context, 'tenantId'), projectId: param(context, 'projectId'), taskId: param(context, 'taskId') });
+  }
+}
+
+@Inject(UsersReadService)
+@Controller('/tenants/:tenantId/users')
+class ReadSearchController {
+  constructor(private readonly service: UsersReadService) {}
+
   @Get('/')
-  health(): { ok: boolean } {
-    return { ok: true };
+  search(_input: undefined, context: RequestContext) {
+    return this.service.search(context);
   }
 }
 
-class UsersRepository {
-  findOne(id: string): { id: string; name: string; email: string } {
-    return { id, name: 'Alice', email: 'alice@example.com' };
-  }
-}
+@Inject(QuoteService)
+@Controller('/orders/quote')
+class QuoteController {
+  constructor(private readonly service: QuoteService) {}
 
-class GetUserRequest {
-  @FromPath('id')
-  id = '';
-}
-
-class SearchUsersRequest {
-  @FromQuery('term')
-  term = '';
-
-  @FromQuery('role')
-  role = '';
-
-  @FromQuery('region')
-  region = '';
-
-  @FromQuery('sort')
-  sort = '';
-
-  @FromQuery('page')
-  page = '';
-
-  @FromQuery('limit')
-  limit = '';
-}
-
-class CreateUserRequest {
-  @FromBody('name')
-  name = '';
-
-  @FromBody('email')
-  email = '';
-
-  @FromBody('role')
-  role = '';
-
-  @FromBody('team')
-  team = '';
-
-  @FromBody('title')
-  title = '';
-
-  @FromBody('status')
-  status = '';
-}
-
-class CreateMessageRequest {
-  count = 0;
-  title = '';
-}
-
-@Inject(UsersRepository)
-class UsersService {
-  constructor(private readonly repo: UsersRepository) {}
-
-  getUser(id: string): { id: string; name: string; email: string } {
-    return this.repo.findOne(id);
-  }
-
-  searchUsers(input: SearchUsersRequest) {
-    return {
-      limit: input.limit,
-      page: input.page,
-      region: input.region,
-      role: input.role,
-      sort: input.sort,
-      term: input.term,
-    };
-  }
-
-  createUser(input: CreateUserRequest) {
-    return {
-      email: input.email,
-      name: input.name,
-      role: input.role,
-      status: input.status,
-      team: input.team,
-      title: input.title,
-    };
-  }
-}
-
-function readPathId(context: RequestContext): string {
-  return context.request.params['id'] ?? '';
-}
-
-function readRepeatedQueryValue(value: string | string[] | undefined): string[] {
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  return value === undefined ? [] : [value];
-}
-
-@Inject(UsersService)
-@Controller('/di-chain-one')
-class DiChainOneController {
-  constructor(private readonly service: UsersService) {}
-
-  @RequestDto(GetUserRequest)
-  @Get('/r01/:id')
-  getR01(input: GetUserRequest): { id: string; name: string; email: string } {
-    return this.service.getUser(input.id);
-  }
-}
-
-@Inject(UsersService)
-@Controller('/di-chain')
-class DiChainTwentyController {
-  constructor(private readonly service: UsersService) {}
-
-  @RequestDto(GetUserRequest)
-  @Get('/r01/:id')
-  getR01(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r02/:id')
-  getR02(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r03/:id')
-  getR03(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r04/:id')
-  getR04(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r05/:id')
-  getR05(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r06/:id')
-  getR06(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r07/:id')
-  getR07(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r08/:id')
-  getR08(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r09/:id')
-  getR09(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r10/:id')
-  getR10(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r11/:id')
-  getR11(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r12/:id')
-  getR12(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r13/:id')
-  getR13(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r14/:id')
-  getR14(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r15/:id')
-  getR15(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r16/:id')
-  getR16(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r17/:id')
-  getR17(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r18/:id')
-  getR18(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r19/:id')
-  getR19(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-  @RequestDto(GetUserRequest)
-  @Get('/r20/:id')
-  getR20(input: GetUserRequest): { id: string; name: string; email: string } { return this.service.getUser(input.id); }
-}
-
-@Inject(UsersService)
-@Controller('/di-chain-direct-one')
-class DirectParamOneController {
-  constructor(private readonly service: UsersService) {}
-
-  @Get('/r01/:id')
-  getR01(_input: undefined, context: RequestContext): { id: string; name: string; email: string } {
-    return this.service.getUser(readPathId(context));
-  }
-}
-
-@Inject(UsersService)
-@Controller('/di-chain-direct')
-class DirectParamTwentyController {
-  constructor(private readonly service: UsersService) {}
-
-  @Get('/r01/:id')
-  getR01(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r02/:id')
-  getR02(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r03/:id')
-  getR03(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r04/:id')
-  getR04(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r05/:id')
-  getR05(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r06/:id')
-  getR06(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r07/:id')
-  getR07(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r08/:id')
-  getR08(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r09/:id')
-  getR09(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r10/:id')
-  getR10(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r11/:id')
-  getR11(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r12/:id')
-  getR12(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r13/:id')
-  getR13(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r14/:id')
-  getR14(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r15/:id')
-  getR15(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r16/:id')
-  getR16(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r17/:id')
-  getR17(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r18/:id')
-  getR18(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r19/:id')
-  getR19(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-  @Get('/r20/:id')
-  getR20(_input: undefined, context: RequestContext): { id: string; name: string; email: string } { return this.service.getUser(readPathId(context)); }
-}
-
-@Inject(UsersService)
-@Controller('/query-dto-one')
-class QueryDtoOneController {
-  constructor(private readonly service: UsersService) {}
-
-  @RequestDto(SearchUsersRequest)
-  @Get('/r01')
-  getR01(input: SearchUsersRequest) {
-    return this.service.searchUsers(input);
-  }
-}
-
-@Inject(UsersService)
-@Controller('/body-dto-one')
-class BodyDtoOneController {
-  constructor(private readonly service: UsersService) {}
-
-  @RequestDto(CreateUserRequest)
-  @Post('/r01')
-  createR01(input: CreateUserRequest) {
-    return this.service.createUser(input);
-  }
-}
-
-@Controller('/query-one')
-class QueryOneController {
-  @Get('/')
-  read(_input: undefined, context: RequestContext): { encoded: string; tag: string[] } {
-    return {
-      encoded: String(context.request.query['encoded'] ?? ''),
-      tag: readRepeatedQueryValue(context.request.query['tag']),
-    };
-  }
-}
-
-@Controller('/body-one')
-class JsonBodyOneController {
   @Post('/')
-  create(_input: undefined, context: RequestContext): { count: number; title: string } {
-    const body = context.request.body as Partial<CreateMessageRequest> | undefined;
-
-    return {
-      count: typeof body?.count === 'number' ? body.count : 0,
-      title: typeof body?.title === 'string' ? body.title : '',
-    };
+  quote(_input: undefined, context: RequestContext) {
+    return this.service.quote(toQuoteInput(context.request.body));
   }
 }
 
-@Module({ controllers: [BaselineController] })
-class BaselineModule {}
+@Inject(ProjectService)
+@Controller('/tenants/:tenantId/projects')
+class ProjectController {
+  constructor(private readonly service: ProjectService) {}
 
-@Module({ controllers: [DiChainOneController], providers: [UsersRepository, UsersService] })
-class DtoOneModule {}
+  @Get('/:projectId')
+  project(_input: undefined, context: RequestContext) { return this.service.project(context); }
+  @Get('/:projectId/tasks')
+  tasks(_input: undefined, context: RequestContext) { return this.service.tasks(context); }
+  @Get('/:projectId/tasks/:taskId')
+  task(_input: undefined, context: RequestContext) { return this.service.task(context); }
+  @Post('/:projectId/tasks/:taskId/preview')
+  preview(_input: undefined, context: RequestContext) { return this.service.preview(context); }
+  @Get('/:projectId/tasks/:taskId/comments')
+  comments(_input: undefined, context: RequestContext) { return this.service.comments(context); }
+}
 
-@Module({ controllers: [DiChainTwentyController], providers: [UsersRepository, UsersService] })
-class DtoTwentyModule {}
+function param(context: RequestContext, name: string): string {
+  return context.request.params[name] ?? '';
+}
 
-@Module({ controllers: [DirectParamOneController], providers: [UsersRepository, UsersService] })
-class DirectOneModule {}
+function query(context: RequestContext, name: string): string {
+  const value = context.request.query[name];
+  return Array.isArray(value) ? value[0] ?? '' : value ?? '';
+}
 
-@Module({ controllers: [DirectParamTwentyController], providers: [UsersRepository, UsersService] })
-class DirectTwentyModule {}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
-@Module({ controllers: [QueryDtoOneController], providers: [UsersRepository, UsersService] })
-class QueryDtoOneModule {}
+function toQuoteInput(value: unknown): QuoteInput {
+  if (!isRecord(value)) return QUOTE_REQUEST;
+  const itemsValue = value.items;
+  const items: QuoteItem[] = Array.isArray(itemsValue)
+    ? itemsValue.filter(isRecord).map((item) => ({
+        sku: typeof item.sku === 'string' ? item.sku : '',
+        quantity: typeof item.quantity === 'number' ? item.quantity : 0,
+        unitPriceCents: typeof item.unitPriceCents === 'number' ? item.unitPriceCents : 0,
+      }))
+    : [];
+  return {
+    customerId: typeof value.customerId === 'string' ? value.customerId : '',
+    coupon: typeof value.coupon === 'string' ? value.coupon : '',
+    shippingRegion: typeof value.shippingRegion === 'string' ? value.shippingRegion : '',
+    items,
+  };
+}
 
-@Module({ controllers: [BodyDtoOneController], providers: [UsersRepository, UsersService] })
-class BodyDtoOneModule {}
+function toPreviewBody(value: unknown): { action: string; estimateHours: number } {
+  if (!isRecord(value)) return { action: '', estimateHours: 0 };
+  return {
+    action: typeof value.action === 'string' ? value.action : '',
+    estimateHours: typeof value.estimateHours === 'number' ? value.estimateHours : 0,
+  };
+}
 
-@Module({ controllers: [QueryOneController] })
-class QueryWebOneModule {}
-
-@Module({ controllers: [JsonBodyOneController] })
-class JsonBodyOneModule {}
+@Module({ controllers: [ReadSearchController], providers: [UsersReadService] })
+class ReadSearchModule {}
+@Module({ controllers: [QuoteController], providers: [QuoteService] })
+class JsonCommandModule {}
+@Module({ controllers: [ProjectController], providers: [ProjectService] })
+class RestRouteMixModule {}
 
 function resolveAppModule(shape: AppShape) {
   switch (shape) {
-    case 'baseline': return BaselineModule;
-    case 'dto-1': return DtoOneModule;
-    case 'dto-20': return DtoTwentyModule;
-    case 'direct-1': return DirectOneModule;
-    case 'direct-20': return DirectTwentyModule;
-    case 'query-1': return QueryDtoOneModule;
-    case 'body-1': return BodyDtoOneModule;
-    case 'query-web-1': return QueryWebOneModule;
-    case 'json-1': return JsonBodyOneModule;
+    case 'read-search-local': return ReadSearchModule;
+    case 'json-command-local': return JsonCommandModule;
+    case 'rest-route-mix-local': return RestRouteMixModule;
   }
 }
 
 function readAppShape(): AppShape {
-  const raw = process.env['BENCH_APP_SHAPE'] ?? 'dto-20';
-  if (
-    raw === 'baseline'
-    || raw === 'dto-1'
-    || raw === 'dto-20'
-    || raw === 'direct-1'
-    || raw === 'direct-20'
-    || raw === 'query-1'
-    || raw === 'body-1'
-    || raw === 'query-web-1'
-    || raw === 'json-1'
-  ) {
-    return raw;
-  }
+  const raw = process.env['BENCH_APP_SHAPE'] ?? 'read-search-local';
+  if (raw === 'read-search-local' || raw === 'json-command-local' || raw === 'rest-route-mix-local') return raw;
   throw new Error(`Unsupported BENCH_APP_SHAPE: ${raw}`);
 }
 
