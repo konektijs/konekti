@@ -75,6 +75,8 @@ fluo DI supports three main provider shapes:
 - **Request**: Instance is created once per `createRequestScope()` call.
 - **Transient**: A new instance is created every time it is resolved.
 
+During disposal, the root container first tears down live request-scope children and then continues with root-owned singleton cleanup even if one or more child disposals fail. When multiple child/root disposals fail, `dispose()` reports an `AggregateError` so callers can inspect every shutdown failure without losing cleanup progress.
+
 ### Request Scoping
 Isolated containers can be created to handle per-request state without polluting the root container.
 
@@ -91,7 +93,7 @@ Provider objects are validated at registration time: every object provider must 
 
 The container automatically detects circular dependencies and throws a `CircularDependencyError` to prevent infinite loops. This includes direct (A→A), two-node (A→B→A), and deep (A→B→C→A) cycles.
 
-To resolve a circular dependency, use `forwardRef()` to defer the resolution of the dependent token.
+Use `forwardRef()` when a token is referenced before its declaration. It defers token lookup for declaration-order issues, but it does not make true constructor cycles resolvable; those cycles are still rejected with `CircularDependencyError`.
 
 ```typescript
 import { forwardRef } from '@fluojs/di';
@@ -99,12 +101,13 @@ import { Inject } from '@fluojs/core';
 
 @Inject(forwardRef(() => ServiceB))
 class ServiceA {
-  constructor(private serviceB: any) {}
+  constructor(private readonly serviceB: ServiceB) {}
 }
 
-@Inject(forwardRef(() => ServiceA))
 class ServiceB {
-  constructor(private serviceA: any) {}
+  getStatus() {
+    return 'ready';
+  }
 }
 ```
 
@@ -131,7 +134,7 @@ const service = await container.resolve(DataService);
 ## Troubleshooting
 
 ### CircularDependencyError
-Thrown when the container detects a cycle in the dependency graph. Check your constructor injections and use `forwardRef()` where necessary to break the cycle.
+Thrown when the container detects a cycle in the dependency graph. Check your constructor injections and remove the cycle by extracting shared state, introducing a mediator, or changing the lifetime boundary. `forwardRef()` only defers token lookup for declaration-order issues; it does not break true constructor cycles.
 
 ### Token Not Found
 Ensure all required providers are registered in the container. If you use `createRequestScope()`, the child container can resolve tokens from the parent, but not vice versa.
