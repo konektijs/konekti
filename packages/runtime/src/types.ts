@@ -160,8 +160,13 @@ export interface CreateApplicationContextOptions
 
 /** Runtime transport contract used by microservice application shells. */
 export interface MicroserviceRuntime {
+  /** Release transport resources owned by the microservice runtime during shutdown. */
+  close?(signal?: string): MaybePromise<void>;
+  /** Emit a fire-and-forget message for the given transport pattern. */
   emit?(pattern: string, payload: unknown): MaybePromise<void>;
+  /** Start listening for transport messages. */
   listen(): MaybePromise<void>;
+  /** Send a request/response message for the given transport pattern. */
   send?(pattern: string, payload: unknown, signal?: AbortSignal): MaybePromise<unknown>;
 }
 
