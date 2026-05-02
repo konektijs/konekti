@@ -195,20 +195,18 @@ For important settings such as database credentials, using `getOrThrow()` is str
 ```typescript
 import { z } from 'zod'; // Optional validation library
 
+const ConfigSchema = z.object({
+  PORT: z.coerce.number().default(3000),
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
+});
+
 ConfigModule.forRoot({
-  validate: (config) => {
-    const schema = z.object({
-      PORT: z.coerce.number().default(3000),
-      DATABASE_URL: z.string().url(),
-      JWT_SECRET: z.string().min(32),
-    });
-    
-    return schema.parse(config);
-  },
+  schema: ConfigSchema,
 })
 ```
 
-By validating during `forRoot`, Fluo raises a detailed error and **stops bootstrap** when configuration is invalid. This ensures that a misconfigured node is never put into load balancer rotation.
+By validating during `forRoot`, Fluo raises a detailed `INVALID_CONFIG` error and **stops bootstrap** when configuration is invalid. The schema's validated `value` becomes the final config snapshot, so coercions such as `PORT` becoming a number are visible through `ConfigService`. Config schemas must validate synchronously; async Standard Schema results are rejected by the synchronous config API. This ensures that a misconfigured node is never put into load balancer rotation.
 
 One common production bug is an application starting with only partially valid configuration. If it boots with some values present and others missing, the problem may appear only after a real request arrives, making the root cause harder to find. With `fluo`, you can validate configuration during bootstrap, so a half-configured state is blocked at startup instead of being carried into runtime. Configuration validation is not just a convenience. It is a safety barrier that keeps misconfigured instances out of production traffic.
 

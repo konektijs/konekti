@@ -32,6 +32,12 @@ npm install @fluojs/config
 ```ts
 import { ConfigModule } from '@fluojs/config';
 import { Module } from '@fluojs/core';
+import { z } from 'zod';
+
+const EnvSchema = z.object({
+  DATABASE_URL: z.string().url(),
+  PORT: z.coerce.number().default(3000),
+});
 
 @Module({
   imports: [
@@ -41,10 +47,7 @@ import { Module } from '@fluojs/core';
         DATABASE_URL: process.env.DATABASE_URL,
       },
       defaults: { PORT: '3000' },
-      validate: (config) => {
-        if (!config.DATABASE_URL) throw new Error('DATABASE_URL이 필요합니다');
-        return config;
-      },
+      schema: EnvSchema,
     }),
   ],
 })
@@ -78,7 +81,9 @@ class MyService {
 
 ### 부트스트랩 전 검증
 
-`validate` 함수는 모든 소스가 합쳐진 뒤 실행되며, 에러를 던지면 부트스트랩이 즉시 중단됩니다.
+`schema` 옵션은 Zod, Valibot, ArkType 같은 동기식 [Standard Schema](https://standardschema.dev/schema) 호환 validator를 받습니다. 스키마는 모든 소스가 합쳐진 뒤 실행되고, 검증된 `value`가 최종 config snapshot이 됩니다. schema issue가 보고되면 bootstrap/load/reload는 `INVALID_CONFIG`로 실패합니다.
+
+`@fluojs/config`의 load와 reload API는 동기식입니다. 비동기 Standard Schema 결과는 `INVALID_CONFIG`로 거부되므로 config 검증에는 동기 스키마를 사용하세요.
 
 ### 런타임 접근과 리로드 비용 모델
 
@@ -103,7 +108,7 @@ class MyService {
 ## 관련 패키지
 
 - `@fluojs/runtime`: 부트스트랩 중 `loadConfig()`를 호출합니다.
-- `@fluojs/validation`: `validate` 함수 안에서 스키마 기반 검증을 조합할 수 있습니다.
+- Standard Schema validator: Zod, Valibot, ArkType 및 호환 schema 라이브러리를 `schema` 옵션으로 전달할 수 있습니다.
 
 ## 예제 소스
 

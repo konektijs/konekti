@@ -195,20 +195,18 @@ export class ApiService {
 ```typescript
 import { z } from 'zod'; // 선택적 검증 라이브러리
 
+const ConfigSchema = z.object({
+  PORT: z.coerce.number().default(3000),
+  DATABASE_URL: z.string().url(),
+  JWT_SECRET: z.string().min(32),
+});
+
 ConfigModule.forRoot({
-  validate: (config) => {
-    const schema = z.object({
-      PORT: z.coerce.number().default(3000),
-      DATABASE_URL: z.string().url(),
-      JWT_SECRET: z.string().min(32),
-    });
-    
-    return schema.parse(config);
-  },
+  schema: ConfigSchema,
 })
 ```
 
-`forRoot` 중에 검증을 수행함으로써, Fluo는 설정이 유효하지 않은 경우 상세한 에러를 발생시키고 **부트스트랩을 중단**합니다. 이는 잘못 설정된 노드가 로드 밸런서 회전에 투입되지 않도록 보장합니다.
+`forRoot` 중에 검증을 수행함으로써, Fluo는 설정이 유효하지 않은 경우 상세한 `INVALID_CONFIG` 에러를 발생시키고 **부트스트랩을 중단**합니다. schema가 검증한 `value`가 최종 config snapshot이 되므로, `PORT`가 숫자로 변환되는 것 같은 coercion 결과도 `ConfigService`에서 관찰됩니다. Config schema는 동기식으로 검증되어야 하며, 비동기 Standard Schema 결과는 동기 config API에서 거부됩니다. 이는 잘못 설정된 노드가 로드 밸런서 회전에 투입되지 않도록 보장합니다.
 
 프로덕션 환경에서 흔히 발생하는 버그 중 하나는 애플리케이션이 "부분적으로만 유효한" 설정으로 시작되는 것입니다. 어떤 값은 있고 어떤 값은 빠진 상태로 부팅되면, 실제 요청이 들어온 뒤에야 문제가 드러나서 원인을 찾기 더 어려워집니다. `fluo`를 사용하면 부트스트랩 시점에 설정을 검증할 수 있으므로, 반쯤만 설정된 상태를 실행 중에 끌고 가지 않고 시작 단계에서 바로 막을 수 있습니다. 결국 설정 검증은 편의 기능이 아니라, 운영 환경에 잘못된 인스턴스가 들어가는 것을 막는 안전장치입니다.
 

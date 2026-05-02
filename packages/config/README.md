@@ -35,6 +35,12 @@ The `ConfigModule` handles loading and validating your configuration during boot
 ```typescript
 import { Module } from '@fluojs/core';
 import { ConfigModule } from '@fluojs/config';
+import { z } from 'zod';
+
+const EnvSchema = z.object({
+  DATABASE_URL: z.string().url(),
+  PORT: z.coerce.number().default(3000),
+});
 
 @Module({
   imports: [
@@ -44,10 +50,7 @@ import { ConfigModule } from '@fluojs/config';
         DATABASE_URL: process.env.DATABASE_URL,
       },
       defaults: { PORT: '3000' },
-      validate: (config) => {
-        if (!config.DATABASE_URL) throw new Error('DATABASE_URL is required');
-        return config;
-      },
+      schema: EnvSchema,
     }),
   ],
 })
@@ -83,7 +86,9 @@ Configuration is merged in the following order (highest precedence wins):
 Plain objects are deep-merged by key. Arrays and primitive values from higher-precedence sources completely replace lower-precedence ones.
 
 ### Validation
-The `validate` function runs after all sources are merged but before the application starts. If it throws, the application bootstrap fails immediately.
+The `schema` option accepts a synchronous [Standard Schema](https://standardschema.dev/schema)-compatible validator such as Zod, Valibot, or ArkType. The schema runs after all sources are merged but before the application starts. Its validated `value` becomes the final config snapshot, and reported issues fail bootstrap/load/reload with `INVALID_CONFIG`.
+
+`@fluojs/config` keeps loading and reload APIs synchronous. Async Standard Schema results are rejected with `INVALID_CONFIG`; use a synchronous schema for config validation.
 
 ### Runtime Access and Reload Cost Model
 `ConfigService.get('a.b.c')` resolves dot-path keys by walking each path segment, so lookup cost is proportional to path depth. When `get()`, `getOrThrow()`, or `snapshot()` returns an object-like value, the returned value is a detached clone; clone cost is proportional to the returned subtree size so caller mutations cannot affect the active config snapshot.
@@ -107,7 +112,7 @@ The `validate` function runs after all sources are merged but before the applica
 ## Related Packages
 
 - **`@fluojs/runtime`**: Calls `loadConfig` internally during application bootstrap.
-- **`@fluojs/validation`**: Can be used within the `validate` function for schema-based validation.
+- **Standard Schema validators**: Zod, Valibot, ArkType, and other compatible schema libraries can be passed through the `schema` option.
 
 ## Example Sources
 
