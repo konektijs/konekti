@@ -21,11 +21,14 @@ const NESTJS_PORT = 3002;
 const FLUO_BUN_PORT = 3003;
 const WDIR = process.cwd();
 const REPO_ROOT = join(WDIR, '../../..');
+const FLUO_FASTIFY_BUILD_DIR = join(WDIR, 'dist/fluo-fastify');
 const FLUO_BUN_BUILD_DIR = join(WDIR, 'dist/fluo-bun');
 const NESTJS_BUILD_DIR = join(WDIR, 'dist/nestjs');
 const LOCAL_FLUO_PACKAGES = [
   '@fluojs/core',
   '@fluojs/di',
+  '@fluojs/validation',
+  '@fluojs/config',
   '@fluojs/http',
   '@fluojs/runtime',
   '@fluojs/platform-fastify',
@@ -73,8 +76,8 @@ const TARGETS: TargetConfig[] = [
     name: 'fluo-fastify',
     label: 'fluo+Fastify',
     port: FLUO_FASTIFY_PORT,
-    command: 'tsx',
-    args: ['src/fluo/server.ts'],
+    command: 'node',
+    args: ['dist/fluo-fastify/fluo/server.js'],
   },
   {
     name: 'fluo-bun',
@@ -288,14 +291,14 @@ async function measure(
 async function runScenario(s: ScenarioConfig, index: number): Promise<ScenarioResult> {
   const processes = startTargets(s.appShape);
 
-  await Promise.all(TARGETS.map((target) => waitForPort(target.port)));
-
-  const scenarioTargets = rotationFor(index).map((target) => ({
-    target,
-    url: `http://127.0.0.1:${target.port}${s.path ?? ''}`,
-  }));
-
   try {
+    await Promise.all(TARGETS.map((target) => waitForPort(target.port)));
+
+    const scenarioTargets = rotationFor(index).map((target) => ({
+      target,
+      url: `http://127.0.0.1:${target.port}${s.path ?? ''}`,
+    }));
+
     process.stdout.write(`  [${s.name}] warm-up (${WARMUP_SEC}s)...`);
     await Promise.all(scenarioTargets.map(({ target, url }) => (
       shoot(url, WARMUP_SEC, s.expectedBodies, `${s.name}/${target.label} warm-up`, s.request, s.paths, s.requestSequence)
@@ -428,6 +431,25 @@ async function buildBunTarget(): Promise<void> {
   ]);
 }
 
+async function buildFluoFastifyTarget(): Promise<void> {
+  await rm(FLUO_FASTIFY_BUILD_DIR, { force: true, recursive: true });
+  await runCommand('pnpm', [
+    'exec',
+    'tsc',
+    'src/fluo/server.ts',
+    '--target',
+    'ES2022',
+    '--module',
+    'ESNext',
+    '--moduleResolution',
+    'Bundler',
+    '--strict',
+    '--skipLibCheck',
+    '--outDir',
+    'dist/fluo-fastify',
+  ]);
+}
+
 async function buildNestTarget(): Promise<void> {
   await rm(NESTJS_BUILD_DIR, { force: true, recursive: true });
   await runCommand('pnpm', ['exec', 'tsc', '-p', 'nestjs/tsconfig.json', '--outDir', 'dist/nestjs']);
@@ -443,6 +465,20 @@ async function buildLocalFluoPackages(): Promise<void> {
     process.stdout.write(`Building local ${packageName}...`);
     await runCommand('pnpm', ['--dir', REPO_ROOT, '--filter', packageName, 'run', 'build']);
     process.stdout.write(' done\n');
+  }
+
+  await assertLocalFluoPackageResolution();
+}
+
+async function assertLocalFluoPackageResolution(): Promise<void> {
+  const expectedRoot = `${REPO_ROOT}/packages/`;
+
+  for (const packageName of LOCAL_FLUO_PACKAGES) {
+    const resolved = import.meta.resolve(packageName);
+
+    if (!resolved.startsWith('file://') || !resolved.includes(expectedRoot)) {
+      throw new Error(`${packageName} resolved outside the local workspace: ${resolved}`);
+    }
   }
 }
 
@@ -572,6 +608,7 @@ async function writeBenchmarkOutput(rawRuns: readonly ScenarioResult[][], averag
 async function main(): Promise<void> {
   await buildLocalFluoPackages();
   await buildNestTarget();
+  await buildFluoFastifyTarget();
   await buildBunTarget();
 
   const scenarios = selectedScenarios();
