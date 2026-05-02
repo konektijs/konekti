@@ -1494,6 +1494,59 @@ describe('FluoFactory.createMicroservice', () => {
     await microservice.close();
   });
 
+  it('attempts standalone runtime and context close before surfacing close failures', async () => {
+    const events: string[] = [];
+    const MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service');
+    const runtimeCloseFailure = new Error('runtime close failed');
+    const contextCloseFailure = new Error('context close failed');
+
+    class StubMicroserviceRuntime implements MicroserviceRuntime {
+      async close(signal?: string): Promise<void> {
+        events.push(`runtime:close:${signal ?? 'none'}`);
+        throw runtimeCloseFailure;
+      }
+
+      async listen(): Promise<void> {
+        events.push('runtime:listen');
+      }
+    }
+
+    class CleanupHook {
+      onModuleDestroy() {
+        events.push('context:destroy');
+        throw contextCloseFailure;
+      }
+    }
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        CleanupHook,
+        {
+          provide: MICROSERVICE_TOKEN,
+          useClass: StubMicroserviceRuntime,
+        },
+      ],
+    });
+
+    const microservice = await FluoFactory.createMicroservice(AppModule);
+
+    try {
+      await microservice.close('SIGTERM');
+      expect.unreachable('microservice close should throw aggregated close failures');
+    } catch (error) {
+      expect(error).toBeInstanceOf(AggregateError);
+      if (error instanceof AggregateError) {
+        expect(error.errors).toEqual([runtimeCloseFailure, contextCloseFailure]);
+      }
+    }
+
+    expect(events).toEqual([
+      'runtime:close:SIGTERM',
+      'context:destroy',
+    ]);
+  });
+
   it('throws if resolved token does not implement listen()', async () => {
     const MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service');
 
@@ -1511,6 +1564,38 @@ describe('FluoFactory.createMicroservice', () => {
 
     await expect(FluoFactory.createMicroservice(AppModule)).rejects.toThrow(
       'Resolved microservice token does not implement listen().',
+    );
+  });
+
+  it('preserves the original microservice bootstrap error when cleanup fails', async () => {
+    const MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service');
+    const cleanupFailure = new Error('cleanup failed');
+    const logger = { debug: vi.fn(), error: vi.fn(), log: vi.fn(), warn: vi.fn() };
+
+    class CleanupHook {
+      onModuleDestroy() {
+        throw cleanupFailure;
+      }
+    }
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        CleanupHook,
+        {
+          provide: MICROSERVICE_TOKEN,
+          useValue: { noop: true },
+        },
+      ],
+    });
+
+    await expect(FluoFactory.createMicroservice(AppModule, { logger })).rejects.toThrow(
+      'Resolved microservice token does not implement listen().',
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to clean up after microservice bootstrap failure.',
+      cleanupFailure,
+      'FluoFactory',
     );
   });
 
@@ -1576,6 +1661,116 @@ describe('FluoFactory.createMicroservice', () => {
 
     expect(microservice.state).toBe('ready');
     expect(events).toEqual(['micro:listen']);
+
+    await app.close();
+  });
+
+  it('closes connected microservices before parent application resources', async () => {
+    const events: string[] = [];
+    const MICROSERVICE_TOKEN = Symbol.for('fluo.microservices.service');
+
+    class StubMicroserviceRuntime implements MicroserviceRuntime {
+      async close(signal?: string): Promise<void> {
+        events.push(`micro:close:${signal ?? 'none'}`);
+      }
+
+      async listen(): Promise<void> {
+        events.push('micro:listen');
+      }
+    }
+
+    class LifecycleHook {
+      onModuleDestroy() {
+        events.push('app:destroy');
+      }
+    }
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        LifecycleHook,
+        {
+          provide: MICROSERVICE_TOKEN,
+          useClass: StubMicroserviceRuntime,
+        },
+      ],
+    });
+
+    const app = await FluoFactory.create(AppModule, {
+      adapter: {
+        async close(signal?: string) {
+          events.push(`adapter:close:${signal ?? 'none'}`);
+        },
+        async listen() {},
+      },
+    });
+    await app.connectMicroservice();
+
+    await app.startAllMicroservices();
+    await app.close('SIGTERM');
+
+    expect(events).toEqual([
+      'micro:listen',
+      'micro:close:SIGTERM',
+      'app:destroy',
+      'adapter:close:SIGTERM',
+    ]);
+  });
+
+  it('rolls back previously started microservices when startAllMicroservices() fails', async () => {
+    const events: string[] = [];
+    const FIRST_MICROSERVICE_TOKEN = Symbol('first-microservice');
+    const SECOND_MICROSERVICE_TOKEN = Symbol('second-microservice');
+    const startFailure = new Error('second failed to start');
+
+    class FirstMicroserviceRuntime implements MicroserviceRuntime {
+      async close(signal?: string): Promise<void> {
+        events.push(`first:close:${signal ?? 'none'}`);
+      }
+
+      async listen(): Promise<void> {
+        events.push('first:listen');
+      }
+    }
+
+    class SecondMicroserviceRuntime implements MicroserviceRuntime {
+      async close(signal?: string): Promise<void> {
+        events.push(`second:close:${signal ?? 'none'}`);
+      }
+
+      async listen(): Promise<void> {
+        events.push('second:listen');
+        throw startFailure;
+      }
+    }
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        {
+          provide: FIRST_MICROSERVICE_TOKEN,
+          useClass: FirstMicroserviceRuntime,
+        },
+        {
+          provide: SECOND_MICROSERVICE_TOKEN,
+          useClass: SecondMicroserviceRuntime,
+        },
+      ],
+    });
+
+    const app = await FluoFactory.create(AppModule);
+    const first = await app.connectMicroservice({ microserviceToken: FIRST_MICROSERVICE_TOKEN });
+    const second = await app.connectMicroservice({ microserviceToken: SECOND_MICROSERVICE_TOKEN });
+
+    await expect(app.startAllMicroservices()).rejects.toBe(startFailure);
+
+    expect(first.state).toBe('closed');
+    expect(second.state).toBe('bootstrapped');
+    expect(events).toEqual([
+      'first:listen',
+      'second:listen',
+      'first:close:bootstrap-failed',
+    ]);
 
     await app.close();
   });

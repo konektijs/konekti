@@ -241,6 +241,18 @@ function isMicroserviceRuntime(value: unknown): value is MicroserviceRuntime {
   return hasMethod(value, 'listen');
 }
 
+function hasMicroserviceRuntimeClose(value: MicroserviceRuntime): value is MicroserviceRuntime & { close(signal?: string): void | Promise<void> } {
+  return typeof value.close === 'function';
+}
+
+async function closeMicroserviceRuntime(runtime: MicroserviceRuntime, signal?: string): Promise<void> {
+  if (!hasMicroserviceRuntimeClose(runtime)) {
+    return;
+  }
+
+  await runtime.close(signal);
+}
+
 function resetReadinessState(modules: CompiledModule[]): void {
   for (const compiledModule of modules) {
     if (hasReadinessStateMethods(compiledModule.type)) {
@@ -582,14 +594,54 @@ class FluoApplication implements Application {
       throw new InvariantError('Resolved microservice token does not implement listen().');
     }
 
-    const microservice = new FluoMicroserviceApplication(this, this.logger, runtime);
+    const microservice = new FluoMicroserviceApplication(this, this.logger, runtime, false);
     this.connectedMicroservices.push(microservice);
 
     return microservice;
   }
 
   async startAllMicroservices(): Promise<void> {
-    await Promise.all(this.connectedMicroservices.map(async (microservice) => microservice.listen()));
+    const startedMicroservices: MicroserviceApplication[] = [];
+
+    for (const microservice of this.connectedMicroservices) {
+      try {
+        await microservice.listen();
+        startedMicroservices.push(microservice);
+      } catch (error) {
+        await this.rollbackStartedMicroservices(startedMicroservices);
+        throw error;
+      }
+    }
+  }
+
+  private async rollbackStartedMicroservices(startedMicroservices: readonly MicroserviceApplication[]): Promise<void> {
+    for (const microservice of [...startedMicroservices].reverse()) {
+      try {
+        await microservice.close('bootstrap-failed');
+      } catch (rollbackError) {
+        this.logger.error(
+          'Failed to roll back a started microservice after startup failure.',
+          rollbackError,
+          'FluoApplication',
+        );
+      }
+    }
+  }
+
+  private async closeConnectedMicroservices(signal?: string): Promise<void> {
+    const errors: unknown[] = [];
+
+    for (const microservice of [...this.connectedMicroservices].reverse()) {
+      try {
+        await microservice.close(signal);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+
+    if (errors.length > 0) {
+      throw createLifecycleCloseError(errors);
+    }
   }
 
   /**
@@ -640,14 +692,31 @@ class FluoApplication implements Application {
     }
 
     this.closingPromise = (async () => {
-      await closeRuntimeResources({
-        adapter: this.adapter,
-        container: this.container,
-        lifecycleInstances: this.lifecycleInstances,
-        modules: this.modules,
-        runtimeCleanup: this.runtimeCleanup,
-        signal,
-      });
+      const errors: unknown[] = [];
+
+      try {
+        await this.closeConnectedMicroservices(signal);
+      } catch (error) {
+        errors.push(error);
+      }
+
+      try {
+        await closeRuntimeResources({
+          adapter: this.adapter,
+          container: this.container,
+          lifecycleInstances: this.lifecycleInstances,
+          modules: this.modules,
+          runtimeCleanup: this.runtimeCleanup,
+          signal,
+        });
+      } catch (error) {
+        errors.push(error);
+      }
+
+      if (errors.length > 0) {
+        throw createLifecycleCloseError(errors);
+      }
+
       this.closed = true;
       this.applicationState = 'closed';
     })();
@@ -725,6 +794,7 @@ class FluoMicroserviceApplication implements MicroserviceApplication {
     private readonly context: ApplicationContext,
     private readonly logger: ApplicationLogger,
     private readonly runtime: MicroserviceRuntime,
+    private readonly closeContextOnClose: boolean,
   ) {}
 
   get container(): Container {
@@ -788,7 +858,28 @@ class FluoMicroserviceApplication implements MicroserviceApplication {
     }
 
     this.closingPromise = (async () => {
-      await this.context.close(signal);
+      if (this.closeContextOnClose) {
+        const errors: unknown[] = [];
+
+        try {
+          await closeMicroserviceRuntime(this.runtime, signal);
+        } catch (error) {
+          errors.push(error);
+        }
+
+        try {
+          await this.context.close(signal);
+        } catch (error) {
+          errors.push(error);
+        }
+
+        if (errors.length > 0) {
+          throw createLifecycleCloseError(errors);
+        }
+      } else {
+        await closeMicroserviceRuntime(this.runtime, signal);
+      }
+
       this.closed = true;
       this.microserviceState = 'closed';
     })();
@@ -1476,9 +1567,17 @@ export class FluoFactory {
         throw new InvariantError('Resolved microservice token does not implement listen().');
       }
 
-      return new FluoMicroserviceApplication(context, logger, runtime);
+      return new FluoMicroserviceApplication(context, logger, runtime, true);
     } catch (error) {
-      await context.close('bootstrap-failed');
+      try {
+        await context.close('bootstrap-failed');
+      } catch (cleanupError) {
+        logger.error(
+          'Failed to clean up after microservice bootstrap failure.',
+          cleanupError,
+          'FluoFactory',
+        );
+      }
       logger.error(
         'Failed to bootstrap microservice context. Check the error below for what failed and how to fix it.',
         error,
