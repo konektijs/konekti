@@ -101,12 +101,13 @@ import { Inject } from '@fluojs/core';
 
 @Inject(forwardRef(() => ServiceB))
 class ServiceA {
-  constructor(private serviceB: any) {}
+  constructor(private readonly serviceB: ServiceB) {}
 }
 
-@Inject(forwardRef(() => ServiceA))
 class ServiceB {
-  constructor(private serviceA: any) {}
+  getStatus() {
+    return 'ready';
+  }
 }
 ```
 
@@ -133,7 +134,7 @@ const service = await container.resolve(DataService);
 ## Troubleshooting
 
 ### CircularDependencyError
-Thrown when the container detects a cycle in the dependency graph. Check your constructor injections and use `forwardRef()` where necessary to break the cycle.
+Thrown when the container detects a cycle in the dependency graph. Check your constructor injections and remove the cycle by extracting shared state, introducing a mediator, or changing the lifetime boundary. `forwardRef()` only defers token lookup for declaration-order issues; it does not break true constructor cycles.
 
 ### Token Not Found
 Ensure all required providers are registered in the container. If you use `createRequestScope()`, the child container can resolve tokens from the parent, but not vice versa.

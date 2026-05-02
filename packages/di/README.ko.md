@@ -101,12 +101,13 @@ import { Inject } from '@fluojs/core';
 
 @Inject(forwardRef(() => ServiceB))
 class ServiceA {
-  constructor(private serviceB: any) {}
+  constructor(private readonly serviceB: ServiceB) {}
 }
 
-@Inject(forwardRef(() => ServiceA))
 class ServiceB {
-  constructor(private serviceA: any) {}
+  getStatus() {
+    return 'ready';
+  }
 }
 ```
 
@@ -133,7 +134,7 @@ const service = await container.resolve(DataService);
 ## 문제 해결
 
 ### CircularDependencyError
-의존성 그래프에서 순환이 감지될 때 발생합니다. 생성자 주입 항목을 확인하고 필요한 경우 `forwardRef()`를 사용하여 순환을 끊으세요.
+의존성 그래프에서 순환이 감지될 때 발생합니다. 생성자 주입 항목을 확인하고 공유 상태 추출, 중재자 도입, 수명 주기 경계 변경 등으로 순환을 제거하세요. `forwardRef()`는 선언 순서 문제를 위해 토큰 조회만 지연하며, 실제 생성자 순환을 끊지는 않습니다.
 
 ### 토큰을 찾을 수 없음 (Token Not Found)
 필요한 모든 provider가 컨테이너에 등록되어 있는지 확인하세요. `createRequestScope()`를 사용하는 경우 자식 컨테이너는 부모의 토큰을 해석할 수 있지만, 그 반대는 불가능합니다.
