@@ -1,13 +1,42 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { getModuleMetadata } from '@fluojs/core/internal';
 import { describe, expect, it } from 'vitest';
 
-import { ConfigReloadManager } from './reload-module.js';
+import { CONFIG_RELOADER, ConfigReloadManager, ConfigReloadModule } from './reload-module.js';
 import { ConfigService } from './service.js';
-import type { ConfigDictionary } from './types.js';
+import type { ConfigDictionary, ConfigLoadOptions } from './types.js';
 
 describe('ConfigReloadManager', () => {
+  it('snapshots caller-owned options during ConfigReloadModule registration', () => {
+    const options: ConfigLoadOptions = {
+      defaults: { nested: { value: 'registered' }, PORT: '4000' },
+      processEnv: { PORT: '4100' },
+      runtimeOverrides: { FEATURE: 'enabled' },
+    };
+    const moduleRef = ConfigReloadModule.forRoot(options);
+
+    options.defaults = { nested: { value: 'mutated' }, PORT: '5000' };
+    options.processEnv = { PORT: '5100' };
+    options.runtimeOverrides = { FEATURE: 'disabled' };
+
+    const providers = getModuleMetadata(moduleRef)?.providers as
+      | Array<{ provide?: unknown; useValue?: ConfigLoadOptions; useExisting?: unknown }>
+      | undefined;
+    const optionsProvider = providers?.find((provider) => provider.useValue !== undefined);
+    const reloaderProvider = providers?.find((provider) => provider.provide === CONFIG_RELOADER);
+    const snapshot = optionsProvider?.useValue;
+
+    expect(snapshot?.defaults?.['PORT']).toBe('4000');
+    expect((snapshot?.defaults?.['nested'] as { value?: unknown } | undefined)?.value).toBe('registered');
+    expect(snapshot?.processEnv?.PORT).toBe('4100');
+    expect(snapshot?.runtimeOverrides?.['FEATURE']).toBe('enabled');
+    expect(Object.isFrozen(snapshot)).toBe(true);
+    expect(Object.isFrozen(snapshot?.defaults)).toBe(true);
+    expect(reloaderProvider?.useExisting).toBe(ConfigReloadManager);
+  });
+
   it('reloads the shared ConfigService snapshot without replacing the service identity', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-manager-reload-'));
     const envPath = join(cwd, '.env.dev');

@@ -1,6 +1,7 @@
 import { defineModuleMetadata } from '@fluojs/core/internal';
 
 import { loadConfig } from './load.js';
+import { snapshotConfigModuleOptions } from './options.js';
 import { ConfigService, createConfigServiceFromSnapshot } from './service.js';
 import type { ConfigModuleOptions } from './types.js';
 
@@ -28,15 +29,16 @@ export class ConfigModule {
    * ```
    */
   static forRoot(options?: ConfigModuleOptions): new () => ConfigModule {
+    const loadOptions = snapshotConfigModuleOptions(options);
     class ConfigModuleImpl extends ConfigModule {}
 
     defineModuleMetadata(ConfigModuleImpl, {
-      global: options?.isGlobal ?? true,
+      global: loadOptions.isGlobal ?? true,
       exports: [ConfigService],
       providers: [
         {
           provide: ConfigService,
-          useFactory: () => createConfigServiceFromSnapshot(loadConfig(options ?? {})),
+          useFactory: () => createConfigServiceFromSnapshot(loadConfig(loadOptions)),
         },
       ],
     });
