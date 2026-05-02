@@ -17,9 +17,11 @@ describe('@fluojs/core public API surface', () => {
   it('does not expose internal metadata helpers on the root barrel', () => {
     expect(corePublicApi).not.toHaveProperty('defineModuleMetadata');
     expect(corePublicApi).not.toHaveProperty('getModuleMetadata');
+    expect(corePublicApi).not.toHaveProperty('getModuleMetadataVersion');
     expect(corePublicApi).not.toHaveProperty('defineControllerMetadata');
     expect(corePublicApi).not.toHaveProperty('getControllerMetadata');
     expect(corePublicApi).not.toHaveProperty('getClassDiMetadata');
+    expect(corePublicApi).not.toHaveProperty('getClassDiMetadataVersion');
     expect(corePublicApi).not.toHaveProperty('metadataSymbol');
     expect(corePublicApi).not.toHaveProperty('ensureSymbolMetadataPolyfill');
     expect(corePublicApi).not.toHaveProperty('cloneWithFallback');
@@ -29,9 +31,11 @@ describe('@fluojs/core public API surface', () => {
   it('keeps internal metadata helpers available from the internal subpath', () => {
     expect(coreInternalApi).toHaveProperty('defineModuleMetadata');
     expect(coreInternalApi).toHaveProperty('getModuleMetadata');
+    expect(coreInternalApi).toHaveProperty('getModuleMetadataVersion');
     expect(coreInternalApi).toHaveProperty('defineControllerMetadata');
     expect(coreInternalApi).toHaveProperty('getControllerMetadata');
     expect(coreInternalApi).toHaveProperty('getClassDiMetadata');
+    expect(coreInternalApi).toHaveProperty('getClassDiMetadataVersion');
     expect(coreInternalApi).toHaveProperty('metadataSymbol');
     expect(coreInternalApi).toHaveProperty('ensureSymbolMetadataPolyfill');
     expect(coreInternalApi).toHaveProperty('cloneWithFallback');

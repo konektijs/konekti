@@ -2,6 +2,7 @@ import { cloneCollection, cloneMutableValue } from './shared.js';
 import type { ModuleMetadata } from './types.js';
 
 const moduleMetadataStore = new WeakMap<Function, ModuleMetadata>();
+let moduleMetadataVersion = 0;
 
 function isValueProvider(provider: unknown): provider is { useValue: unknown } {
   return typeof provider === 'object' && provider !== null && 'useValue' in provider;
@@ -110,6 +111,7 @@ export function defineModuleMetadata(target: Function, metadata: ModuleMetadata)
     middleware: metadata.middleware ?? existing?.middleware,
     providers: metadata.providers ?? existing?.providers,
   })));
+  moduleMetadataVersion += 1;
 }
 
 /**
@@ -120,4 +122,13 @@ export function defineModuleMetadata(target: Function, metadata: ModuleMetadata)
  */
 export function getModuleMetadata(target: Function): ModuleMetadata | undefined {
   return moduleMetadataStore.get(target);
+}
+
+/**
+ * Reads the process-local module metadata write version.
+ *
+ * @returns Monotonically increasing version bumped after each module metadata write.
+ */
+export function getModuleMetadataVersion(): number {
+  return moduleMetadataVersion;
 }
