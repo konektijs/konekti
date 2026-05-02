@@ -17,6 +17,9 @@ type MetricHistogramLike = {
   observe(labels: Record<string, string>, value: number): void;
 };
 
+const FRAMEWORK_HTTP_COUNTERS = new WeakSet<Counter<string>>();
+const FRAMEWORK_HTTP_HISTOGRAMS = new WeakSet<Histogram<string>>();
+
 /** Strategy used to label request paths in emitted HTTP metrics. */
 export type HttpMetricsPathLabelMode = 'raw' | 'template';
 
@@ -181,14 +184,22 @@ function getOrCreateHttpCounter(
   const existing = registry.getSingleMetric(config.name);
 
   if (existing instanceof Counter) {
+    if (!FRAMEWORK_HTTP_COUNTERS.has(existing)) {
+      throw new Error(
+        `Metric name "${config.name}" is already registered by the application. Built-in HTTP metrics require framework-owned collectors.`,
+      );
+    }
+
     return existing;
   }
 
-  return createPrometheusCounter(registry, {
+  const counter = createPrometheusCounter(registry, {
     help: config.help,
     labelNames: [...config.labelNames],
     name: config.name,
   });
+  FRAMEWORK_HTTP_COUNTERS.add(counter);
+  return counter;
 }
 
 function getOrCreateHttpHistogram(
@@ -202,14 +213,22 @@ function getOrCreateHttpHistogram(
   const existing = registry.getSingleMetric(config.name);
 
   if (existing instanceof Histogram) {
+    if (!FRAMEWORK_HTTP_HISTOGRAMS.has(existing)) {
+      throw new Error(
+        `Metric name "${config.name}" is already registered by the application. Built-in HTTP metrics require framework-owned collectors.`,
+      );
+    }
+
     return existing;
   }
 
-  return createPrometheusHistogram(registry, {
+  const histogram = createPrometheusHistogram(registry, {
     help: config.help,
     labelNames: [...config.labelNames],
     name: config.name,
   });
+  FRAMEWORK_HTTP_HISTOGRAMS.add(histogram);
+  return histogram;
 }
 
 function normalizePathToTemplate(path: string, params: Readonly<Record<string, string>>): string {

@@ -7,7 +7,7 @@ import {
   type Next,
 } from '@fluojs/http';
 import { bootstrapApplication, defineModule, PLATFORM_SHELL, type PlatformComponent } from '@fluojs/runtime';
-import { Counter, Registry } from 'prom-client';
+import { Counter, Histogram, Registry } from 'prom-client';
 import { describe, expect, it } from 'vitest';
 import { METER_PROVIDER } from './providers/meter-provider.js';
 import { MetricsModule } from './metrics-module.js';
@@ -336,7 +336,7 @@ describe('MetricsModule', () => {
       rootModule: AppModule,
     });
 
-    const metricsService = await app.container.resolve(MetricsService);
+    const metricsService = (await app.container.resolve(MetricsService)) as MetricsService;
     const meterProvider = await app.container.resolve(METER_PROVIDER) as PrometheusMeterProvider;
 
     metricsService.counter({
@@ -391,7 +391,7 @@ describe('MetricsModule', () => {
       rootModule: AppModule,
     });
 
-    const metricsService = await app.container.resolve(MetricsService);
+    const metricsService = (await app.container.resolve(MetricsService)) as MetricsService;
     const resolvedRegistry = metricsService.getRegistry();
 
     expect(resolvedRegistry).toBe(sharedRegistry);
@@ -804,7 +804,7 @@ describe('MetricsModule', () => {
       rootModule: AppModule,
     });
 
-    const metricsService = await app.container.resolve(MetricsService);
+    const metricsService = (await app.container.resolve(MetricsService)) as MetricsService;
 
     expect(() => {
       metricsService.counter({
@@ -814,6 +814,48 @@ describe('MetricsModule', () => {
     }).toThrow('A metric with the name shared_duplicate_counter has already been registered.');
 
     await app.close();
+  });
+
+  it('throws when an app predefines a built-in HTTP counter name', () => {
+    const sharedRegistry = new Registry();
+
+    new Counter({
+      help: 'Application-defined HTTP requests',
+      name: 'http_requests_total',
+      registers: [sharedRegistry],
+    });
+
+    expect(() => MetricsModule.forRoot({ defaultMetrics: false, http: true, registry: sharedRegistry })).toThrow(
+      'Metric name "http_requests_total" is already registered by the application. Built-in HTTP metrics require framework-owned collectors.',
+    );
+  });
+
+  it('throws when an app predefines a built-in HTTP error counter name', () => {
+    const sharedRegistry = new Registry();
+
+    new Counter({
+      help: 'Application-defined HTTP errors',
+      name: 'http_errors_total',
+      registers: [sharedRegistry],
+    });
+
+    expect(() => MetricsModule.forRoot({ defaultMetrics: false, http: true, registry: sharedRegistry })).toThrow(
+      'Metric name "http_errors_total" is already registered by the application. Built-in HTTP metrics require framework-owned collectors.',
+    );
+  });
+
+  it('throws when an app predefines the built-in HTTP duration histogram name', () => {
+    const sharedRegistry = new Registry();
+
+    new Histogram({
+      help: 'Application-defined HTTP durations',
+      name: 'http_request_duration_seconds',
+      registers: [sharedRegistry],
+    });
+
+    expect(() => MetricsModule.forRoot({ defaultMetrics: false, http: true, registry: sharedRegistry })).toThrow(
+      'Metric name "http_request_duration_seconds" is already registered by the application. Built-in HTTP metrics require framework-owned collectors.',
+    );
   });
 
   it('creates isolated registry by default when registry option is omitted', async () => {
@@ -827,7 +869,7 @@ describe('MetricsModule', () => {
       rootModule: AppModule,
     });
 
-    const metricsService = await app.container.resolve(MetricsService);
+    const metricsService = (await app.container.resolve(MetricsService)) as MetricsService;
     const registry = metricsService.getRegistry();
 
     metricsService.counter({
