@@ -25,6 +25,13 @@ export function matchHandlerOrThrow(handlerMapping: HandlerMapping, request: Fra
  * @param params The params.
  */
 export function updateRequestParams(requestContext: RequestContext, params: Readonly<Record<string, string>>): void {
+  const descriptor = Object.getOwnPropertyDescriptor(requestContext.request, 'params');
+
+  if (!descriptor || ('value' in descriptor && descriptor.writable)) {
+    requestContext.request.params = params;
+    return;
+  }
+
   Object.defineProperty(requestContext.request, 'params', {
     configurable: true,
     enumerable: true,
