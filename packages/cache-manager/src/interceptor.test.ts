@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { CallHandler, HttpMethod, InterceptorContext, Principal, RequestContext } from '@fluojs/http';
+import { SseResponse, type CallHandler, type HttpMethod, type InterceptorContext, type Principal, type RequestContext } from '@fluojs/http';
 
 import { CacheEvict, CacheKey, CacheTTL } from './decorators.js';
 import { CacheInterceptor } from './interceptor.js';
@@ -123,6 +123,24 @@ function createInterceptor(overrides: Partial<NormalizedCacheModuleOptions> = {}
     cacheService,
     interceptor: new CacheInterceptor(cacheService, options),
   };
+}
+
+function installSseStream(requestContext: RequestContext) {
+  const stream = {
+    closed: false,
+    close: vi.fn(() => {
+      stream.closed = true;
+    }),
+    end: vi.fn(() => {
+      stream.closed = true;
+    }),
+    flush: vi.fn(),
+    onClose: vi.fn(() => undefined),
+    write: vi.fn(() => true),
+  };
+
+  requestContext.response.stream = stream;
+  return stream;
 }
 
 describe('CacheInterceptor', () => {
@@ -261,6 +279,35 @@ describe('CacheInterceptor', () => {
 
     await expect(interceptor.intercept(context, next)).resolves.toEqual({ count: 1 });
     expect(next.handle).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache SseResponse values returned by GET handlers', async () => {
+    class EventsController {
+      @CacheTTL(120)
+      stream() {}
+    }
+
+    const { interceptor, cacheService } = createInterceptor({ ttl: 120 });
+    const firstRequestContext = createRequestContext('GET', '/events', '/events');
+    const secondRequestContext = createRequestContext('GET', '/events', '/events');
+    installSseStream(firstRequestContext);
+    installSseStream(secondRequestContext);
+    const firstContext = createContext(EventsController, 'stream', firstRequestContext);
+    const secondContext = createContext(EventsController, 'stream', secondRequestContext);
+    const next: CallHandler = {
+      handle: vi
+        .fn<CallHandler['handle']>()
+        .mockImplementationOnce(async () => new SseResponse(firstRequestContext))
+        .mockImplementationOnce(async () => new SseResponse(secondRequestContext)),
+    };
+
+    const first = await interceptor.intercept(firstContext, next);
+    const second = await interceptor.intercept(secondContext, next);
+
+    expect(first).toBeInstanceOf(SseResponse);
+    expect(second).toBeInstanceOf(SseResponse);
+    expect(next.handle).toHaveBeenCalledTimes(2);
+    await expect(cacheService.get('/events')).resolves.toBeUndefined();
   });
 
   it('does not fail successful non-GET handlers when cache eviction fails', async () => {
