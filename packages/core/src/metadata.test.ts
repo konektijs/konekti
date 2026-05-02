@@ -17,8 +17,10 @@ import {
   getInheritedClassDiMetadata,
   getInjectionSchema,
   getModuleMetadata,
+  getModuleMetadataVersion,
   getOwnClassDiMetadata,
   getRouteMetadata,
+  getClassDiMetadataVersion,
 } from './metadata.js';
 import {
   getOwnStandardConstructorMetadataBag,
@@ -89,6 +91,24 @@ describe('metadata helpers', () => {
       middleware: ['LoggingMiddleware'],
       providers: ['LoggerProvider'],
     });
+  });
+
+  it('increments module metadata version after each module metadata write', () => {
+    class ExampleModule {}
+
+    const initialVersion = getModuleMetadataVersion();
+
+    defineModuleMetadata(ExampleModule, {
+      providers: ['LoggerProvider'],
+    });
+    const firstWriteVersion = getModuleMetadataVersion();
+
+    defineModuleMetadata(ExampleModule, {
+      exports: ['LoggerProvider'],
+    });
+
+    expect(firstWriteVersion).toBeGreaterThan(initialVersion);
+    expect(getModuleMetadataVersion()).toBeGreaterThan(firstWriteVersion);
   });
 
   it('preserves explicit global false across partial module metadata writes', () => {
@@ -723,6 +743,24 @@ describe('metadata helpers', () => {
       inject: ['LOGGER'],
       scope: 'request',
     });
+  });
+
+  it('increments class DI metadata version after each class DI metadata write', () => {
+    class ExampleService {}
+
+    const initialVersion = getClassDiMetadataVersion();
+
+    defineClassDiMetadata(ExampleService, {
+      inject: ['LOGGER'],
+    });
+    const firstWriteVersion = getClassDiMetadataVersion();
+
+    defineClassDiMetadata(ExampleService, {
+      scope: 'request',
+    });
+
+    expect(firstWriteVersion).toBeGreaterThan(initialVersion);
+    expect(getClassDiMetadataVersion()).toBeGreaterThan(firstWriteVersion);
   });
 
   it('returns a frozen stable own class DI metadata snapshot', () => {

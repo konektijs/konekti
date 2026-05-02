@@ -96,3 +96,12 @@ export function getInheritedClassDiMetadata(target: Function): ClassDiMetadata |
 export function getClassDiMetadata(target: Function): ClassDiMetadata | undefined {
   return getInheritedClassDiMetadata(target);
 }
+
+/**
+ * Reads the process-local class-DI metadata write version.
+ *
+ * @returns Monotonically increasing version bumped after each class-DI metadata write.
+ */
+export function getClassDiMetadataVersion(): number {
+  return classDiMetadataVersion;
+}

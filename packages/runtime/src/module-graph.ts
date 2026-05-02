@@ -1,6 +1,12 @@
 import type { Provider } from '@fluojs/di';
 import type { Token } from '@fluojs/core';
-import { getClassDiMetadata, getModuleMetadata, getOwnClassDiMetadata } from '@fluojs/core/internal';
+import {
+  getClassDiMetadata,
+  getClassDiMetadataVersion,
+  getModuleMetadata,
+  getModuleMetadataVersion,
+  getOwnClassDiMetadata,
+} from '@fluojs/core/internal';
 import type { MiddlewareLike } from '@fluojs/http';
 
 import { ModuleGraphError, ModuleInjectionMetadataError, ModuleVisibilityError } from './errors.js';
@@ -28,6 +34,108 @@ type OptionalToken = { __optional__: true; token: Token };
 type ClassDiMetadataView = {
   inject?: readonly InjectionToken[];
 };
+
+const objectTokenIds = new WeakMap<Function, number>();
+const symbolTokenIds = new Map<symbol, number>();
+let nextTokenId = 0;
+
+function getFunctionTokenId(token: Function): number {
+  const existing = objectTokenIds.get(token);
+
+  if (existing !== undefined) {
+    return existing;
+  }
+
+  nextTokenId += 1;
+  objectTokenIds.set(token, nextTokenId);
+
+  return nextTokenId;
+}
+
+function getSymbolTokenId(token: symbol): number {
+  const existing = symbolTokenIds.get(token);
+
+  if (existing !== undefined) {
+    return existing;
+  }
+
+  nextTokenId += 1;
+  symbolTokenIds.set(token, nextTokenId);
+
+  return nextTokenId;
+}
+
+function describeTokenForCacheKey(token: Token): string {
+  if (typeof token === 'function') {
+    return `fn:${getFunctionTokenId(token)}`;
+  }
+
+  if (typeof token === 'symbol') {
+    return `sym:${getSymbolTokenId(token)}`;
+  }
+
+  return `str:${JSON.stringify(token)}`;
+}
+
+function describeInjectionTokenForCacheKey(token: InjectionToken): string {
+  if (isForwardRef(token)) {
+    return `forward:${describeTokenForCacheKey(token.forwardRef())}`;
+  }
+
+  if (isOptionalToken(token)) {
+    return `optional:${describeTokenForCacheKey(token.token)}`;
+  }
+
+  return describeTokenForCacheKey(token);
+}
+
+function describeProviderForCacheKey(provider: Provider): string {
+  if (typeof provider === 'function') {
+    return `class:${describeTokenForCacheKey(provider)}`;
+  }
+
+  const provide = describeTokenForCacheKey(provider.provide);
+  const multi = 'multi' in provider && provider.multi === true ? 'multi' : 'single';
+
+  if ('useClass' in provider) {
+    const inject = provider.inject?.map(describeInjectionTokenForCacheKey).join(',') ?? '';
+
+    return `useClass:${provide}:${describeTokenForCacheKey(provider.useClass)}:${provider.scope ?? ''}:${multi}:${inject}`;
+  }
+
+  if ('useFactory' in provider) {
+    const inject = provider.inject?.map(describeInjectionTokenForCacheKey).join(',') ?? '';
+    const resolverClass = provider.resolverClass ? describeTokenForCacheKey(provider.resolverClass) : '';
+
+    return `useFactory:${provide}:${getFunctionTokenId(provider.useFactory)}:${resolverClass}:${provider.scope ?? ''}:${multi}:${inject}`;
+  }
+
+  if ('useExisting' in provider) {
+    return `useExisting:${provide}:${describeTokenForCacheKey(provider.useExisting)}`;
+  }
+
+  return `useValue:${provide}:${multi}`;
+}
+
+/**
+ * Builds the prerequisite key for future module graph compile caching.
+ *
+ * @param rootModule Root module that would be compiled.
+ * @param options Bootstrap options that influence graph validation.
+ * @returns Process-local key that changes when metadata or runtime validation inputs change.
+ */
+export function createModuleGraphCacheKey(rootModule: ModuleType, options: BootstrapModuleOptions = {}): string {
+  const runtimeProviders = (options.providers ?? []).map(describeProviderForCacheKey).join('|');
+  const validationTokens = (options.validationTokens ?? []).map(describeTokenForCacheKey).join('|');
+
+  return [
+    `root:${describeTokenForCacheKey(rootModule)}`,
+    `module:${getModuleMetadataVersion()}`,
+    `class-di:${getClassDiMetadataVersion()}`,
+    `runtime:${runtimeProviders}`,
+    `validation:${validationTokens}`,
+  ].join(';');
+}
 
 function getEffectiveClassDiMetadata(target: Function): ClassDiMetadataView | undefined {
   const metadata = getClassDiMetadata(target);
