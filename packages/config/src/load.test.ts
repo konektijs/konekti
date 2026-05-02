@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createConfigReloader, loadConfig } from './load.js';
 import { ConfigModule } from './module.js';
 import { ConfigService, replaceConfigServiceSnapshot } from './service.js';
-import type { ConfigDictionary, ConfigLoadOptions, ConfigSchema } from './types.js';
+import type { ConfigDictionary, ConfigLoadOptions, ConfigModuleOptions, ConfigSchema } from './types.js';
 
 const watchCallbacks = vi.hoisted(() => new Set<() => void>());
 
@@ -368,6 +368,75 @@ describe('loadConfig', () => {
     expect(loaded['KEY']).toBe('value');
   });
 
+  it('snapshots standalone reloader options for current, manual reload, and watch reload inputs', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-reloader-option-snapshot-'));
+    const envPath = join(cwd, '.env.dev');
+    const schema = createPortSchema();
+    const parse = (content: string): Record<string, string> => {
+      const result: Record<string, string> = {};
+
+      for (const line of content.trim().split('\n')) {
+        const [key, value] = line.split(':');
+        if (key && value) {
+          result[key] = value;
+        }
+      }
+
+      return result;
+    };
+    const options: ConfigLoadOptions = {
+      cwd,
+      defaults: { PORT: '3000' },
+      envFile: envPath,
+      parse,
+      processEnv: { PORT: '4100' },
+      runtimeOverrides: { FEATURE: 'registered' },
+      schema,
+      watch: true,
+    };
+
+    writeFileSync(envPath, 'PORT:4000\n');
+
+    const reloader = createConfigReloader(options);
+
+    options.defaults = { PORT: '9000' };
+    options.parse = () => ({ PORT: '9100' });
+    options.processEnv = { PORT: '9200' };
+    options.runtimeOverrides = { FEATURE: 'mutated' };
+    options.schema = {
+      '~standard': {
+        validate: () => ({ value: { PORT: 9300, FEATURE: 'schema-mutated' } }),
+        vendor: 'test',
+        version: 1,
+      },
+    };
+
+    try {
+      const updates: Array<{ feature: unknown; port: unknown; reason: string }> = [];
+
+      reloader.subscribe((snapshot, reason) => {
+        updates.push({ feature: snapshot['FEATURE'], port: snapshot['PORT'], reason });
+      });
+
+      expect(Object.isFrozen(schema)).toBe(false);
+      expect(Object.isFrozen(parse)).toBe(false);
+      expect(reloader.current()).toMatchObject({ FEATURE: 'registered', PORT: 4100 });
+
+      writeFileSync(envPath, 'PORT:4200\n');
+      expect(reloader.reload()).toMatchObject({ FEATURE: 'registered', PORT: 4100 });
+
+      writeFileSync(envPath, 'PORT:4300\n');
+      emitWatchChange();
+      await waitForCondition(() => updates.some((update) => update.reason === 'watch'));
+
+      expect(updates).toContainEqual({ feature: 'registered', port: 4100, reason: 'manual' });
+      expect(updates).toContainEqual({ feature: 'registered', port: 4100, reason: 'watch' });
+      expect(reloader.current()).toMatchObject({ FEATURE: 'registered', PORT: 4100 });
+    } finally {
+      reloader.close();
+    }
+  });
+
   it('emits reload notifications through explicit subscriptions', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-reload-subscribe-'));
     const envPath = join(cwd, '.env.dev');
@@ -525,6 +594,45 @@ describe('loadConfig', () => {
 
       updateSubscription.unsubscribe();
       errorSubscription.unsubscribe();
+    } finally {
+      reloader.close();
+    }
+  });
+
+  it('starts watch mode even when the env file is created after startup', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-watch-missing-startup-'));
+    const envPath = join(cwd, '.env.dev');
+
+    const reloader = createConfigReloader({
+      cwd,
+      defaults: { PORT: '4000' },
+      envFile: envPath,
+      processEnv: {},
+      watch: true,
+    });
+
+    try {
+      const updates: string[] = [];
+
+      reloader.subscribe((snapshot, reason) => {
+        if (reason !== 'watch') {
+          return;
+        }
+
+        const port = snapshot['PORT'];
+        if (typeof port === 'string') {
+          updates.push(port);
+        }
+      });
+
+      expect(reloader.current()['PORT']).toBe('4000');
+      expect(watchCallbacks.size).toBe(1);
+
+      writeFileSync(envPath, 'PORT=4100\n');
+      emitWatchChange();
+
+      await waitForCondition(() => updates.includes('4100'));
+      expect(reloader.current()['PORT']).toBe('4100');
     } finally {
       reloader.close();
     }
@@ -895,6 +1003,26 @@ describe('ConfigModule', () => {
     expect(service?.getOrThrow('PORT')).toBe('4000');
     expect(service?.snapshot()['PORT']).toBe('4000');
     expect(parseCalls).toBe(1);
+  });
+
+  it('snapshots caller-owned options during ConfigModule registration', () => {
+    const options: ConfigModuleOptions = {
+      defaults: { nested: { value: 'registered' }, PORT: '4000' },
+      processEnv: { PORT: '4100' },
+    };
+    const moduleRef = ConfigModule.forRoot(options);
+
+    options.defaults = { nested: { value: 'mutated' }, PORT: '5000' };
+    options.processEnv = { PORT: '5100' };
+
+    const providers = getModuleMetadata(moduleRef)?.providers as
+      | Array<{ provide?: unknown; useFactory?: () => unknown }>
+      | undefined;
+    const configProvider = providers?.find((provider) => provider.provide === ConfigService);
+    const service = configProvider?.useFactory?.() as ConfigService | undefined;
+
+    expect(service?.get('PORT')).toBe('4100');
+    expect(service?.get('nested.value' as never)).toBe('registered');
   });
 
   it('uses Standard Schema validation through ConfigModule.forRoot', () => {

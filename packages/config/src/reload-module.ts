@@ -3,6 +3,7 @@ import { defineModuleMetadata } from '@fluojs/core/internal';
 
 import { cloneConfigDictionary } from './clone.js';
 import { createConfigReloader } from './load.js';
+import { snapshotConfigLoadOptions } from './options.js';
 import {
   ConfigService,
   replaceConfigServiceSnapshotUnchecked,
@@ -129,7 +130,7 @@ export class ConfigReloadManager implements ConfigReloader {
  */
 export class ConfigReloadModule {
   static forRoot(options?: ConfigLoadOptions): new () => ConfigReloadModule {
-    const loadOptions = options ?? {};
+    const loadOptions = snapshotConfigLoadOptions(options);
 
     class ConfigReloadModuleImpl extends ConfigReloadModule {}
 
