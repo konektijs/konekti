@@ -51,7 +51,7 @@
 - **`@fluojs/slack`**: Webhook-first Slack delivery core that can run standalone or register a first-party notifications channel.
 - **`@fluojs/discord`**: Webhook-first Discord delivery core that can run standalone or register a first-party notifications channel.
 - **`@fluojs/websockets`**: Transport-neutral WebSocket gateway authoring.
-- **`@fluojs/validation`**: Class-validator based input materialization and safety.
+- **`@fluojs/validation`**: Standard-decorator input validation, DTO materialization, and request-boundary safety.
 - **`@fluojs/prisma` / `@fluojs/drizzle`**: ORM lifecycle and ALS-backed transaction context.
 
 ### tooling

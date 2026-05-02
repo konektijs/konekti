@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { IsEmail, IsString } from './decorators.js';
 import { IntersectionType, OmitType, PartialType, PickType } from './mapped-types.js';
+import { DefaultValidator } from './validation.js';
 
 describe('mapped DTO helpers', () => {
   it('PickType initializes only the selected keys on the derived instance', () => {
@@ -58,5 +60,27 @@ describe('mapped DTO helpers', () => {
 
     expect(SearchPageDto.name).toBe('PagingDtoSearchDtoFilterDtoIntersectionType');
     expect(new SearchPageDto()).toEqual({ cursor: undefined, query: undefined, scope: undefined });
+  });
+
+  it('preserves selected validation metadata on mapped DTO helpers', async () => {
+    class UserDto {
+      @IsString()
+      name = '';
+
+      @IsEmail()
+      email = '';
+    }
+
+    const UserEmailDto = PickType(UserDto, ['email']);
+    const PublicUserDto = OmitType(UserDto, ['email']);
+    const validator = new DefaultValidator();
+
+    await expect(validator.materialize({ email: 'not-an-email' }, UserEmailDto)).rejects.toMatchObject({
+      issues: [{ code: 'EMAIL', field: 'email', message: 'email is invalid.' }],
+    });
+
+    await expect(validator.materialize({ email: 'not-an-email', name: 'Fluo' }, PublicUserDto)).resolves.toMatchObject({
+      name: 'Fluo',
+    });
   });
 });
