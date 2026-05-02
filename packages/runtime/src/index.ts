@@ -1,6 +1,17 @@
 export * from './abort.js';
 export * from './bootstrap.js';
-export * from './health/diagnostics.js';
+export {
+  createBootstrapTimingDiagnostics,
+  createRuntimeDiagnosticsGraph,
+} from './health/diagnostics.js';
+export type {
+  BootstrapTimingDiagnostics,
+  BootstrapTimingPhase,
+  RuntimeDiagnosticsGraph,
+  RuntimeDiagnosticsModule,
+  RuntimeDiagnosticsProvider,
+  RuntimeDiagnosticsRelationships,
+} from './health/diagnostics.js';
 export * from './errors.js';
 export * from './health/health.js';
 export type {
