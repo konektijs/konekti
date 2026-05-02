@@ -38,6 +38,22 @@ type ClassDiMetadataView = {
 const objectTokenIds = new WeakMap<Function, number>();
 const symbolTokenIds = new Map<symbol, number>();
 let nextTokenId = 0;
+const MODULE_GRAPH_COMPILE_ALGORITHM_VERSION = 1;
+const moduleGraphCompileCache = new Map<string, readonly CompiledModule[]>();
+
+/** Clears the process-local module graph compile cache for isolated regression tests. */
+export function clearModuleGraphCompileCacheForTesting(): void {
+  moduleGraphCompileCache.clear();
+}
+
+/**
+ * Reads the current process-local module graph compile cache size for tests.
+ *
+ * @returns Number of successful compile snapshots currently retained in the cache.
+ */
+export function getModuleGraphCompileCacheSizeForTesting(): number {
+  return moduleGraphCompileCache.size;
+}
 
 function getFunctionTokenId(token: Function): number {
   const existing = objectTokenIds.get(token);
@@ -118,7 +134,7 @@ function describeProviderForCacheKey(provider: Provider): string {
 }
 
 /**
- * Builds the prerequisite key for future module graph compile caching.
+ * Builds the key used for opt-in module graph compile caching.
  *
  * @param rootModule Root module that would be compiled.
  * @param options Bootstrap options that influence graph validation.
@@ -132,9 +148,46 @@ export function createModuleGraphCacheKey(rootModule: ModuleType, options: Boots
     `root:${describeTokenForCacheKey(rootModule)}`,
     `module:${getModuleMetadataVersion()}`,
     `class-di:${getClassDiMetadataVersion()}`,
+    `algorithm:${MODULE_GRAPH_COMPILE_ALGORITHM_VERSION}`,
     `runtime:${runtimeProviders}`,
     `validation:${validationTokens}`,
   ].join(';');
+}
+
+function cloneModuleDefinition(definition: ModuleDefinition): ModuleDefinition {
+  return {
+    global: definition.global,
+    imports: definition.imports ? [...definition.imports] : undefined,
+    providers: definition.providers ? [...definition.providers] : undefined,
+    controllers: definition.controllers ? [...definition.controllers] : undefined,
+    exports: definition.exports ? [...definition.exports] : undefined,
+    middleware: definition.middleware ? [...definition.middleware] : undefined,
+  };
+}
+
+function cloneCompiledModule(compiledModule: CompiledModule): CompiledModule {
+  return {
+    type: compiledModule.type,
+    definition: cloneModuleDefinition(compiledModule.definition),
+    accessibleTokens: new Set(compiledModule.accessibleTokens),
+    exportedTokens: new Set(compiledModule.exportedTokens),
+    importedExportedTokens: new Set(compiledModule.importedExportedTokens),
+    providerTokens: new Set(compiledModule.providerTokens),
+  };
+}
+
+function cloneCompiledModules(modules: readonly CompiledModule[]): CompiledModule[] {
+  return modules.map((compiledModule) => cloneCompiledModule(compiledModule));
+}
+
+function freezeCompiledModule(compiledModule: CompiledModule): CompiledModule {
+  Object.freeze(compiledModule.definition);
+
+  return Object.freeze(compiledModule);
+}
+
+function createModuleGraphCacheSnapshot(modules: readonly CompiledModule[]): readonly CompiledModule[] {
+  return Object.freeze(cloneCompiledModules(modules).map((compiledModule) => freezeCompiledModule(compiledModule)));
 }
 
 function getEffectiveClassDiMetadata(target: Function): ClassDiMetadataView | undefined {
@@ -533,12 +586,31 @@ function validateCompiledModules(
  * @returns Compiled modules in dependency order after visibility and injection validation succeed.
  */
 export function compileModuleGraph(rootModule: ModuleType, options: BootstrapModuleOptions = {}): CompiledModule[] {
+  const cacheKey = options.moduleGraphCache === true
+    ? createModuleGraphCacheKey(rootModule, options)
+    : undefined;
+
+  if (cacheKey !== undefined) {
+    const cachedModules = moduleGraphCompileCache.get(cacheKey);
+
+    if (cachedModules !== undefined) {
+      return cloneCompiledModules(cachedModules);
+    }
+  }
+
   const ordered: CompiledModule[] = [];
   const runtimeProviders = options.providers ?? [];
   const runtimeProviderTokens = mergeRuntimeTokenSets(runtimeProviders, options.validationTokens ?? []);
 
   compileModule(rootModule, runtimeProviderTokens, new Map(), new Set(), ordered);
   validateCompiledModules(ordered, runtimeProviders, runtimeProviderTokens);
+
+  if (cacheKey !== undefined) {
+    const cacheSnapshot = createModuleGraphCacheSnapshot(ordered);
+    moduleGraphCompileCache.set(cacheKey, cacheSnapshot);
+
+    return cloneCompiledModules(cacheSnapshot);
+  }
 
   return ordered;
 }

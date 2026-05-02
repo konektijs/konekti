@@ -1,11 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Inject } from '@fluojs/core';
 import { defineClassDiMetadata, defineModuleMetadata } from '@fluojs/core/internal';
 
-import { compileModuleGraph, createModuleGraphCacheKey } from './module-graph.js';
+import {
+  clearModuleGraphCompileCacheForTesting,
+  compileModuleGraph,
+  createModuleGraphCacheKey,
+  getModuleGraphCompileCacheSizeForTesting,
+} from './module-graph.js';
 
 describe('module graph cache-key prerequisites', () => {
+  beforeEach(() => {
+    clearModuleGraphCompileCacheForTesting();
+  });
+
   it('returns the same key for the same root module and options inputs', () => {
     class AppModule {}
     defineModuleMetadata(AppModule, {});
@@ -36,6 +45,13 @@ describe('module graph cache-key prerequisites', () => {
     const secondKey = createModuleGraphCacheKey(AppModule, { validationTokens: [SECOND_TOKEN] });
 
     expect(secondKey).not.toBe(firstKey);
+  });
+
+  it('includes the compile algorithm version in the cache key', () => {
+    class AppModule {}
+    defineModuleMetadata(AppModule, {});
+
+    expect(createModuleGraphCacheKey(AppModule)).toContain('algorithm:1');
   });
 
   it('changes when module metadata changes', () => {
@@ -85,14 +101,49 @@ describe('module graph cache-key prerequisites', () => {
       providers: [AppService],
     });
 
-    const cache = new Map<string, ReturnType<typeof compileModuleGraph>>();
-    const cacheKey = createModuleGraphCacheKey(AppModule);
     const compileAndStore = () => {
-      const compiled = compileModuleGraph(AppModule);
-      cache.set(cacheKey, compiled);
+      compileModuleGraph(AppModule, { moduleGraphCache: true });
     };
 
     expect(compileAndStore).toThrow('not local, not exported by an imported module');
-    expect(cache.has(cacheKey)).toBe(false);
+    expect(getModuleGraphCompileCacheSizeForTesting()).toBe(0);
+  });
+
+  it('keeps cached module graph snapshots isolated from returned result mutations', () => {
+    class Logger {}
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [Logger],
+      exports: [Logger],
+    });
+
+    const firstCompile = compileModuleGraph(AppModule, { moduleGraphCache: true });
+    firstCompile[0]?.providerTokens.clear();
+    firstCompile[0]?.exportedTokens.clear();
+    firstCompile[0]?.definition.providers?.splice(0);
+
+    const secondCompile = compileModuleGraph(AppModule, { moduleGraphCache: true });
+
+    expect(secondCompile[0]?.providerTokens.has(Logger)).toBe(true);
+    expect(secondCompile[0]?.exportedTokens.has(Logger)).toBe(true);
+    expect(secondCompile[0]?.definition.providers).toEqual([Logger]);
+  });
+
+  it('keeps the module graph cache opt-in', () => {
+    class Logger {}
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [Logger],
+    });
+
+    const firstCompile = compileModuleGraph(AppModule);
+    firstCompile[0]?.providerTokens.clear();
+
+    expect(getModuleGraphCompileCacheSizeForTesting()).toBe(0);
+
+    compileModuleGraph(AppModule, { moduleGraphCache: true });
+
+    expect(getModuleGraphCompileCacheSizeForTesting()).toBe(1);
+    expect(compileModuleGraph(AppModule)[0]?.providerTokens.has(Logger)).toBe(true);
   });
 });
