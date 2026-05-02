@@ -116,6 +116,66 @@ function readSetCookieValues(headers: Headers): string[] {
   return values;
 }
 
+async function writeFetchResponseStream(body: ReadableStream<Uint8Array>, stream: FrameworkResponseStream): Promise<void> {
+  const reader = body.getReader();
+  let readerDone = false;
+  let cancelReader: (() => void) | undefined;
+  const removeCloseListener = stream.onClose?.(() => {
+    if (!readerDone) {
+      cancelReader?.();
+    }
+  });
+
+  const cancelUnreadBody = async (): Promise<void> => {
+    if (readerDone) {
+      return;
+    }
+
+    readerDone = true;
+    await reader.cancel();
+  };
+
+  cancelReader = () => {
+    void cancelUnreadBody();
+  };
+
+  try {
+    while (true) {
+      if (stream.closed) {
+        await cancelUnreadBody();
+        break;
+      }
+
+      const { done, value } = await reader.read();
+
+      if (done) {
+        readerDone = true;
+        break;
+      }
+
+      if (stream.closed) {
+        await cancelUnreadBody();
+        break;
+      }
+
+      const canContinue = stream.write(value);
+
+      if (!canContinue && !stream.closed) {
+        await stream.waitForDrain?.();
+      }
+    }
+  } catch (error) {
+    await cancelUnreadBody();
+    throw error;
+  } finally {
+    removeCloseListener?.();
+  }
+
+  if (!stream.closed) {
+    stream.close();
+  }
+}
+
 /**
  * Write fetch response.
  *
@@ -146,29 +206,7 @@ export async function writeFetchResponse(fetchResponse: Response, frameworkRespo
     frameworkResponse.committed = true;
     stream.flush?.();
 
-    const reader = fetchResponse.body.getReader();
-
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        break;
-      }
-
-      if (stream.closed) {
-        break;
-      }
-
-      const canContinue = stream.write(value);
-
-      if (!canContinue && !stream.closed) {
-        await stream.waitForDrain?.();
-      }
-    }
-
-    if (!stream.closed) {
-      stream.close();
-    }
+    await writeFetchResponseStream(fetchResponse.body, stream);
 
     return;
   }
