@@ -17,6 +17,7 @@ type JsonRecord = Record<string, unknown>;
 type ScriptCommand = 'build' | 'dev' | 'start';
 
 const SUPPORTED_PACKAGE_MANAGERS = new Set(['bun', 'npm', 'pnpm', 'yarn']);
+const EMPTY_ENV: NodeJS.ProcessEnv = {};
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null;
@@ -147,7 +148,7 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
     return 0;
   }
 
-  const env = runtime.env ?? process.env;
+  const env = runtime.env ?? EMPTY_ENV;
   const stdout = runtime.stdout ?? process.stdout;
   const project = findProjectManifest(runtime.cwd ?? process.cwd());
   if (!project) {

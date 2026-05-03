@@ -18,6 +18,7 @@ type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_PACKAGE_NAME = '@fluojs/cli';
 const DEFAULT_REGISTRY_TIMEOUT_MS = 5_000;
+const EMPTY_ENV: NodeJS.ProcessEnv = {};
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null;
@@ -162,7 +163,7 @@ export async function runDoctorCommand(argv: string[], runtime: DiagnosticRuntim
     throw new Error(`Unknown doctor option: ${argv[0]}`);
   }
 
-  const env = runtime.env ?? process.env;
+  const env = runtime.env ?? EMPTY_ENV;
   const stdout = runtime.stdout ?? process.stdout;
   const cwd = resolve(runtime.cwd ?? process.cwd());
   const cache = readUpdateCache(env);

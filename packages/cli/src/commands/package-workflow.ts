@@ -14,6 +14,7 @@ type PackageWorkflowRuntimeOptions = {
 
 const DEFAULT_PACKAGE_NAME = '@fluojs/cli';
 const DEFAULT_REGISTRY_TIMEOUT_MS = 5_000;
+const EMPTY_ENV: NodeJS.ProcessEnv = {};
 const SUPPORTED_PACKAGE_MANAGERS = new Set(['bun', 'npm', 'pnpm', 'yarn']);
 
 function detectPackageManager(env: NodeJS.ProcessEnv): string {
@@ -160,7 +161,7 @@ export async function runAddCommand(argv: string[], runtime: PackageWorkflowRunt
     throw new Error('Expected at least one package for fluo add.');
   }
 
-  const env = runtime.env ?? process.env;
+  const env = runtime.env ?? EMPTY_ENV;
   const manager = packageManager ?? detectPackageManager(env);
   const args = buildAddArgs(manager, packages, dev);
 
