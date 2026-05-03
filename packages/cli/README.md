@@ -68,7 +68,7 @@ cd my-app
 pnpm dev
 ```
 
-Generated `dev`, `build`, and `start` package scripts delegate to `fluo dev`, `fluo build`, and `fluo start`. The CLI owns the runtime-specific lifecycle command and defaults `NODE_ENV` to `development` for `dev` and `production` for `build`/`start` when the caller has not set it explicitly.
+Generated `dev`, `build`, and `start` package scripts delegate to `fluo dev`, `fluo build`, and `fluo start`. The CLI owns the runtime-specific lifecycle command, prepends the project-local `node_modules/.bin` when invoking local toolchain binaries, and defaults `NODE_ENV` to `development` for `dev` and `production` for `build`/`start` when the caller has not set it explicitly. Cloudflare Workers `start` opens a remote Wrangler preview instead of deploying; use an explicit deploy command when you intend to publish to Cloudflare.
 
 `fluo new` supports Node.js + Fastify, Express, and raw Node.js HTTP application starters on the same Node-oriented install/build flow:
 
@@ -153,7 +153,7 @@ fluo info
 fluo analyze
 ```
 
-`fluo analyze` stays read-only and points to deeper `inspect --report` and `migrate --json` workflows. For generated projects, `fluo dev`, `fluo build`, and `fluo start` run the generated lifecycle directly with environment defaults. Use `--dry-run` to preview lifecycle commands:
+`fluo analyze` stays read-only and points to deeper `inspect --report` and `migrate --json` workflows. For generated projects, `fluo dev`, `fluo build`, and `fluo start` run the generated lifecycle directly with environment defaults and project-local toolchain binaries. Use `--dry-run` to preview lifecycle commands:
 
 ```bash
 fluo dev --dry-run
