@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import type { FrameworkRequest, FrameworkResponse } from '@fluojs/http';
 
 import { bootstrapApplication, defineModule } from '../bootstrap.js';
-import { HealthModule, createHealthModule } from './health.js';
+import type { ModuleType } from '../types.js';
+import { HealthModule } from './health.js';
 
 type TestResponse = FrameworkResponse & { body?: unknown };
-type ReadinessManagedModule = ReturnType<typeof createHealthModule> & {
+type ReadinessManagedModule = ModuleType & {
   addReadinessCheck(fn: () => boolean | Promise<boolean>): void;
   markReady(): void;
   markStarting(): void;
@@ -88,7 +89,7 @@ describe('createHealthModule', () => {
   });
 
   it('returns a starting readiness status until the runtime marks the module ready', async () => {
-    const healthModule = createHealthModule() as ReadinessManagedModule;
+    const healthModule = HealthModule.forRoot() as ReadinessManagedModule;
 
     class AppModule {}
 
@@ -118,7 +119,7 @@ describe('createHealthModule', () => {
   });
 
   it('keeps liveness unchanged and respects failing readiness checks after bootstrap', async () => {
-    const healthModule = createHealthModule() as ReadinessManagedModule;
+    const healthModule = HealthModule.forRoot() as ReadinessManagedModule;
     healthModule.addReadinessCheck(() => false);
 
     class AppModule {}
@@ -145,7 +146,7 @@ describe('createHealthModule', () => {
   });
 
   it('supports custom health responses while preserving readiness behavior', async () => {
-    const healthModule = createHealthModule({
+    const healthModule = HealthModule.forRoot({
       healthCheck: async () => ({
         body: { status: 'unavailable', subsystem: 'cache' },
         statusCode: 503,
@@ -176,7 +177,7 @@ describe('createHealthModule', () => {
   });
 
   it('marks readiness as starting as soon as application close begins', async () => {
-    const healthModule = createHealthModule() as ReadinessManagedModule;
+    const healthModule = HealthModule.forRoot() as ReadinessManagedModule;
     const shutdownBlocker = createDeferred<void>();
     const shutdownStarted = createDeferred<void>();
 
@@ -216,7 +217,7 @@ describe('createHealthModule', () => {
   });
 
   it('keeps readiness out of rotation when shutdown hooks fail', async () => {
-    const healthModule = createHealthModule() as ReadinessManagedModule;
+    const healthModule = HealthModule.forRoot() as ReadinessManagedModule;
     const shutdownBlocker = createDeferred<void>();
     const shutdownStarted = createDeferred<void>();
 

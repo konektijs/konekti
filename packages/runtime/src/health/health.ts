@@ -135,7 +135,7 @@ export class HealthModule {
 /**
  * Creates a runtime-owned `/health` and `/ready` module.
  *
- * Prefer `HealthModule.forRoot(...)` for application-facing module registration.
+ * @deprecated Prefer `HealthModule.forRoot(...)` for application-facing module registration.
  * @param options Runtime health endpoint options.
  * @returns A module class that can be imported into an application module.
  */
