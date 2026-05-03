@@ -1181,6 +1181,91 @@ describe('Container', () => {
 
       expect(container.hasRequestScopedDependency(Consumer)).toBe(false);
     });
+
+    it('invalidates child request-scope verdict plans when parent registrations change', () => {
+      const OPTIONAL_STORE = Symbol('OptionalStore');
+
+      class RequestStore {}
+      class SingletonStore {}
+      class Consumer {
+        constructor(readonly store: RequestStore | SingletonStore | undefined) {}
+      }
+
+      const root = new Container().register({
+        provide: Consumer,
+        useClass: Consumer,
+        inject: [optional(OPTIONAL_STORE)],
+      });
+      const child = root.createRequestScope();
+
+      expect(child.hasRequestScopedDependency(Consumer)).toBe(false);
+
+      root.register({ provide: OPTIONAL_STORE, scope: Scope.REQUEST, useClass: RequestStore });
+
+      expect(child.hasRequestScopedDependency(Consumer)).toBe(true);
+
+      root.override({ provide: OPTIONAL_STORE, useClass: SingletonStore });
+
+      expect(child.hasRequestScopedDependency(Consumer)).toBe(false);
+    });
+
+    it('invalidates alias request-scope plans when useExisting tokens are overridden', () => {
+      const REQUEST_STORE = Symbol('RequestStore');
+      const STORE_ALIAS = Symbol('StoreAlias');
+
+      class RequestStore {}
+      class Consumer {
+        constructor(readonly store: RequestStore | string) {}
+      }
+
+      const container = new Container().register(
+        { provide: REQUEST_STORE, scope: Scope.REQUEST, useClass: RequestStore },
+        { provide: STORE_ALIAS, useExisting: REQUEST_STORE },
+        { provide: Consumer, useClass: Consumer, inject: [STORE_ALIAS] },
+      );
+
+      expect(container.hasRequestScopedDependency(Consumer)).toBe(true);
+
+      container.override({ provide: STORE_ALIAS, useValue: 'singleton-store' });
+
+      expect(container.hasRequestScopedDependency(Consumer)).toBe(false);
+    });
+  });
+
+  describe('provider resolution plan caching', () => {
+    it('invalidates child multi-provider plans when parent multi providers change', async () => {
+      const PLUGINS = Symbol('Plugins');
+
+      const root = new Container().register({ provide: PLUGINS, useValue: 'root-a', multi: true });
+      const child = root.createRequestScope();
+
+      await expect(child.resolve<string[]>(PLUGINS)).resolves.toEqual(['root-a']);
+
+      root.register({ provide: PLUGINS, useValue: 'root-b', multi: true });
+
+      await expect(child.resolve<string[]>(PLUGINS)).resolves.toEqual(['root-a', 'root-b']);
+    });
+
+    it('keeps transient providers uncached while reusing the provider plan', async () => {
+      let created = 0;
+
+      class TransientService {
+        readonly id = ++created;
+      }
+
+      const container = new Container().register({
+        provide: TransientService,
+        scope: Scope.TRANSIENT,
+        useClass: TransientService,
+      });
+
+      const first = await container.resolve(TransientService);
+      const second = await container.resolve(TransientService);
+
+      expect(first).not.toBe(second);
+      expect(first.id).toBe(1);
+      expect(second.id).toBe(2);
+    });
   });
 
   describe('dispose', () => {

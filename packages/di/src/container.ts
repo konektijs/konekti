@@ -25,6 +25,11 @@ import { Scope, isForwardRef, isOptionalToken } from './types.js';
 
 type ObjectProvider = ClassProvider | ExistingProvider | FactoryProvider | ValueProvider;
 
+interface CachedResolutionPlan<T> {
+  readonly lineageRevision: string;
+  readonly value: T;
+}
+
 function isClassConstructor(value: Provider): value is ClassType {
   return typeof value === 'function';
 }
@@ -169,10 +174,15 @@ export class Container {
   private readonly staleDisposalErrors: unknown[] = [];
   private readonly singletonCache: Map<Token, Promise<unknown>>;
   private readonly forwardRefTokenCache = new WeakMap<ForwardRefFn, Token>();
+  private readonly providerLookupPlanCache = new Map<Token, CachedResolutionPlan<NormalizedProvider | undefined>>();
+  private readonly multiProviderPlanCache = new Map<Token, CachedResolutionPlan<readonly NormalizedProvider[]>>();
+  private readonly requestScopeVerdictPlanCache = new Map<Token, CachedResolutionPlan<boolean>>();
+  private readonly effectiveProviderPlanCache = new Map<Token, CachedResolutionPlan<NormalizedProvider | undefined>>();
   private childScopes: Set<Container> | undefined;
   private disposePromise: Promise<void> | undefined;
   private disposed = false;
   private trackedByRoot = false;
+  private graphRevision = 0;
 
   constructor(
     private readonly parent?: Container,
@@ -221,6 +231,7 @@ export class Container {
 
         if (existing) {
           existing.push(normalized);
+          this.advanceGraphRevision();
           continue;
         }
 
@@ -228,6 +239,8 @@ export class Container {
       } else {
         this.registrations.set(normalized.provide, normalized);
       }
+
+      this.advanceGraphRevision();
     }
 
     return this;
@@ -266,11 +279,13 @@ export class Container {
       if (normalized.multi) {
         this.multiRegistrations.set(normalized.provide, [normalized]);
         this.multiOverriddenTokens.add(normalized.provide);
+        this.advanceGraphRevision();
         continue;
       }
 
       this.multiOverriddenTokens.add(normalized.provide);
       this.registrations.set(normalized.provide, normalized);
+      this.advanceGraphRevision();
     }
 
     return this;
@@ -293,7 +308,17 @@ export class Container {
    * @returns `true` when the provider graph contains request-scoped dependencies or is cyclic.
    */
   hasRequestScopedDependency(token: Token): boolean {
-    return this.providerGraphRequiresRequestScope(token, new Set<Token>());
+    const cached = this.readCachedPlan(this.requestScopeVerdictPlanCache, token);
+
+    if (cached) {
+      return cached.value;
+    }
+
+    return this.writePlanCache(
+      this.requestScopeVerdictPlanCache,
+      token,
+      this.providerGraphRequiresRequestScope(token, new Set<Token>()),
+    );
   }
 
   /**
@@ -347,6 +372,7 @@ export class Container {
     }
 
     this.disposed = true;
+    this.advanceGraphRevision();
     this.disposePromise = this.disposeAll();
 
     try {
@@ -446,19 +472,25 @@ export class Container {
   }
 
   private collectMultiProviders(token: Token): NormalizedProvider[] {
+    const cached = this.readCachedPlan(this.multiProviderPlanCache, token);
+
+    if (cached) {
+      return [...cached.value];
+    }
+
     const local = this.multiRegistrations.get(token);
+    let providers: readonly NormalizedProvider[];
 
     if (this.multiOverriddenTokens.has(token)) {
-      return local ?? [];
+      providers = Object.freeze([...(local ?? [])]);
+    } else {
+      const fromParent = this.parent ? this.parent.collectMultiProviders(token) : [];
+
+      providers = Object.freeze(local ? [...fromParent, ...local] : [...fromParent]);
     }
 
-    const fromParent = this.parent ? this.parent.collectMultiProviders(token) : [];
-
-    if (local) {
-      return [...fromParent, ...local];
-    }
-
-    return fromParent;
+    this.writePlanCache(this.multiProviderPlanCache, token, providers);
+    return [...providers];
   }
 
   private providerGraphRequiresRequestScope(token: Token, visited: Set<Token>): boolean {
@@ -781,13 +813,16 @@ export class Container {
   }
 
   private lookupProvider(token: Token): NormalizedProvider | undefined {
-    const local = this.registrations.get(token);
+    const cached = this.readCachedPlan(this.providerLookupPlanCache, token);
 
-    if (local) {
-      return local;
+    if (cached) {
+      return cached.value;
     }
 
-    return this.parent?.lookupProvider(token);
+    const local = this.registrations.get(token);
+    const provider = local ?? this.parent?.lookupProvider(token);
+
+    return this.writePlanCache(this.providerLookupPlanCache, token, provider);
   }
 
   /**
@@ -926,11 +961,50 @@ export class Container {
     if (this.parent) {
       this.requestCache?.clear();
       this.multiRequestCache?.clear();
+      this.clearResolutionPlanCaches();
       return;
     }
 
     this.singletonCache.clear();
     this.multiSingletonCache.clear();
+    this.clearResolutionPlanCaches();
+  }
+
+  private currentLineageRevision(): string {
+    const parentRevision = this.parent?.currentLineageRevision();
+
+    return parentRevision ? `${parentRevision}/${this.graphRevision}` : String(this.graphRevision);
+  }
+
+  private readCachedPlan<T>(cache: Map<Token, CachedResolutionPlan<T>>, token: Token): CachedResolutionPlan<T> | undefined {
+    const cached = cache.get(token);
+
+    if (!cached || cached.lineageRevision !== this.currentLineageRevision()) {
+      return undefined;
+    }
+
+    return cached;
+  }
+
+  private writePlanCache<T>(cache: Map<Token, CachedResolutionPlan<T>>, token: Token, value: T): T {
+    cache.set(token, {
+      lineageRevision: this.currentLineageRevision(),
+      value,
+    });
+
+    return value;
+  }
+
+  private advanceGraphRevision(): void {
+    this.graphRevision += 1;
+    this.clearResolutionPlanCaches();
+  }
+
+  private clearResolutionPlanCaches(): void {
+    this.providerLookupPlanCache.clear();
+    this.multiProviderPlanCache.clear();
+    this.requestScopeVerdictPlanCache.clear();
+    this.effectiveProviderPlanCache.clear();
   }
 
   private async waitForStaleDisposalTasks(): Promise<void> {
@@ -1092,6 +1166,16 @@ export class Container {
     visited = new Set<Token>(),
     chain: Token[] = [],
   ): NormalizedProvider | undefined {
+    const cacheable = visited.size === 0 && chain.length === 0;
+
+    if (cacheable) {
+      const cached = this.readCachedPlan(this.effectiveProviderPlanCache, token);
+
+      if (cached) {
+        return cached.value;
+      }
+    }
+
     let currentToken = token;
 
     while (true) {
@@ -1104,10 +1188,18 @@ export class Container {
       const provider = this.lookupProvider(currentToken);
 
       if (!provider) {
+        if (cacheable) {
+          return this.writePlanCache(this.effectiveProviderPlanCache, token, undefined);
+        }
+
         return undefined;
       }
 
       if (provider.type !== 'existing' || provider.useExisting === undefined) {
+        if (cacheable) {
+          return this.writePlanCache(this.effectiveProviderPlanCache, token, provider);
+        }
+
         return provider;
       }
 
