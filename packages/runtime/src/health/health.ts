@@ -41,13 +41,7 @@ export interface HealthModuleOptions {
  */
 export type ReadinessCheck = () => boolean | Promise<boolean>;
 
-/**
- * Create health module.
- *
- * @param options The options.
- * @returns The create health module result.
- */
-export function createHealthModule(options: HealthModuleOptions = {}): ModuleType {
+function createRuntimeHealthModule(options: HealthModuleOptions = {}): ModuleType {
   const basePath = options.path ?? '';
   const readinessChecks: ReadinessCheck[] = [];
   let ready = false;
@@ -102,7 +96,7 @@ export function createHealthModule(options: HealthModuleOptions = {}): ModuleTyp
     }
   }
 
-  class HealthModule {
+  class RuntimeHealthModule {
     static addReadinessCheck(fn: ReadinessCheck): void {
       readinessChecks.push(fn);
     }
@@ -116,9 +110,39 @@ export function createHealthModule(options: HealthModuleOptions = {}): ModuleTyp
     }
   }
 
-  defineModule(HealthModule, {
+  Object.defineProperty(RuntimeHealthModule, 'name', {
+    value: 'HealthModule',
+  });
+
+  defineModule(RuntimeHealthModule, {
     controllers: [HealthController],
   });
 
-  return HealthModule;
+  return RuntimeHealthModule;
+}
+
+/**
+ * Runtime health module facade for application module imports.
+ */
+export class HealthModule {
+  /**
+   * Creates a runtime-owned `/health` and `/ready` module.
+   *
+   * @param options Runtime health endpoint options.
+   * @returns A module class that can be imported into an application module.
+   */
+  static forRoot(options: HealthModuleOptions = {}): ModuleType {
+    return createRuntimeHealthModule(options);
+  }
+}
+
+/**
+ * Creates a runtime-owned `/health` and `/ready` module.
+ *
+ * @deprecated Prefer `HealthModule.forRoot(...)` for application-facing module registration.
+ * @param options Runtime health endpoint options.
+ * @returns A module class that can be imported into an application module.
+ */
+export function createHealthModule(options: HealthModuleOptions = {}): ModuleType {
+  return HealthModule.forRoot(options);
 }

@@ -1,11 +1,9 @@
 import { Module } from '@fluojs/core';
-import { createHealthModule } from '@fluojs/runtime';
+import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';
 
 import { AuthModule } from './auth/auth.module';
 
-const RuntimeHealthModule = createHealthModule();
-
 @Module({
-  imports: [RuntimeHealthModule, AuthModule],
+  imports: [RuntimeHealthModule.forRoot(), AuthModule],
 })
 export class AppModule {}

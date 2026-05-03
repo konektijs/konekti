@@ -148,7 +148,8 @@ class UsersModule {}
 - `Application`: Extends `ApplicationContext` with `listen()`, `dispatch()`, and `state`.
 - `ApplicationContext`: Provides `get<T>(token)`, `close()`, and access to `container`, `modules`, and bootstrap diagnostics.
 - `LifecycleHooks`: Convenience union covering `OnModuleInit`, `OnApplicationBootstrap`, `OnModuleDestroy`, and `OnApplicationShutdown`.
-- `createHealthModule(options)`: Runtime-owned `/health` and `/ready` module factory whose readiness marker follows bootstrap and shutdown lifecycle transitions.
+- `HealthModule.forRoot(options)`: Runtime-owned `/health` and `/ready` module facade whose readiness marker follows bootstrap and shutdown lifecycle transitions.
+- `createHealthModule(options)`: Deprecated compatibility helper for the same runtime health module contract; prefer `HealthModule.forRoot(...)` in application-facing module imports.
 - `defineModule(cls, metadata)`: Programmatic module definition helper.
 - `bootstrapApplication(options)`: Lower-level async bootstrap function.
 - `bootstrapModule(...)`: Lower-level module graph bootstrap helper.

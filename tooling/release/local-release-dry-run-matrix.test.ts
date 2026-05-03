@@ -100,7 +100,7 @@ function docsFor(publicPackageNames: string[], changelog = packageScopedChangelo
     ['packages/cli/README.md', 'canonical CLI'],
     [
       'packages/cli/src/new/scaffold.ts',
-      "const RuntimeHealthModule = createHealthModule();\n@Controller('/health-info')\nconst app = await FluoFactory.create(AppModule, {\nadapter: createFastifyAdapter({ port })\nawait app.listen();\ncreateHealthModule\ncreateFastifyAdapter",
+      "import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';\nRuntimeHealthModule.forRoot()\n@Controller('/health-info')\nconst app = await FluoFactory.create(AppModule, {\nadapter: createFastifyAdapter({ port })\nawait app.listen();\ncreateFastifyAdapter",
     ],
     ['packages/cli/package.json', JSON.stringify({ bin: { fluo: './bin/fluo.mjs' }, main: './dist/index.js' })],
     ['CHANGELOG.md', changelog],

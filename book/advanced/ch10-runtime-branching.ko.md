@@ -68,6 +68,7 @@ it('keeps the root barrel transport-neutral', () => {
 });
 
 it('keeps only bootstrap-scoped operational helpers on the runtime root barrel', () => {
+  expect(runtime.HealthModule.forRoot).toBeTypeOf('function');
   expect(runtime.createHealthModule).toBeTypeOf('function');
   expect(runtime.fluoFactory).toBe(runtime.FluoFactory);
   expect(runtime).not.toHaveProperty('createConsoleApplicationLogger');
@@ -483,7 +484,6 @@ host-specific factory
 따라서 10장의 마지막 결론은 import hygiene보다 넓습니다. Fluo의 runtime branching이 성립하는 이유는 framework가 대부분의 bootstrap을 host-agnostic하게 만든 뒤, 아주 늦은 시점의 좁은 transport seam에서만 분기하기 때문입니다. Node는 server lifecycle helper를 받고, Web/Edge host는 Request/Response normalization helper를 받습니다. 하지만 그 seam 위에서는 module graph, container, lifecycle hook, platform shell, dispatcher model이 동일합니다.
 
 이것이 내부 portability contract입니다. "호스트당 하나의 런타임"이 아니라, "가장자리에 명시적인 호스트 어댑터가 있는 하나의 공유 런타임 셸"입니다.
-
 
 
 

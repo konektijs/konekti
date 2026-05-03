@@ -212,6 +212,7 @@ describe('scaffoldBootstrapApp', () => {
     };
     const tsconfig = readFileSync(join(targetDirectory, 'tsconfig.json'), 'utf8');
     const tsconfigBuild = readFileSync(join(targetDirectory, 'tsconfig.build.json'), 'utf8');
+    const appFile = readFileSync(join(targetDirectory, 'src', 'app.ts'), 'utf8');
     const viteConfig = readFileSync(join(targetDirectory, 'vite.config.ts'), 'utf8');
     const vitestConfig = readFileSync(join(targetDirectory, 'vitest.config.ts'), 'utf8');
 
@@ -234,6 +235,9 @@ describe('scaffoldBootstrapApp', () => {
     expect(packageJson.scripts?.start).toBe('fluo start');
     expect(tsconfig).not.toContain('baseUrl');
     expect(tsconfigBuild).not.toContain('baseUrl');
+    expect(appFile).toContain("import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';");
+    expect(appFile).toContain('RuntimeHealthModule.forRoot()');
+    expect(appFile).not.toContain('createHealthModule');
     expect(viteConfig).toContain("import { defineConfig } from 'vite';");
     expect(viteConfig).not.toContain('baseUrl');
     expect(vitestConfig).toContain("import { fluoBabelDecoratorsPlugin } from '@fluojs/testing/vitest';");
@@ -576,6 +580,9 @@ describe('scaffoldBootstrapApp', () => {
     expect(readDirectorySnapshot(targetDirectory)).not.toHaveProperty('.env');
     expect(readme).toContain('Cloudflare Workers runtime + Cloudflare Workers HTTP via `createCloudflareWorkerEntrypoint(...)`');
     expect(appFile).not.toContain('ConfigModule.forRoot');
+    expect(appFile).toContain("import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';");
+    expect(appFile).toContain('RuntimeHealthModule.forRoot()');
+    expect(appFile).not.toContain('createHealthModule');
     expect(workerFile).toContain('createCloudflareWorkerEntrypoint(AppModule)');
     expect(wranglerConfig).toContain('src/worker.ts');
   });
@@ -924,9 +931,14 @@ describe('scaffoldBootstrapApp', () => {
     expect(envFile).toContain('PORT=3000');
     expect(envFile).toContain('MICROSERVICE_PORT=4000');
     expect(appFile).toContain('MicroservicesModule.forRoot');
+    expect(appFile).toContain("import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';");
+    expect(appFile).toContain('RuntimeHealthModule.forRoot()');
+    expect(appFile).not.toContain('createHealthModule');
     expect(mainFile).toContain('await app.connectMicroservice();');
     expect(mainFile).toContain('await app.startAllMicroservices();');
     expect(appTestFile).toContain('InMemoryLoopbackTransport');
+    expect(appTestFile).toContain('RuntimeHealthModule.forRoot()');
+    expect(appTestFile).not.toContain('createHealthModule');
     expect(readDirectorySnapshot(targetDirectory)).not.toHaveProperty('src/microservice.ts');
   });
 
