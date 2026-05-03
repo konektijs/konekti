@@ -424,19 +424,30 @@ describe('scaffoldBootstrapApp', () => {
 
     const packageJson = JSON.parse(readFileSync(join(targetDirectory, 'package.json'), 'utf8')) as {
       dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
       scripts?: Record<string, string>;
     };
     const readme = readFileSync(join(targetDirectory, 'README.md'), 'utf8');
+    const appFile = readFileSync(join(targetDirectory, 'src', 'app.ts'), 'utf8');
     const mainFile = readFileSync(join(targetDirectory, 'src', 'main.ts'), 'utf8');
+    const tsconfig = JSON.parse(readFileSync(join(targetDirectory, 'tsconfig.json'), 'utf8')) as {
+      compilerOptions?: { types?: string[] };
+    };
 
     expect(packageJson.dependencies).toMatchObject({
       '@fluojs/platform-bun': expect.any(String),
       '@fluojs/runtime': expect.any(String),
     });
+    expect(packageJson.devDependencies).toMatchObject({
+      '@types/bun': '^1.2.5',
+    });
     expect(packageJson.scripts?.build).toBe('fluo build');
     expect(packageJson.scripts?.dev).toBe('fluo dev');
     expect(packageJson.scripts?.start).toBe('fluo start');
+    expect(tsconfig.compilerOptions?.types).toEqual(['node', 'bun']);
     expect(readme).toContain('Bun runtime + Bun native HTTP via `createBunAdapter(...)`');
+    expect(appFile).toContain('processEnv: process.env');
+    expect(appFile).not.toContain('Bun.env');
     expect(mainFile).toContain("import { createBunAdapter } from '@fluojs/platform-bun';");
     expect(mainFile).toContain("Bun.env.PORT ?? '3000'");
   });
