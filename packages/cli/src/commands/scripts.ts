@@ -37,6 +37,7 @@ type ProjectRunnerStep = { args: string[]; command: string; mode?: ProjectRunner
 
 const EMPTY_ENV: NodeJS.ProcessEnv = {};
 const FAILURE_STDOUT_BUFFER_LIMIT = 16_384;
+const PRETTY_CHILD_OUTPUT_PREFIX = 'app │ ';
 
 function getCliSourceRoot(): string {
   return dirname(dirname(fileURLToPath(import.meta.url)));
@@ -318,6 +319,27 @@ function createBoundedBufferStream(limit: number): CliStream & { flush(target: C
   };
 }
 
+function createLinePrefixedStream(target: CliStream, prefix: string): CliStream {
+  let atLineStart = true;
+
+  return {
+    write(message) {
+      for (const character of message) {
+        if (atLineStart && character !== '\n') {
+          target.write(prefix);
+          atLineStart = false;
+        }
+
+        target.write(character);
+
+        if (character === '\n') {
+          atLineStart = true;
+        }
+      }
+    },
+  };
+}
+
 function createReporterStreams(
   mode: EffectiveLifecycleReporterMode,
   verbose: boolean,
@@ -328,7 +350,20 @@ function createReporterStreams(
     return { flushBufferedStdoutOnFailure() {}, stdio: 'inherit' };
   }
 
-  if (mode === 'silent' || mode === 'pretty') {
+  if (mode === 'pretty') {
+    if (verbose) {
+      return { flushBufferedStdoutOnFailure() {}, stderr, stdio: 'pipe', stdout };
+    }
+
+    return {
+      flushBufferedStdoutOnFailure() {},
+      stderr: createLinePrefixedStream(stderr, PRETTY_CHILD_OUTPUT_PREFIX),
+      stdio: 'pipe',
+      stdout: createLinePrefixedStream(stdout, PRETTY_CHILD_OUTPUT_PREFIX),
+    };
+  }
+
+  if (mode === 'silent') {
     if (verbose) {
       return { flushBufferedStdoutOnFailure() {}, stderr, stdio: 'pipe', stdout };
     }
