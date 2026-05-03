@@ -1,13 +1,11 @@
 import { Module } from '@fluojs/core';
-import { createHealthModule } from '@fluojs/runtime';
+import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';
 
 import { HelloController } from './hello.controller';
 import { HelloService } from './hello.service';
 
-const RuntimeHealthModule = createHealthModule();
-
 @Module({
-  imports: [RuntimeHealthModule],
+  imports: [RuntimeHealthModule.forRoot()],
   controllers: [HelloController],
   providers: [HelloService],
 })

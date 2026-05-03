@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { FrameworkRequest, FrameworkResponse } from '@fluojs/http';
 
 import { bootstrapApplication, defineModule } from '../bootstrap.js';
-import { createHealthModule } from './health.js';
+import { HealthModule, createHealthModule } from './health.js';
 
 type TestResponse = FrameworkResponse & { body?: unknown };
 type ReadinessManagedModule = ReturnType<typeof createHealthModule> & {
@@ -66,6 +66,27 @@ function createResponse(): TestResponse {
 }
 
 describe('createHealthModule', () => {
+  it('exposes the application-facing HealthModule.forRoot facade', async () => {
+    const healthModule = HealthModule.forRoot() as ReadinessManagedModule;
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [healthModule],
+    });
+
+    const app = await bootstrapApplication({
+      rootModule: AppModule,
+    });
+
+    const readyResponse = createResponse();
+    await app.dispatch(createRequest('/ready'), readyResponse);
+    expect(readyResponse.statusCode).toBe(200);
+    expect(readyResponse.body).toEqual({ status: 'ready' });
+
+    await app.close();
+  });
+
   it('returns a starting readiness status until the runtime marks the module ready', async () => {
     const healthModule = createHealthModule() as ReadinessManagedModule;
 

@@ -19,6 +19,8 @@ describe('runtime export boundaries', () => {
   });
 
   it('keeps only bootstrap-scoped operational helpers on the runtime root barrel', () => {
+    expect(runtime.HealthModule).toBeTypeOf('function');
+    expect(runtime.HealthModule.forRoot).toBeTypeOf('function');
     expect(runtime.createHealthModule).toBeTypeOf('function');
     expect(runtime.fluoFactory).toBe(runtime.FluoFactory);
     expect(runtime).not.toHaveProperty('createConsoleApplicationLogger');

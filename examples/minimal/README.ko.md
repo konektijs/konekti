@@ -8,7 +8,7 @@
 
 - `fluoFactory.create(..., { adapter: createFastifyAdapter(...) })` 기반 adapter-first Fastify 부트스트랩
 - `@Module`, `@Inject`, `@Controller`, `@Get`을 사용한 표준 데코레이터 DI
-- `createHealthModule()`의 내장 `/health` 및 `/ready` 엔드포인트
+- `HealthModule.forRoot(...)`의 내장 `/health` 및 `/ready` 엔드포인트
 - `/hello` 경로의 단일 스타터 컨트롤러
 - `@fluojs/testing`을 사용한 단위 및 e2e 스타일 테스트
 
