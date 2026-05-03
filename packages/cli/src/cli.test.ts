@@ -1356,11 +1356,94 @@ void bootstrap();
 
     expect(exitCode).toBe(0);
     expect(stdoutBuffer.join('')).toContain('Usage: fluo <command> [options]');
-    expect(stdoutBuffer.join('')).toContain('| Command  | Aliases | Description');
+    expect(stdoutBuffer.join('')).toContain('| Command  | Aliases');
     expect(stdoutBuffer.join('')).toContain('| new      | create');
     expect(stdoutBuffer.join('')).toContain('| generate | g');
+    expect(stdoutBuffer.join('')).toContain('| doctor   | info');
+    expect(stdoutBuffer.join('')).toContain('| dev      | -');
+    expect(stdoutBuffer.join('')).toContain('| add      | -');
     expect(stdoutBuffer.join('')).toContain("Run 'fluo help <command>'");
     expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md');
+  });
+
+  it('prints doctor diagnostics with registry and update cache context', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'tsx src/main.ts' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['doctor'], {
+      cwd: workspaceDirectory,
+      fetchDistTags: async () => ({ beta: '1.0.0-beta.4', latest: '1.0.0-beta.5' }),
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const output = stdoutBuffer.join('');
+    expect(exitCode).toBe(0);
+    expect(output).toContain('fluo doctor');
+    expect(output).toContain('npm latest: 1.0.0-beta.5');
+    expect(output).toContain('Project scripts: dev');
+  });
+
+  it('prints analyze guidance without mutating the project', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { build: 'tsc' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['analyze'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const output = stdoutBuffer.join('');
+    expect(exitCode).toBe(0);
+    expect(output).toContain('fluo analyze');
+    expect(output).toContain('fluo inspect <module-path> --report');
+  });
+
+  it('prints script orchestration dry-runs for project scripts', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'tsx src/main.ts' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['dev', '--dry-run', '--package-manager', 'npm', '--', '--port', '4000'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Would run: npm run dev -- --port 4000');
+  });
+
+  it('prints add dry-runs with normalized fluo package names', async () => {
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['add', 'studio', '@fluojs/testing', '--dev', '--dry-run', '--package-manager', 'pnpm'], {
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Would run: pnpm add -D @fluojs/studio @fluojs/testing');
+  });
+
+  it('prints upgrade guidance with the latest CLI dist-tag', async () => {
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['upgrade'], {
+      fetchDistTags: async () => ({ latest: '1.0.0-beta.9' }),
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Latest CLI: 1.0.0-beta.9');
+    expect(stdoutBuffer.join('')).toContain('fluo migrate <path> --json');
   });
 
   it('prints `new` usage for `new --help`', async () => {
@@ -1833,6 +1916,33 @@ void bootstrap();
     expect(exitCode).toBe(0);
     expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.repo.ts'))).toBe(true);
     expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.module.ts'))).toBe(true);
+  });
+
+  it('generates a complete resource slice', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+
+    mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ name: 'test-app', private: true }, null, 2),
+    );
+
+    const stdoutBuffer: string[] = [];
+    const exitCode = await runCli(['g', 'resource', 'User'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.module.ts'))).toBe(true);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.controller.ts'))).toBe(true);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.service.ts'))).toBe(true);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.repo.ts'))).toBe(true);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'create-user.request.dto.ts'))).toBe(true);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.response.dto.ts'))).toBe(true);
+    expect(stdoutBuffer.join('')).toContain('Wiring: files only');
   });
 
   it('accepts `request-dto` as a request DTO schematic with an explicit feature target', async () => {
