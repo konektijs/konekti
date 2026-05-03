@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { delimiter, dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { SUPPORTED_PACKAGE_MANAGERS } from './package-manager.js';
 
 type CliStream = {
@@ -31,10 +32,19 @@ type ScriptRuntimeOptions = {
 type JsonRecord = Record<string, unknown>;
 type ScriptCommand = 'build' | 'dev' | 'start';
 type ProjectRuntime = 'bun' | 'cloudflare-workers' | 'deno' | 'node';
-type ProjectRunnerStep = { args: string[]; command: string };
+type ProjectRunnerMode = 'fluo-node-restart' | 'native-watch' | 'single-run';
+type ProjectRunnerStep = { args: string[]; command: string; mode?: ProjectRunnerMode };
 
 const EMPTY_ENV: NodeJS.ProcessEnv = {};
 const FAILURE_STDOUT_BUFFER_LIMIT = 16_384;
+
+function getCliSourceRoot(): string {
+  return dirname(dirname(fileURLToPath(import.meta.url)));
+}
+
+function getCliEntryPoint(): string {
+  return join(getCliSourceRoot(), 'cli.js');
+}
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null;
@@ -132,7 +142,11 @@ function defaultSpawnCommand(command: string, args: string[], options: SpawnComm
   });
 }
 
-function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, passThrough: string[]): ProjectRunnerStep[] {
+function buildNativeNodeWatchStep(passThrough: string[]): ProjectRunnerStep {
+  return { command: 'node', args: ['--env-file=.env', '--watch', '--watch-preserve-output', '--import', 'tsx', 'src/main.ts', ...passThrough], mode: 'native-watch' };
+}
+
+function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, passThrough: string[], options: { rawWatch: boolean }): ProjectRunnerStep[] {
   if (command === 'build') {
     switch (runtime) {
       case 'bun':
@@ -143,8 +157,8 @@ function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, pas
         return [{ command: 'wrangler', args: ['deploy', '--dry-run', ...passThrough] }];
       default:
         return [
-          { command: 'vite', args: ['build', ...passThrough] },
-          { command: 'tsc', args: ['-p', 'tsconfig.build.json'] },
+          { command: 'vite', args: ['build', ...passThrough], mode: 'single-run' },
+          { command: 'tsc', args: ['-p', 'tsconfig.build.json'], mode: 'single-run' },
         ];
     }
   }
@@ -156,9 +170,12 @@ function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, pas
       case 'deno':
         return [{ command: 'deno', args: ['run', '--allow-env', '--allow-net', '--watch', 'src/main.ts', ...passThrough] }];
       case 'cloudflare-workers':
-        return [{ command: 'wrangler', args: ['dev', ...passThrough] }];
+        return [{ command: 'wrangler', args: ['dev', ...passThrough], mode: 'native-watch' }];
       default:
-        return [{ command: 'node', args: ['--env-file=.env', '--watch', '--watch-preserve-output', '--import', 'tsx', 'src/main.ts', ...passThrough] }];
+        if (options.rawWatch) {
+          return [buildNativeNodeWatchStep(passThrough)];
+        }
+        return [{ command: 'node', args: ['--import', 'tsx', getCliEntryPoint(), '__node-dev-runner', '--', ...passThrough], mode: 'fluo-node-restart' }];
     }
   }
 
@@ -170,7 +187,7 @@ function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, pas
     case 'cloudflare-workers':
       return [{ command: 'wrangler', args: ['dev', '--remote', ...passThrough] }];
     default:
-      return [{ command: 'node', args: ['dist/main.js', ...passThrough] }];
+      return [{ command: 'node', args: ['dist/main.js', ...passThrough], mode: 'single-run' }];
   }
 }
 
@@ -189,9 +206,10 @@ async function runProjectRunnerSteps(
   return 0;
 }
 
-function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: string; passThrough: string[]; reporter: LifecycleReporterMode; verbose: boolean } {
+function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: string; passThrough: string[]; rawWatch: boolean; reporter: LifecycleReporterMode; verbose: boolean } {
   let dryRun = false;
   let packageManager: string | undefined;
+  let rawWatch = false;
   let reporter: LifecycleReporterMode = 'auto';
   let verbose = false;
   const passThrough: string[] = [];
@@ -206,6 +224,11 @@ function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: st
 
     if (arg === '--verbose') {
       verbose = true;
+      continue;
+    }
+
+    if (arg === '--raw-watch') {
+      rawWatch = true;
       continue;
     }
 
@@ -243,7 +266,7 @@ function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: st
     passThrough.push(arg);
   }
 
-  return { dryRun, packageManager, passThrough, reporter, verbose };
+  return { dryRun, packageManager, passThrough, rawWatch, reporter, verbose };
 }
 
 function isEnabledEnvironmentFlag(value: string | undefined): boolean {
@@ -344,10 +367,11 @@ export function scriptUsage(command: ScriptCommand): string {
     '',
     'Options',
     '  --dry-run                              Print the command without running it.',
+    command === 'dev' ? '  --raw-watch                            Use the runtime-native watcher instead of the fluo Node restart runner.' : undefined,
     '  --reporter <auto|stream|silent>        Choose lifecycle reporter output mode (default: auto).',
     '  --verbose                             Expose raw child process output; also honored by FLUO_VERBOSE=1.',
     `  --help                                 Show help for the ${command} command.`,
-  ].join('\n');
+  ].filter((line): line is string => typeof line === 'string').join('\n');
 }
 
 /**
@@ -377,7 +401,8 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
   const projectRuntime = detectProjectRuntime(project.manifest);
   const defaultNodeEnv = command === 'dev' ? 'development' : 'production';
   const childEnv = withProjectLocalBin(withDefaultNodeEnv(env, defaultNodeEnv), project.directory);
-  const runnerSteps = buildProjectRunner(command, projectRuntime, parsed.passThrough);
+  const rawWatch = parsed.rawWatch || isEnabledEnvironmentFlag(env.FLUO_DEV_RAW_WATCH);
+  const runnerSteps = buildProjectRunner(command, projectRuntime, parsed.passThrough, { rawWatch });
   const reporterMode = resolveReporterMode(command, parsed, { ...runtime, env, stdout });
   const verbose = parsed.verbose || isEnabledEnvironmentFlag(env.FLUO_VERBOSE);
 
@@ -389,6 +414,9 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
     stdout.write(`Runtime: ${projectRuntime}\n`);
     stdout.write(`NODE_ENV: ${childEnv.NODE_ENV ?? ''}\n`);
     stdout.write(`Reporter: ${reporterMode}\n`);
+    if (command === 'dev') {
+      stdout.write(`Watch mode: ${runnerSteps.map((step) => step.mode ?? 'single-run').join(', ')}\n`);
+    }
     return 0;
   }
 
