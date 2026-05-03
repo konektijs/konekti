@@ -1430,6 +1430,26 @@ void bootstrap();
     expect(output).toContain('Project scripts: dev');
   });
 
+  it('prints info diagnostics through the direct info command', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { start: 'node dist/main.js' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['info'], {
+      cwd: workspaceDirectory,
+      fetchDistTags: async () => ({ latest: '1.0.0-beta.5' }),
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const output = stdoutBuffer.join('');
+    expect(exitCode).toBe(0);
+    expect(output).toContain('fluo doctor');
+    expect(output).toContain('npm latest: 1.0.0-beta.5');
+    expect(output).toContain('Project scripts: start');
+  });
+
   it('prints analyze guidance without mutating the project', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
@@ -1464,6 +1484,51 @@ void bootstrap();
     expect(stdoutBuffer.join('')).toContain('Would run: npm run dev -- --port 4000');
   });
 
+  it('runs the start script through the packageManager manifest field', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ name: 'test-app', packageManager: 'yarn@4.5.0', scripts: { start: 'node dist/main.js' } }, null, 2),
+    );
+    const spawned: Array<{ args: string[]; command: string; cwd: string }> = [];
+
+    const exitCode = await runCli(['start', '--', '--host', '0.0.0.0'], {
+      cwd: workspaceDirectory,
+      spawnCommand: async (command, args, options) => {
+        spawned.push({ args, command, cwd: options.cwd });
+        return 0;
+      },
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(spawned).toEqual([{ args: ['start', '--host', '0.0.0.0'], command: 'yarn', cwd: workspaceDirectory }]);
+  });
+
+  it('runs the build script through lockfile package-manager detection', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'pnpm-lock.yaml'), 'lockfileVersion: 9.0\n');
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { build: 'tsc -p tsconfig.json' } }, null, 2));
+    const spawned: Array<{ args: string[]; command: string; cwd: string }> = [];
+
+    const exitCode = await runCli(['build'], {
+      cwd: workspaceDirectory,
+      env: { npm_config_user_agent: 'npm/10.8.0 node/v20.0.0 darwin arm64' },
+      spawnCommand: async (command, args, options) => {
+        spawned.push({ args, command, cwd: options.cwd });
+        return 0;
+      },
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(spawned).toEqual([{ args: ['run', 'build'], command: 'pnpm', cwd: workspaceDirectory }]);
+  });
+
   it('prints add dry-runs with normalized fluo package names', async () => {
     const stdoutBuffer: string[] = [];
 
@@ -1474,6 +1539,24 @@ void bootstrap();
 
     expect(exitCode).toBe(0);
     expect(stdoutBuffer.join('')).toContain('Would run: pnpm add -D @fluojs/studio @fluojs/testing');
+  });
+
+  it('detects the add package manager from project lockfiles before user-agent fallback', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', private: true }, null, 2));
+    writeFileSync(join(workspaceDirectory, 'yarn.lock'), '');
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['add', 'testing', '--dry-run'], {
+      cwd: workspaceDirectory,
+      env: { npm_config_user_agent: 'npm/10.8.0 node/v20.0.0 darwin arm64' },
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Would run: yarn add @fluojs/testing');
   });
 
   it('prints upgrade guidance with the latest CLI dist-tag', async () => {
@@ -1987,6 +2070,41 @@ void bootstrap();
     expect(existsSync(join(workspaceDirectory, 'src', 'users', 'create-user.request.dto.ts'))).toBe(true);
     expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.response.dto.ts'))).toBe(true);
     expect(stdoutBuffer.join('')).toContain('Wiring: files only');
+  });
+
+  it('prints a resource dry-run plan without writing files', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+
+    mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ name: 'test-app', private: true }, null, 2),
+    );
+
+    const stdoutBuffer: string[] = [];
+    const exitCode = await runCli(['generate', 'resource', 'User', '--dry-run'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const output = stdoutBuffer.join('');
+    expect(exitCode).toBe(0);
+    expect(output).toContain('Dry run: no files were written.');
+    expect(output).toContain('src/users/user.module.ts');
+    expect(output).toContain('src/users/user.controller.ts');
+    expect(output).toContain('src/users/user.service.ts');
+    expect(output).toContain('src/users/user.repo.ts');
+    expect(output).toContain('src/users/create-user.request.dto.ts');
+    expect(output).toContain('src/users/user.response.dto.ts');
+    expect(output).toContain('Wiring: files only');
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.module.ts'))).toBe(false);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.controller.ts'))).toBe(false);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.service.ts'))).toBe(false);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.repo.ts'))).toBe(false);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'create-user.request.dto.ts'))).toBe(false);
+    expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.response.dto.ts'))).toBe(false);
   });
 
   it('accepts `request-dto` as a request DTO schematic with an explicit feature target', async () => {
