@@ -4,6 +4,8 @@ import { createConsoleApplicationLogger } from './logger.js';
 
 describe('createConsoleApplicationLogger', () => {
   afterEach(() => {
+    delete process.env.FORCE_COLOR;
+    delete process.env.NO_COLOR;
     vi.restoreAllMocks();
   });
 
@@ -13,6 +15,42 @@ describe('createConsoleApplicationLogger', () => {
     createConsoleApplicationLogger({ color: false }).log('Application started', 'Bootstrap');
 
     expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0]?.[0]).toMatch(/^\[fluo\] \d+ - .+ LOG \[Bootstrap\] Application started$/);
+  });
+
+  it('honors FORCE_COLOR when stdout is not a TTY', () => {
+    process.env.FORCE_COLOR = '1';
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const originalStdoutIsTty = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: false });
+
+    try {
+      createConsoleApplicationLogger().log('Application started', 'Bootstrap');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: originalStdoutIsTty });
+    }
+
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0]?.[0]).toContain('\u001B[32m[fluo]\u001B[0m');
+    expect(log.mock.calls[0]?.[0]).toContain('\u001B[32mLOG\u001B[0m');
+    expect(log.mock.calls[0]?.[0]).toContain('\u001B[33m[Bootstrap]\u001B[0m');
+  });
+
+  it('lets NO_COLOR override FORCE_COLOR', () => {
+    process.env.FORCE_COLOR = '1';
+    process.env.NO_COLOR = '1';
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const originalStdoutIsTty = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: false });
+
+    try {
+      createConsoleApplicationLogger().log('Application started', 'Bootstrap');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: originalStdoutIsTty });
+    }
+
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0]?.[0]).not.toContain('\u001B[');
     expect(log.mock.calls[0]?.[0]).toMatch(/^\[fluo\] \d+ - .+ LOG \[Bootstrap\] Application started$/);
   });
 
