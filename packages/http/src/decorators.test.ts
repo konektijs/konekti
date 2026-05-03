@@ -37,7 +37,7 @@ class NoopTestConverter {
 }
 
 type LegacyClassDecoratorFn = (target: Function) => void;
-type LegacyMethodDecoratorFn = (target: object, propertyKey: string | symbol, descriptor: PropertyDescriptor) => void;
+type LegacyMethodDecoratorFn = (target: object, propertyKey: string | symbol, descriptor?: PropertyDescriptor) => void;
 type LegacyFieldDecoratorFn = (target: object, propertyKey: string | symbol) => void;
 
 describe('http decorators', () => {
@@ -184,6 +184,10 @@ describe('http decorators', () => {
       getUser() {
         return { ok: true };
       }
+
+      getUserWithoutDescriptor() {
+        return { ok: true };
+      }
     }
 
     const getUserDescriptor = Object.getOwnPropertyDescriptor(LegacyController.prototype, 'getUser') ?? {};
@@ -222,6 +226,23 @@ describe('http decorators', () => {
       version: '1',
     });
     expect(getRouteProducesMetadata(LegacyController, 'getUser')).toEqual(['application/json']);
+
+    (Get('/without-descriptor') as unknown as LegacyMethodDecoratorFn)(LegacyController.prototype, 'getUserWithoutDescriptor');
+    (Produces('application/json') as unknown as LegacyMethodDecoratorFn)(LegacyController.prototype, 'getUserWithoutDescriptor');
+    (Version('1') as unknown as LegacyMethodDecoratorFn)(LegacyController.prototype, 'getUserWithoutDescriptor');
+    (HttpCode(204) as unknown as LegacyMethodDecoratorFn)(LegacyController.prototype, 'getUserWithoutDescriptor');
+    (RequestDto(LegacyRequest) as unknown as LegacyMethodDecoratorFn)(LegacyController.prototype, 'getUserWithoutDescriptor');
+
+    expect(getRouteMetadata(LegacyController.prototype, 'getUserWithoutDescriptor')).toEqual({
+      guards: undefined,
+      interceptors: undefined,
+      method: 'GET',
+      path: '/without-descriptor',
+      request: LegacyRequest,
+      successStatus: 204,
+      version: '1',
+    });
+    expect(getRouteProducesMetadata(LegacyController, 'getUserWithoutDescriptor')).toEqual(['application/json']);
 
     expect(getDtoBindingSchema(LegacyRequest)).toEqual([
       {
