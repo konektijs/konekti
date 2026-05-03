@@ -1484,6 +1484,93 @@ void bootstrap();
     expect(exitCode).toBe(0);
     expect(stdoutBuffer.join('')).toContain('Would run: node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts --port 4000');
     expect(stdoutBuffer.join('')).toContain('NODE_ENV: development');
+    expect(stdoutBuffer.join('')).toContain('Reporter: stream');
+  });
+
+  it('uses a TTY-aware pretty reporter for fluo dev without hiding child errors', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+    const stderrBuffer: string[] = [];
+    const spawned: Array<{ stdio: string }> = [];
+
+    const exitCode = await runCli(['dev'], {
+      cwd: workspaceDirectory,
+      env: {},
+      spawnCommand: async (_command, _args, options) => {
+        spawned.push({ stdio: options.stdio });
+        options.stdout?.write('child stdout\n');
+        options.stderr?.write('child stderr\n');
+        return 1;
+      },
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdout: { isTTY: true, write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(spawned).toEqual([{ stdio: 'pipe' }]);
+    expect(stdoutBuffer.join('')).toContain('[fluo] dev node lifecycle starting');
+    expect(stdoutBuffer.join('')).not.toContain('child stdout');
+    expect(stderrBuffer.join('')).toContain('child stderr');
+    expect(stderrBuffer.join('')).toContain('[fluo] dev lifecycle failed with exit code 1');
+  });
+
+  it('keeps raw stream output for CI and explicit verbose dev runs', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2));
+    const modes: string[] = [];
+
+    await runCli(['dev'], {
+      ci: true,
+      cwd: workspaceDirectory,
+      env: {},
+      spawnCommand: async (_command, _args, options) => {
+        modes.push(options.stdio);
+        return 0;
+      },
+      stderr: { write: () => undefined },
+      stdout: { isTTY: true, write: () => undefined },
+    });
+
+    await runCli(['dev', '--verbose'], {
+      cwd: workspaceDirectory,
+      env: {},
+      spawnCommand: async (_command, _args, options) => {
+        modes.push(options.stdio);
+        return 0;
+      },
+      stderr: { write: () => undefined },
+      stdout: { isTTY: true, write: () => undefined },
+    });
+
+    expect(modes).toEqual(['inherit', 'inherit']);
+  });
+
+  it('supports a silent lifecycle reporter that preserves child stderr and failures', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { build: 'fluo build' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+    const stderrBuffer: string[] = [];
+
+    const exitCode = await runCli(['build', '--reporter', 'silent'], {
+      cwd: workspaceDirectory,
+      env: {},
+      spawnCommand: async (_command, _args, options) => {
+        options.stdout?.write('child stdout\n');
+        options.stderr?.write('child stderr\n');
+        return 2;
+      },
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(2);
+    expect(stdoutBuffer.join('')).toBe('');
+    expect(stderrBuffer.join('')).toContain('child stderr');
+    expect(stderrBuffer.join('')).toContain('[fluo] build lifecycle failed with exit code 2');
   });
 
   it('runs the production lifecycle directly while preserving explicit NODE_ENV', async () => {

@@ -4,13 +4,27 @@ import { delimiter, dirname, join, resolve } from 'node:path';
 import { SUPPORTED_PACKAGE_MANAGERS } from './package-manager.js';
 
 type CliStream = {
+  isTTY?: boolean;
   write(message: string): unknown;
 };
 
+type LifecycleReporterMode = 'auto' | 'silent' | 'stream';
+type EffectiveLifecycleReporterMode = 'pretty' | 'silent' | 'stream';
+
+type SpawnCommandOptions = {
+  cwd: string;
+  env: NodeJS.ProcessEnv;
+  stderr?: CliStream;
+  stdio: 'inherit' | 'pipe';
+  stdout?: CliStream;
+};
+
 type ScriptRuntimeOptions = {
+  ci?: boolean;
   cwd?: string;
   env?: NodeJS.ProcessEnv;
-  spawnCommand?: (command: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv; stdio: 'inherit' }) => Promise<number>;
+  spawnCommand?: (command: string, args: string[], options: SpawnCommandOptions) => Promise<number>;
+  stderr?: CliStream;
   stdout?: CliStream;
 };
 
@@ -105,9 +119,13 @@ function withProjectLocalBin(env: NodeJS.ProcessEnv, projectDirectory: string): 
   };
 }
 
-function defaultSpawnCommand(command: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv; stdio: 'inherit' }): Promise<number> {
+function defaultSpawnCommand(command: string, args: string[], options: SpawnCommandOptions): Promise<number> {
   return new Promise((resolveExitCode, reject) => {
     const child = spawn(command, args, options);
+    if (options.stdio === 'pipe') {
+      child.stdout?.on('data', (chunk) => options.stdout?.write(String(chunk)));
+      child.stderr?.on('data', (chunk) => options.stderr?.write(String(chunk)));
+    }
     child.on('error', reject);
     child.on('exit', (code) => resolveExitCode(code ?? 1));
   });
@@ -158,7 +176,7 @@ function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, pas
 async function runProjectRunnerSteps(
   steps: ProjectRunnerStep[],
   runtime: Required<Pick<ScriptRuntimeOptions, 'spawnCommand'>>,
-  options: { cwd: string; env: NodeJS.ProcessEnv; stdio: 'inherit' },
+  options: SpawnCommandOptions,
 ): Promise<number> {
   for (const step of steps) {
     const exitCode = await runtime.spawnCommand(step.command, step.args, options);
@@ -170,9 +188,11 @@ async function runProjectRunnerSteps(
   return 0;
 }
 
-function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: string; passThrough: string[] } {
+function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: string; passThrough: string[]; reporter: LifecycleReporterMode; verbose: boolean } {
   let dryRun = false;
   let packageManager: string | undefined;
+  let reporter: LifecycleReporterMode = 'auto';
+  let verbose = false;
   const passThrough: string[] = [];
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -180,6 +200,24 @@ function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: st
 
     if (arg === '--dry-run') {
       dryRun = true;
+      continue;
+    }
+
+    if (arg === '--verbose') {
+      verbose = true;
+      continue;
+    }
+
+    if (arg === '--reporter') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) {
+        throw new Error('Expected --reporter to have a value.');
+      }
+      if (!(value === 'auto' || value === 'stream' || value === 'silent')) {
+        throw new Error(`Invalid --reporter value "${value}". Use one of: auto, stream, silent.`);
+      }
+      reporter = value;
+      index += 1;
       continue;
     }
 
@@ -204,9 +242,55 @@ function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: st
     passThrough.push(arg);
   }
 
-  return { dryRun, packageManager, passThrough };
+  return { dryRun, packageManager, passThrough, reporter, verbose };
 }
 
+function isEnabledEnvironmentFlag(value: string | undefined): boolean {
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+}
+
+function resolveReporterMode(command: ScriptCommand, parsed: { reporter: LifecycleReporterMode; verbose: boolean }, runtime: ScriptRuntimeOptions): EffectiveLifecycleReporterMode {
+  if (parsed.reporter !== 'auto') {
+    return parsed.reporter;
+  }
+
+  if (parsed.verbose || isEnabledEnvironmentFlag(runtime.env?.FLUO_VERBOSE)) {
+    return 'stream';
+  }
+
+  if (runtime.ci || isEnabledEnvironmentFlag(runtime.env?.CI) || isEnabledEnvironmentFlag(runtime.env?.GITHUB_ACTIONS)) {
+    return 'stream';
+  }
+
+  if (command !== 'dev') {
+    return 'stream';
+  }
+
+  return (runtime.stdout ?? process.stdout).isTTY ? 'pretty' : 'stream';
+}
+
+function renderStep(step: ProjectRunnerStep): string {
+  return `${step.command} ${step.args.join(' ')}`.trim();
+}
+
+function createReporterStreams(mode: EffectiveLifecycleReporterMode, verbose: boolean, stdout: CliStream, stderr: CliStream): { stderr?: CliStream; stdio: 'inherit' | 'pipe'; stdout?: CliStream } {
+  if (mode === 'stream') {
+    return { stdio: 'inherit' };
+  }
+
+  if (mode === 'silent' || mode === 'pretty') {
+    return { stderr, stdio: 'pipe', ...(verbose ? { stdout } : {}) };
+  }
+
+  return { stdio: 'inherit' };
+}
+
+/**
+ * Renders lifecycle command help text.
+ *
+ * @param command Lifecycle command whose help text should be rendered.
+ * @returns Human-readable lifecycle command usage text.
+ */
 export function scriptUsage(command: ScriptCommand): string {
   const nodeEnv = command === 'dev' ? 'development' : 'production';
   return [
@@ -216,10 +300,20 @@ export function scriptUsage(command: ScriptCommand): string {
     '',
     'Options',
     '  --dry-run                              Print the command without running it.',
+    '  --reporter <auto|stream|silent>        Choose lifecycle reporter output mode (default: auto).',
+    '  --verbose                             Expose raw child process output; also honored by FLUO_VERBOSE=1.',
     `  --help                                 Show help for the ${command} command.`,
   ].join('\n');
 }
 
+/**
+ * Runs one generated-project lifecycle command through the CLI-owned runtime command matrix.
+ *
+ * @param command Lifecycle command to run.
+ * @param argv Command-specific arguments after the lifecycle command name.
+ * @param runtime Runtime dependencies used by tests, sandboxes, and embedders.
+ * @returns Process-style exit code from the lifecycle command.
+ */
 export async function runScriptCommand(command: ScriptCommand, argv: string[], runtime: ScriptRuntimeOptions = {}): Promise<number> {
   if (argv.includes('--help') || argv.includes('-h')) {
     (runtime.stdout ?? process.stdout).write(`${scriptUsage(command)}\n`);
@@ -228,6 +322,7 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
 
   const env = runtime.env ?? EMPTY_ENV;
   const stdout = runtime.stdout ?? process.stdout;
+  const stderr = runtime.stderr ?? process.stderr;
   const project = findProjectManifest(runtime.cwd ?? process.cwd());
   if (!project) {
     throw new Error(`Unable to find package.json for fluo ${command}.`);
@@ -239,6 +334,8 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
   const defaultNodeEnv = command === 'dev' ? 'development' : 'production';
   const childEnv = withProjectLocalBin(withDefaultNodeEnv(env, defaultNodeEnv), project.directory);
   const runnerSteps = buildProjectRunner(command, projectRuntime, parsed.passThrough);
+  const reporterMode = resolveReporterMode(command, parsed, { ...runtime, env, stdout });
+  const verbose = parsed.verbose || isEnabledEnvironmentFlag(env.FLUO_VERBOSE);
 
   if (parsed.dryRun) {
     for (const step of runnerSteps) {
@@ -247,12 +344,31 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
     stdout.write(`Project: ${project.path}\n`);
     stdout.write(`Runtime: ${projectRuntime}\n`);
     stdout.write(`NODE_ENV: ${childEnv.NODE_ENV ?? ''}\n`);
+    stdout.write(`Reporter: ${reporterMode}\n`);
     return 0;
   }
 
-  return runProjectRunnerSteps(runnerSteps, { spawnCommand: runtime.spawnCommand ?? defaultSpawnCommand }, {
+  if (reporterMode === 'pretty') {
+    stdout.write(`[fluo] ${command} ${projectRuntime} lifecycle starting\n`);
+    stdout.write(`[fluo] ${runnerSteps.map(renderStep).join(' && ')}\n`);
+  }
+
+  const reporterStreams = createReporterStreams(reporterMode, verbose, stdout, stderr);
+  const exitCode = await runProjectRunnerSteps(runnerSteps, { spawnCommand: runtime.spawnCommand ?? defaultSpawnCommand }, {
     cwd: project.directory,
     env: childEnv,
-    stdio: 'inherit',
+    ...reporterStreams,
   });
+
+  if (reporterMode === 'pretty') {
+    if (exitCode === 0) {
+      stdout.write(`[fluo] ${command} lifecycle ready\n`);
+    } else {
+      stderr.write(`[fluo] ${command} lifecycle failed with exit code ${exitCode}\n`);
+    }
+  } else if (reporterMode === 'silent' && exitCode !== 0) {
+    stderr.write(`[fluo] ${command} lifecycle failed with exit code ${exitCode}\n`);
+  }
+
+  return exitCode;
 }
