@@ -19,6 +19,16 @@ export interface ConsoleApplicationLoggerOptions {
   level?: ConsoleApplicationLoggerLevel;
   /** Override TTY-aware ANSI color detection. */
   color?: boolean;
+  /** Explicit host color environment passed from the application/bootstrap boundary. */
+  environment?: ConsoleApplicationLoggerEnvironment;
+}
+
+/** Host color environment used by `createConsoleApplicationLogger(...)` without reading globals directly. */
+export interface ConsoleApplicationLoggerEnvironment {
+  /** Whether `NO_COLOR`-style color suppression is enabled. */
+  noColor?: boolean;
+  /** `FORCE_COLOR`-style value used to force ANSI color output when truthy. */
+  forceColor?: string;
 }
 
 const RESET = '\u001B[0m';
@@ -62,6 +72,22 @@ function shouldLog(currentLevel: ConsoleApplicationLoggerLevel, configuredLevel:
   return LEVEL_PRIORITY[currentLevel] >= LEVEL_PRIORITY[configuredLevel];
 }
 
+function isForceColorEnabled(value: string | undefined): boolean {
+  return value !== undefined && value !== '' && value !== '0' && value !== 'false' && value !== 'no' && value !== 'off';
+}
+
+function shouldUseColor(stream: NodeJS.WriteStream, environment: ConsoleApplicationLoggerEnvironment): boolean {
+  if (environment.noColor === true) {
+    return false;
+  }
+
+  if (isForceColorEnabled(environment.forceColor)) {
+    return true;
+  }
+
+  return Boolean(stream.isTTY);
+}
+
 /**
  * Create console application logger.
  *
@@ -71,6 +97,7 @@ function shouldLog(currentLevel: ConsoleApplicationLoggerLevel, configuredLevel:
 export function createConsoleApplicationLogger(options: ConsoleApplicationLoggerOptions = {}): ApplicationLogger {
   const mode = options.mode ?? 'pretty';
   const level = options.level ?? 'debug';
+  const environment = options.environment ?? {};
   const format = mode === 'minimal' ? formatMinimalLog : formatLog;
 
   if (mode === 'silent') {
@@ -85,7 +112,7 @@ export function createConsoleApplicationLogger(options: ConsoleApplicationLogger
   return {
     debug(message, context = 'fluo') {
       if (shouldLog('debug', level)) {
-        console.debug(format('DEBUG', context, message, options.color ?? Boolean(process.stdout.isTTY)));
+        console.debug(format('DEBUG', context, message, options.color ?? shouldUseColor(process.stdout, environment)));
       }
     },
     error(message, error, context = 'fluo') {
@@ -93,7 +120,7 @@ export function createConsoleApplicationLogger(options: ConsoleApplicationLogger
         return;
       }
 
-      console.error(format('ERROR', context, message, options.color ?? Boolean(process.stderr.isTTY)));
+      console.error(format('ERROR', context, message, options.color ?? shouldUseColor(process.stderr, environment)));
 
       if (error) {
         console.error(error);
@@ -101,12 +128,12 @@ export function createConsoleApplicationLogger(options: ConsoleApplicationLogger
     },
     log(message, context = 'fluo') {
       if (shouldLog('log', level)) {
-        console.log(format('LOG', context, message, options.color ?? Boolean(process.stdout.isTTY)));
+        console.log(format('LOG', context, message, options.color ?? shouldUseColor(process.stdout, environment)));
       }
     },
     warn(message, context = 'fluo') {
       if (shouldLog('warn', level)) {
-        console.warn(format('WARN', context, message, options.color ?? Boolean(process.stderr.isTTY)));
+        console.warn(format('WARN', context, message, options.color ?? shouldUseColor(process.stderr, environment)));
       }
     },
   };

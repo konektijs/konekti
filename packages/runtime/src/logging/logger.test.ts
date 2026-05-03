@@ -16,6 +16,42 @@ describe('createConsoleApplicationLogger', () => {
     expect(log.mock.calls[0]?.[0]).toMatch(/^\[fluo\] \d+ - .+ LOG \[Bootstrap\] Application started$/);
   });
 
+  it('honors explicit force color input when stdout is not a TTY', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const originalStdoutIsTty = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: false });
+
+    try {
+      createConsoleApplicationLogger({ environment: { forceColor: '1' } }).log('Application started', 'Bootstrap');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: originalStdoutIsTty });
+    }
+
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0]?.[0]).toContain('\u001B[32m[fluo]\u001B[0m');
+    expect(log.mock.calls[0]?.[0]).toContain('\u001B[32mLOG\u001B[0m');
+    expect(log.mock.calls[0]?.[0]).toContain('\u001B[33m[Bootstrap]\u001B[0m');
+  });
+
+  it('lets explicit no color input override force color input', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const originalStdoutIsTty = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: false });
+
+    try {
+      createConsoleApplicationLogger({ environment: { forceColor: '1', noColor: true } }).log(
+        'Application started',
+        'Bootstrap',
+      );
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', { configurable: true, value: originalStdoutIsTty });
+    }
+
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0]?.[0]).not.toContain('\u001B[');
+    expect(log.mock.calls[0]?.[0]).toMatch(/^\[fluo\] \d+ - .+ LOG \[Bootstrap\] Application started$/);
+  });
+
   it('filters messages below the configured level', () => {
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
