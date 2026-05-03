@@ -216,29 +216,9 @@ static forRoot(options: RedisModuleOptions): ModuleType {
 
 `path:packages/redis/src/module.ts:55-82`의 named branch를 보면 같은 provider factory가 이름이 붙은 client token, service token, lifecycle token을 함께 만들어 냅니다. 이를 동적 모듈 안에 등록하면, 단일 애플리케이션에서 여러 Redis instance가 쓰이더라도 `RedisModule`의 각 instance가 특정 token surface에 바인딩된 service를 만들 수 있습니다. 이 instance 격리가 programmatic module construction의 핵심 이점입니다.
 
-`QueueModule.forRoot()`는 더 노골적입니다. `path:packages/queue/src/module.ts:9-42`는 옵션을 정규화하고 별도의 헬퍼 함수에서 provider를 만듭니다. 그 뒤 `path:packages/queue/src/module.ts:69-77`은 `QueueLifecycleService`와 `QUEUE`를 export하는 module definition을 반환할 뿐입니다.
+`QueueModule.forRoot()`는 public boundary를 더 분명히 보여 줍니다. `path:packages/queue/src/module.ts:9-77`은 옵션을 정규화하고 내부 Provider를 조립한 뒤, 애플리케이션-facing registration API로 namespace facade만 노출합니다. 소비자 코드는 `QueueModule.forRoot(...)`를 호출해야 하며, 저수준 provider assembly는 패키지 내부에 남고 공개 학습 표면이 아닙니다.
 
-Queue는 정규화, provider assembly, metadata binding이 가장 짧게 분리된 사례입니다.
-
-`path:packages/queue/src/module.ts:27-42`
-```typescript
-function createQueueProviders(options: QueueModuleOptions = {}): Provider[] {
-  return [
-    {
-      provide: QUEUE_OPTIONS,
-      useValue: normalizeQueueModuleOptions(options),
-    },
-    QueueLifecycleService,
-    {
-      inject: [QueueLifecycleService],
-      provide: QUEUE,
-      useFactory: (service: unknown) => ({
-        enqueue: (job: object) => (service as QueueLifecycleService).enqueue(job),
-      }),
-    },
-  ];
-}
-```
+Queue는 정규화, provider assembly, metadata binding을 분리하되 public API를 넓히지 않는 가장 짧은 사례입니다. 내부 assembly 단계는 options Provider, lifecycle service, `QUEUE` facade Provider를 만들지만, caller는 그 helper를 직접 import하거나 호출하지 않습니다.
 
 `path:packages/queue/src/module.ts:69-77`
 ```typescript
@@ -248,25 +228,27 @@ static forRoot(options: QueueModuleOptions = {}): ModuleType {
   return defineModule(QueueModuleDefinition, {
     exports: [QueueLifecycleService, QUEUE],
     global: true,
-    providers: createQueueProviders(options),
+    providers: [/* normalized queue providers */],
   });
 }
 ```
 
-`QUEUE_OPTIONS`는 값 provider로 고정되고, `QUEUE`는 lifecycle service에서 파생되는 factory provider가 됩니다. `forRoot()`는 이 결과를 그대로 module metadata에 붙이는 얇은 바인더입니다.
+`QUEUE_OPTIONS`는 값 provider로 고정되고, `QUEUE`는 lifecycle service에서 파생되는 factory provider가 됩니다. `forRoot()`는 이 결과를 그대로 module metadata에 붙이는 public binder입니다.
 
 `path:packages/queue/src/module.ts:9-25`의 정규화 로직은 attempts, concurrency, dead-letter 보존 개수, rate limiter 기본값을 내부 형태로 맞춥니다. 동적 모듈이 caller options를 그대로 흘려보내지 않고, bootstrap 전에 provider들이 읽을 안정적인 설정 객체로 바꾸는 사례입니다.
 
-provider 생성을 `createQueueProviders()` (`path:packages/queue/src/module.ts:32-42`)로 분리한 것은 이 접근의 모듈성을 잘 보여 줍니다. module factory 자체는 저수준 building block을 조합하는 얇은 orchestration 계층이 됩니다. queue 초기화 방식이 바뀌어도 provider factory를 조정하면 되고, module metadata binding 구조는 안정적으로 유지됩니다.
+Provider 생성을 `forRoot()` binder에서 분리한 것은 이 접근의 모듈성을 잘 보여 줍니다. Module facade 자체는 저수준 building block을 조합하는 얇은 orchestration 계층이 됩니다. queue 초기화 방식이 바뀌어도 내부 Provider factory를 조정하면 되고, public module metadata binding 구조는 안정적으로 유지됩니다.
+
+이것이 패키지 author를 위한 명명 규칙이기도 합니다. module/provider registration surface는 `QueueModule.forRoot(...)` 같은 namespace facade로 문서화해야 하며, `create*` 이름은 의도적으로 공개된 builder 또는 value-level helper에 예약됩니다. 패키지 구현 내부에는 `create*` provider assembly function이 있을 수 있지만, 이를 consumer-facing registration path로 가르치면 안 됩니다.
 
 이 orchestration은 조건부 provider 등록도 가능하게 합니다. 예를 들어 동적 모듈은 옵션의 `test: true` 플래그를 보고 실제 service 대신 mock service를 등록할 수 있습니다. Fluo는 일반적으로 테스트에서 명시적인 provider override를 선호하지만, module construction 단계에서 이런 유연성을 갖는 것은 인프라 모듈을 환경별로 조정할 때 유용합니다.
 
 여기서 얻어야 할 설계 교훈은 간단합니다. dynamic module 자체가 복잡한 비즈니스 로직을 담아서는 안 됩니다. 복잡성이 있다면 대부분 **pure option normalization**과 **provider construction helper**로 내려가야 합니다. 실제 module factory 함수는 최종적인 "바인더(binder)" 역할만 수행하며 아주 작게 유지되어야 합니다.
 
 이 분리는 여러 패키지에서 반복됩니다.
-- `PrismaModule`은 `path:packages/prisma/src/module.ts:27-66`에 `normalizePrismaModuleOptions()`와 `createPrismaRuntimeProviders()`를 둡니다.
-- `QueueModule`은 `path:packages/queue/src/module.ts:9-42`에 `normalizeQueueModuleOptions()`와 `createQueueProviders()`를 둡니다.
-- `RedisModule`은 `path:packages/redis/src/module.ts:24-83`에 `createRedisProviders()`를 둡니다.
+- `PrismaModule`은 `path:packages/prisma/src/module.ts:27-66`에 option normalization과 runtime Provider assembly를 둡니다.
+- `QueueModule`은 `path:packages/queue/src/module.ts:9-42`에 option normalization과 internal Provider assembly를 둡니다.
+- `RedisModule`은 `path:packages/redis/src/module.ts:24-83`에 Redis client/service Provider assembly를 둡니다.
 
 `forRoot(...)` helper가 읽기 어렵다면, 문제는 dynamic-module 개념 자체가 아니라 provider derivation과 option normalization이 충분히 분리되지 않았기 때문일 가능성이 높습니다. 이들을 분리하면 Fluo의 module registration이 투명해집니다. "이 모듈이 무엇을 등록하는가?"라는 질문에 답할 때 복잡한 분기 전체를 추적하기보다 provider factory를 중심으로 읽을 수 있기 때문입니다.
 

@@ -216,29 +216,9 @@ The first excerpt shows where the client, facade, and lifecycle service are grou
 
 The named branch in `path:packages/redis/src/module.ts:55-82` shows the same Provider factory creating a named client Token, service Token, and lifecycle Token together. When these are registered inside a Dynamic Module, each `RedisModule` instance can create a service bound to a specific Token surface even if one application uses multiple Redis instances. This instance isolation is a core benefit of programmatic Module construction.
 
-`QueueModule.forRoot()` is more explicit. `path:packages/queue/src/module.ts:9-42` normalizes options and creates Providers in a separate helper function. Then `path:packages/queue/src/module.ts:69-77` only returns a Module definition that exports `QueueLifecycleService` and `QUEUE`.
+`QueueModule.forRoot()` is more explicit about the public boundary. `path:packages/queue/src/module.ts:9-77` normalizes options, assembles internal Providers, and exposes only the namespace facade as the application-facing registration API. Consumer code should call `QueueModule.forRoot(...)`; the lower-level provider assembly stays inside the package and is not a public teaching surface.
 
-Queue is the shortest example where normalization, Provider assembly, and metadata binding are separated.
-
-`path:packages/queue/src/module.ts:27-42`
-```typescript
-function createQueueProviders(options: QueueModuleOptions = {}): Provider[] {
-  return [
-    {
-      provide: QUEUE_OPTIONS,
-      useValue: normalizeQueueModuleOptions(options),
-    },
-    QueueLifecycleService,
-    {
-      inject: [QueueLifecycleService],
-      provide: QUEUE,
-      useFactory: (service: unknown) => ({
-        enqueue: (job: object) => (service as QueueLifecycleService).enqueue(job),
-      }),
-    },
-  ];
-}
-```
+Queue is the shortest example where normalization, Provider assembly, and metadata binding are separated without widening the public API. The internal assembly step produces the options Provider, lifecycle service, and `QUEUE` facade Provider, but callers do not import or invoke that helper directly.
 
 `path:packages/queue/src/module.ts:69-77`
 ```typescript
@@ -248,25 +228,27 @@ static forRoot(options: QueueModuleOptions = {}): ModuleType {
   return defineModule(QueueModuleDefinition, {
     exports: [QueueLifecycleService, QUEUE],
     global: true,
-    providers: createQueueProviders(options),
+    providers: [/* normalized queue providers */],
   });
 }
 ```
 
-`QUEUE_OPTIONS` is fixed as a value Provider, and `QUEUE` becomes a Factory Provider derived from the lifecycle service. `forRoot()` is a thin binder that attaches this result to Module metadata as-is.
+`QUEUE_OPTIONS` is fixed as a value Provider, and `QUEUE` becomes a Factory Provider derived from the lifecycle service. `forRoot()` is the public binder that attaches this result to Module metadata as-is.
 
 The normalization logic in `path:packages/queue/src/module.ts:9-25` shapes attempts, concurrency, dead-letter retention count, and rate limiter defaults into an internal form. This is an example of a Dynamic Module not passing caller options through directly, but converting them before Bootstrap into a stable configuration object that Providers can read.
 
-Separating Provider creation into `createQueueProviders()` (`path:packages/queue/src/module.ts:32-42`) shows the modularity of this approach. The Module factory itself becomes a thin orchestration layer that combines lower-level building blocks. If queue initialization changes, the Provider factory can be adjusted while the Module metadata binding structure stays stable.
+Separating Provider creation from the `forRoot()` binder shows the modularity of this approach. The Module facade itself becomes a thin orchestration layer that combines lower-level building blocks. If queue initialization changes, the internal Provider factory can be adjusted while the public Module metadata binding structure stays stable.
+
+This is also the naming convention for package authors: module/provider registration surfaces should be documented as namespace facades such as `QueueModule.forRoot(...)`, while `create*` names are reserved for intentionally public builders or value-level helpers. A `create*` provider assembly function may exist inside a package implementation, but it should not be taught as the consumer-facing registration path.
 
 This orchestration also allows conditional Provider registration. For example, a Dynamic Module can inspect a `test: true` option flag and register a mock service instead of a real service. Fluo generally prefers explicit Provider overrides in tests, but having this flexibility at Module construction time is useful when adapting infrastructure Modules for different environments.
 
 The design lesson here is simple. The Dynamic Module itself should not contain complex business logic. Most complexity should move down into **pure option normalization** and a **Provider construction helper**. The actual Module factory function should act only as the final binder and stay very small.
 
 This separation repeats across several packages.
-- `PrismaModule` keeps `normalizePrismaModuleOptions()` and `createPrismaRuntimeProviders()` in `path:packages/prisma/src/module.ts:27-66`.
-- `QueueModule` keeps `normalizeQueueModuleOptions()` and `createQueueProviders()` in `path:packages/queue/src/module.ts:9-42`.
-- `RedisModule` keeps `createRedisProviders()` in `path:packages/redis/src/module.ts:24-83`.
+- `PrismaModule` keeps option normalization and runtime Provider assembly in `path:packages/prisma/src/module.ts:27-66`.
+- `QueueModule` keeps option normalization and internal Provider assembly in `path:packages/queue/src/module.ts:9-42`.
+- `RedisModule` keeps Redis client/service Provider assembly in `path:packages/redis/src/module.ts:24-83`.
 
 If a `forRoot(...)` helper is hard to read, the problem is probably not the Dynamic Module concept itself. It is more likely that Provider derivation and option normalization have not been separated enough. Once they are separated, Fluo's Module registration becomes transparent. When answering "what does this Module register?" you can read around the Provider factory instead of tracing every complex branch.
 
