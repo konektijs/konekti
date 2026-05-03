@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { detectPackageManager, SUPPORTED_PACKAGE_MANAGERS } from './package-manager.js';
 
 type CliStream = {
   write(message: string): unknown;
@@ -15,16 +16,6 @@ type PackageWorkflowRuntimeOptions = {
 const DEFAULT_PACKAGE_NAME = '@fluojs/cli';
 const DEFAULT_REGISTRY_TIMEOUT_MS = 5_000;
 const EMPTY_ENV: NodeJS.ProcessEnv = {};
-const SUPPORTED_PACKAGE_MANAGERS = new Set(['bun', 'npm', 'pnpm', 'yarn']);
-
-function detectPackageManager(env: NodeJS.ProcessEnv): string {
-  const userAgentName = env.npm_config_user_agent?.split(' ')[0]?.split('/')[0];
-  if (userAgentName && SUPPORTED_PACKAGE_MANAGERS.has(userAgentName)) {
-    return userAgentName;
-  }
-
-  return 'pnpm';
-}
 
 function normalizeFluoPackage(packageName: string): string {
   if (packageName.startsWith('@fluojs/')) {
@@ -162,7 +153,7 @@ export async function runAddCommand(argv: string[], runtime: PackageWorkflowRunt
   }
 
   const env = runtime.env ?? EMPTY_ENV;
-  const manager = packageManager ?? detectPackageManager(env);
+  const manager = packageManager ?? detectPackageManager({ cwd: runtime.cwd ?? process.cwd(), env });
   const args = buildAddArgs(manager, packages, dev);
 
   if (dryRun) {

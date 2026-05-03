@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { detectPackageManager, SUPPORTED_PACKAGE_MANAGERS } from './package-manager.js';
 
 type CliStream = {
   write(message: string): unknown;
@@ -16,7 +17,6 @@ type ScriptRuntimeOptions = {
 type JsonRecord = Record<string, unknown>;
 type ScriptCommand = 'build' | 'dev' | 'start';
 
-const SUPPORTED_PACKAGE_MANAGERS = new Set(['bun', 'npm', 'pnpm', 'yarn']);
 const EMPTY_ENV: NodeJS.ProcessEnv = {};
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -61,15 +61,6 @@ function readScript(manifest: JsonRecord, scriptName: string): string | undefine
 
   const script = scripts[scriptName];
   return typeof script === 'string' ? script : undefined;
-}
-
-function detectPackageManager(env: NodeJS.ProcessEnv): string {
-  const userAgentName = env.npm_config_user_agent?.split(' ')[0]?.split('/')[0];
-  if (userAgentName && SUPPORTED_PACKAGE_MANAGERS.has(userAgentName)) {
-    return userAgentName;
-  }
-
-  return 'pnpm';
 }
 
 function buildRunArgs(packageManager: string, scriptName: string, passThrough: string[]): string[] {
@@ -161,7 +152,7 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
   }
 
   const parsed = parseScriptArgs(argv);
-  const packageManager = parsed.packageManager ?? detectPackageManager(env);
+  const packageManager = parsed.packageManager ?? detectPackageManager({ cwd: project.directory, env, manifest: project.manifest });
   const args = buildRunArgs(packageManager, command, parsed.passThrough);
 
   if (parsed.dryRun) {
