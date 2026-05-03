@@ -1356,11 +1356,55 @@ void bootstrap();
 
     expect(exitCode).toBe(0);
     expect(stdoutBuffer.join('')).toContain('Usage: fluo <command> [options]');
-    expect(stdoutBuffer.join('')).toContain('| Command  | Aliases | Description');
+    expect(stdoutBuffer.join('')).toContain('| Command  | Aliases');
     expect(stdoutBuffer.join('')).toContain('| new      | create');
     expect(stdoutBuffer.join('')).toContain('| generate | g');
+    expect(stdoutBuffer.join('')).toContain('| version  | --version, -v');
     expect(stdoutBuffer.join('')).toContain("Run 'fluo help <command>'");
     expect(stdoutBuffer.join('')).toContain('Docs: https://github.com/fluojs/fluo/tree/main/docs/getting-started/quick-start.md');
+  });
+
+  it('prints the installed CLI version without running the update check', async () => {
+    const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')) as { version: string };
+    const stdoutBuffer: string[] = [];
+    let fetchCount = 0;
+
+    const exitCode = await runCli(['--version'], {
+      env: updateCheckEnv,
+      stderr: createTtyBufferStream([]),
+      stdin: { isTTY: true },
+      stdout: createTtyBufferStream(stdoutBuffer),
+      updateCheck: {
+        cacheFile: createUpdateCacheFile(),
+        currentVersion: '0.0.0',
+        fetchLatestVersion: async (): Promise<string> => {
+          fetchCount += 1;
+          return '999.0.0';
+        },
+      },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(fetchCount).toBe(0);
+    expect(stdoutBuffer.join('')).toBe(`${manifest.version}\n`);
+  });
+
+  it('supports the version command and short version flag', async () => {
+    const packageRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+    const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')) as { version: string };
+
+    for (const argv of [['version'], ['-v']]) {
+      const stdoutBuffer: string[] = [];
+
+      const exitCode = await runCli(argv, {
+        stderr: { write: () => undefined },
+        stdout: { write: (message) => stdoutBuffer.push(message) },
+      });
+
+      expect(exitCode).toBe(0);
+      expect(stdoutBuffer.join('')).toBe(`${manifest.version}\n`);
+    }
   });
 
   it('prints `new` usage for `new --help`', async () => {
@@ -2143,6 +2187,7 @@ void bootstrap();
     expect(output).toContain('Generate a schematic');
     expect(output).toContain('Inspect runtime platform snapshot/diagnostics');
     expect(output).toContain('dry-run by default');
+    expect(output).toContain('Print the installed fluo CLI version');
     expect(output).toContain('Show top-level or command-specific help');
   });
 
