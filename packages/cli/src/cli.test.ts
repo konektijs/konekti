@@ -1941,6 +1941,35 @@ void bootstrap();
     expect(stderrOutput).toContain('[fluo] dev lifecycle failed with exit code 9');
   });
 
+  it('separates lifecycle status from app output that has no trailing newline', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+    const stderrBuffer: string[] = [];
+
+    const exitCode = await runCli(['dev'], {
+      cwd: workspaceDirectory,
+      env: {},
+      spawnCommand: async (_command, _args, options) => {
+        options.stdout?.write('ready');
+        options.stderr?.write('warning');
+        return 1;
+      },
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdout: { isTTY: true, write: (message) => stdoutBuffer.push(message) },
+    });
+
+    const stdoutOutput = stdoutBuffer.join('');
+    const stderrOutput = stderrBuffer.join('');
+
+    expect(exitCode).toBe(1);
+    expect(stdoutOutput).toContain('app │ ready\n');
+    expect(stderrOutput).toContain('app │ warning\n[fluo] dev lifecycle failed with exit code 1');
+    expect(stdoutOutput).not.toContain('ready[fluo]');
+    expect(stderrOutput).not.toContain('warning[fluo]');
+  });
+
   it('drains default spawned child stdout before flushing pretty reporter failures', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);

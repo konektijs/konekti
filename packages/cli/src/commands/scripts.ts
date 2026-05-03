@@ -319,10 +319,18 @@ function createBoundedBufferStream(limit: number): CliStream & { flush(target: C
   };
 }
 
-function createLinePrefixedStream(target: CliStream, prefix: string): CliStream {
+type FinalizableCliStream = CliStream & { finalizeLine(): void };
+
+function createLinePrefixedStream(target: CliStream, prefix: string): FinalizableCliStream {
   let atLineStart = true;
 
   return {
+    finalizeLine() {
+      if (!atLineStart) {
+        target.write('\n');
+        atLineStart = true;
+      }
+    },
     write(message) {
       for (const character of message) {
         if (atLineStart && character !== '\n') {
@@ -345,32 +353,40 @@ function createReporterStreams(
   verbose: boolean,
   stdout: CliStream,
   stderr: CliStream,
-): { flushBufferedStdoutOnFailure(): void; stderr?: CliStream; stdio: 'inherit' | 'pipe'; stdout?: CliStream } {
+): { finalizeChildOutputBeforeStatus(): void; flushBufferedStdoutOnFailure(): void; stderr?: CliStream; stdio: 'inherit' | 'pipe'; stdout?: CliStream } {
   if (mode === 'stream') {
-    return { flushBufferedStdoutOnFailure() {}, stdio: 'inherit' };
+    return { finalizeChildOutputBeforeStatus() {}, flushBufferedStdoutOnFailure() {}, stdio: 'inherit' };
   }
 
   if (mode === 'pretty') {
     if (verbose) {
-      return { flushBufferedStdoutOnFailure() {}, stderr, stdio: 'pipe', stdout };
+      return { finalizeChildOutputBeforeStatus() {}, flushBufferedStdoutOnFailure() {}, stderr, stdio: 'pipe', stdout };
     }
 
+    const prefixedStdout = createLinePrefixedStream(stdout, PRETTY_CHILD_OUTPUT_PREFIX);
+    const prefixedStderr = createLinePrefixedStream(stderr, PRETTY_CHILD_OUTPUT_PREFIX);
+
     return {
+      finalizeChildOutputBeforeStatus() {
+        prefixedStdout.finalizeLine();
+        prefixedStderr.finalizeLine();
+      },
       flushBufferedStdoutOnFailure() {},
-      stderr: createLinePrefixedStream(stderr, PRETTY_CHILD_OUTPUT_PREFIX),
+      stderr: prefixedStderr,
       stdio: 'pipe',
-      stdout: createLinePrefixedStream(stdout, PRETTY_CHILD_OUTPUT_PREFIX),
+      stdout: prefixedStdout,
     };
   }
 
   if (mode === 'silent') {
     if (verbose) {
-      return { flushBufferedStdoutOnFailure() {}, stderr, stdio: 'pipe', stdout };
+      return { finalizeChildOutputBeforeStatus() {}, flushBufferedStdoutOnFailure() {}, stderr, stdio: 'pipe', stdout };
     }
 
     const bufferedStdout = createBoundedBufferStream(FAILURE_STDOUT_BUFFER_LIMIT);
 
     return {
+      finalizeChildOutputBeforeStatus() {},
       flushBufferedStdoutOnFailure() {
         if (bufferedStdout.hasContent()) {
           stderr.write('[fluo] child stdout before failure:\n');
@@ -384,7 +400,7 @@ function createReporterStreams(
     };
   }
 
-  return { flushBufferedStdoutOnFailure() {}, stdio: 'inherit' };
+  return { finalizeChildOutputBeforeStatus() {}, flushBufferedStdoutOnFailure() {}, stdio: 'inherit' };
 }
 
 /**
@@ -468,6 +484,7 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
   });
 
   if (reporterMode === 'pretty') {
+    reporterStreams.finalizeChildOutputBeforeStatus();
     if (exitCode === 0) {
       stdout.write(`[fluo] ${command} lifecycle completed\n`);
     } else {
