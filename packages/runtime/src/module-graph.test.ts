@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { Inject } from '@fluojs/core';
+import { forwardRef, optional } from '@fluojs/di';
 import { defineClassDiMetadata, defineModuleMetadata } from '@fluojs/core/internal';
 
 import {
@@ -127,6 +128,58 @@ describe('module graph cache-key prerequisites', () => {
     expect(secondCompile[0]?.providerTokens.has(Logger)).toBe(true);
     expect(secondCompile[0]?.exportedTokens.has(Logger)).toBe(true);
     expect(secondCompile[0]?.definition.providers).toEqual([Logger]);
+  });
+
+  it('keeps cached provider descriptors and nested inject wrappers isolated from returned result mutations', () => {
+    class Logger {}
+    class Metrics {}
+    class MissingDependency {}
+    const SERVICE_TOKEN = Symbol('service-token');
+    const POISONED_TOKEN = Symbol('poisoned-token');
+    const createService = (logger: Logger) => ({ logger });
+
+    class AppModule {}
+    defineModuleMetadata(AppModule, {
+      providers: [
+        Logger,
+        Metrics,
+        {
+          provide: SERVICE_TOKEN,
+          inject: [forwardRef(() => Logger), optional(Metrics)],
+          useFactory: createService,
+        },
+      ],
+    });
+
+    const firstCompile = compileModuleGraph(AppModule, { moduleGraphCache: true });
+    const factoryProvider = firstCompile[0]?.definition.providers?.[2];
+    if (typeof factoryProvider === 'function' || factoryProvider === undefined || !('useFactory' in factoryProvider) || factoryProvider.inject === undefined) {
+      expect.unreachable('expected a factory provider with explicit inject metadata');
+    }
+
+    factoryProvider.provide = POISONED_TOKEN;
+    factoryProvider.inject.splice(0, factoryProvider.inject.length, forwardRef(() => MissingDependency));
+    const poisonedWrapper = factoryProvider.inject[0];
+    if (typeof poisonedWrapper === 'object' && poisonedWrapper !== null && '__forwardRef__' in poisonedWrapper) {
+      poisonedWrapper.forwardRef = () => MissingDependency;
+    }
+
+    const secondCompile = compileModuleGraph(AppModule, { moduleGraphCache: true });
+    const cachedFactoryProvider = secondCompile[0]?.definition.providers?.[2];
+    if (typeof cachedFactoryProvider === 'function' || cachedFactoryProvider === undefined || !('useFactory' in cachedFactoryProvider) || cachedFactoryProvider.inject === undefined) {
+      expect.unreachable('expected a cached factory provider with explicit inject metadata');
+    }
+
+    expect(cachedFactoryProvider.provide).toBe(SERVICE_TOKEN);
+    expect(cachedFactoryProvider.inject).toHaveLength(2);
+    const firstWrapper = cachedFactoryProvider.inject[0];
+    if (typeof firstWrapper === 'object' && firstWrapper !== null && '__forwardRef__' in firstWrapper) {
+      expect(firstWrapper.__forwardRef__).toBe(true);
+      expect(firstWrapper.forwardRef()).toBe(Logger);
+    } else {
+      expect.unreachable('expected the first cached dependency to remain a forwardRef wrapper');
+    }
+    expect(cachedFactoryProvider.inject[1]).toEqual(optional(Metrics));
   });
 
   it('keeps the module graph cache opt-in', () => {

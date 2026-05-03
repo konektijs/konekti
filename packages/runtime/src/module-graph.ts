@@ -158,11 +158,51 @@ function cloneModuleDefinition(definition: ModuleDefinition): ModuleDefinition {
   return {
     global: definition.global,
     imports: definition.imports ? [...definition.imports] : undefined,
-    providers: definition.providers ? [...definition.providers] : undefined,
+    providers: definition.providers ? definition.providers.map((provider) => cloneProvider(provider)) : undefined,
     controllers: definition.controllers ? [...definition.controllers] : undefined,
     exports: definition.exports ? [...definition.exports] : undefined,
     middleware: definition.middleware ? [...definition.middleware] : undefined,
   };
+}
+
+function cloneInjectionToken(token: InjectionToken): InjectionToken {
+  if (isForwardRef(token)) {
+    return {
+      __forwardRef__: true,
+      forwardRef: token.forwardRef,
+    };
+  }
+
+  if (isOptionalToken(token)) {
+    return {
+      __optional__: true,
+      token: token.token,
+    };
+  }
+
+  return token;
+}
+
+function cloneProvider(provider: Provider): Provider {
+  if (typeof provider === 'function') {
+    return provider;
+  }
+
+  if ('useClass' in provider) {
+    return {
+      ...provider,
+      ...(provider.inject ? { inject: provider.inject.map((token) => cloneInjectionToken(token)) } : {}),
+    };
+  }
+
+  if ('useFactory' in provider) {
+    return {
+      ...provider,
+      ...(provider.inject ? { inject: provider.inject.map((token) => cloneInjectionToken(token)) } : {}),
+    };
+  }
+
+  return { ...provider };
 }
 
 function cloneCompiledModule(compiledModule: CompiledModule): CompiledModule {
@@ -180,8 +220,44 @@ function cloneCompiledModules(modules: readonly CompiledModule[]): CompiledModul
   return modules.map((compiledModule) => cloneCompiledModule(compiledModule));
 }
 
+function freezeInjectionToken(token: InjectionToken): InjectionToken {
+  if (isForwardRef(token) || isOptionalToken(token)) {
+    Object.freeze(token);
+  }
+
+  return token;
+}
+
+function freezeProvider(provider: Provider): Provider {
+  if (typeof provider === 'function') {
+    return provider;
+  }
+
+  if ('inject' in provider && provider.inject) {
+    for (const token of provider.inject) {
+      freezeInjectionToken(token);
+    }
+    Object.freeze(provider.inject);
+  }
+
+  return Object.freeze(provider);
+}
+
+function freezeModuleDefinition(definition: ModuleDefinition): ModuleDefinition {
+  definition.imports && Object.freeze(definition.imports);
+  for (const provider of definition.providers ?? []) {
+    freezeProvider(provider);
+  }
+  definition.providers && Object.freeze(definition.providers);
+  definition.controllers && Object.freeze(definition.controllers);
+  definition.exports && Object.freeze(definition.exports);
+  definition.middleware && Object.freeze(definition.middleware);
+
+  return Object.freeze(definition);
+}
+
 function freezeCompiledModule(compiledModule: CompiledModule): CompiledModule {
-  Object.freeze(compiledModule.definition);
+  freezeModuleDefinition(compiledModule.definition);
 
   return Object.freeze(compiledModule);
 }
