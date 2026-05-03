@@ -114,11 +114,14 @@ Add a new resource with a controller and service, automatically wired into the m
 
 ```bash
 fluo generate module users
+fluo generate resource users
 fluo generate controller users
 fluo generate service users
 fluo generate request-dto users CreateUser
 fluo generate service users --dry-run
 ```
+
+`fluo generate resource <name>` creates a complete feature slice with a module, controller, service, repository, request DTO, response DTO, and tests. It does not wire the resource module into a parent module automatically; import the generated module when you are ready to activate the slice.
 
 Request DTO generation accepts the feature directory separately from the DTO class name, so multiple input contracts such as `CreateUser` and `UpdateUser` can live inside the same `src/users/` slice.
 
@@ -127,6 +130,30 @@ Add `--dry-run` to preview the same target resolution, skipped or overwritten fi
 Generator discovery is intentionally limited to the built-in `@fluojs/cli/builtin` collection. External package-owned or app-local generator collections are deferred: `fluo generate` does not scan config files, load arbitrary packages, or execute workspace-owned collection code. This keeps generator metadata, option schemas, help output, and file-write boundaries deterministic and testable while preserving the shipped generator contract.
 
 ## Common Patterns
+
+### Diagnostics and project scripts
+Use `doctor`/`info` when you need to debug the installed CLI, npm dist-tags, update-check cache state, runtime, and project scripts:
+
+```bash
+fluo doctor
+fluo info
+fluo analyze
+```
+
+`fluo analyze` stays read-only and points to deeper `inspect --report` and `migrate --json` workflows. For generated projects, `fluo dev`, `fluo start`, and `fluo build` delegate to the matching `package.json` scripts through the detected package manager, with `--dry-run` available for previews:
+
+```bash
+fluo dev --dry-run
+fluo build -- --verbose
+fluo start --package-manager npm
+```
+
+Use `fluo add <package>` for first-party package installation shortcuts and `fluo upgrade` for CLI/latest-version and migration guidance:
+
+```bash
+fluo add studio --dev --dry-run
+fluo upgrade
+```
 
 ### Decorator Codemods
 Run codemods to align your codebase with TC39 standard decorators.
