@@ -1911,6 +1911,31 @@ void bootstrap();
     expect(stderrBuffer.join('')).toContain('[fluo] dev lifecycle failed with exit code 1');
   });
 
+  it('keeps colorized child output enabled for TTY pretty dev runs', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+    const spawned: Array<{ forceColor?: string; stdio: string }> = [];
+
+    const exitCode = await runCli(['dev'], {
+      cwd: workspaceDirectory,
+      env: {},
+      spawnCommand: async (_command, _args, options) => {
+        spawned.push({ forceColor: options.env.FORCE_COLOR, stdio: options.stdio });
+        options.stdout?.write('\u001B[32mchild stdout\u001B[0m\n');
+        return 0;
+      },
+      stderr: { write: () => undefined },
+      stdout: { isTTY: true, write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(spawned).toEqual([{ forceColor: '1', stdio: 'pipe' }]);
+    expect(stdoutBuffer.join('')).toContain('app │ \u001B[32mchild stdout\u001B[0m');
+    expect(stdoutBuffer.join('')).toContain('[fluo] dev lifecycle completed');
+  });
+
   it('prefixes multiline child output in non-verbose pretty reporter runs', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);

@@ -131,6 +131,18 @@ function withProjectLocalBin(env: NodeJS.ProcessEnv, projectDirectory: string): 
   };
 }
 
+function withPrettyReporterColorEnv(env: NodeJS.ProcessEnv, mode: EffectiveLifecycleReporterMode, stdout: CliStream, stderr: CliStream): NodeJS.ProcessEnv {
+  if (mode !== 'pretty' || env.NO_COLOR !== undefined || env.FORCE_COLOR !== undefined || env.CLICOLOR_FORCE !== undefined) {
+    return env;
+  }
+
+  if (!stdout.isTTY && !stderr.isTTY) {
+    return env;
+  }
+
+  return { ...env, FORCE_COLOR: '1' };
+}
+
 function defaultSpawnCommand(command: string, args: string[], options: SpawnCommandOptions): Promise<number> {
   return new Promise((resolveExitCode, reject) => {
     const child = spawn(command, args, options);
@@ -451,10 +463,10 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
 
   const projectRuntime = detectProjectRuntime(project.manifest);
   const defaultNodeEnv = command === 'dev' ? 'development' : 'production';
-  const childEnv = withProjectLocalBin(withDefaultNodeEnv(env, defaultNodeEnv), project.directory);
   const rawWatch = parsed.rawWatch || isEnabledEnvironmentFlag(env.FLUO_DEV_RAW_WATCH);
   const runnerSteps = buildProjectRunner(command, projectRuntime, parsed.passThrough, { rawWatch });
   const reporterMode = resolveReporterMode(command, parsed, { ...runtime, env, stdout });
+  const childEnv = withPrettyReporterColorEnv(withProjectLocalBin(withDefaultNodeEnv(env, defaultNodeEnv), project.directory), reporterMode, stdout, stderr);
   const verbose = parsed.verbose || isEnabledEnvironmentFlag(env.FLUO_VERBOSE);
 
   if (parsed.dryRun) {
