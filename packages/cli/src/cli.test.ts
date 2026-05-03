@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { generatorManifest } from './generators/manifest.js';
 import { CliPromptCancelledError, runCli } from './index.js';
+import { createContentChangeGate } from './dev-runner/node-restart-runner.js';
 
 const createdDirectories: string[] = [];
 
@@ -1614,9 +1615,58 @@ void bootstrap();
     });
 
     expect(exitCode).toBe(0);
-    expect(stdoutBuffer.join('')).toContain('Would run: node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts --port 4000');
+    expect(stdoutBuffer.join('')).toContain('Would run: node --env-file=.env --import tsx');
+    expect(stdoutBuffer.join('')).toContain('dev-runner/node-restart-runner.js -- --port 4000');
     expect(stdoutBuffer.join('')).toContain('NODE_ENV: development');
     expect(stdoutBuffer.join('')).toContain('Reporter: stream');
+    expect(stdoutBuffer.join('')).toContain('Watch mode: fluo-node-restart');
+  });
+
+  it('keeps the runtime-native Node watcher behind raw watch escape hatches', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2));
+    const flagOutput: string[] = [];
+    const envOutput: string[] = [];
+
+    await runCli(['dev', '--dry-run', '--raw-watch'], {
+      cwd: workspaceDirectory,
+      env: {},
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => flagOutput.push(message) },
+    });
+
+    await runCli(['dev', '--dry-run'], {
+      cwd: workspaceDirectory,
+      env: { FLUO_DEV_RAW_WATCH: '1' },
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => envOutput.push(message) },
+    });
+
+    expect(flagOutput.join('')).toContain('Would run: node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts');
+    expect(flagOutput.join('')).toContain('Watch mode: native-watch');
+    expect(envOutput.join('')).toContain('Would run: node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts');
+    expect(envOutput.join('')).toContain('Watch mode: native-watch');
+  });
+
+  it('dedupes unchanged source content before the fluo Node restart boundary', () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    const sourceDirectory = join(workspaceDirectory, 'src');
+    mkdirSync(sourceDirectory, { recursive: true });
+    const sourceFile = join(sourceDirectory, 'main.ts');
+    const ignoredFile = join(workspaceDirectory, 'dist', 'main.js');
+    mkdirSync(dirname(ignoredFile), { recursive: true });
+    writeFileSync(sourceFile, 'console.log("hello");\n');
+    writeFileSync(ignoredFile, 'console.log("ignored");\n');
+    const gate = createContentChangeGate(workspaceDirectory);
+
+    expect(gate.hasMeaningfulChange([sourceFile])).toBe(true);
+    writeFileSync(sourceFile, 'console.log("hello");\n');
+    expect(gate.hasMeaningfulChange([sourceFile])).toBe(false);
+    writeFileSync(sourceFile, 'console.log("hello changed");\n');
+    expect(gate.hasMeaningfulChange([sourceFile])).toBe(true);
+    expect(gate.hasMeaningfulChange([ignoredFile])).toBe(false);
   });
 
   it('uses a TTY-aware pretty reporter for fluo dev without hiding child errors', async () => {
@@ -1833,7 +1883,8 @@ exit 7
     });
 
     expect(exitCode).toBe(0);
-    expect(stdoutBuffer.join('')).toContain('Would run: node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts');
+    expect(stdoutBuffer.join('')).toContain('Would run: node --env-file=.env --import tsx');
+    expect(stdoutBuffer.join('')).toContain('dev-runner/node-restart-runner.js --');
     expect(stdoutBuffer.join('')).toContain('NODE_ENV: development');
   });
 
