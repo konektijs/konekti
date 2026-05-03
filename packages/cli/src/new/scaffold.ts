@@ -236,6 +236,13 @@ function createPublishedDevDependencies(bootstrapPlan: ResolvedBootstrapPlan): R
     return {};
   }
 
+  if (bootstrapPlan.profile.id === 'application-bun-bun-http') {
+    return {
+      ...PUBLISHED_DEV_DEPENDENCIES,
+      '@types/bun': '^1.2.5',
+    };
+  }
+
   if (bootstrapPlan.profile.id === 'application-cloudflare-workers-cloudflare-workers-http') {
     return {
       ...PUBLISHED_DEV_DEPENDENCIES,
@@ -300,7 +307,11 @@ function createProjectPackageJson(
   );
 }
 
-function createProjectTsconfig(): string {
+function createProjectTsconfig(bootstrapPlan: ResolvedBootstrapPlan): string {
+  const types = bootstrapPlan.profile.id === 'application-bun-bun-http'
+    ? ['node', 'bun']
+    : ['node'];
+
   return `{
   "compilerOptions": {
     "target": "ES2022",
@@ -314,7 +325,7 @@ function createProjectTsconfig(): string {
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "rootDir": "src",
-    "types": ["node"]
+    "types": ${JSON.stringify(types)}
   },
   "include": ["src/**/*.ts"]
 }
@@ -681,9 +692,7 @@ export class AppModule {}
 `;
   }
 
-  const processEnvValue = options.runtime === 'bun'
-    ? 'Bun.env'
-    : options.runtime === 'deno'
+  const processEnvValue = options.runtime === 'deno'
       ? 'Deno.env.toObject()'
       : 'process.env';
 
@@ -2036,7 +2045,7 @@ function emitSharedScaffoldFiles(
 
   if (bootstrapPlan.profile.id !== 'application-deno-deno-http') {
     sharedFiles.push(
-      { content: createProjectTsconfig(), path: 'tsconfig.json' },
+      { content: createProjectTsconfig(bootstrapPlan), path: 'tsconfig.json' },
       { content: createProjectTsconfigBuild(), path: 'tsconfig.build.json' },
       { content: createBabelConfig(), path: 'babel.config.cjs' },
       { content: createViteConfig(), path: 'vite.config.ts' },
