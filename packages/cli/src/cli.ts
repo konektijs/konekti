@@ -411,6 +411,7 @@ export async function runCli(
   const stdout = runtime.stdout ?? process.stdout;
   const stderr = runtime.stderr ?? process.stderr;
   const env = runtime.env ?? process.env;
+  const commandRuntime = { ...runtime, env };
   const updateFlagResult = removeUpdateCheckFlags(argv);
   const commandArgv = updateFlagResult.argv;
 
@@ -540,39 +541,39 @@ export async function runCli(
     const parsedCommand = parseCommand(commandArgv);
 
     if (parsedCommand.command === 'analyze') {
-      return runAnalyzeCommand(parsedCommand.argv, runtime);
+      return runAnalyzeCommand(parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command === 'add') {
-      return runAddCommand(parsedCommand.argv, runtime);
+      return runAddCommand(parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command === 'doctor') {
-      return runDoctorCommand(parsedCommand.argv, runtime);
+      return runDoctorCommand(parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command === 'info') {
-      return runInfoCommand(parsedCommand.argv, runtime);
+      return runInfoCommand(parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command === 'build' || parsedCommand.command === 'dev' || parsedCommand.command === 'start') {
-      return runScriptCommand(parsedCommand.command, parsedCommand.argv, runtime);
+      return runScriptCommand(parsedCommand.command, parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command === 'upgrade') {
-      return runUpgradeCommand(parsedCommand.argv, runtime);
+      return runUpgradeCommand(parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command === 'new') {
-      return runNewCommand(parsedCommand.argv, runtime);
+      return runNewCommand(parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command === 'migrate') {
-      return runMigrateCommand(parsedCommand.argv, runtime);
+      return runMigrateCommand(parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command === 'inspect') {
-      return runInspectCommand(parsedCommand.argv, runtime);
+      return runInspectCommand(parsedCommand.argv, commandRuntime);
     }
 
     if (parsedCommand.command !== 'generate') {
