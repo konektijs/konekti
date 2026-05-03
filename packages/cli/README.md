@@ -68,7 +68,7 @@ cd my-app
 pnpm dev
 ```
 
-Generated `dev` and `start` package scripts delegate to `fluo dev` and `fluo start`. The CLI owns the runtime-specific lifecycle command and defaults `NODE_ENV` to `development` for `dev` and `production` for `start` when the caller has not set it explicitly.
+Generated `dev`, `build`, and `start` package scripts delegate to `fluo dev`, `fluo build`, and `fluo start`. The CLI owns the runtime-specific lifecycle command and defaults `NODE_ENV` to `development` for `dev` and `production` for `build`/`start` when the caller has not set it explicitly.
 
 `fluo new` supports Node.js + Fastify, Express, and raw Node.js HTTP application starters on the same Node-oriented install/build flow:
 
@@ -153,11 +153,11 @@ fluo info
 fluo analyze
 ```
 
-`fluo analyze` stays read-only and points to deeper `inspect --report` and `migrate --json` workflows. For generated projects, `fluo dev` and `fluo start` run the generated lifecycle directly with environment defaults, while `fluo build` delegates to the matching `package.json` script through the detected package manager. Use `--dry-run` to preview lifecycle commands:
+`fluo analyze` stays read-only and points to deeper `inspect --report` and `migrate --json` workflows. For generated projects, `fluo dev`, `fluo build`, and `fluo start` run the generated lifecycle directly with environment defaults. Use `--dry-run` to preview lifecycle commands:
 
 ```bash
 fluo dev --dry-run
-fluo build -- --verbose
+fluo build --dry-run
 fluo start --dry-run
 ```
 
