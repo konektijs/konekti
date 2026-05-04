@@ -110,6 +110,8 @@ export interface MicroserviceModuleRegistrationOptions {
 
 /** Module options accepted by {@link MicroservicesModule.forRoot}. */
 export interface MicroserviceModuleOptions {
+  /** Whether microservice providers should be visible globally. Defaults to `true`. */
+  global?: boolean;
   /** Optional module-definition overrides that provide a module-first alternative to raw provider-array composition. */
   module?: MicroserviceModuleRegistrationOptions;
   transport: MicroserviceTransport;

@@ -55,7 +55,7 @@ export class MicroservicesModule {
 
     const additionalExports = options.module?.additionalExports ?? [];
     const additionalProviders = options.module?.providers ?? [];
-    const global = options.module?.global ?? true;
+    const global = options.global ?? options.module?.global ?? true;
 
     return defineModule(MicroservicesModuleDefinition, {
       exports: [MicroserviceLifecycleService, MICROSERVICE, ...additionalExports],
