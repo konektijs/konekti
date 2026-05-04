@@ -206,6 +206,8 @@ export interface EmailSendManyOptions extends EmailSendOptions {
 export interface EmailModuleOptions {
   defaultFrom?: EmailAddressLike;
   defaultReplyTo?: EmailAddressLike | readonly EmailAddressLike[];
+  /** Whether email providers should be visible globally. Defaults to `true`. */
+  global?: boolean;
   notifications?: {
     channel?: string;
   };
@@ -215,7 +217,7 @@ export interface EmailModuleOptions {
 }
 
 /** Async registration options for email modules that derive config through DI. */
-export type EmailAsyncModuleOptions = AsyncModuleOptions<EmailModuleOptions>;
+export type EmailAsyncModuleOptions = AsyncModuleOptions<Omit<EmailModuleOptions, 'global'>> & Pick<EmailModuleOptions, 'global'>;
 
 /** Normalized module options resolved once during module registration. */
 export interface NormalizedEmailModuleOptions {

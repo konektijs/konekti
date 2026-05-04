@@ -1,4 +1,4 @@
-import type { AsyncModuleOptions, MaybePromise } from '@fluojs/core';
+import type { MaybePromise } from '@fluojs/core';
 import type { Provider } from '@fluojs/di';
 import { defineModule, type ModuleType } from '@fluojs/runtime';
 
@@ -104,12 +104,12 @@ function buildEmailModule(options: EmailModuleOptions): ModuleType {
 
   return defineModule(EmailRootModuleDefinition, {
     exports: [EmailService, EmailChannel, EMAIL, EMAIL_CHANNEL],
-    global: true,
+    global: options.global ?? true,
     providers: createEmailProviders(options),
   });
 }
 
-function buildEmailModuleAsync(options: AsyncModuleOptions<EmailModuleOptions>): ModuleType {
+function buildEmailModuleAsync(options: EmailAsyncModuleOptions): ModuleType {
   class EmailAsyncModuleDefinition {}
 
   const factory = options.useFactory as (...args: unknown[]) => MaybePromise<EmailModuleOptions>;
@@ -125,7 +125,7 @@ function buildEmailModuleAsync(options: AsyncModuleOptions<EmailModuleOptions>):
 
   return defineModule(EmailAsyncModuleDefinition, {
     exports: [EmailService, EmailChannel, EMAIL, EMAIL_CHANNEL],
-    global: true,
+    global: options.global ?? true,
     providers: createEmailRuntimeProviders({
       inject: options.inject,
       provide: EMAIL_OPTIONS,
