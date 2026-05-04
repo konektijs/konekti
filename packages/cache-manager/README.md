@@ -186,7 +186,7 @@ For non-GET handlers decorated with `@CacheEvict(...)`, eviction is deferred unt
 ## Public API Overview
 
 ### Modules
-- `CacheModule.forRoot(options)`: Configures the cache store (memory/redis/custom), default TTL, key strategies, `isGlobal`, `principalScopeResolver`, and Redis options such as `redis.scanCount`.
+- `CacheModule.forRoot(options)`: Configures the cache store (memory/redis/custom), default TTL, key strategies, `global`, `principalScopeResolver`, and Redis options such as `redis.scanCount`.
   This is the primary package entrypoint for application modules.
 
 
