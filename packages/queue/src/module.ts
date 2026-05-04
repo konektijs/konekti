@@ -71,7 +71,7 @@ export class QueueModule {
 
     return defineModule(QueueModuleDefinition, {
       exports: [QueueLifecycleService, QUEUE],
-      global: true,
+      global: options.global ?? true,
       providers: createQueueProviders(options),
     });
   }
