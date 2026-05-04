@@ -119,6 +119,8 @@ export type SocketIoMessageGuard = (
  * Options accepted by {@link SocketIoModule.forRoot}.
  */
 export interface SocketIoModuleOptions {
+  /** Whether Socket.IO providers should be visible globally. Defaults to `true`. */
+  global?: boolean;
   /**
    * Optional auth guards evaluated before namespace connections and inbound message handlers proceed.
    */

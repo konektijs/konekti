@@ -56,7 +56,7 @@ export class SocketIoModule {
 
     return defineModule(SocketIoRuntimeModule, {
       exports: [SOCKETIO_ROOM_SERVICE, SOCKETIO_SERVER],
-      global: true,
+      global: options.global ?? true,
       providers: createSocketIoProviderSet(options),
     });
   }
