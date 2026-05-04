@@ -183,27 +183,28 @@ function createProjectScripts(bootstrapPlan: ResolvedBootstrapPlan): Record<stri
   switch (bootstrapPlan.profile.id) {
     case 'application-bun-bun-http':
       return {
-        build: 'fluo build',
+        build: 'bun build ./src/main.ts --outdir ./dist --target bun',
         dev: 'fluo dev',
-        start: 'fluo start',
+        start: 'bun dist/main.js',
         test: 'vitest run',
         'test:watch': 'vitest',
         typecheck: 'tsc -p tsconfig.json --noEmit',
       };
     case 'application-deno-deno-http':
       return {
-        build: 'fluo build',
+        build: 'deno compile --allow-env --allow-net --output dist/app src/main.ts',
         dev: 'fluo dev',
-        start: 'fluo start',
+        start: './dist/app',
         test: 'deno test --allow-env --allow-net',
         'test:watch': 'deno test --allow-env --allow-net --watch',
         typecheck: 'deno check src/main.ts src/app.test.ts',
       };
     case 'application-cloudflare-workers-cloudflare-workers-http':
       return {
-        build: 'fluo build',
+        build: 'wrangler deploy --dry-run',
+        deploy: 'wrangler deploy',
         dev: 'fluo dev',
-        start: 'fluo start',
+        preview: 'wrangler dev --remote --show-interactive-dev-session=false',
         test: 'vitest run',
         'test:watch': 'vitest',
         typecheck: 'tsc -p tsconfig.json --noEmit',
@@ -433,6 +434,46 @@ coverage
 `;
 }
 
+function createHttpPackageManagerLine(options: BootstrapOptions): string {
+  switch (options.runtime) {
+    case 'bun':
+      return `- Package manager: install/run commands can use ${options.packageManager}; ${createRunCommand(options.packageManager, 'dev')} keeps the \`fluo dev\` abstraction while defaulting to Bun's native watch loop (\`bun --watch run src/main.ts\`) for fewer Node-supervised dev processes, \`fluo dev --runner fluo\` restores the Node-backed fluo restart supervisor when you need its debounce/hash reporter contract, and ${createRunCommand(options.packageManager, 'build')} plus ${createRunCommand(options.packageManager, 'start')} run Bun-native production commands (\`bun build ./src/main.ts --outdir ./dist --target bun\` then \`bun dist/main.js\`) so deployment targets do not need Node just to start the built app`;
+    case 'deno':
+      return `- Package manager: install/run commands can use ${options.packageManager}; ${createRunCommand(options.packageManager, 'dev')} keeps the \`fluo dev\` abstraction while defaulting to Deno's native watch loop (\`deno run --watch --allow-env --allow-net src/main.ts\`) for fewer Node-supervised dev processes, \`fluo dev --runner fluo\` restores the Node-backed fluo restart supervisor when you need its debounce/hash reporter contract, and ${createRunCommand(options.packageManager, 'build')} plus ${createRunCommand(options.packageManager, 'start')} run Deno-native production commands (\`deno compile --allow-env --allow-net --output dist/app src/main.ts\` then \`./dist/app\`) so deployment targets can run the compiled app without Node`;
+    case 'cloudflare-workers':
+      return `- Package manager: install/run commands can use ${options.packageManager}; ${createRunCommand(options.packageManager, 'dev')} keeps the \`fluo dev\` abstraction while defaulting to Wrangler's native dev loop (\`wrangler dev --show-interactive-dev-session=false\`) for Wrangler-owned reloads, \`fluo dev --runner fluo\` restores the Node-backed fluo restart supervisor when you need its debounce/hash reporter contract, and ${createRunCommand(options.packageManager, 'preview')} plus ${createRunCommand(options.packageManager, 'deploy')} run Wrangler-native preview/deploy commands; Wrangler tooling requires Node/npm-compatible tooling locally, but deployed Workers run on Cloudflare's isolate runtime`;
+    default:
+      return `- Package manager: install/run commands can use ${options.packageManager}; ${createRunCommand(options.packageManager, 'dev')}, ${createRunCommand(options.packageManager, 'build')}, and ${createRunCommand(options.packageManager, 'start')} delegate to \`fluo dev\`, \`fluo build\`, and \`fluo start\`, which own the generated runtime lifecycle and default \`NODE_ENV\` when unset`;
+  }
+}
+
+function createHttpCommandsSection(options: BootstrapOptions): string {
+  const commands = [
+    `- Dev: ${createRunCommand(options.packageManager, 'dev')}`,
+    `- Build: ${createRunCommand(options.packageManager, 'build')}`,
+  ];
+
+  if (options.runtime === 'bun' || options.runtime === 'deno' || options.runtime === 'cloudflare-workers') {
+    commands.push('- Dev fluo restart fallback: fluo dev --runner fluo');
+  }
+
+  if (options.runtime === 'cloudflare-workers') {
+    commands.push(
+      `- Preview: ${createRunCommand(options.packageManager, 'preview')}`,
+      `- Deploy: ${createRunCommand(options.packageManager, 'deploy')}`,
+    );
+  } else {
+    commands.push(`- Start: ${createRunCommand(options.packageManager, 'start')}`);
+  }
+
+  commands.push(
+    `- Typecheck: ${createRunCommand(options.packageManager, 'typecheck')}`,
+    `- Test: ${createRunCommand(options.packageManager, 'test')}`,
+  );
+
+  return commands.join('\n');
+}
+
 function createHttpProjectReadme(options: BootstrapOptions): string {
   const starter = describeApplicationStarter(options);
   const entrypointLabel = starter.entrypoint;
@@ -457,7 +498,7 @@ Generated by @fluojs/cli.
 - Starter contract: ${starterContract}
 - Default baseline: when you omit \`--platform\`, \`fluo new\` still generates the Node.js + Fastify HTTP starter by default
 - Broader runtime/adapter package coverage is documented in the fluo docs and package READMEs; this generated starter intentionally describes only the wired starter path above
-- Package manager: install/run commands can use ${options.packageManager}; ${createRunCommand(options.packageManager, 'dev')}, ${createRunCommand(options.packageManager, 'build')}, and ${createRunCommand(options.packageManager, 'start')} delegate to \`fluo dev\`, \`fluo build\`, and \`fluo start\`, which own the generated runtime lifecycle and default \`NODE_ENV\` when unset
+${createHttpPackageManagerLine(options)}
 - Runtime dependency set: generated manifest entries match the selected runtime contract instead of inheriting the Node-only starter recipe
 ${corsLine}
 - Observability: /health and /ready endpoints are included by default
@@ -466,11 +507,7 @@ ${corsLine}
 
 ## Commands
 
-- Dev: ${createRunCommand(options.packageManager, 'dev')}
-- Start: ${createRunCommand(options.packageManager, 'start')}
-- Build: ${createRunCommand(options.packageManager, 'build')}
-- Typecheck: ${createRunCommand(options.packageManager, 'typecheck')}
-- Test: ${createRunCommand(options.packageManager, 'test')}
+${createHttpCommandsSection(options)}
 
 ## Generator example
 
