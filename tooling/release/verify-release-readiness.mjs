@@ -860,8 +860,8 @@ export function runReleaseReadinessVerification(options = {}, dependencies = {})
   assertCheck(
     checks,
     'Starter shape and runtime ownership',
-    scaffoldSource.includes("import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';") &&
-      scaffoldSource.includes('RuntimeHealthModule.forRoot()') &&
+    scaffoldSource.includes("import { HealthModule } from '@fluojs/runtime';") &&
+      scaffoldSource.includes('HealthModule.forRoot()') &&
       scaffoldSource.includes('@Controller(\'/greeting\')') &&
       scaffoldSource.includes('const app = await FluoFactory.create(AppModule, {') &&
       scaffoldSource.includes('adapter: createFastifyAdapter({ port })') &&
