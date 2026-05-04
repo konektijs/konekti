@@ -221,7 +221,7 @@ describe('@fluojs/prisma', () => {
 
     defineModule(AppModule, {
       imports: [
-        PrismaModule.forName('users', { client: usersClient }),
+        PrismaModule.forRoot({ name: 'users', client: usersClient }),
         PrismaModule.forRoot({ name: 'analytics', client: analyticsClient }),
       ],
       providers: [MultiClientProbe],
@@ -262,8 +262,8 @@ describe('@fluojs/prisma', () => {
 
     defineModule(AppModule, {
       imports: [
-        PrismaModule.forName('users', { client: usersClient }),
-        PrismaModule.forName('analytics', { client: analyticsClient }),
+        PrismaModule.forRoot({ name: 'users', client: usersClient }),
+        PrismaModule.forRoot({ name: 'analytics', client: analyticsClient }),
       ],
     });
 
@@ -321,8 +321,9 @@ describe('@fluojs/prisma', () => {
 
     defineModule(AppModule, {
       imports: [
-        PrismaModule.forName('users', { client: usersClient }),
-        PrismaModule.forNameAsync('analytics', {
+        PrismaModule.forRoot({ name: 'users', client: usersClient }),
+        PrismaModule.forRootAsync({
+          name: 'analytics',
           useFactory: () => ({ client: analyticsClient }),
         }),
       ],
