@@ -180,7 +180,7 @@ With this registration, Fluo connects to the database automatically when the app
 In high-traffic environments, managing database connections efficiently is important. Prisma handles most of the work automatically, but for large applications you may want to tune connection behavior when you construct `new PrismaClient(...)`. `PrismaModule.forRoot(...)` receives that client and manages its lifecycle inside fluo; detailed pool or datasource tuning still belongs to the Prisma client configuration itself.
 
 ### Global vs. Scoped Registration
-You still use `forRoot` for the default application-wide Prisma client in `AppModule`, but when one container needs multiple Prisma clients you must register each additional client with an explicit name. Use `PrismaModule.forName('analytics', { client })` or `PrismaModule.forRoot({ name: 'analytics', client })`, then inject the matching service with `@Inject(getPrismaServiceToken('analytics'))`. That keeps token resolution explicit when a single application talks to both a primary transactional database and a secondary analytics warehouse.
+You still use `forRoot` for the default application-wide Prisma client in `AppModule`, and when one container needs multiple Prisma clients you register each additional client with an explicit name on the same canonical entrypoint. Use `PrismaModule.forRoot({ name: 'analytics', client })`, then inject the matching service with `@Inject(getPrismaServiceToken('analytics'))`. That keeps token resolution explicit when a single application talks to both a primary transactional database and a secondary analytics warehouse.
 
 ## 12.6 Using PrismaService
 
