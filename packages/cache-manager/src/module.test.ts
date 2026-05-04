@@ -92,9 +92,9 @@ function createRequest(path: string, method = 'GET', url = path): FrameworkReque
 }
 
 describe('CacheModule.forRoot', () => {
-  it('defaults to non-global module registration unless isGlobal is set', () => {
+  it('defaults to non-global module registration unless global is set', () => {
     const localModule = CacheModule.forRoot({ store: 'memory' });
-    const globalModule = CacheModule.forRoot({ isGlobal: true, store: 'memory' });
+    const globalModule = CacheModule.forRoot({ global: true, store: 'memory' });
 
     expect(getModuleMetadata(localModule)?.global).toBe(false);
     expect(getModuleMetadata(globalModule)?.global).toBe(true);

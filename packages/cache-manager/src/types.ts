@@ -53,7 +53,8 @@ export type PrincipalScopeResolver = (context: InterceptorContext) => string | u
  * Public configuration options for `CacheModule.forRoot(...)`.
  */
 export interface CacheModuleOptions extends CacheModuleInternalOptions {
-  isGlobal?: boolean;
+  /** Whether cache providers should be visible globally. Defaults to `false`. */
+  global?: boolean;
   store?: 'memory' | 'redis' | CacheStore;
   ttl?: number;
   httpKeyStrategy?: CacheKeyStrategy;
@@ -64,7 +65,7 @@ export interface CacheModuleOptions extends CacheModuleInternalOptions {
  * Normalized cache-module configuration consumed internally after defaults are applied.
  */
 export interface NormalizedCacheModuleOptions {
-  isGlobal: boolean;
+  global: boolean;
   keyPrefix: string;
   redis?: RedisCacheOptions;
   store: 'memory' | 'redis' | CacheStore;

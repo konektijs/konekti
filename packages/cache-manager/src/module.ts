@@ -70,7 +70,7 @@ function normalizeCacheModuleOptions(options: CacheModuleOptions = {}): Normaliz
   const store = options.store ?? 'memory';
 
   return {
-    isGlobal: options.isGlobal ?? false,
+    global: options.global ?? false,
     keyPrefix: options.keyPrefix ?? 'fluo:cache:',
     redis: options.redis,
     store,
@@ -92,7 +92,7 @@ function isNormalizedCacheModuleOptions(value: unknown): value is NormalizedCach
     (typeof candidate.store === 'string' || typeof candidate.store === 'object') &&
     typeof candidate.keyPrefix === 'string' &&
     typeof candidate.ttl === 'number' &&
-    typeof candidate.isGlobal === 'boolean' &&
+    typeof candidate.global === 'boolean' &&
     'httpKeyStrategy' in candidate
   );
 }
@@ -222,7 +222,7 @@ export class CacheModule {
 
     return defineModule(CacheRootModule, {
       exports: [CacheService, CacheInterceptor],
-      global: normalized.isGlobal,
+      global: normalized.global,
       providers: createCacheModuleProviders(options),
     });
   }
