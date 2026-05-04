@@ -7,9 +7,9 @@
 | 변경 종류 | 이 저장소에서 활성화된 메커니즘 | 런타임 효과 | 근거 소스 |
 | --- | --- | --- | --- |
 | 생성된 Node 스타터의 소스 코드 변경 | 기본 생성 `dev` 스크립트는 `fluo dev`이며, `--raw-watch` 또는 `FLUO_DEV_RAW_WATCH=1`로 native Node watch mode를 선택하지 않는 한 fluo가 소유한 restart runner를 통과합니다. | debounced content 변경 뒤 호스트 프로세스가 재시작됩니다. fluo는 인프로세스 코드 교체 대신 새 부트스트랩을 받습니다. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
-| 생성된 Bun 스타터의 소스 코드 변경 | 기본 생성 `dev` 스크립트는 `fluo dev`이며, 같은 fluo 소유 restart runner를 통과하고 각 앱 child마다 `bun src/main.ts`를 실행합니다. | Bun 앱 프로세스는 debounced content 변경 뒤 Node와 같은 터미널 clear/header/app-log 계약으로 재시작됩니다. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
-| 생성된 Deno 스타터의 소스 코드 변경 | 기본 생성 `dev` 스크립트는 `fluo dev`이며, 같은 fluo 소유 restart runner를 통과하고 각 앱 child마다 `deno run --allow-env --allow-net src/main.ts`를 실행합니다. | Deno 앱 프로세스는 debounced content 변경 뒤 Node와 같은 터미널 clear/header/app-log 계약으로 재시작됩니다. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
-| 생성된 Workers 스타터의 소스 코드 변경 | 기본 생성 `dev` 스크립트는 `fluo dev`이며, 같은 fluo 소유 restart runner를 통과하고 각 앱 child마다 `wrangler dev --show-interactive-dev-session=false`를 실행합니다. | Workers preview 프로세스는 debounced content 변경 뒤 Node와 같은 터미널 clear/header/app-log 계약으로 재시작됩니다. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
+| 생성된 Bun 스타터의 소스 코드 변경 | 기본 생성 `dev` 스크립트는 `fluo dev`이며, Bun native watch loop(`bun --watch run src/main.ts`)를 기본값으로 사용합니다. `fluo dev --runner fluo`는 fluo 소유 restart runner를 복원합니다. | Bun 런타임이 기본 watch/reload를 소유하므로 Node-supervised dev process를 줄이고, 명시적 fluo restart fallback은 유지합니다. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
+| 생성된 Deno 스타터의 소스 코드 변경 | 기본 생성 `dev` 스크립트는 `fluo dev`이며, Deno native watch loop(`deno run --watch --allow-env --allow-net src/main.ts`)를 기본값으로 사용합니다. `fluo dev --runner fluo`는 fluo 소유 restart runner를 복원합니다. | Deno 런타임이 기본 watch/reload를 소유하므로 Node-supervised dev process를 줄이고, 명시적 fluo restart fallback은 유지합니다. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
+| 생성된 Workers 스타터의 소스 코드 변경 | 기본 생성 `dev` 스크립트는 `fluo dev`이며, Wrangler native dev loop(`wrangler dev --show-interactive-dev-session=false`)를 기본값으로 사용합니다. `fluo dev --runner fluo`는 fluo 소유 restart runner를 복원합니다. | Wrangler가 기본 watch/reload를 소유하므로 fluo Node supervisor boundary를 줄이고, 명시적 fluo restart fallback은 유지합니다. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
 | config reload가 활성화된 설정 파일 변경 | `createConfigReloader(...)`는 `watch: true`일 때 설정된 env 파일을 감시할 수 있고, `ConfigReloadModule`은 `onApplicationBootstrap()`에서 그 watcher를 활성화합니다. watcher는 최종 env file content가 마지막으로 commit된 watch baseline과 같으면 reload를 건너뜁니다. | content가 바뀌고 검증이 성공하면 `ConfigService` 스냅샷이 프로세스 내부에서 교체됩니다. | `packages/config/src/load.ts`, `packages/config/src/reload-module.ts` |
 | 수동 config refresh | `ConfigReloader.reload()`는 파일 시스템 watch 없이 같은 reload 경로를 실행합니다. | 호출자는 새로 검증된 스냅샷을 명시적으로 요청할 수 있습니다. | `packages/config/src/load.ts:251-267` |
 
@@ -33,11 +33,11 @@
 
 ## CLI 라이프사이클 출력 계약
 
-- 기본 `fluo dev`/`fluo start` 출력은 앱 로그만(애플리케이션 `stdout`/`stderr`) 표시합니다.
+- 기본 lifecycle 출력은 fluo lifecycle UI 없이 child `stdout`/`stderr`를 전달합니다. 앱 로그 전용 출력은 fluo runner가 process boundary를 소유하는 경로에 적용됩니다.
 - fluo lifecycle UI와 `app │` prefix 출력은 `--reporter pretty`에서만 opt-in으로 노출됩니다.
-- 런타임/도구 watcher 원본 출력은 `--verbose` 또는 `FLUO_VERBOSE=1`에서만 opt-in으로 노출됩니다.
+- fluo 소유 runner 경로에서 런타임/도구 watcher 원본 출력은 `--verbose` 또는 `FLUO_VERBOSE=1`로 opt-in할 때 노출됩니다. runtime-native Bun, Deno, Workers watch loop는 자체 도구 출력을 기본으로 표시할 수 있습니다.
 - Node restart notice는 기본으로 숨겨지고, opt-in 모드에서만 출력됩니다.
-- Node, Bun, Deno, Workers dev 명령은 기본적으로 fluo 소유 restart boundary를 사용하므로 앱 로그 전용 출력, 색상 보존, 재시작 clear/header 동작이 런타임 전체에서 일관됩니다.
+- Node dev 명령은 기본적으로 fluo 소유 restart boundary를 사용합니다. Bun, Deno, Workers dev 명령은 runtime-native watch loop를 기본값으로 사용하며, 앱 로그 전용 출력, 색상 보존, 재시작 clear/header 동작을 fluo restart runner에서 받아야 할 때는 `--runner fluo`를 사용합니다.
 
 ## 관련 문서
 

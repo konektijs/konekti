@@ -7,9 +7,9 @@
 | Change class | Active mechanism in this repository | Runtime effect | Source anchor |
 | --- | --- | --- | --- |
 | Source code changes in generated Node starters | The default generated `dev` script is `fluo dev`, which runs through the fluo-owned restart runner unless `--raw-watch` or `FLUO_DEV_RAW_WATCH=1` selects native Node watch mode. | The host process is restarted after debounced content changes. fluo receives a fresh bootstrap instead of an in-process code swap contract. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
-| Source code changes in generated Bun starters | The default generated `dev` script is `fluo dev`, which runs through the same fluo-owned restart runner and spawns `bun src/main.ts` for each app child. | The Bun app process is restarted after debounced content changes with the same terminal clear/header/app-log contract as Node. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
-| Source code changes in generated Deno starters | The default generated `dev` script is `fluo dev`, which runs through the same fluo-owned restart runner and spawns `deno run --allow-env --allow-net src/main.ts` for each app child. | The Deno app process is restarted after debounced content changes with the same terminal clear/header/app-log contract as Node. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
-| Source code changes in generated Workers starters | The default generated `dev` script is `fluo dev`, which runs through the same fluo-owned restart runner and spawns `wrangler dev --show-interactive-dev-session=false` for each app child. | The Workers preview process is restarted after debounced content changes with the same terminal clear/header/app-log contract as Node. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
+| Source code changes in generated Bun starters | The default generated `dev` script is `fluo dev`, which defaults to Bun's native watch loop (`bun --watch run src/main.ts`). `fluo dev --runner fluo` restores the fluo-owned restart runner. | The Bun runtime owns watch/reload by default, reducing Node-supervised dev processes while preserving an explicit fluo restart fallback. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
+| Source code changes in generated Deno starters | The default generated `dev` script is `fluo dev`, which defaults to Deno's native watch loop (`deno run --watch --allow-env --allow-net src/main.ts`). `fluo dev --runner fluo` restores the fluo-owned restart runner. | The Deno runtime owns watch/reload by default, reducing Node-supervised dev processes while preserving an explicit fluo restart fallback. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
+| Source code changes in generated Workers starters | The default generated `dev` script is `fluo dev`, which defaults to Wrangler's native dev loop (`wrangler dev --show-interactive-dev-session=false`). `fluo dev --runner fluo` restores the fluo-owned restart runner. | Wrangler owns watch/reload by default, reducing the fluo Node supervisor boundary while preserving an explicit fluo restart fallback. | `packages/cli/src/commands/scripts.ts`, `packages/cli/src/dev-runner/node-restart-runner.ts` |
 | Configuration file changes with config reload enabled | `createConfigReloader(...)` can watch the configured env file when `watch: true`, and `ConfigReloadModule` activates that watcher during `onApplicationBootstrap()`. The watcher skips reload when final env file content matches the last committed watch baseline. | The `ConfigService` snapshot is replaced in process after content changes and validation succeeds. | `packages/config/src/load.ts`, `packages/config/src/reload-module.ts` |
 | Manual config refresh | `ConfigReloader.reload()` triggers the same reload path without file-system watch mode. | Callers can request a new validated snapshot explicitly. | `packages/config/src/load.ts:251-267` |
 
@@ -33,11 +33,11 @@ This architecture keeps application-code reload outside the runtime contract. Ru
 
 ## CLI Lifecycle Output Contract
 
-- Default `fluo dev` and `fluo start` output is app logs only (application `stdout`/`stderr`).
+- Default lifecycle output forwards child `stdout`/`stderr` without fluo lifecycle UI; app-log-only output applies when the fluo runner owns the process boundary.
 - `--reporter pretty` is opt-in for fluo lifecycle UI and `app │` prefixed child output.
-- `--verbose` or `FLUO_VERBOSE=1` is opt-in for raw runtime/tooling watcher output.
+- `--verbose` or `FLUO_VERBOSE=1` is opt-in for raw runtime/tooling watcher output on fluo-owned runner paths; runtime-native Bun, Deno, and Workers watch loops may emit their own tooling output by default.
 - Node restart notices are suppressed by default and only shown in opt-in modes.
-- Node, Bun, Deno, and Workers dev commands use the fluo-owned restart boundary by default so app-log-only output, color preservation, and restart clear/header behavior stay consistent across runtimes.
+- Node dev commands use the fluo-owned restart boundary by default. Bun, Deno, and Workers dev commands default to runtime-native watch loops; use `--runner fluo` when app-log-only output, color preservation, and restart clear/header behavior must come from the fluo restart runner.
 
 ## Related Docs
 
