@@ -37,6 +37,8 @@ export interface ThrottlerHandlerOptions {
  * Public configuration options for `ThrottlerModule.forRoot(...)`.
  */
 export interface ThrottlerModuleOptions {
+  /** Whether throttler providers should be visible globally. Defaults to `true`. */
+  global?: boolean;
   /** Seconds in the rate-limit window (module-wide default). */
   ttl: number;
   /** Maximum number of requests allowed within the window (module-wide default). */

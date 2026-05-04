@@ -48,7 +48,7 @@ export class ThrottlerModule {
 
     return defineModule(ThrottlerRootModule, {
       exports: [ThrottlerGuard],
-      global: true,
+      global: options.global ?? true,
       providers: createThrottlerProviders(options),
     });
   }

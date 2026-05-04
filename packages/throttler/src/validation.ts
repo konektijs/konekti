@@ -41,9 +41,11 @@ export function validateThrottleOptions(options: ThrottlerHandlerOptions): Throt
  */
 export function validateThrottlerModuleOptions(options: ThrottlerModuleOptions): ThrottlerModuleOptions {
   validateThrottleOptions(options);
+  assertOptionalBoolean(options.global, 'global');
   assertOptionalBoolean(options.trustProxyHeaders, 'trustProxyHeaders');
 
   return {
+    global: options.global,
     keyGenerator: options.keyGenerator,
     limit: options.limit,
     store: options.store,
