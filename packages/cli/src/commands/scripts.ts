@@ -11,6 +11,7 @@ type CliStream = {
 
 type LifecycleReporterMode = 'auto' | 'pretty' | 'silent' | 'stream';
 type EffectiveLifecycleReporterMode = 'app' | 'pretty' | 'silent' | 'stream';
+type DevRunnerPreference = 'fluo' | 'native';
 
 type SpawnCommandOptions = {
   cwd: string;
@@ -32,7 +33,7 @@ type ScriptRuntimeOptions = {
 type JsonRecord = Record<string, unknown>;
 type ScriptCommand = 'build' | 'dev' | 'start';
 type ProjectRuntime = 'bun' | 'cloudflare-workers' | 'deno' | 'node';
-type ProjectRunnerMode = 'fluo-restart' | 'native-watch' | 'single-run';
+type ProjectRunnerMode = 'fluo-restart' | 'native-watch' | 'runtime-native-watch' | 'single-run';
 type ProjectRunnerStep = { args: string[]; command: string; mode?: ProjectRunnerMode };
 
 const EMPTY_ENV: NodeJS.ProcessEnv = {};
@@ -169,7 +170,22 @@ function buildFluoDevRunnerStep(runtime: ProjectRuntime, passThrough: string[]):
   return { command: 'node', args: ['--import', 'tsx', getCliEntryPoint(), '__dev-runner', '--runtime', runtime, '--', ...passThrough], mode: 'fluo-restart' };
 }
 
-function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, passThrough: string[], options: { rawWatch: boolean }): ProjectRunnerStep[] {
+function buildNativeRuntimeDevStep(runtime: ProjectRuntime, passThrough: string[]): ProjectRunnerStep | undefined {
+  switch (runtime) {
+    case 'node':
+      return buildNativeNodeWatchStep(passThrough);
+    case 'bun':
+      return { command: 'bun', args: ['--watch', 'run', 'src/main.ts', ...passThrough], mode: 'runtime-native-watch' };
+    case 'deno':
+      return { command: 'deno', args: ['run', '--watch', '--allow-env', '--allow-net', 'src/main.ts', ...passThrough], mode: 'runtime-native-watch' };
+    case 'cloudflare-workers':
+      return { command: 'wrangler', args: ['dev', '--show-interactive-dev-session=false', ...passThrough], mode: 'runtime-native-watch' };
+    default:
+      return undefined;
+  }
+}
+
+function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, passThrough: string[], options: { devRunner: DevRunnerPreference; rawWatch: boolean }): ProjectRunnerStep[] {
   if (command === 'build') {
     switch (runtime) {
       case 'bun':
@@ -187,6 +203,13 @@ function buildProjectRunner(command: ScriptCommand, runtime: ProjectRuntime, pas
   }
 
   if (command === 'dev') {
+    if (options.devRunner === 'native') {
+      const nativeStep = buildNativeRuntimeDevStep(runtime, passThrough);
+      if (nativeStep) {
+        return [nativeStep];
+      }
+    }
+
     switch (runtime) {
       case 'bun':
         return [buildFluoDevRunnerStep(runtime, passThrough)];
@@ -247,7 +270,8 @@ function withPipedAppColorTtyBootstrap(steps: ProjectRunnerStep[], env: NodeJS.P
   });
 }
 
-function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: string; passThrough: string[]; rawWatch: boolean; reporter: LifecycleReporterMode; verbose: boolean } {
+function parseScriptArgs(argv: string[]): { devRunner?: DevRunnerPreference; dryRun: boolean; packageManager?: string; passThrough: string[]; rawWatch: boolean; reporter: LifecycleReporterMode; verbose: boolean } {
+  let devRunner: DevRunnerPreference | undefined;
   let dryRun = false;
   let packageManager: string | undefined;
   let rawWatch = false;
@@ -270,6 +294,19 @@ function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: st
 
     if (arg === '--raw-watch') {
       rawWatch = true;
+      continue;
+    }
+
+    if (arg === '--runner') {
+      const value = argv[index + 1];
+      if (!value || value.startsWith('-')) {
+        throw new Error('Expected --runner to have a value.');
+      }
+      if (!(value === 'fluo' || value === 'native')) {
+        throw new Error(`Invalid --runner value "${value}". Use one of: fluo, native.`);
+      }
+      devRunner = value;
+      index += 1;
       continue;
     }
 
@@ -307,7 +344,7 @@ function parseScriptArgs(argv: string[]): { dryRun: boolean; packageManager?: st
     passThrough.push(arg);
   }
 
-  return { dryRun, packageManager, passThrough, rawWatch, reporter, verbose };
+  return { devRunner, dryRun, packageManager, passThrough, rawWatch, reporter, verbose };
 }
 
 function isEnabledEnvironmentFlag(value: string | undefined): boolean {
@@ -324,6 +361,19 @@ function resolveReporterMode(parsed: { reporter: LifecycleReporterMode; verbose:
   }
 
   return 'app';
+}
+
+function resolveDevRunnerPreference(parsed: { devRunner?: DevRunnerPreference }, env: NodeJS.ProcessEnv, runtime: ProjectRuntime): DevRunnerPreference {
+  const configured = parsed.devRunner ?? env.FLUO_DEV_RUNNER;
+  if (configured === undefined || configured === '') {
+    return runtime === 'node' ? 'fluo' : 'native';
+  }
+
+  if (configured === 'fluo' || configured === 'native') {
+    return configured;
+  }
+
+  throw new Error(`Invalid FLUO_DEV_RUNNER value "${configured}". Use one of: fluo, native.`);
 }
 
 function renderStep(step: ProjectRunnerStep): string {
@@ -452,13 +502,14 @@ export function scriptUsage(command: ScriptCommand): string {
     '',
     `Run the generated fluo project ${command} lifecycle with NODE_ENV defaulting to ${nodeEnv} when unset.`,
     '',
-    'Default output shows application stdout/stderr only (app logs only).',
+    'Default output forwards child stdout/stderr without fluo lifecycle UI.',
     'Use --reporter pretty for fluo lifecycle status + app │ prefixes.',
     'Use --verbose (or FLUO_VERBOSE=1) to expose raw runtime/tooling output.',
     '',
     'Options',
     '  --dry-run                              Print the command without running it.',
     command === 'dev' ? '  --raw-watch                            Use the runtime-native Node watcher instead of the fluo restart runner.' : undefined,
+    command === 'dev' ? '  --runner <fluo|native>                 Select fluo restart supervision or runtime-native watch (default: fluo for Node, native for non-Node runtimes).' : undefined,
     '  --reporter <auto|pretty|stream|silent> Choose lifecycle reporter output mode (default: auto).',
     '  --verbose                             Expose raw child process output; also honored by FLUO_VERBOSE=1.',
     `  --help                                 Show help for the ${command} command.`,
@@ -492,7 +543,11 @@ export async function runScriptCommand(command: ScriptCommand, argv: string[], r
   const projectRuntime = detectProjectRuntime(project.manifest);
   const defaultNodeEnv = command === 'dev' ? 'development' : 'production';
   const rawWatch = parsed.rawWatch || isEnabledEnvironmentFlag(env.FLUO_DEV_RAW_WATCH);
-  const runnerSteps = buildProjectRunner(command, projectRuntime, parsed.passThrough, { rawWatch });
+  if (command !== 'dev' && parsed.devRunner) {
+    throw new Error('--runner is only supported for fluo dev. Use -- to forward --runner to the child command.');
+  }
+  const devRunner = command === 'dev' ? resolveDevRunnerPreference(parsed, env, projectRuntime) : 'fluo';
+  const runnerSteps = buildProjectRunner(command, projectRuntime, parsed.passThrough, { devRunner, rawWatch });
   const reporterMode = resolveReporterMode(parsed, { ...runtime, env, stdout });
   const verbose = parsed.verbose || isEnabledEnvironmentFlag(env.FLUO_VERBOSE);
   const childEnv = withPipedReporterColorEnv(withProjectLocalBin(withDefaultNodeEnv(env, defaultNodeEnv), project.directory), reporterMode, stdout, stderr);

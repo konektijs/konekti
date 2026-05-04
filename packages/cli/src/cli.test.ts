@@ -1679,6 +1679,7 @@ void bootstrap();
     writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2));
     const flagOutput: string[] = [];
     const envOutput: string[] = [];
+    const runnerOutput: string[] = [];
 
     await runCli(['dev', '--dry-run', '--raw-watch'], {
       cwd: workspaceDirectory,
@@ -1694,13 +1695,22 @@ void bootstrap();
       stdout: { write: (message) => envOutput.push(message) },
     });
 
+    await runCli(['dev', '--dry-run', '--runner', 'native'], {
+      cwd: workspaceDirectory,
+      env: {},
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => runnerOutput.push(message) },
+    });
+
     expect(flagOutput.join('')).toContain('Would run: node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts');
     expect(flagOutput.join('')).toContain('Watch mode: native-watch');
     expect(envOutput.join('')).toContain('Would run: node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts');
     expect(envOutput.join('')).toContain('Watch mode: native-watch');
+    expect(runnerOutput.join('')).toContain('Would run: node --env-file=.env --watch --watch-preserve-output --import tsx src/main.ts');
+    expect(runnerOutput.join('')).toContain('Watch mode: native-watch');
   });
 
-  it('runs Bun dev through the fluo restart boundary in dry-runs', async () => {
+  it('runs Bun dev through the runtime-native watch loop by default in dry-runs', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     writeFileSync(
@@ -1717,11 +1727,11 @@ void bootstrap();
     });
 
     expect(exitCode).toBe(0);
-    expect(stdoutBuffer.join('')).toContain('cli.js __dev-runner --runtime bun --');
-    expect(stdoutBuffer.join('')).toContain('Watch mode: fluo-restart');
+    expect(stdoutBuffer.join('')).toContain('Would run: bun --watch run src/main.ts');
+    expect(stdoutBuffer.join('')).toContain('Watch mode: runtime-native-watch');
   });
 
-  it('runs Deno dev through the fluo restart boundary in dry-runs', async () => {
+  it('runs Deno dev through the runtime-native watch loop by default in dry-runs', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     writeFileSync(
@@ -1738,11 +1748,11 @@ void bootstrap();
     });
 
     expect(exitCode).toBe(0);
-    expect(stdoutBuffer.join('')).toContain('cli.js __dev-runner --runtime deno --');
-    expect(stdoutBuffer.join('')).toContain('Watch mode: fluo-restart');
+    expect(stdoutBuffer.join('')).toContain('Would run: deno run --watch --allow-env --allow-net src/main.ts');
+    expect(stdoutBuffer.join('')).toContain('Watch mode: runtime-native-watch');
   });
 
-  it('runs Workers dev through the fluo restart boundary in dry-runs', async () => {
+  it('runs Workers dev through the runtime-native watch loop by default in dry-runs', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
     writeFileSync(
@@ -1759,8 +1769,139 @@ void bootstrap();
     });
 
     expect(exitCode).toBe(0);
-    expect(stdoutBuffer.join('')).toContain('cli.js __dev-runner --runtime cloudflare-workers --');
+    expect(stdoutBuffer.join('')).toContain('Would run: wrangler dev --show-interactive-dev-session=false');
+    expect(stdoutBuffer.join('')).toContain('Watch mode: runtime-native-watch');
+  });
+
+  it('preserves opt-in fluo restart supervision for Bun dev dry-runs', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ dependencies: { '@fluojs/platform-bun': '^1.0.0' }, name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2),
+    );
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['dev', '--dry-run', '--runner', 'fluo', '--', '--port', '4000'], {
+      cwd: workspaceDirectory,
+      env: {},
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('cli.js __dev-runner --runtime bun -- --port 4000');
     expect(stdoutBuffer.join('')).toContain('Watch mode: fluo-restart');
+  });
+
+  it('preserves opt-in fluo restart supervision for Deno dev dry-runs through the environment', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ dependencies: { '@fluojs/platform-deno': '^1.0.0' }, name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2),
+    );
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['dev', '--dry-run'], {
+      cwd: workspaceDirectory,
+      env: { FLUO_DEV_RUNNER: 'fluo' },
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('cli.js __dev-runner --runtime deno --');
+    expect(stdoutBuffer.join('')).toContain('Watch mode: fluo-restart');
+  });
+
+  it('supports explicit runtime-native Bun dev dry-runs with pass-through args', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(
+      join(workspaceDirectory, 'package.json'),
+      JSON.stringify({ dependencies: { '@fluojs/platform-bun': '^1.0.0' }, name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2),
+    );
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['dev', '--dry-run', '--runner', 'native', '--', '--port', '4000'], {
+      cwd: workspaceDirectory,
+      env: {},
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Would run: bun --watch run src/main.ts --port 4000');
+    expect(stdoutBuffer.join('')).toContain('Watch mode: runtime-native-watch');
+  });
+
+  it('rejects invalid dev runner preferences', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { dev: 'fluo dev' } }, null, 2));
+
+    await expect(runCli(['dev', '--dry-run', '--runner', 'bogus'], {
+      cwd: workspaceDirectory,
+      env: {},
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    })).rejects.toThrow('Invalid --runner value "bogus". Use one of: fluo, native.');
+
+    await expect(runCli(['dev', '--dry-run'], {
+      cwd: workspaceDirectory,
+      env: { FLUO_DEV_RUNNER: 'bogus' },
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    })).rejects.toThrow('Invalid FLUO_DEV_RUNNER value "bogus". Use one of: fluo, native.');
+  });
+
+  it('ignores dev runner environment preferences outside the dev lifecycle', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { build: 'fluo build' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+
+    const exitCode = await runCli(['build', '--dry-run'], {
+      cwd: workspaceDirectory,
+      env: { FLUO_DEV_RUNNER: 'bogus' },
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Would run: vite build');
+  });
+
+  it('rejects dev runner flags outside the dev lifecycle while preserving child pass-through args', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', scripts: { build: 'fluo build', start: 'fluo start' } }, null, 2));
+    const stdoutBuffer: string[] = [];
+
+    await expect(runCli(['build', '--dry-run', '--runner', 'native'], {
+      cwd: workspaceDirectory,
+      env: {},
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    })).rejects.toThrow('--runner is only supported for fluo dev. Use -- to forward --runner to the child command.');
+
+    await expect(runCli(['start', '--dry-run', '--runner', 'fluo'], {
+      cwd: workspaceDirectory,
+      env: {},
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    })).rejects.toThrow('--runner is only supported for fluo dev. Use -- to forward --runner to the child command.');
+
+    const exitCode = await runCli(['build', '--dry-run', '--', '--runner', 'native'], {
+      cwd: workspaceDirectory,
+      env: {},
+      stderr: { write: () => undefined },
+      stdout: { write: (message) => stdoutBuffer.push(message) },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stdoutBuffer.join('')).toContain('Would run: vite build --runner native');
   });
 
   it('rejects invalid internal dev runner runtimes before starting a watcher', async () => {
