@@ -80,6 +80,7 @@ export class PassportModule {
 
     return defineModule(PassportRootModule, {
       exports: [AuthGuard],
+      global: options.global ?? false,
       providers: createPassportModuleProviders(options, strategies),
     });
   }
