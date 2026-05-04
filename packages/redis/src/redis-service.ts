@@ -107,7 +107,7 @@ export class RedisService {
 /**
  * Resolves the facade token for the default or a named `RedisService` binding.
  *
- * @param name Optional Redis client name registered through `RedisModule.forRootNamed(...)`.
+ * @param name Optional Redis client name registered through `RedisModule.forRoot({ name, ... })`.
  * @returns `RedisService` for the default client path, otherwise a stable named service token.
  *
  * @example
@@ -120,7 +120,7 @@ export class RedisService {
  * }
  * ```
  *
- * @see RedisModule.forRootNamed
+ * @see RedisModule.forRoot
  * @see getRedisClientToken
  */
 export function getRedisServiceToken(name?: string): Token<RedisService> {

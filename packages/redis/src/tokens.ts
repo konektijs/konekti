@@ -39,7 +39,7 @@ function getOrCreateNamedRedisClientToken(name: string): symbol {
 /**
  * Resolves the DI token for the default or a named Redis client.
  *
- * @param name Optional Redis client name registered through `RedisModule.forRootNamed(...)`.
+ * @param name Optional Redis client name registered through `RedisModule.forRoot({ name, ... })`.
  * @returns The default `REDIS_CLIENT` token when `name` is omitted, otherwise a stable named token.
  *
  * @example
@@ -52,7 +52,7 @@ function getOrCreateNamedRedisClientToken(name: string): symbol {
  * }
  * ```
  *
- * @see RedisModule.forRootNamed
+ * @see RedisModule.forRoot
  * @see getRedisServiceToken
  */
 export function getRedisClientToken(name?: string): symbol {
@@ -68,7 +68,7 @@ export function getRedisClientToken(name?: string): symbol {
 /**
  * Builds the stable component/dependency id used by platform status snapshots.
  *
- * @param name Optional Redis client name registered through `RedisModule.forRootNamed(...)`.
+ * @param name Optional Redis client name registered through `RedisModule.forRoot({ name, ... })`.
  * @returns A stable component id such as `redis.default` or `redis.jobs`.
  *
  * @see getRedisClientToken
