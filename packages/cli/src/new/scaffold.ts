@@ -675,7 +675,7 @@ function createAppFile(options: BootstrapOptions): string {
 
   if (options.runtime === 'cloudflare-workers') {
     return `import { Global, Module } from '@fluojs/core';
-import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';
+import { HealthModule } from '@fluojs/runtime';
 
 import { GreetingModule } from './greeting/greeting.module';
 
@@ -683,7 +683,7 @@ import { GreetingModule } from './greeting/greeting.module';
 @Module({
   imports: [
     GreetingModule,
-    RuntimeHealthModule.forRoot(),
+    HealthModule.forRoot(),
   ],
 })
 export class AppModule {}
@@ -696,7 +696,7 @@ export class AppModule {}
 
   return `import { Global, Module } from '@fluojs/core';
 import { ConfigModule } from '@fluojs/config';
-import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';
+import { HealthModule } from '@fluojs/runtime';
 
 import { GreetingModule } from './greeting/greeting.module${importSuffix}';
 
@@ -708,7 +708,7 @@ import { GreetingModule } from './greeting/greeting.module${importSuffix}';
       processEnv: ${processEnvValue},
     }),
     GreetingModule,
-    RuntimeHealthModule.forRoot(),
+    HealthModule.forRoot(),
   ],
 })
 export class AppModule {}
@@ -792,13 +792,11 @@ describe('GreetingService', () => {
 }
 
 function createGreetingControllerFile(importSuffix = ''): string {
-  return `import { ensureMetadataSymbol, Inject } from '@fluojs/core';
+  return `import { Inject } from '@fluojs/core';
 import { Controller, Get } from '@fluojs/http';
 
 import { GreetingService } from './greeting.service${importSuffix}';
 import { GreetingResponseDto } from './greeting.response.dto${importSuffix}';
-
-ensureMetadataSymbol();
 
 @Inject(GreetingService)
 @Controller('/greeting')
@@ -1600,7 +1598,7 @@ function createMixedAppFile(): string {
   return `import { Global, Module } from '@fluojs/core';
 import { ConfigModule } from '@fluojs/config';
 import { MicroservicesModule, TcpMicroserviceTransport } from '@fluojs/microservices';
-import { HealthModule as RuntimeHealthModule } from '@fluojs/runtime';
+import { HealthModule } from '@fluojs/runtime';
 
 import { GreetingModule } from './greeting/greeting.module';
 import { MathHandler } from './math/math.handler';
@@ -1617,7 +1615,7 @@ const microserviceHost = process.env.MICROSERVICE_HOST ?? '127.0.0.1';
       processEnv: process.env,
     }),
     GreetingModule,
-    RuntimeHealthModule.forRoot(),
+    HealthModule.forRoot(),
     MicroservicesModule.forRoot({
       transport: new TcpMicroserviceTransport({ host: microserviceHost, port: microservicePort }),
     }),
@@ -1656,7 +1654,7 @@ import {
   MicroservicesModule,
   type MicroserviceTransport,
 } from '@fluojs/microservices';
-import { FluoFactory, HealthModule as RuntimeHealthModule } from '@fluojs/runtime';
+import { FluoFactory, HealthModule } from '@fluojs/runtime';
 
 import { GreetingModule } from './greeting/greeting.module';
 import { MathHandler } from './math/math.handler';
@@ -1741,7 +1739,7 @@ describe('AppModule mixed starter', () => {
           processEnv: process.env,
         }),
         GreetingModule,
-        RuntimeHealthModule.forRoot(),
+        HealthModule.forRoot(),
         MicroservicesModule.forRoot({ transport }),
       ],
       providers: [MathHandler],
