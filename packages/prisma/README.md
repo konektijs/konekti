@@ -83,7 +83,7 @@ When one application container needs more than one Prisma client, register each 
 import { Inject } from '@fluojs/core';
 import { PrismaModule, PrismaService, getPrismaServiceToken } from '@fluojs/prisma';
 
-const usersPrismaModule = PrismaModule.forName('users', { client: usersPrisma });
+const usersPrismaModule = PrismaModule.forRoot({ name: 'users', client: usersPrisma });
 const analyticsPrismaModule = PrismaModule.forRoot({ name: 'analytics', client: analyticsPrisma });
 
 @Inject(getPrismaServiceToken('users'), getPrismaServiceToken('analytics'))
@@ -176,7 +176,6 @@ defineModule(ManualPrismaModule, {
 ### `PrismaModule`
 
 - `PrismaModule.forRoot(options)` / `PrismaModule.forRootAsync(options)`
-- `PrismaModule.forName(name, options)` / `PrismaModule.forNameAsync(name, options)`
 - `forRoot(...)` and `forRootAsync(...)` also accept `name` for named/scoped registrations.
 - `forRootAsync(...)` accepts DI-aware Prisma options whose factory returns the client and transaction settings; pass `name` or `global` on the top-level async registration so module identity and visibility are decided before the factory runs.
 - `forRootAsync(...)` resolves options once per application container, preserving client lifecycle and request transaction isolation across separate bootstraps.

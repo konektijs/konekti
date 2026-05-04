@@ -213,27 +213,6 @@ function buildPrismaModuleAsync<
  */
 export class PrismaModule {
   /**
-   * Registers Prisma providers from static options under an explicit name.
-   *
-   * @param name Registration name used to generate isolated Prisma DI tokens.
-   * @param options Prisma module options with client handle and strict transaction mode.
-   * @returns A module definition that exports the named Prisma tokens.
-   */
-  static forName<
-    TClient extends PrismaClientLike<TTransactionClient, TTransactionOptions>,
-    TTransactionClient = InferPrismaTransactionClient<TClient>,
-    TTransactionOptions = InferPrismaTransactionOptions<TClient>,
-  >(
-    name: string,
-    options: Omit<PrismaModuleOptions<TClient, TTransactionClient, TTransactionOptions>, 'name'>,
-  ): ModuleType {
-    return buildPrismaModule<TClient, TTransactionClient, TTransactionOptions>({
-      ...options,
-      name,
-    });
-  }
-
-  /**
    * Registers Prisma providers from static options.
    *
    * @param options Prisma module options with client handle and strict transaction mode.
@@ -247,27 +226,6 @@ export class PrismaModule {
     options: PrismaModuleOptions<TClient, TTransactionClient, TTransactionOptions>,
   ): ModuleType {
     return buildPrismaModule<TClient, TTransactionClient, TTransactionOptions>(options);
-  }
-
-  /**
-   * Registers Prisma providers from an async DI factory under an explicit name.
-   *
-   * @param name Registration name used to generate isolated Prisma DI tokens.
-   * @param options Async module options that resolve Prisma client/module configuration.
-   * @returns A module definition that resolves async options once per application container.
-   */
-  static forNameAsync<
-    TClient extends PrismaClientLike<TTransactionClient, TTransactionOptions>,
-    TTransactionClient = InferPrismaTransactionClient<TClient>,
-    TTransactionOptions = InferPrismaTransactionOptions<TClient>,
-  >(
-    name: string,
-    options: AsyncModuleOptions<Omit<PrismaModuleOptions<TClient, TTransactionClient, TTransactionOptions>, 'global' | 'name'>>,
-  ): ModuleType {
-    return buildPrismaModuleAsync<TClient, TTransactionClient, TTransactionOptions>({
-      ...options,
-      name,
-    });
   }
 
   /**
