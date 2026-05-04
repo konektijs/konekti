@@ -792,13 +792,11 @@ describe('GreetingService', () => {
 }
 
 function createGreetingControllerFile(importSuffix = ''): string {
-  return `import { ensureMetadataSymbol, Inject } from '@fluojs/core';
+  return `import { Inject } from '@fluojs/core';
 import { Controller, Get } from '@fluojs/http';
 
 import { GreetingService } from './greeting.service${importSuffix}';
 import { GreetingResponseDto } from './greeting.response.dto${importSuffix}';
-
-ensureMetadataSymbol();
 
 @Inject(GreetingService)
 @Controller('/greeting')
