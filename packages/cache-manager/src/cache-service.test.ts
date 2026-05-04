@@ -6,7 +6,7 @@ import { CacheService } from './service.js';
 import type { CacheStore, NormalizedCacheModuleOptions } from './types.js';
 
 const baseOptions: NormalizedCacheModuleOptions = {
-  isGlobal: false,
+  global: false,
   keyPrefix: 'fluo:cache:',
   store: 'memory',
   ttl: 0,

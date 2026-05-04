@@ -42,6 +42,8 @@ export type AuthStrategyRegistry = Readonly<Record<string, Token<AuthStrategy>>>
 /** Module-level options for passport strategy wiring. */
 export interface PassportModuleOptions {
   defaultStrategy?: string;
+  /** Whether passport guard providers should be visible globally. Defaults to `false`. */
+  global?: boolean;
 }
 
 /** Contract for the public `AuthGuard` behavior. */

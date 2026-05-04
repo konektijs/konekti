@@ -82,7 +82,7 @@ export class OrderService {
 
 ### Named Redis Client
 
-Leave `clientName` unset to keep using the default `@fluojs/redis` client from your app. If your queues should use a non-default Redis connection, set `clientName` to the name registered with `RedisModule.forRootNamed(...)`.
+Leave `clientName` unset to keep using the default `@fluojs/redis` client from your app. If your queues should use a non-default Redis connection, set `clientName` to the name registered with `RedisModule.forRoot({ name, ... })`.
 
 ```typescript
 QueueModule.forRoot({ clientName: 'jobs' })

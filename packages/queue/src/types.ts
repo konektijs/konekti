@@ -37,6 +37,8 @@ export interface QueueWorkerOptions {
 /** Module-wide defaults used when individual workers omit execution settings. */
 export interface QueueModuleOptions {
   clientName?: string;
+  /** Whether queue providers should be visible globally. Defaults to `true`. */
+  global?: boolean;
   defaultAttempts?: number;
   defaultBackoff?: QueueBackoffOptions;
   defaultConcurrency?: number;

@@ -25,6 +25,8 @@ export interface JwtVerifierOptions {
   accessTokenTtlSeconds?: number;
   audience?: string | string[];
   clockSkewSeconds?: number;
+  /** Whether JWT providers should be visible globally. Defaults to `false`. */
+  global?: boolean;
   issuer?: string;
   jwksCacheTtl?: number;
   jwksRequestTimeoutMs?: number;

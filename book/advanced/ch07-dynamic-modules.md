@@ -271,7 +271,7 @@ static forRoot(options?: ConfigModuleOptions): new () => ConfigModule {
   class ConfigModuleImpl extends ConfigModule {}
 
   defineModuleMetadata(ConfigModuleImpl, {
-    global: options?.isGlobal ?? true,
+    global: options?.global ?? true,
     exports: [ConfigService],
     providers: [
       {
@@ -369,26 +369,27 @@ The memoization pattern also ensures that expensive asynchronous logic runs only
 ## 7.4 Global exports, named registrations, and alias-based public surfaces
 Fluo's Dynamic Modules are also a primary place where public API design becomes visible. A Module helper decides which Providers to hide as internal details and which Tokens to expose as the supported public surface.
 
-`RedisModule` is a good case study. `path:packages/redis/src/module.ts:108-116` makes the default registration global and exports the `REDIS_CLIENT` and `RedisService` Tokens. In contrast, the `forRootNamed()` helper in `path:packages/redis/src/module.ts:160-170` creates a non-global Module that exports specialized Token helpers derived from the user-provided `name`. Here, a Dynamic Module does more than create Providers. It designs a stable, addressable public Token surface.
+`RedisModule` is a good case study. `path:packages/redis/src/module.ts:108-116` makes the default registration global and exports the `REDIS_CLIENT` and `RedisService` Tokens. In contrast, `RedisModule.forRoot({ name, ... })` creates a non-global Module that exports specialized Token helpers derived from the user-provided `name`. Here, a Dynamic Module does more than create Providers. It designs a stable, addressable public Token surface.
 
-Named Redis registration uses the same Provider factory but derives export Tokens from the call argument.
+Named Redis registration uses the same Provider factory but derives export Tokens from the `name` option.
 
-`path:packages/redis/src/module.ts:160-170`
+`path:packages/redis/src/module.ts:108-116`
 ```typescript
-static forRootNamed(name: string, options: RedisModuleOptions): ModuleType {
-  const clientToken = getRedisClientToken(name);
-  const serviceToken = getRedisServiceToken(name);
-  class NamedRedisModuleDefinition {}
+static forRoot(options: RedisModuleOptions): ModuleType {
+  const normalized = normalizeRedisModuleOptions(options);
+  const clientToken = getRedisClientToken(normalized.name);
+  const serviceToken = getRedisServiceToken(normalized.name);
+  class RedisModuleDefinition {}
 
-  return defineModule(NamedRedisModuleDefinition, {
-    global: true,
-    exports: [clientToken, serviceToken],
-    providers: createRedisProviders(options, name),
+  return defineModule(RedisModuleDefinition, {
+    global: normalized.global,
+    exports: normalized.name === undefined ? [REDIS_CLIENT, RedisService] : [clientToken, serviceToken],
+    providers: createRedisProviders(normalized.clientOptions, normalized.name),
   });
 }
 ```
 
-This excerpt shows that a Dynamic Module does not stop at calculating Providers. The caller's `name` changes the raw client Token and facade service Token, and only those two go onto the export surface.
+This excerpt shows that a Dynamic Module does not stop at calculating Providers. The caller's `name` option changes the raw client Token and facade service Token, and only those two go onto the export surface.
 
 `SocketIoModule.forRoot()` follows a similar pattern. `path:packages/socket.io/src/module.ts:11-31` defines an internal options Token, a lifecycle service, and a Factory Provider for the raw server. It then uses an **alias Provider** (`useExisting`) to expose the `SOCKETIO_ROOM_SERVICE` Token. Finally, `path:packages/socket.io/src/module.ts:54-61` exports only the public room-service and raw-server Tokens while hiding internal implementation details.
 
@@ -506,7 +507,7 @@ This gives us a useful design heuristic.
 - Use `useExisting` when two different public names should point to the same underlying lifecycle object.
 - Use named Token helpers when multiple Module instances need to coexist without collisions.
 
-The last item is exactly why `RedisModule.forRootNamed()` matters. It shows that you can create several independently addressable instances simply by deriving different Tokens, without inventing a new container concept.
+The last item is exactly why `RedisModule.forRoot({ name, ... })` matters. It shows that you can create several independently addressable instances simply by deriving different Tokens, without inventing a new container concept.
 
 This named registration pattern is important in backends that need to talk to multiple instances of the same infrastructure, such as primary and secondary databases or a local cache and global session store. In `path:packages/redis/src/tokens.ts:5-15`, you can see how Fluo creates unique Tokens such as `REDIS_CLIENT_PRIMARY` and `REDIS_CLIENT_SECONDARY` through string concatenation or Symbol derivation. The Dynamic Module maps its internal service to this unique name.
 

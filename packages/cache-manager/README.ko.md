@@ -186,7 +186,7 @@ defineModule(ManualCacheModule, {
 ## 공개 API 개요
 
 ### 모듈
-- `CacheModule.forRoot(options)`: 캐시 저장소(memory/redis/custom), 기본 TTL, 키 전략, `isGlobal`, `principalScopeResolver`, `redis.scanCount` 같은 Redis 옵션을 설정합니다.
+- `CacheModule.forRoot(options)`: 캐시 저장소(memory/redis/custom), 기본 TTL, 키 전략, `global`, `principalScopeResolver`, `redis.scanCount` 같은 Redis 옵션을 설정합니다.
   애플리케이션 모듈에서 사용하는 기본 패키지 진입점입니다.
 
 
