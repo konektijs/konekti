@@ -374,6 +374,14 @@ function parseGenerateArgs(argv: string[]): ParsedCliArgs {
     throw new Error(`Unknown option: ${option}`);
   }
 
+  if (parsedOptions.withTest && kind !== 'module') {
+    throw new Error('--with-test is only supported for module generation. Use --with-slice-test for resource generation.');
+  }
+
+  if (parsedOptions.withSliceTest && kind !== 'resource') {
+    throw new Error('--with-slice-test is only supported for resource generation.');
+  }
+
   return {
     kind,
     name,

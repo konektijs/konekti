@@ -4092,6 +4092,45 @@ exit 7
     expect(stderrBuffer.join('')).toContain('Expected --target-directory to have a path value.');
   });
 
+  it('rejects --with-test for non-module generators', async () => {
+    const stderrBuffer: string[] = [];
+
+    const exitCode = await runCli(['g', 'resource', 'User', '--with-test'], {
+      cwd: process.cwd(),
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stderrBuffer.join('')).toContain('--with-test is only supported for module generation.');
+  });
+
+  it('rejects --with-slice-test for non-resource generators', async () => {
+    const stderrBuffer: string[] = [];
+
+    const exitCode = await runCli(['g', 'module', 'User', '--with-slice-test'], {
+      cwd: process.cwd(),
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stderrBuffer.join('')).toContain('--with-slice-test is only supported for resource generation.');
+  });
+
+  it('rejects duplicate generated-test flags', async () => {
+    const stderrBuffer: string[] = [];
+
+    const exitCode = await runCli(['g', 'module', 'User', '--with-test', '--with-test'], {
+      cwd: process.cwd(),
+      stderr: { write: (message) => stderrBuffer.push(message) },
+      stdout: { write: () => undefined },
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stderrBuffer.join('')).toContain('Duplicate --with-test option.');
+  });
+
   it('resolves mi alias to middleware', async () => {
     const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
     createdDirectories.push(workspaceDirectory);
