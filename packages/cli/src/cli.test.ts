@@ -3432,7 +3432,43 @@ exit 7
     expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.repo.ts'))).toBe(true);
     expect(existsSync(join(workspaceDirectory, 'src', 'users', 'create-user.request.dto.ts'))).toBe(true);
     expect(existsSync(join(workspaceDirectory, 'src', 'users', 'user.response.dto.ts'))).toBe(true);
+    expect(readFileSync(join(workspaceDirectory, 'src', 'users', 'user.module.ts'), 'utf8')).toContain('providers: [UserRepo, UserService]');
     expect(stdoutBuffer.join('')).toContain('Wiring: files only');
+  });
+
+  it('generates module slice, resource slice, and app e2e tests when requested', async () => {
+    const workspaceDirectory = mkdtempSync(join(tmpdir(), 'fluo-cli-'));
+    createdDirectories.push(workspaceDirectory);
+
+    mkdirSync(join(workspaceDirectory, 'src'), { recursive: true });
+    writeFileSync(join(workspaceDirectory, 'package.json'), JSON.stringify({ name: 'test-app', private: true }, null, 2));
+
+    const moduleExitCode = await runCli(['g', 'module', 'Billing', '--with-test'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+    const resourceExitCode = await runCli(['g', 'resource', 'User', '--with-slice-test'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+    const e2eExitCode = await runCli(['g', 'e2e', 'Users'], {
+      cwd: workspaceDirectory,
+      stderr: { write: () => undefined },
+      stdout: { write: () => undefined },
+    });
+
+    expect(moduleExitCode).toBe(0);
+    expect(resourceExitCode).toBe(0);
+    expect(e2eExitCode).toBe(0);
+    expect(readFileSync(join(workspaceDirectory, 'src', 'billings', 'billing.slice.test.ts'), 'utf8')).toContain(
+      'createTestingModule({ rootModule: BillingModule })',
+    );
+    expect(readFileSync(join(workspaceDirectory, 'src', 'users', 'user.slice.test.ts'), 'utf8')).toContain('overrideProvider(UserRepo');
+    expect(readFileSync(join(workspaceDirectory, 'test', 'users.e2e.test.ts'), 'utf8')).toContain(
+      "import { AppModule } from '../src/app.module';",
+    );
   });
 
   it('prints a resource dry-run plan without writing files', async () => {
