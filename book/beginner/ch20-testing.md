@@ -218,7 +218,7 @@ Sometimes you need to replace an entire Module, not just a single Provider. Fluo
 ## 20.5 E2E-Style HTTP Testing with createTestApp
 `createTestApp` is an E2E-style HTTP test surface that runs the real HTTP pipeline, including request dispatch, Guards, Interceptors, DTO validation, and response writing. It does not open a real network socket, but it verifies the request handling stack itself in the same way as the production path.
 
-Instead of starting a real network server, use `createTestApp`, which provides a virtual request dispatch system. This improves test speed and reliability while still checking that the full request lifecycle is configured correctly.
+Instead of starting a real network server, use `createTestApp`, which provides a virtual request system. The default application-developer path is the fluent `app.request(...).send()` helper; reserve direct `app.dispatch(...)` and manual request/response stubs for framework-internal or adapter/runtime contracts. This improves test speed and reliability while still checking that the full request lifecycle is configured correctly.
 
 ### The Test Case
 ```typescript
@@ -269,6 +269,16 @@ Integration tests are a good place to check whether a custom Exception Filter wo
 
 ### 20.5.3 Testing Middleware and Headers
 Integration tests are a good place to verify custom Middleware and header handling logic. You can send a virtual request with specific headers, then check whether the application responds with the expected headers or performs the right logic based on the input. These detailed checks confirm that the API's "HTTP Contract" is being honored.
+
+```typescript
+const response = await app
+  .request('GET', '/posts')
+  .header('x-request-id', 'test-request-1')
+  .query('tag', ['fluo', 'testing'])
+  .send();
+
+expect(response.status).toBe(200);
+```
 
 ### 20.5.4 Simulating Network Failures in Integration
 Although `createTestApp` is a virtual system, you can still simulate network-level failures by mocking the underlying data Provider. For example, you can mock `PrismaService` to throw a timeout error and verify that the application returns the proper `504 Gateway Timeout` or `503 Service Unavailable` response. This lets you test application resilience without physically breaking network hardware.
