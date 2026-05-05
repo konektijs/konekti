@@ -16,6 +16,10 @@ describe('@fluojs/terminus subpath exports', () => {
     };
 
     expect(packageJson.exports).toMatchObject({
+      './node': {
+        import: './dist/node.js',
+        types: './dist/node.d.ts',
+      },
       './redis': {
         import: './dist/redis.js',
         types: './dist/redis.d.ts',
