@@ -305,6 +305,59 @@ describe('buildOpenApiDocument', () => {
     });
   });
 
+  it('aligns implicit response statuses with HTTP route defaults', () => {
+    @Controller('/implicit-status')
+    class ImplicitStatusController {
+      @Post('/')
+      create() {
+        return { created: true };
+      }
+
+      @Get('/')
+      list() {
+        return [];
+      }
+    }
+
+    const descriptors = createHandlerMapping([{ controllerToken: ImplicitStatusController }]).descriptors;
+    const document = buildOpenApiDocument({
+      defaultErrorResponsesPolicy: 'omit',
+      descriptors,
+      title: 'Implicit Status API',
+      version: '1.0.0',
+    });
+
+    expect(document.paths['/implicit-status']?.post?.responses).toEqual({
+      '201': { description: 'OK' },
+    });
+    expect(document.paths['/implicit-status']?.get?.responses).toEqual({
+      '200': { description: 'OK' },
+    });
+  });
+
+  it('keeps explicit ApiResponse statuses ahead of HTTP route defaults', () => {
+    @Controller('/explicit-status')
+    class ExplicitStatusController {
+      @ApiResponse(202, { description: 'Accepted for async processing' })
+      @Post('/')
+      create() {
+        return { accepted: true };
+      }
+    }
+
+    const descriptors = createHandlerMapping([{ controllerToken: ExplicitStatusController }]).descriptors;
+    const document = buildOpenApiDocument({
+      defaultErrorResponsesPolicy: 'omit',
+      descriptors,
+      title: 'Explicit Status API',
+      version: '1.0.0',
+    });
+
+    expect(document.paths['/explicit-status']?.post?.responses).toEqual({
+      '202': { description: 'Accepted for async processing' },
+    });
+  });
+
   it('uses controller names as default tags when @ApiTag is absent', () => {
     @Controller('/untagged')
     class UntaggedController {
