@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { IsArray, IsEnum, IsOptional, IsString, MinLength, ValidateNested } from '@fluojs/validation';
-import { Controller, FromBody, Get, Post, Produces, RequestDto, createHandlerMapping } from '@fluojs/http';
+import { Controller, FromBody, Get, HttpCode, Post, Produces, RequestDto, createHandlerMapping } from '@fluojs/http';
 
 import { ApiBearerAuth, ApiBody, ApiExcludeEndpoint, ApiOperation, ApiResponse, ApiSecurity } from './decorators.js';
 import { buildOpenApiDocument } from './schema-builder.js';
@@ -355,6 +355,29 @@ describe('buildOpenApiDocument', () => {
 
     expect(document.paths['/explicit-status']?.post?.responses).toEqual({
       '202': { description: 'Accepted for async processing' },
+    });
+  });
+
+  it('reflects explicit HttpCode overrides in response statuses', () => {
+    @Controller('/http-code-status')
+    class HttpCodeStatusController {
+      @HttpCode(204)
+      @Post('/')
+      create() {
+        return undefined;
+      }
+    }
+
+    const descriptors = createHandlerMapping([{ controllerToken: HttpCodeStatusController }]).descriptors;
+    const document = buildOpenApiDocument({
+      defaultErrorResponsesPolicy: 'omit',
+      descriptors,
+      title: 'HTTP Code Status API',
+      version: '1.0.0',
+    });
+
+    expect(document.paths['/http-code-status']?.post?.responses).toEqual({
+      '204': { description: 'OK' },
     });
   });
 
