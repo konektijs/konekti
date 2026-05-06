@@ -147,7 +147,7 @@ import { EmailNotificationQueueJob, EmailNotificationsQueueWorker, createEmailNo
 import { EmailModule } from './module.js';
 import { EmailService } from './service.js';
 import { EMAIL } from './tokens.js';
-import { EmailConfigurationError } from './errors.js';
+import { EmailConfigurationError, EmailMessageValidationError } from './errors.js';
 import type { Email, EmailTransport, EmailTransportFactory, NormalizedEmailMessage } from './types.js';
 
 class PartialDeliveryTransport implements EmailTransport {
@@ -214,6 +214,31 @@ class PassiveTransport implements EmailTransport {
       pending: [],
       rejected: [],
     };
+  }
+}
+
+class FailingLifecycleTransport implements EmailTransport {
+  constructor(private readonly failurePoint: 'verify' | 'close') {}
+
+  async close(): Promise<void> {
+    if (this.failurePoint === 'close') {
+      throw new Error('provider close failed');
+    }
+  }
+
+  async send(): Promise<{ accepted: string[]; messageId: string; pending: []; rejected: [] }> {
+    return {
+      accepted: ['user@example.com'],
+      messageId: 'lifecycle-1',
+      pending: [],
+      rejected: [],
+    };
+  }
+
+  async verify(): Promise<void> {
+    if (this.failurePoint === 'verify') {
+      throw new Error('provider verify failed');
+    }
   }
 }
 
@@ -540,6 +565,125 @@ describe('EmailModule', () => {
     ).rejects.toMatchObject({
       message: 'Email transport reported an incomplete delivery (accepted=1, pending=1, rejected=1).',
       name: 'EmailDeliveryError',
+    });
+  });
+
+  it('rejects blank recipients before transport delivery', async () => {
+    const container = new Container();
+    const moduleType = EmailModule.forRoot({
+      defaultFrom: 'noreply@example.com',
+      transport: createRecordingTransportFactory(),
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(EmailService);
+
+    await expect(
+      service.send({
+        subject: 'Blank recipient',
+        text: 'hello',
+        to: ['   '],
+      }),
+    ).rejects.toThrowError(new EmailMessageValidationError('Email messages require non-empty recipients in `to`.'));
+    expect(transportState.sent).toHaveLength(0);
+  });
+
+  it('aborts notification delivery before template rendering starts', async () => {
+    const controller = new AbortController();
+    const render = vi.fn(async () => ({ text: 'rendered' }));
+    const container = new Container();
+    const moduleType = EmailModule.forRoot({
+      defaultFrom: 'noreply@example.com',
+      renderer: { render },
+      transport: createRecordingTransportFactory(),
+    });
+
+    controller.abort();
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(EmailService);
+
+    await expect(
+      service.sendNotification(
+        {
+          channel: 'email',
+          payload: {},
+          recipients: ['user@example.com'],
+          template: 'welcome',
+        },
+        { signal: controller.signal },
+      ),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(render).not.toHaveBeenCalled();
+    expect(transportState.sent).toHaveLength(0);
+  });
+
+  it('aborts notification delivery after template rendering before transport handoff', async () => {
+    const controller = new AbortController();
+    const render = vi.fn(async () => {
+      controller.abort();
+
+      return { text: 'rendered' };
+    });
+    const container = new Container();
+    const moduleType = EmailModule.forRoot({
+      defaultFrom: 'noreply@example.com',
+      renderer: { render },
+      transport: createRecordingTransportFactory(),
+    });
+
+    container.register(...moduleProviders(moduleType));
+    const service = await container.resolve(EmailService);
+
+    await expect(
+      service.sendNotification(
+        {
+          channel: 'email',
+          payload: {},
+          recipients: ['user@example.com'],
+          template: 'welcome',
+        },
+        { signal: controller.signal },
+      ),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(render).toHaveBeenCalledOnce();
+    expect(transportState.sent).toHaveLength(0);
+  });
+
+  it('preserves provider errors as lifecycle failure causes', async () => {
+    const initContainer = new Container();
+    const initModule = EmailModule.forRoot({
+      defaultFrom: 'noreply@example.com',
+      transport: {
+        create: async () => new FailingLifecycleTransport('verify'),
+        ownsResources: true,
+      },
+      verifyOnModuleInit: true,
+    });
+
+    initContainer.register(...moduleProviders(initModule));
+    const initService = await initContainer.resolve(EmailService);
+
+    await expect(initService.onModuleInit()).rejects.toMatchObject({
+      cause: expect.objectContaining({ message: 'provider verify failed' }),
+      message: 'Email transport failed to initialize.',
+    });
+
+    const shutdownContainer = new Container();
+    const shutdownModule = EmailModule.forRoot({
+      defaultFrom: 'noreply@example.com',
+      transport: {
+        create: async () => new FailingLifecycleTransport('close'),
+        ownsResources: true,
+      },
+    });
+
+    shutdownContainer.register(...moduleProviders(shutdownModule));
+    const shutdownService = await shutdownContainer.resolve(EmailService);
+    await shutdownService.send({ subject: 'Lifecycle', text: 'hello', to: ['user@example.com'] });
+
+    await expect(shutdownService.onApplicationShutdown()).rejects.toMatchObject({
+      cause: expect.objectContaining({ message: 'provider close failed' }),
+      message: 'Email transport failed to close cleanly.',
     });
   });
 

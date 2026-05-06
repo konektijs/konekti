@@ -50,9 +50,23 @@ function createAbortError(): Error {
   return error;
 }
 
+function assertNotAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    throw createAbortError();
+  }
+}
+
+function createLifecycleError(message: string, cause: unknown): Error {
+  return new Error(message, { cause });
+}
+
 function assertMessageContent(message: NormalizedEmailMessage): void {
   if (message.to.length === 0) {
     throw new EmailMessageValidationError('Email messages require at least one recipient in `to`.');
+  }
+
+  if (message.to.some((entry) => entry.address.length === 0)) {
+    throw new EmailMessageValidationError('Email messages require non-empty recipients in `to`.');
   }
 
   if (!message.from.address) {
@@ -89,9 +103,9 @@ export class EmailService implements Email, OnModuleInit, OnApplicationShutdown 
       }
 
       this.lifecycleState = 'stopped';
-    } catch {
+    } catch (error) {
       this.lifecycleState = 'failed';
-      throw new Error('Email transport failed to close cleanly.');
+      throw createLifecycleError('Email transport failed to close cleanly.', error);
     }
   }
 
@@ -106,9 +120,9 @@ export class EmailService implements Email, OnModuleInit, OnApplicationShutdown 
       }
 
       this.lifecycleState = 'ready';
-    } catch {
+    } catch (error) {
       this.lifecycleState = 'failed';
-      throw new Error('Email transport failed to initialize.');
+      throw createLifecycleError('Email transport failed to initialize.', error);
     }
   }
 
@@ -148,13 +162,12 @@ export class EmailService implements Email, OnModuleInit, OnApplicationShutdown 
    * ```
    */
   async send(message: EmailMessage, options: EmailSendOptions = {}): Promise<EmailSendResult> {
-    if (options.signal?.aborted) {
-      throw createAbortError();
-    }
+    assertNotAborted(options.signal);
 
     const transport = await this.ensureTransport();
     const normalized = this.normalizeMessage(message);
     assertMessageContent(normalized);
+    assertNotAborted(options.signal);
     const result = await transport.send(normalized, options);
 
     return {
@@ -232,7 +245,9 @@ export class EmailService implements Email, OnModuleInit, OnApplicationShutdown 
     options: EmailSendOptions = {},
   ): Promise<EmailSendResult> {
     const payload = notification.payload;
-    const rendered = await this.renderNotification(notification);
+    const rendered = await this.renderNotification(notification, options.signal);
+
+    assertNotAborted(options.signal);
 
     return this.send(
       {
@@ -296,10 +311,13 @@ export class EmailService implements Email, OnModuleInit, OnApplicationShutdown 
 
   private async renderNotification(
     notification: EmailNotificationDispatchRequest,
+    signal: AbortSignal | undefined,
   ): Promise<EmailTemplateRenderResult | undefined> {
     if (!notification.template || !this.options.renderer) {
       return undefined;
     }
+
+    assertNotAborted(signal);
 
     return this.options.renderer.render({
       locale: notification.locale,
