@@ -35,6 +35,7 @@ npm install @fluojs/cron croner
 `CronModule`을 등록하고 데코레이터를 사용하여 메서드를 스케줄링합니다.
 
 애플리케이션 모듈의 스케줄링 등록은 `CronModule.forRoot(...)`로 구성합니다.
+Cron 표현식은 다섯 필드(`minute hour day month weekday`) 또는 여섯 필드(`second minute hour day month weekday`)를 사용할 수 있습니다. 내장 `CronExpression` preset은 sub-minute 정밀도가 필요할 때 여섯 필드 표현식을 사용합니다. Cron task는 application bootstrap 이후에만 시작되고, 이미 시작된 registry에 동적으로 등록한 cron task는 등록 시점에 시작되며, fluo는 `timezone`과 no-overlap 보호를 scheduler에 전달해 같은 task instance가 자기 자신과 겹쳐 실행되지 않게 합니다.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -93,6 +94,8 @@ class AppModule {}
 `distributed.clientName`을 생략하면 위의 기본 Redis 등록을 계속 사용합니다. 분산 락에 기본 Redis가 아닌 다른 연결을 쓰려면 `RedisModule.forRoot({ name, ... })`로 등록한 이름을 `distributed.clientName`에 지정하세요.
 
 `distributed.lockTtlMs`는 `1_000ms` 이상이어야 합니다. fluo는 최소 지원 경계인 `1_000ms`를 포함해 TTL이 만료되기 전에 Redis 락을 갱신합니다.
+
+각 scheduler instance는 platform-neutral 기본 `distributed.ownerId`를 사용합니다. 배포 환경에 더 강한 stable-owner 규칙이 있을 때만 `distributed.ownerId`를 명시적으로 지정하세요. Lock release는 task 실행 뒤 `finally` 경로에서 수행됩니다. Redis release가 실패하면 fluo는 status snapshot의 local ownership을 유지하고 shutdown 중 다시 release를 시도합니다. Redis가 다른 owner의 key라고 응답하면 fencing이 이미 다른 곳으로 이동한 것이므로 local ownership을 정리합니다. Redis TTL과 renewal timing은 drift 영향을 받는 coordination primitive이지 강한 fencing token 자체는 아니므로, stale work가 위험한 long-running job은 idempotent하게 작성하고 application-level fencing을 함께 사용해야 합니다.
 
 ```typescript
 @Module({
