@@ -375,6 +375,32 @@ describe('CacheInterceptor', () => {
     await expect(cacheService.get('/products/old')).resolves.toBeUndefined();
   });
 
+  it('does not return pre-existing cache hits for GET handlers whose route metadata redirects later in dispatch', async () => {
+    class ProductController {
+      @CacheTTL(120)
+      detail() {}
+    }
+
+    const { interceptor, cacheService } = createInterceptor({ ttl: 120 });
+    await cacheService.set('/products/old', { stale: 'redirect-cache-hit' }, 120);
+    const context = createContext(
+      ProductController,
+      'detail',
+      createRequestContext('GET', '/products/old', '/products/old'),
+      'GET',
+      '/products/old',
+      { redirect: { url: '/products/new', statusCode: 302 } },
+    );
+    const next: CallHandler = {
+      handle: vi.fn<CallHandler['handle']>().mockResolvedValue({ redirect: 'handler' }),
+    };
+
+    await expect(interceptor.intercept(context, next)).resolves.toEqual({ redirect: 'handler' });
+
+    expect(next.handle).toHaveBeenCalledTimes(1);
+    await expect(cacheService.get('/products/old')).resolves.toEqual({ stale: 'redirect-cache-hit' });
+  });
+
   it('does not cache GET handlers whose route metadata applies a non-success status later in dispatch', async () => {
     class ProductController {
       @CacheTTL(120)
@@ -410,6 +436,32 @@ describe('CacheInterceptor', () => {
 
     expect(next.handle).toHaveBeenCalledTimes(2);
     await expect(cacheService.get('/products/missing')).resolves.toBeUndefined();
+  });
+
+  it('does not return pre-existing cache hits for GET handlers with route-level non-success status metadata', async () => {
+    class ProductController {
+      @CacheTTL(120)
+      missing() {}
+    }
+
+    const { interceptor, cacheService } = createInterceptor({ ttl: 120 });
+    await cacheService.set('/products/missing', { stale: 'not-found-cache-hit' }, 120);
+    const context = createContext(
+      ProductController,
+      'missing',
+      createRequestContext('GET', '/products/missing', '/products/missing'),
+      'GET',
+      '/products/missing',
+      { successStatus: 404 },
+    );
+    const next: CallHandler = {
+      handle: vi.fn<CallHandler['handle']>().mockResolvedValue({ error: 'handler-not-found' }),
+    };
+
+    await expect(interceptor.intercept(context, next)).resolves.toEqual({ error: 'handler-not-found' });
+
+    expect(next.handle).toHaveBeenCalledTimes(1);
+    await expect(cacheService.get('/products/missing')).resolves.toEqual({ stale: 'not-found-cache-hit' });
   });
 
   it('does not fail successful non-GET handlers when cache eviction fails', async () => {
