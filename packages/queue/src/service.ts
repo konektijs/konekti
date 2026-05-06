@@ -171,6 +171,10 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
   async enqueue<TJob extends object>(job: TJob): Promise<string> {
     await this.ensureStarted();
 
+    if (this.lifecycleState !== 'started') {
+      throw new Error(`Queue lifecycle state is ${this.lifecycleState}.`);
+    }
+
     const descriptor = this.descriptorsByJobType.get(job.constructor as QueueJobType);
 
     if (!descriptor) {
@@ -241,12 +245,16 @@ export class QueueLifecycleService implements Queue, OnApplicationBootstrap, OnA
     }
 
     await this.initializeWorkers(redis);
-    this.lifecycleState = 'started';
+    if (this.lifecycleState === 'starting') {
+      this.lifecycleState = 'started';
+    }
   }
 
   private async handleStartupFailure(): Promise<void> {
     await this.closeInitializedResources();
-    this.lifecycleState = 'idle';
+    if (this.lifecycleState === 'starting') {
+      this.lifecycleState = 'idle';
+    }
     this.redisClient = undefined;
     this.startPromise = undefined;
   }
