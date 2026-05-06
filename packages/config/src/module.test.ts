@@ -1,7 +1,9 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { getClassDiMetadata, getModuleMetadata } from '@fluojs/core/internal';
+import type { Constructor } from '@fluojs/core';
+import { getModuleMetadata } from '@fluojs/core/internal';
+import { Container, type Provider } from '@fluojs/di';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ConfigModule } from './module.js';
@@ -54,6 +56,16 @@ type WatchManagerConstructor = new (
   options: ConfigModuleOptions,
 ) => { onApplicationBootstrap(): void; onModuleDestroy(): void };
 
+function moduleProviders(moduleType: Constructor): Provider[] {
+  const metadata = getModuleMetadata(moduleType);
+
+  if (!metadata || !Array.isArray(metadata.providers)) {
+    throw new Error('ConfigModule did not register providers metadata.');
+  }
+
+  return metadata.providers as Provider[];
+}
+
 describe('ConfigModule watch mode', () => {
   it('activates watch reloads from ConfigModule.forRoot without replacing ConfigService identity', async () => {
     const cwd = mkdtempSync(join(tmpdir(), 'fluo-config-module-watch-'));
@@ -66,38 +78,31 @@ describe('ConfigModule watch mode', () => {
       processEnv: {},
       watch: true,
     });
-    const providers = getModuleMetadata(moduleRef)?.providers as Array<ConfigProvider | WatchManagerConstructor> | undefined;
-    const configProvider = providers?.find(
-      (provider): provider is ConfigProvider => typeof provider === 'object' && provider.provide === ConfigService,
-    );
-    const optionsProvider = providers?.find(
-      (provider): provider is ConfigProvider => typeof provider === 'object' && provider.useValue !== undefined,
-    );
+    const providers = moduleProviders(moduleRef) as Array<ConfigProvider | WatchManagerConstructor>;
     const watchManagerProvider = providers?.find(
       (provider): provider is WatchManagerConstructor => typeof provider === 'function' && provider.name === 'ConfigModuleWatchManager',
     );
+    const container = new Container();
 
-    expect(watchManagerProvider ? getClassDiMetadata(watchManagerProvider)?.inject : undefined).toEqual([
-      ConfigService,
-      optionsProvider?.provide,
-    ]);
+    container.register(...moduleProviders(moduleRef));
 
-    const service = configProvider?.useFactory?.() as ConfigService | undefined;
-    const manager = service && optionsProvider?.useValue && watchManagerProvider
-      ? new watchManagerProvider(service, optionsProvider.useValue as ConfigModuleOptions)
-      : undefined;
+    const service = await container.resolve(ConfigService);
+    const manager = watchManagerProvider ? await container.resolve(watchManagerProvider) : undefined;
 
-    expect(service?.get('PORT')).toBe('4000');
+    expect(service.get('PORT')).toBe('4000');
     expect(manager).toBeDefined();
 
     try {
       manager?.onApplicationBootstrap();
+      manager?.onApplicationBootstrap();
+
+      expect(watchCallbacks.size).toBe(1);
 
       writeFileSync(envPath, 'PORT=4100\n');
       emitWatchChange();
-      await waitForCondition(() => service?.get('PORT') === '4100');
+      await waitForCondition(() => service.get('PORT') === '4100');
 
-      expect(service?.get('PORT')).toBe('4100');
+      expect(service.get('PORT')).toBe('4100');
       expect(watchCallbacks.size).toBe(1);
     } finally {
       manager?.onModuleDestroy();

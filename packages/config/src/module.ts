@@ -27,6 +27,10 @@ class ConfigModuleWatchManager {
       return;
     }
 
+    if (this.reloader) {
+      return;
+    }
+
     this.reloader = createConfigReloader(this.options);
     this.reloadForwarder = this.reloader.subscribe((snapshot) => {
       const previousConfig = this.config.snapshot();
