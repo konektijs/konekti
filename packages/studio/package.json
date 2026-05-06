@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@fluojs-internal/tooling-vite": "workspace:^",
+    "happy-dom": "^20.9.0",
     "vitest": "^3.2.4"
   }
 }

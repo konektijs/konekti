@@ -46,7 +46,7 @@ importers:
         version: 6.4.1(@types/node@22.19.15)(tsx@4.21.0)
       vitest:
         specifier: ^3.0.8
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   examples/auth-jwt-passport:
     dependencies:
@@ -168,7 +168,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/cli:
     dependencies:
@@ -196,7 +196,7 @@ importers:
         version: 3.1.5
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/config:
     dependencies:
@@ -218,13 +218,13 @@ importers:
         version: link:../di
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/core:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/cqrs:
     dependencies:
@@ -243,7 +243,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/cron:
     dependencies:
@@ -265,7 +265,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/di:
     dependencies:
@@ -275,7 +275,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/discord:
     dependencies:
@@ -294,7 +294,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/drizzle:
     dependencies:
@@ -316,7 +316,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/email:
     dependencies:
@@ -344,7 +344,7 @@ importers:
         version: 8.0.0
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/event-bus:
     dependencies:
@@ -363,7 +363,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/graphql:
     dependencies:
@@ -403,7 +403,7 @@ importers:
         version: 8.18.1
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/http:
     dependencies:
@@ -419,7 +419,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/jwt:
     dependencies:
@@ -435,7 +435,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/metrics:
     dependencies:
@@ -457,7 +457,7 @@ importers:
         version: 22.19.15
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/microservices:
     dependencies:
@@ -485,7 +485,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/mongoose:
     dependencies:
@@ -507,7 +507,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/notifications:
     dependencies:
@@ -523,7 +523,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/openapi:
     dependencies:
@@ -542,7 +542,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/passport:
     dependencies:
@@ -564,7 +564,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/platform-bun:
     dependencies:
@@ -577,7 +577,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/platform-cloudflare-workers:
     dependencies:
@@ -590,7 +590,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/platform-deno:
     dependencies:
@@ -606,7 +606,7 @@ importers:
         version: link:../testing
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/platform-express:
     dependencies:
@@ -628,7 +628,7 @@ importers:
         version: 5.0.6
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/platform-fastify:
     dependencies:
@@ -653,7 +653,7 @@ importers:
         version: link:../di
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/platform-nodejs:
     dependencies:
@@ -666,7 +666,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/prisma:
     dependencies:
@@ -691,7 +691,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/queue:
     dependencies:
@@ -713,7 +713,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/redis:
     dependencies:
@@ -732,7 +732,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/runtime:
     dependencies:
@@ -754,7 +754,7 @@ importers:
         version: link:../serialization
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/serialization:
     dependencies:
@@ -767,7 +767,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/slack:
     dependencies:
@@ -786,7 +786,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/socket.io:
     dependencies:
@@ -826,7 +826,7 @@ importers:
         version: 4.8.3
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/studio:
     dependencies:
@@ -837,9 +837,12 @@ importers:
       '@fluojs-internal/tooling-vite':
         specifier: workspace:^
         version: link:../../tooling/vite
+      happy-dom:
+        specifier: ^20.9.0
+        version: 20.9.0
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/terminus:
     dependencies:
@@ -867,7 +870,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/testing:
     dependencies:
@@ -901,7 +904,7 @@ importers:
         version: link:../platform-nodejs
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/throttler:
     dependencies:
@@ -926,7 +929,7 @@ importers:
         version: 5.10.0
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/validation:
     dependencies:
@@ -951,7 +954,7 @@ importers:
         version: 1.3.1(typescript@6.0.2)
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
       zod:
         specifier: ^4.1.11
         version: 4.3.6
@@ -967,7 +970,7 @@ importers:
     devDependencies:
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   packages/websockets:
     dependencies:
@@ -1001,7 +1004,7 @@ importers:
         version: 8.18.1
       vitest:
         specifier: ^3.2.4
-        version: 3.2.4(@types/node@22.19.15)(tsx@4.21.0)
+        version: 3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0)
 
   tooling/babel: {}
 
@@ -2049,6 +2052,9 @@ packages:
   '@types/webidl-conversions@7.0.3':
     resolution: {integrity: sha512-CiJJvcRtIgzadHCYXw7dqEnMNRjhGZlYK05Mj9OyktqV8uVT8fD2BFOB7S1uwBE3Kj2Z+4UyPmFw/Ixgw/LAlA==}
 
+  '@types/whatwg-mimetype@3.0.2':
+    resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
+
   '@types/whatwg-url@13.0.0':
     resolution: {integrity: sha512-N8WXpbE6Wgri7KUSvrmQcqrMllKZ9uxkYWMt+mCSGwNc0Hsw9VQTW7ApqI4XNrx6/SaM2QQJCzMPDEXE058s+Q==}
 
@@ -2534,6 +2540,10 @@ packages:
     resolution: {integrity: sha512-rRqJg/6gd538VHvR3PSrdRBb/1Vy2YfzHqzvbhGIQpDRKIa4FgV/54b5Q1xYSxOOwKvjXweS26E0Q+nAMwp2pQ==}
     engines: {node: '>=8.6'}
 
+  entities@7.0.1:
+    resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
+    engines: {node: '>=0.12'}
+
   es-define-property@1.0.1:
     resolution: {integrity: sha512-e3nRfgfUZ4rNGL232gUgX06QNyyez04KdjFrF+LTRoOXmrOgFKDg4BCdsjW8EnT69eqdYGmRpJwiPVYNrCaW3g==}
     engines: {node: '>= 0.4'}
@@ -2753,6 +2763,10 @@ packages:
   graphql@16.13.1:
     resolution: {integrity: sha512-gGgrVCoDKlIZ8fIqXBBb0pPKqDgki0Z/FSKNiQzSGj2uEYHr1tq5wmBegGwJx6QB5S5cM0khSBpi/JFHMCvsmQ==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
+
+  happy-dom@20.9.0:
+    resolution: {integrity: sha512-GZZ9mKe8r646NUAf/zemnGbjYh4Bt8/MqASJY+pSm5ZDtc3YQox+4gsLI7yi1hba6o+eCsGxpHn5+iEVn31/FQ==}
+    engines: {node: '>=20.0.0'}
 
   has-symbols@1.1.0:
     resolution: {integrity: sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==}
@@ -3673,6 +3687,10 @@ packages:
 
   webidl-conversions@7.0.0:
     resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
+    engines: {node: '>=12'}
+
+  whatwg-mimetype@3.0.0:
+    resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
     engines: {node: '>=12'}
 
   whatwg-url@14.2.0:
@@ -4761,6 +4779,8 @@ snapshots:
 
   '@types/webidl-conversions@7.0.3': {}
 
+  '@types/whatwg-mimetype@3.0.2': {}
+
   '@types/whatwg-url@13.0.0':
     dependencies:
       '@types/webidl-conversions': 7.0.3
@@ -5194,6 +5214,8 @@ snapshots:
       ansi-colors: 4.1.3
       strip-ansi: 6.0.1
 
+  entities@7.0.1: {}
+
   es-define-property@1.0.1: {}
 
   es-errors@1.3.0: {}
@@ -5519,6 +5541,18 @@ snapshots:
       tslib: 2.8.1
 
   graphql@16.13.1: {}
+
+  happy-dom@20.9.0:
+    dependencies:
+      '@types/node': 22.19.15
+      '@types/whatwg-mimetype': 3.0.2
+      '@types/ws': 8.18.1
+      entities: 7.0.1
+      whatwg-mimetype: 3.0.0
+      ws: 8.19.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   has-symbols@1.1.0: {}
 
@@ -6384,7 +6418,7 @@ snapshots:
       fsevents: 2.3.3
       tsx: 4.21.0
 
-  vitest@3.2.4(@types/node@22.19.15)(tsx@4.21.0):
+  vitest@3.2.4(@types/node@22.19.15)(happy-dom@20.9.0)(tsx@4.21.0):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.4
@@ -6411,6 +6445,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.19.15
+      happy-dom: 20.9.0
     transitivePeerDependencies:
       - jiti
       - less
@@ -6428,6 +6463,8 @@ snapshots:
   webidl-conversions@3.0.1: {}
 
   webidl-conversions@7.0.0: {}
+
+  whatwg-mimetype@3.0.0: {}
 
   whatwg-url@14.2.0:
     dependencies:

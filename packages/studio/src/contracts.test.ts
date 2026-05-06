@@ -1,13 +1,15 @@
+// @vitest-environment happy-dom
+
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PlatformShellSnapshot } from '@fluojs/runtime';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { runWorkspaceBuildClosure } from '../../../tooling/scripts/run-workspace-build-closure.mjs';
 import { applyFilters, parseStudioPayload, renderMermaid } from './contracts.js';
 import * as studio from './index.js';
 
-const packageDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
+const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(packageDir, '..', '..');
 
 function runBuild(): void {
@@ -282,12 +284,56 @@ describe('parseStudioPayload', () => {
     expect(readmeKo).toContain('공개 배포 패키지');
   });
 
-  it('keeps viewer filter controls focused across rerenders', () => {
-    const viewerSource = readFileSync(resolve(packageDir, 'src/main.ts'), 'utf8');
+  it('keeps viewer filter controls focused across search, readiness, and severity rerenders', async () => {
+    document.body.innerHTML = '<div id="app"></div>';
 
-    expect(viewerSource).toContain('captureFocusSnapshot');
-    expect(viewerSource).toContain('restoreFocusSnapshot(focusSnapshot)');
-    expect(viewerSource).toContain('renderApp({ preserveFocus: true })');
+    await import('./main.js');
+
+    const fileInput = document.querySelector<HTMLInputElement>('#file-input');
+    expect(fileInput).not.toBeNull();
+
+    Object.defineProperty(fileInput, 'files', {
+      configurable: true,
+      value: [new File([JSON.stringify(snapshotFixture)], 'snapshot.json', { type: 'application/json' })],
+    });
+    fileInput?.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('#graph-host')?.textContent).toContain('redis.default');
+    });
+
+    const searchInput = document.querySelector<HTMLInputElement>('#search');
+    expect(searchInput).not.toBeNull();
+    searchInput!.value = 'redis.default';
+    searchInput?.focus();
+    searchInput?.setSelectionRange(2, 7);
+    searchInput?.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const restoredSearchInput = document.querySelector<HTMLInputElement>('#search');
+    expect(document.activeElement).toBe(restoredSearchInput);
+    expect(restoredSearchInput?.value).toBe('redis.default');
+    expect(restoredSearchInput?.selectionStart).toBe(2);
+    expect(restoredSearchInput?.selectionEnd).toBe(7);
+
+    const readinessInput = document.querySelector<HTMLInputElement>('#readiness-ready');
+    expect(readinessInput).not.toBeNull();
+    readinessInput?.focus();
+    readinessInput!.checked = true;
+    readinessInput?.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const restoredReadinessInput = document.querySelector<HTMLInputElement>('#readiness-ready');
+    expect(document.activeElement).toBe(restoredReadinessInput);
+    expect(restoredReadinessInput?.checked).toBe(true);
+
+    const severityInput = document.querySelector<HTMLInputElement>('#severity-warning');
+    expect(severityInput).not.toBeNull();
+    severityInput?.focus();
+    severityInput!.checked = true;
+    severityInput?.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const restoredSeverityInput = document.querySelector<HTMLInputElement>('#severity-warning');
+    expect(document.activeElement).toBe(restoredSeverityInput);
+    expect(restoredSeverityInput?.checked).toBe(true);
   });
 
   it('build emits the published helper and viewer entrypoints', () => {
