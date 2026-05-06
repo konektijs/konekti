@@ -53,7 +53,7 @@ import { SocketIoModule } from '@fluojs/socket.io';
 export class ChatModule {}
 ```
 
-By default, fluo keeps CORS deny by default, meaning `origin: false`. To allow cross origin browser clients, you must explicitly write the allowed origin list. The `engine` configuration maps directly to Engine.IO, letting you limit payload size for production stability. These defaults are a safer starting point because realtime browser connections often stay open for a long time.
+By default, fluo keeps CORS deny by default, meaning `origin: false`. To allow cross origin browser clients, you must explicitly write the allowed origin list. The `engine` configuration maps directly to Engine.IO, letting you limit payload size for production stability. On Bun, the adapter maps the same `engine.maxHttpBufferSize` value into both the HTTP request body limit and the WebSocket payload limit because Bun exposes those host contracts separately. These defaults are a safer starting point because realtime browser connections often stay open for a long time.
 
 ## 14.3 Room management with SocketIoRoomService
 
@@ -94,6 +94,8 @@ export class SupportChatGateway {
 ```
 
 `SocketIoRoomService` separates room logic from the gateway. With this structure, regular services that cannot access the original socket instance can still broadcast to a specific room. Realtime delivery becomes an explicit collaboration point for application services instead of being trapped inside socket handlers.
+
+Gateway paths such as `/support` are static Socket.IO namespaces owned by fluo gateway discovery. They are not dynamic child namespaces, so fluo keeps Socket.IO dynamic-child cleanup behavior out of this gateway path. If a low-level service creates dynamic namespaces through `SOCKETIO_SERVER`, that service should also own the matching cleanup policy.
 
 ## 14.4 Guarding namespaces and messages
 
@@ -139,6 +141,8 @@ export class ScalingService {
 ```
 
 This boundary lets fluo provide a decorator based surface without blocking the extension points of the underlying library. Most code can use fluo's declarative gateways, while operational exceptions stay gathered around the raw server boundary.
+
+The managed Socket.IO lifecycle owns shutdown for the raw server it exposes. Application shutdown delegates client disconnects and the underlying HTTP server close to Socket.IO's `io.close(...)`, so low-level services should avoid adding a second manual disconnect or HTTP close path for the same managed instance.
 
 ## 14.6 Bun engine details
 

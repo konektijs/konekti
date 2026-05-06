@@ -509,16 +509,92 @@ describe('@fluojs/socket.io', () => {
     );
 
     const serverOptions = Reflect.get(service, 'createServerOptions').call(service) as {
+      cleanupEmptyChildNamespaces?: boolean;
       cors?: unknown;
       maxHttpBufferSize?: number;
     };
     const bunOptions = Reflect.get(service, 'createBunEngineOptions').call(service) as {
       cors?: unknown;
+      maxHttpBufferSize?: number;
     };
 
     expect(serverOptions.cors).toEqual({ credentials: false, origin: false });
+    expect(serverOptions.cleanupEmptyChildNamespaces).toBe(false);
     expect(serverOptions.maxHttpBufferSize).toBe(1_048_576);
     expect(bunOptions.cors).toEqual({ credentials: false, origin: false });
+    expect(bunOptions.maxHttpBufferSize).toBe(1_048_576);
+  });
+
+  it('maps Bun HTTP request-body and websocket payload limits from the engine payload bound', () => {
+    const service = new SocketIoLifecycleService(
+      {} as never,
+      [] as never,
+      createLogger([]),
+      {
+        async close() {},
+        getRealtimeCapability() {
+          return createServerBackedHttpAdapterRealtimeCapability({});
+        },
+      } as never,
+      {
+        engine: {
+          maxHttpBufferSize: 256,
+        },
+      },
+    );
+    const engine = {
+      handler() {
+        return {
+          idleTimeout: 120,
+          maxRequestBodySize: 999,
+          websocket: {
+            close() {},
+            maxPayloadLength: 999,
+            message() {},
+            open() {},
+          },
+        };
+      },
+      handleRequest() {
+        return new Response();
+      },
+    };
+    const binding = Reflect.get(service, 'createBunSocketIoBinding').call(service, engine) as {
+      maxRequestBodySize?: number;
+      websocket: { maxPayloadLength?: number };
+    };
+
+    expect(binding.maxRequestBodySize).toBe(256);
+    expect(binding.websocket.maxPayloadLength).toBe(256);
+  });
+
+  it('delegates Socket.IO shutdown ownership to io.close without separately disconnecting clients', async () => {
+    const service = new SocketIoLifecycleService(
+      {} as never,
+      [] as never,
+      createLogger([]),
+      {
+        async close() {},
+        getRealtimeCapability() {
+          return createServerBackedHttpAdapterRealtimeCapability({});
+        },
+      } as never,
+      {},
+    );
+    const calls: string[] = [];
+    const io = {
+      close(callback: () => void) {
+        calls.push('close');
+        callback();
+      },
+      disconnectSockets() {
+        calls.push('disconnectSockets');
+      },
+    };
+
+    await Reflect.get(service, 'closeServerWithTimeout').call(service, io, 100);
+
+    expect(calls).toEqual(['close']);
   });
 
   it('rejects incomplete server-like bridge objects before constructing Socket.IO', () => {

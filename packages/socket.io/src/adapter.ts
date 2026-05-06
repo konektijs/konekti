@@ -103,6 +103,12 @@ interface BunEngineCorsOptions {
   origin?: boolean | RegExp | string | Array<RegExp | string>;
 }
 
+interface BunEngineOptions {
+  cors?: BunEngineCorsOptions;
+  maxHttpBufferSize?: number;
+  path: string;
+}
+
 interface BunRealtimeBindingHost {
   configureRealtimeBinding(binding: BunRealtimeBinding | undefined): void;
 }
@@ -490,6 +496,8 @@ export class SocketIoLifecycleService
 
     options.maxHttpBufferSize = this.resolveMaxHttpBufferSize();
 
+    options.cleanupEmptyChildNamespaces = false;
+
     if (this.moduleOptions.transports !== undefined) {
       options.transports = this.moduleOptions.transports;
     }
@@ -497,11 +505,9 @@ export class SocketIoLifecycleService
     return options;
   }
 
-  private createBunEngineOptions() {
-    const options: {
-      cors?: BunEngineCorsOptions;
-      path: string;
-    } = {
+  private createBunEngineOptions(): BunEngineOptions {
+    const options: BunEngineOptions = {
+      maxHttpBufferSize: this.resolveMaxHttpBufferSize(),
       path: DEFAULT_SOCKETIO_ENGINE_PATH,
     };
 
@@ -549,10 +555,10 @@ export class SocketIoLifecycleService
         return await engine.handleRequest(request, server as never);
       },
       idleTimeout: handler.idleTimeout,
-      maxRequestBodySize: handler.maxRequestBodySize,
+      maxRequestBodySize: this.resolveMaxHttpBufferSize(),
       websocket: {
         close: handler.websocket.close as BunRealtimeBinding['websocket']['close'],
-        maxPayloadLength: handler.websocket.maxPayloadLength,
+        maxPayloadLength: this.resolveMaxHttpBufferSize(),
         message: handler.websocket.message as BunRealtimeBinding['websocket']['message'],
         open: handler.websocket.open as BunRealtimeBinding['websocket']['open'],
       },
