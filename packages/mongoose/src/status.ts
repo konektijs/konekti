@@ -8,9 +8,11 @@ type MongoosePlatformLifecycleState = 'ready' | 'shutting-down' | 'stopped';
 
 type MongoosePlatformStatusSnapshotInput = {
   activeRequestTransactions: number;
+  activeSessions: number;
   hasActiveSession: boolean;
   lifecycleState: MongoosePlatformLifecycleState;
   strictTransactions: boolean;
+  supportsConnectionTransaction: boolean;
   supportsStartSession: boolean;
 };
 
@@ -31,7 +33,7 @@ function createReadiness(input: MongoosePlatformStatusSnapshotInput): PlatformRe
     };
   }
 
-  if (input.strictTransactions && !input.supportsStartSession) {
+  if (input.strictTransactions && !input.supportsStartSession && !input.supportsConnectionTransaction) {
     return {
       critical: true,
       reason: 'Mongoose strictTransactions is enabled but connection.startSession is unavailable.',
@@ -77,10 +79,12 @@ export function createMongoosePlatformStatusSnapshot(
   return {
     details: {
       activeRequestTransactions: input.activeRequestTransactions,
+      activeSessions: input.activeSessions,
       hasActiveSession: input.hasActiveSession,
       lifecycleState: input.lifecycleState,
-      sessionStrategy: input.supportsStartSession ? 'explicit-session' : 'none',
+      sessionStrategy: input.supportsStartSession || input.supportsConnectionTransaction ? 'explicit-session' : 'none',
       strictTransactions: input.strictTransactions,
+      supportsConnectionTransaction: input.supportsConnectionTransaction,
       supportsStartSession: input.supportsStartSession,
       transactionContext: 'als',
     },

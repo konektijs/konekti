@@ -573,6 +573,140 @@ describe('@fluojs/mongoose', () => {
     expect(sessionCalls).toBe(1);
   });
 
+  it('uses Mongoose connection.transaction when available without overriding explicit session flow', async () => {
+    const events: string[] = [];
+    const session = createFakeSession(events);
+
+    const connection: MongooseConnectionLike = {
+      async startSession() {
+        events.push('connection:startSession');
+        return session;
+      },
+      async transaction(fn) {
+        events.push('connection:transaction:start');
+        try {
+          return await fn(session);
+        } finally {
+          events.push('connection:transaction:end');
+          await session.endSession();
+        }
+      },
+    };
+
+    const mongoose = new MongooseConnection<typeof connection>(connection);
+
+    await expect(
+      mongoose.transaction(async () => {
+        events.push(`session:${mongoose.currentSession() === session}`);
+        return 'ok';
+      }),
+    ).resolves.toBe('ok');
+
+    expect(events).toEqual([
+      'connection:transaction:start',
+      'session:true',
+      'connection:transaction:end',
+      'session:end',
+    ]);
+    expect(events).not.toContain('connection:startSession');
+  });
+
+  it('waits for connection.transaction request session cleanup before dispose on shutdown', async () => {
+    const events: string[] = [];
+    let resolveEndSessionStarted!: () => void;
+    let resolveEndSession!: () => void;
+    const endSessionStarted = new Promise<void>((resolve) => {
+      resolveEndSessionStarted = resolve;
+    });
+    const endSessionDeferred = new Promise<void>((resolve) => {
+      resolveEndSession = resolve;
+    });
+
+    const session: MongooseSessionLike = {
+      abortTransaction() {
+        events.push('transaction:abort');
+      },
+      commitTransaction() {
+        events.push('transaction:commit');
+      },
+      async endSession() {
+        events.push('session:end:start');
+        resolveEndSessionStarted();
+        await endSessionDeferred;
+        events.push('session:end:done');
+      },
+      startTransaction() {
+        events.push('transaction:start');
+      },
+    };
+
+    const connection: MongooseConnectionLike = {
+      async transaction(fn) {
+        events.push('connection:transaction:start');
+        await session.startTransaction();
+        try {
+          const result = await fn(session);
+          await session.commitTransaction();
+          return result;
+        } catch (error) {
+          await session.abortTransaction();
+          throw error;
+        } finally {
+          await session.endSession();
+        }
+      },
+    };
+
+    const mongooseModule = MongooseModule.forRoot<typeof connection>({
+      connection,
+      dispose() {
+        events.push('dispose');
+      },
+    });
+
+    class AppModule {}
+
+    defineModule(AppModule, {
+      imports: [mongooseModule],
+    });
+
+    const app = await bootstrapApplication({ rootModule: AppModule });
+    const mongoose = await app.container.resolve(MongooseConnection<typeof connection>);
+
+    const openTransaction = mongoose.requestTransaction(async () => new Promise<never>(() => undefined));
+    const closePromise = app.close();
+
+    await endSessionStarted;
+
+    expect(mongoose.createPlatformStatusSnapshot()).toMatchObject({
+      details: {
+        activeRequestTransactions: 1,
+        activeSessions: 1,
+        lifecycleState: 'shutting-down',
+      },
+    });
+    expect(events).toEqual([
+      'connection:transaction:start',
+      'transaction:start',
+      'transaction:abort',
+      'session:end:start',
+    ]);
+
+    resolveEndSession();
+
+    await closePromise;
+    await expect(openTransaction).rejects.toThrow('Application shutdown interrupted an open request transaction.');
+
+    expect(events).toEqual([
+      'connection:transaction:start',
+      'transaction:start',
+      'transaction:abort',
+      'session:end:start',
+      'session:end:done',
+      'dispose',
+    ]);
+  });
+
   it('handles transaction abort on error', async () => {
     const events: string[] = [];
     const session = createFakeSession(events);
@@ -715,9 +849,11 @@ describe('@fluojs/mongoose', () => {
   it('reports ownership/readiness/health semantics in platform snapshot shape', () => {
     const snapshot = createMongoosePlatformStatusSnapshot({
       activeRequestTransactions: 1,
+      activeSessions: 0,
       hasActiveSession: false,
       lifecycleState: 'ready',
       strictTransactions: false,
+      supportsConnectionTransaction: false,
       supportsStartSession: true,
     });
 
@@ -734,9 +870,11 @@ describe('@fluojs/mongoose', () => {
   it('marks strict transaction mismatch as not-ready', () => {
     const snapshot = createMongoosePlatformStatusSnapshot({
       activeRequestTransactions: 0,
+      activeSessions: 0,
       hasActiveSession: false,
       lifecycleState: 'ready',
       strictTransactions: true,
+      supportsConnectionTransaction: false,
       supportsStartSession: false,
     });
 
@@ -748,9 +886,11 @@ describe('@fluojs/mongoose', () => {
   it('marks shutdown state as not-ready and degraded health', () => {
     const snapshot = createMongoosePlatformStatusSnapshot({
       activeRequestTransactions: 0,
+      activeSessions: 0,
       hasActiveSession: false,
       lifecycleState: 'shutting-down',
       strictTransactions: false,
+      supportsConnectionTransaction: false,
       supportsStartSession: true,
     });
 

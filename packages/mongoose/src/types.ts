@@ -8,6 +8,7 @@ import type { MaybePromise } from '@fluojs/core';
  */
 export interface MongooseConnectionLike {
   startSession?(): Promise<MongooseSessionLike>;
+  transaction?<T>(fn: (session: MongooseSessionLike) => Promise<T>): Promise<T>;
 }
 
 /**
