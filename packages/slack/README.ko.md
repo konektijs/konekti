@@ -196,7 +196,7 @@ await slack.send({
 
 Behavioral contract 메모:
 
-- 내장 webhook transport는 `408`, `429`, `5xx` 같은 일시적 실패를 호출자에게 에러를 노출하기 전에 bounded exponential backoff로 재시도합니다.
+- 내장 webhook transport는 `408`, `429`, `5xx` 같은 일시적 실패를 호출자에게 에러를 노출하기 전에 bounded exponential backoff로 재시도하며, `403` 또는 `404` 같은 영구 실패는 재시도 없이 즉시 노출합니다.
 - 호출자에게 보이는 `SlackTransportError` 메시지는 기본적으로 raw upstream response body를 포함하지 않습니다.
 
 ### 의도적인 제한 사항

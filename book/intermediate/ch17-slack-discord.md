@@ -196,7 +196,7 @@ async alertOps(event: OrderPlacedEvent) {
 The built-in webhook transports are designed around failure patterns seen in production environments.
 
 - **Automatic retry**: Transient `408`, `429`, and `5xx` errors are retried with exponential backoff.
-- **Explicit errors**: Permanent failures, such as 404 or 403, are surfaced as `SlackTransportError` or `DiscordTransportError` so the application level can handle them.
+- **Explicit errors**: Permanent failures, such as 404 or 403, are not retried and are surfaced as `SlackTransportError` or `DiscordTransportError` so the application level can handle them.
 
 ## 17.8 Status Snapshots
 
