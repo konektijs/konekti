@@ -20,6 +20,17 @@ interface StudioState {
   rawJson?: string;
 }
 
+interface FocusSnapshot {
+  id: string;
+  selectionEnd: number | null;
+  selectionStart: number | null;
+}
+
+interface RenderAppOptions {
+  message?: string;
+  preserveFocus?: boolean;
+}
+
 const app = document.querySelector<HTMLDivElement>('#app');
 
 if (!app) {
@@ -68,6 +79,41 @@ async function copyToClipboard(text: string): Promise<void> {
 
 function toggleValue<T extends string>(values: T[], value: T): T[] {
   return values.includes(value) ? values.filter((entry) => entry !== value) : [...values, value];
+}
+
+function isTextControl(element: Element | null): element is HTMLInputElement | HTMLTextAreaElement {
+  return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement;
+}
+
+function captureFocusSnapshot(): FocusSnapshot | undefined {
+  const activeElement = document.activeElement;
+
+  if (!isTextControl(activeElement) || !activeElement.id) {
+    return undefined;
+  }
+
+  return {
+    id: activeElement.id,
+    selectionEnd: activeElement.selectionEnd,
+    selectionStart: activeElement.selectionStart,
+  };
+}
+
+function restoreFocusSnapshot(snapshot: FocusSnapshot | undefined): void {
+  if (!snapshot) {
+    return;
+  }
+
+  const target = document.getElementById(snapshot.id);
+  if (!isTextControl(target)) {
+    return;
+  }
+
+  target.focus({ preventScroll: true });
+
+  if (snapshot.selectionStart !== null && snapshot.selectionEnd !== null) {
+    target.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd);
+  }
 }
 
 function getSelectedComponent(snapshot: PlatformShellSnapshot | undefined, selectedId: string | undefined): PlatformSnapshot | undefined {
@@ -260,7 +306,9 @@ function renderDiagnostics(snapshot: PlatformShellSnapshot | undefined): string 
   </div>`;
 }
 
-function renderApp(message?: string): void {
+function renderApp(options: RenderAppOptions | string = {}): void {
+  const message = typeof options === 'string' ? options : options.message;
+  const focusSnapshot = typeof options === 'string' || !options.preserveFocus ? undefined : captureFocusSnapshot();
   const snapshot = state.filteredSnapshot;
   const selectedComponent = getSelectedComponent(snapshot, state.selectedComponentId);
   const mermaidText = snapshot ? renderMermaid(snapshot) : '';
@@ -303,14 +351,14 @@ function renderApp(message?: string): void {
           <div class="filter-row">
             <span>Component readiness</span>
             ${readinessOptions
-              .map((status) => `<label><input type="checkbox" data-readiness="${status}" ${state.filter.readinessStatuses.includes(status) ? 'checked' : ''}/> ${status}</label>`)
+              .map((status) => `<label><input type="checkbox" id="readiness-${status}" data-readiness="${status}" ${state.filter.readinessStatuses.includes(status) ? 'checked' : ''}/> ${status}</label>`)
               .join('')}
           </div>
 
           <div class="filter-row">
             <span>Diagnostic severity</span>
             ${severityOptions
-              .map((severity) => `<label><input type="checkbox" data-severity="${severity}" ${state.filter.severities.includes(severity) ? 'checked' : ''}/> ${severity}</label>`)
+              .map((severity) => `<label><input type="checkbox" id="severity-${severity}" data-severity="${severity}" ${state.filter.severities.includes(severity) ? 'checked' : ''}/> ${severity}</label>`)
               .join('')}
           </div>
         </div>
@@ -398,14 +446,14 @@ function renderApp(message?: string): void {
     const target = event.target as HTMLInputElement;
     state.filter.query = target.value;
     computeFilteredSnapshot();
-    renderApp();
+    renderApp({ preserveFocus: true });
   });
 
   document.querySelectorAll<HTMLInputElement>('input[data-readiness]').forEach((input) => {
     input.addEventListener('change', () => {
       state.filter.readinessStatuses = toggleValue(state.filter.readinessStatuses, input.dataset.readiness as PlatformReadinessStatus);
       computeFilteredSnapshot();
-      renderApp();
+      renderApp({ preserveFocus: true });
     });
   });
 
@@ -413,7 +461,7 @@ function renderApp(message?: string): void {
     input.addEventListener('change', () => {
       state.filter.severities = toggleValue(state.filter.severities, input.dataset.severity as PlatformDiagnosticSeverity);
       computeFilteredSnapshot();
-      renderApp();
+      renderApp({ preserveFocus: true });
     });
   });
 
@@ -459,6 +507,8 @@ function renderApp(message?: string): void {
       renderApp();
     });
   });
+
+  restoreFocusSnapshot(focusSnapshot);
 }
 
 computeFilteredSnapshot();

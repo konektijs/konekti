@@ -268,12 +268,26 @@ describe('parseStudioPayload', () => {
     expect(readme).toContain('@fluojs/studio/contracts');
     expect(readme).toContain('@fluojs/studio/viewer');
     expect(readme).toContain('report artifacts');
+    expect(readme).toContain('node -p "require.resolve(\'@fluojs/studio/viewer\')"');
+    expect(readme).toContain('pnpm --dir packages/studio dev');
+    expect(readme).toContain('preserve focus');
     expect(readme).toContain('intended public publish surface');
     expect(readmeKo).toContain('pnpm add @fluojs/studio');
     expect(readmeKo).toContain('@fluojs/studio/contracts');
     expect(readmeKo).toContain('@fluojs/studio/viewer');
     expect(readmeKo).toContain('report artifact');
+    expect(readmeKo).toContain('node -p "require.resolve(\'@fluojs/studio/viewer\')"');
+    expect(readmeKo).toContain('pnpm --dir packages/studio dev');
+    expect(readmeKo).toContain('focus를 유지');
     expect(readmeKo).toContain('공개 배포 패키지');
+  });
+
+  it('keeps viewer filter controls focused across rerenders', () => {
+    const viewerSource = readFileSync(resolve(packageDir, 'src/main.ts'), 'utf8');
+
+    expect(viewerSource).toContain('captureFocusSnapshot');
+    expect(viewerSource).toContain('restoreFocusSnapshot(focusSnapshot)');
+    expect(viewerSource).toContain('renderApp({ preserveFocus: true })');
   });
 
   it('build emits the published helper and viewer entrypoints', () => {
