@@ -116,6 +116,48 @@ describe('parseStudioPayload', () => {
     expect(parsed.payload.snapshot?.diagnostics[0]?.code).toBe('QUEUE_DEPENDENCY_NOT_READY');
   });
 
+  it('rejects arbitrary JSON objects that are not Studio inspect artifacts', () => {
+    expect(() =>
+      parseStudioPayload(
+        JSON.stringify({
+          components: 'not-a-component-list',
+          generatedAt: '2026-04-02T00:00:00.000Z',
+          random: true,
+        }),
+      )
+    ).toThrow('Invalid platform snapshot payload.');
+  });
+
+  it('rejects malformed snapshot component and diagnostics payloads', () => {
+    expect(() =>
+      parseStudioPayload(
+        JSON.stringify({
+          ...snapshotFixture,
+          components: [
+            {
+              ...snapshotFixture.components[0],
+              dependencies: ['redis.default', 42],
+            },
+          ],
+        }),
+      )
+    ).toThrow('Invalid component shape in platform snapshot payload.');
+
+    expect(() =>
+      parseStudioPayload(
+        JSON.stringify({
+          ...snapshotFixture,
+          diagnostics: [
+            {
+              ...snapshotFixture.diagnostics[0],
+              dependsOn: ['redis.default', { id: 'queue.default' }],
+            },
+          ],
+        }),
+      )
+    ).toThrow('Invalid optional diagnostics issue fields in platform snapshot payload.');
+  });
+
   it('parses envelope with snapshot and timing', () => {
     const parsed = parseStudioPayload(
       JSON.stringify({
@@ -146,6 +188,41 @@ describe('parseStudioPayload', () => {
       totalMs: 1.23,
       version: 1,
     });
+  });
+
+  it('rejects unsupported and malformed timing diagnostics before rendering', () => {
+    expect(() =>
+      parseStudioPayload(
+        JSON.stringify({
+          phases: [{ durationMs: 1.23, name: 'bootstrap_module' }],
+          totalMs: 1.23,
+          version: 2,
+        }),
+      )
+    ).toThrow('Unsupported bootstrap timing version. Expected version: 1.');
+
+    expect(() =>
+      parseStudioPayload(
+        JSON.stringify({
+          phases: [{ durationMs: 'slow', name: 'bootstrap_module' }],
+          totalMs: 1.23,
+          version: 1,
+        }),
+      )
+    ).toThrow('Invalid phase entry in bootstrap timing payload.');
+
+    expect(() =>
+      parseStudioPayload(
+        JSON.stringify({
+          snapshot: snapshotFixture,
+          timing: {
+            phases: [],
+            totalMs: '1.23',
+            version: 1,
+          },
+        }),
+      )
+    ).toThrow('Invalid bootstrap timing payload.');
   });
 
   it('preserves inspect report artifacts with summary, snapshot, and timing', () => {
@@ -358,6 +435,47 @@ describe('applyFilters', () => {
     expect(filtered.components.map((component: { id: string }) => component.id)).toEqual(['queue.default']);
     expect(filtered.diagnostics.map((issue: { code: string }) => issue.code)).toEqual(['QUEUE_DEPENDENCY_NOT_READY']);
   });
+
+  it('applies query filters across component ids, kinds, and dependencies', () => {
+    const filtered = applyFilters(snapshotFixture, {
+      query: ' REDIS.DEFAULT ',
+      readinessStatuses: [],
+      severities: [],
+    });
+
+    expect(filtered.components.map((component: { id: string }) => component.id)).toEqual(['redis.default', 'queue.default']);
+    expect(filtered.diagnostics.map((issue: { code: string }) => issue.code)).toEqual(['QUEUE_DEPENDENCY_NOT_READY']);
+    expect(snapshotFixture.components).toHaveLength(2);
+  });
+
+  it('applies query filters across diagnostic metadata and blockers', () => {
+    const filteredByHint = applyFilters(snapshotFixture, {
+      query: 'connectivity',
+      readinessStatuses: [],
+      severities: [],
+    });
+    const filteredByBlocker = applyFilters(snapshotFixture, {
+      query: 'redis.default',
+      readinessStatuses: [],
+      severities: ['warning'],
+    });
+
+    expect(filteredByHint.components).toEqual([]);
+    expect(filteredByHint.diagnostics.map((issue: { code: string }) => issue.code)).toEqual(['QUEUE_DEPENDENCY_NOT_READY']);
+    expect(filteredByBlocker.diagnostics.map((issue: { componentId: string }) => issue.componentId)).toEqual(['queue.default']);
+  });
+
+  it('returns empty component and diagnostic lists when filters match nothing', () => {
+    const filtered = applyFilters(snapshotFixture, {
+      query: 'missing-component',
+      readinessStatuses: ['ready'],
+      severities: ['error'],
+    });
+
+    expect(filtered.components).toEqual([]);
+    expect(filtered.diagnostics).toEqual([]);
+    expect(filtered.readiness).toBe(snapshotFixture.readiness);
+  });
 });
 
 describe('renderMermaid', () => {
@@ -386,6 +504,48 @@ describe('renderMermaid', () => {
 
     expect(externalNodeId).toBeDefined();
     expect(output).toContain(`  C1 --> ${externalNodeId}`);
+  });
+
+  it('renders an explicit empty graph placeholder for empty snapshots', () => {
+    const output = renderMermaid({
+      ...snapshotFixture,
+      components: [],
+      diagnostics: [],
+    });
+
+    expect(output).toBe('graph TD\n  EMPTY["No registered platform components"]');
+  });
+
+  it('marks not-ready components while escaping Mermaid labels', () => {
+    const output = renderMermaid({
+      ...snapshotFixture,
+      components: [
+        {
+          ...snapshotFixture.components[0],
+          health: {
+            status: 'unhealthy',
+          },
+          id: 'api."gateway"',
+          readiness: {
+            critical: true,
+            status: 'not-ready',
+          },
+        },
+      ],
+      diagnostics: [],
+      health: {
+        status: 'unhealthy',
+      },
+      readiness: {
+        critical: true,
+        status: 'not-ready',
+      },
+    });
+
+    expect(output).toContain('api.\\"gateway\\"');
+    expect(output).toContain('readiness: not-ready');
+    expect(output).toContain('  class C1 notReady');
+    expect(output).toContain('  classDef notReady stroke:#ef4444,stroke-width:2px');
   });
 
   it('uses distinct external node ids when dependency names sanitize to the same base', () => {
