@@ -494,7 +494,7 @@ describe('@fluojs/socket.io', () => {
     await app.close();
   });
 
-  it('uses safe deny-by-default CORS and bounded engine defaults when options are omitted', () => {
+  it('uses safe CORS, bounded engine defaults, and static namespace cleanup ownership when options are omitted', () => {
     const service = new SocketIoLifecycleService(
       {} as never,
       [] as never,
@@ -509,16 +509,107 @@ describe('@fluojs/socket.io', () => {
     );
 
     const serverOptions = Reflect.get(service, 'createServerOptions').call(service) as {
+      cleanupEmptyChildNamespaces?: boolean;
       cors?: unknown;
       maxHttpBufferSize?: number;
     };
     const bunOptions = Reflect.get(service, 'createBunEngineOptions').call(service) as {
       cors?: unknown;
+      maxHttpBufferSize?: number;
     };
 
     expect(serverOptions.cors).toEqual({ credentials: false, origin: false });
+    expect(serverOptions.cleanupEmptyChildNamespaces).toBe(false);
     expect(serverOptions.maxHttpBufferSize).toBe(1_048_576);
     expect(bunOptions.cors).toEqual({ credentials: false, origin: false });
+    expect(bunOptions.maxHttpBufferSize).toBe(1_048_576);
+  });
+
+  it('maps Bun HTTP request-body and websocket payload limits from the engine payload bound', () => {
+    const service = new SocketIoLifecycleService(
+      {} as never,
+      [] as never,
+      createLogger([]),
+      {
+        async close() {},
+        getRealtimeCapability() {
+          return createServerBackedHttpAdapterRealtimeCapability({});
+        },
+      } as never,
+      {
+        engine: {
+          maxHttpBufferSize: 256,
+        },
+      },
+    );
+    const engine = {
+      handler() {
+        return {
+          idleTimeout: 120,
+          maxRequestBodySize: 999,
+          websocket: {
+            close() {},
+            maxPayloadLength: 999,
+            message() {},
+            open() {},
+          },
+        };
+      },
+      handleRequest() {
+        return new Response();
+      },
+    };
+    const binding = Reflect.get(service, 'createBunSocketIoBinding').call(service, engine) as {
+      maxRequestBodySize?: number;
+      websocket: { maxPayloadLength?: number };
+    };
+
+    expect(binding.maxRequestBodySize).toBe(256);
+    expect(binding.websocket.maxPayloadLength).toBe(256);
+  });
+
+  it('lets io.close clean clients without closing the adapter-owned shared HTTP server', async () => {
+    const service = new SocketIoLifecycleService(
+      {} as never,
+      [] as never,
+      createLogger([]),
+      {
+        async close() {},
+        getRealtimeCapability() {
+          return createServerBackedHttpAdapterRealtimeCapability({});
+        },
+      } as never,
+      {},
+    );
+    const calls: string[] = [];
+    const sharedHttpServer = {
+      close() {
+        calls.push('http-close');
+      },
+      emit() {
+        return true;
+      },
+      listeners() {
+        return [];
+      },
+      on() {
+        return this;
+      },
+      removeAllListeners() {
+        return this;
+      },
+    };
+    const io = {
+      httpServer: sharedHttpServer,
+      close(this: { httpServer?: unknown }, callback: () => void) {
+        calls.push(this.httpServer === undefined ? 'client-cleanup' : 'http-server-still-attached');
+        callback();
+      },
+    } as unknown as SocketIoServer;
+
+    await Reflect.get(service, 'closeServerWithTimeout').call(service, io, 100);
+
+    expect(calls).toEqual(['client-cleanup']);
   });
 
   it('rejects incomplete server-like bridge objects before constructing Socket.IO', () => {
@@ -829,6 +920,60 @@ describe('@fluojs/socket.io', () => {
     const socket = createClient(`http://127.0.0.1:${String(port)}/payload-limit`, {
       reconnection: false,
       transports: ['websocket'],
+    });
+    await onceConnected(socket);
+
+    const disconnected = onceDisconnected(socket);
+    socket.emit('ping', 'x'.repeat(256));
+
+    expect(['transport close', 'transport error']).toContain(await disconnected);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(state.messages).toEqual([]);
+
+    await app.close();
+  });
+
+  it('disconnects Bun-style sockets when inbound payloads exceed the configured engine limit', async () => {
+    const port = await findAvailablePort();
+    const adapter = new TestBunSocketIoAdapter(port);
+
+    class GatewayState {
+      messages: unknown[] = [];
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/bun-payload-limit' })
+    class PayloadGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnMessage('ping')
+      onPing(payload: unknown) {
+        this.state.messages.push(payload);
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [SocketIoModule.forRoot({
+        engine: {
+          maxHttpBufferSize: 32,
+        },
+        transports: ['polling'],
+      })],
+      providers: [GatewayState, PayloadGateway],
+    });
+
+    const app = await bootstrapApplication({
+      adapter,
+      rootModule: AppModule,
+    });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+
+    await app.listen();
+
+    const socket = createClient(`http://127.0.0.1:${String(port)}/bun-payload-limit`, {
+      reconnection: false,
+      transports: ['polling'],
     });
     await onceConnected(socket);
 

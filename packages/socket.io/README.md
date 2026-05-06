@@ -107,13 +107,17 @@ SocketIoModule.forRoot({
 
 When `cors` is omitted, `@fluojs/socket.io` defaults to `{ credentials: false, origin: false }` so cross-origin exposure stays opt-in. When `engine.maxHttpBufferSize` is omitted, the adapter applies a bounded 1 MiB Engine.IO payload limit. Defaults also include `buffer.maxPendingMessagesPerSocket: 128`, `buffer.overflowPolicy: 'drop-oldest'`, and `shutdown.timeoutMs: 5000`.
 
+Static `@WebSocketGateway({ path })` namespaces are owned by fluo's gateway discovery and are not treated as Socket.IO dynamic child namespaces. The adapter keeps Socket.IO's `cleanupEmptyChildNamespaces` behavior disabled for those static namespaces. If application code creates dynamic child namespaces through raw `SOCKETIO_SERVER` access, that ownership and cleanup policy stays with the application-level Socket.IO integration.
+
+During application shutdown, Socket.IO owns cleanup for connected Socket.IO clients, but the underlying HTTP server remains owned by the platform adapter or shared HTTP server integration that supplied it. The adapter detaches that HTTP server reference before `io.close(...)`, so client cleanup still runs while Socket.IO does not close adapter-owned/shared HTTP listeners. Do not add a second manual socket-disconnect path around the same managed Socket.IO instance.
+
 ### Guard contracts
 
 `auth.connection` receives `SocketIoConnectionGuardContext` before namespace connect handlers run. `auth.message` receives `SocketIoMessageGuardContext` before message handlers run. Guards can return `true`, `false`, or a `SocketIoGuardRejection` with `message`, optional `data`, and optional `disconnect`; message rejections use ACK payloads shaped as `{ error, data }`.
 
 ### Bun-specific notes
 
-The Bun path supports Socket.IO through `@socket.io/bun-engine`, but it requires static CORS shapes: no CORS delegate functions and no boolean entries inside `cors.origin` arrays. `@WebSocketGateway({ serverBacked })` is not supported on Bun.
+The Bun path supports Socket.IO through `@socket.io/bun-engine`, but it requires static CORS shapes: no CORS delegate functions and no boolean entries inside `cors.origin` arrays. `@WebSocketGateway({ serverBacked })` is not supported on Bun. Bun's HTTP request body limit (`maxRequestBodySize`) and WebSocket frame limit (`websocket.maxPayloadLength`) are separate host contracts; the adapter maps both from `engine.maxHttpBufferSize` so polling requests and websocket frames share the configured inbound payload bound.
 
 ### Module registration
 Register Socket.IO with `SocketIoModule.forRoot(...)`.
