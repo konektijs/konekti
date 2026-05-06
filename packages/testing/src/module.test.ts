@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Inject, Module, Scope as ScopeDecorator } from '@fluojs/core';
 import { Controller, Get, Post, type RequestContext } from '@fluojs/http';
-import type { Dispatcher } from '@fluojs/http';
+import type { Dispatcher, Middleware } from '@fluojs/http';
 
 import {
   createTestApp,
@@ -76,6 +76,25 @@ describe('@fluojs/testing', () => {
 
     expect(testingModule.has(UserService)).toBe(true);
     expect(service.logger.name).toBe('logger');
+  });
+
+  it('shares singleton identity between get() and resolve()', async () => {
+    class CounterService {
+      count = 0;
+    }
+
+    @Module({ providers: [CounterService] })
+    class ServiceModule {}
+
+    const testingModule = await createTestingModule({ rootModule: ServiceModule }).compile();
+
+    const syncService = testingModule.get<CounterService>(CounterService);
+    syncService.count = 7;
+
+    const asyncService = await testingModule.resolve<CounterService>(CounterService);
+
+    expect(asyncService).toBe(syncService);
+    expect(asyncService.count).toBe(7);
   });
 
   it('overrides providers before resolution', async () => {
@@ -458,6 +477,28 @@ describe('createTestApp', () => {
     });
 
     await expect(app.close()).resolves.toBeUndefined();
+  });
+
+  it('preserves caller bootstrap middleware when adding test request context', async () => {
+    const middlewareCalls: string[] = [];
+    const callerMiddleware: Middleware = {
+      async handle(_context, next) {
+        middlewareCalls.push('caller');
+        await next();
+      },
+    };
+
+    const app = await createTestApp({
+      rootModule: AppModule,
+      middleware: [callerMiddleware],
+    });
+
+    const response = await app.request('GET', '/users/me').send();
+
+    expect(response.status).toBe(200);
+    expect(middlewareCalls).toEqual(['caller']);
+
+    await app.close();
   });
 
   it('injects principal into request context for e2e-style calls', async () => {

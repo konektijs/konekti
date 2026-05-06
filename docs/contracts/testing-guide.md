@@ -44,6 +44,8 @@ fluo's test setup follows its runtime model: standard decorators, explicit DI to
 
 Keep manual `FrameworkRequest`/`FrameworkResponse` stubs, `makeRequest(...)`, raw `FluoFactory.create(...)`, and direct `app.dispatch(...)` tests for framework-internal, adapter/runtime, or compatibility contracts. They are intentionally lower-level than the default app-developer HTTP path.
 
+`createTestApp(...)` follows the runtime HTTP bootstrap option surface for request-facing tests. When callers pass app-level middleware, the testing helper adds its request-context middleware without dropping the caller middleware chain.
+
 ## Commands
 
 | Command | Use |

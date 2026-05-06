@@ -301,8 +301,8 @@ const mailer = createDeepMock(MailService);
 mailer.send.mockResolvedValue(true);
 ```
 
-### 20.6.1 Auto-Mocking DI Tokens
-`createTestingModule` can also be configured to auto-mock every Provider that is not explicitly defined. This saves time when testing a large service where only one or two dependencies matter. Fluo automatically injects deep mocks for every other dependency, allowing the class to be instantiated without much boilerplate.
+### 20.6.1 Explicit DI Token Overrides
+`createTestingModule` does not auto-mock missing providers. Keep the module graph explicit, then replace the dependencies that matter with `overrideProvider(...)`, `overrideProviders(...)`, or `mockToken(...)` before calling `.compile()`. This keeps tests aligned with fluo's explicit DI contract while still avoiding boilerplate for dependencies that should be faked.
 
 ### 20.6.2 The Power of Proxies in Mocking
 The `createMock` helper uses an ES6 Proxy to intercept method calls and property access. This means you do not need to define every method on the mock manually. The proxy handles every call automatically and returns a default mock function when a method is not explicitly defined. This makes test setup simpler and easier to adapt when service interfaces change. If you add a new method to a service, you do not need to update every existing mock unless a test specifically verifies that method.

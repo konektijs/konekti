@@ -2,7 +2,7 @@ import type { Mock } from 'vitest';
 
 import type { MaybePromise, Token } from '@fluojs/core';
 import type { ClassType, Container, ForwardRefFn, OptionalToken, Provider } from '@fluojs/di';
-import type { BootstrapResult, BootstrapModuleOptions, ModuleType } from '@fluojs/runtime';
+import type { BootstrapApplicationOptions, BootstrapResult, BootstrapModuleOptions, ModuleType } from '@fluojs/runtime';
 import type { Guard, Interceptor } from '@fluojs/http';
 import type { RequestBuilder, TestPrincipal, TestRequest, TestRequestWithOptions, TestResponse } from './http.js';
 
@@ -10,6 +10,13 @@ import type { RequestBuilder, TestPrincipal, TestRequest, TestRequestWithOptions
  * Bootstrap options accepted by `createTestingModule(...)`.
  */
 export interface TestingModuleOptions extends BootstrapModuleOptions {
+  rootModule: ModuleType;
+}
+
+/**
+ * Bootstrap options accepted by `createTestApp(...)`.
+ */
+export interface TestingApplicationOptions extends BootstrapApplicationOptions {
   rootModule: ModuleType;
 }
 

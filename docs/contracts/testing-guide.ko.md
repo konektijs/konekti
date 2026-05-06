@@ -44,6 +44,8 @@ fluo의 테스트 설정은 런타임 모델과 같습니다. 표준 decorator, 
 
 수동 `FrameworkRequest`/`FrameworkResponse` stub, `makeRequest(...)`, raw `FluoFactory.create(...)`, direct `app.dispatch(...)` 테스트는 framework internal, adapter/runtime, compatibility contract에 남겨 둡니다. 이들은 기본 app-developer HTTP 경로보다 의도적으로 낮은 수준의 테스트입니다.
 
+`createTestApp(...)`은 request-facing 테스트에서 runtime HTTP bootstrap option surface를 따릅니다. 호출자가 app-level middleware를 넘기면, 테스트 헬퍼는 request-context middleware를 추가하면서 호출자의 middleware chain을 제거하지 않습니다.
+
 ## 명령어 (Commands)
 
 | 명령어 | 용도 |

@@ -148,7 +148,7 @@ This lets someone writing a new adapter, such as a hypothetical `AzureFunctionsA
 
 ### Conformance Testing for Library Authors
 
-If you develop a library that extends fluo, such as a custom validation pipe or logging interceptor, you should provide conformance tests to users. This ensures the library behaves as expected inside the fluo ecosystem and does not cause side effects. An extensible `BaseLibraryConformanceHarness` is available so you can define the library's specific behavior requirements.
+If you develop a library that extends fluo, such as a custom validation pipe or logging interceptor, you should provide conformance tests to users. This ensures the library behaves as expected inside the fluo ecosystem and does not cause side effects. `@fluojs/testing` publishes concrete harness subpaths for platform, HTTP adapter, web-runtime adapter, and fetch-style WebSocket contracts; custom library authors should follow those patterns in their own package tests until a dedicated library conformance harness is published.
 
 For custom pipes, the conformance suite focuses on how invalid input is handled and whether metadata from the DI container is propagated correctly. For interceptors, it focuses on execution order and correct handling of both synchronous and asynchronous results. A common mistake by pipe authors is missing nested object transformation. The conformance harness includes deep validation scenarios that check structural integrity for complex DTOs.
 
@@ -167,7 +167,7 @@ export function runPipeConformance(pipe: Pipe, options: PipeOptions) {
 
 These automated checks ensure fluo's "pluggable" nature does not trade away stability. Every extension point in the framework has a conformance area that guides library authors toward stable implementations. For example, a custom logging interceptor must prove that it does not accidentally consume the request body stream. Otherwise, later controllers may be unable to read the payload. The library conformance harness includes a "stream integrity" test that checks whether the underlying `ReadableStream` is cloned correctly or left intact when the interceptor only needs to observe headers.
 
-By following the patterns used in `@fluojs/testing/conformance`, you can give users a standardized way to verify integrations. This improves ecosystem reliability and builds trust with users. Consistent tests lead to consistent behavior, which is the core goal of the fluo framework. When you create your own tools and libraries, you should make this philosophy a priority in your development process.
+By following the patterns used in `@fluojs/testing/platform-conformance` and the other published harness subpaths, you can give users a standardized way to verify integrations. This improves ecosystem reliability and builds trust with users. Consistent tests lead to consistent behavior, which is the core goal of the fluo framework. When you create your own tools and libraries, you should make this philosophy a priority in your development process.
 
 Beyond basic functionality, conformance harnesses for library authors also check memory efficiency and performance overhead. For example, middleware that performs authentication must not add large latency or keep references to request objects after the response has been sent. Internal benchmarking tools integrated into the conformance suite give library authors immediate feedback about the cost of their abstractions.
 
@@ -205,7 +205,7 @@ The WebSocket harness also includes "backpressure" tests. These verify that the 
 If you implemented a custom adapter in Chapter 13, you should now verify it with the harness. This is the key test that checks whether your adapter complies with the fluo Behavioral Contract. Passing the portability harness gives you evidence that the adapter can be deployed to different runtimes without breaking existing business logic.
 
 ```typescript
-import { createHttpAdapterPortabilityHarness } from '@fluojs/testing/portability';
+import { createHttpAdapterPortabilityHarness } from '@fluojs/testing/http-adapter-portability';
 import { myAdapter } from './my-adapter';
 
 const harness = createHttpAdapterPortabilityHarness({

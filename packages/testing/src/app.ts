@@ -10,7 +10,7 @@ import {
 } from './http.js';
 import type {
   TestApp,
-  TestingModuleOptions,
+  TestingApplicationOptions,
   TestRequestOptions,
 } from './types.js';
 
@@ -54,10 +54,10 @@ function normalizeRequestInput(
  * await app.close();
  * ```
  */
-export async function createTestApp(options: TestingModuleOptions): Promise<TestApp> {
+export async function createTestApp(options: TestingApplicationOptions): Promise<TestApp> {
   const app = await bootstrapApplication({
     ...options,
-    middleware: [createTestRequestContextMiddleware()],
+    middleware: [createTestRequestContextMiddleware(), ...(options.middleware ?? [])],
   });
 
   const request: TestApp['request'] = (

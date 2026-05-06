@@ -301,8 +301,8 @@ const mailer = createDeepMock(MailService);
 mailer.send.mockResolvedValue(true);
 ```
 
-### 20.6.1 Auto-Mocking DI Tokens
-`createTestingModule`은 명시적으로 정의되지 않은 모든 프로바이더를 "자동 모의(Auto-Mock)"하도록 설정할 수도 있습니다. 이는 한두 개의 의존성만 관심 있는 큰 서비스를 테스트할 때 시간을 줄여 줍니다. Fluo는 다른 모든 의존성에 대해 깊은 모의 객체를 자동으로 주입하여, 많은 상용구 코드 없이도 클래스를 인스턴스화할 수 있게 합니다.
+### 20.6.1 명시적인 DI Token Override
+`createTestingModule`은 누락된 provider를 자동으로 mock하지 않습니다. module graph는 명시적으로 유지하고, 교체해야 하는 의존성만 `.compile()` 전에 `overrideProvider(...)`, `overrideProviders(...)`, 또는 `mockToken(...)`으로 바꾸세요. 이렇게 하면 fluo의 명시적 DI 계약과 테스트가 일치하면서도 fake가 필요한 의존성의 상용구를 줄일 수 있습니다.
 
 ### 20.6.2 The Power of Proxies in Mocking
 `createMock` 헬퍼는 ES6 Proxy를 사용하여 메서드 호출과 속성 접근을 가로챕니다. 이는 모의 객체의 모든 메서드를 일일이 정의할 필요가 없음을 의미합니다. 프록시는 모든 호출을 자동으로 처리하며, 메서드가 명시적으로 정의되지 않은 경우 기본 모의 함수를 반환합니다. 이를 통해 테스트 설정이 더 단순해지고 서비스 인터페이스 변경에도 대응하기 쉬워집니다. 서비스에 새로운 메서드를 추가하더라도, 해당 메서드를 구체적으로 검증해야 하는 테스트가 아니라면 기존의 모든 모의 객체를 업데이트할 필요가 없습니다.
