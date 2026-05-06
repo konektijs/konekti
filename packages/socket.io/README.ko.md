@@ -105,13 +105,17 @@ SocketIoModule.forRoot({
 
 `cors`를 생략하면 `@fluojs/socket.io`는 `{ credentials: false, origin: false }`를 기본값으로 사용하므로 cross-origin 노출은 명시적 opt-in이 필요합니다. `engine.maxHttpBufferSize`를 생략하면 어댑터가 1 MiB Engine.IO payload 상한을 적용합니다. 기본값에는 `buffer.maxPendingMessagesPerSocket: 128`, `buffer.overflowPolicy: 'drop-oldest'`, `shutdown.timeoutMs: 5000`도 포함됩니다.
 
+정적 `@WebSocketGateway({ path })` namespace는 fluo gateway discovery가 소유하며 Socket.IO dynamic child namespace로 취급하지 않습니다. 어댑터는 이러한 정적 namespace에 대해 Socket.IO의 `cleanupEmptyChildNamespaces` 동작을 비활성화합니다. 애플리케이션 코드가 raw `SOCKETIO_SERVER` 접근으로 dynamic child namespace를 만들면 해당 소유권과 cleanup 정책은 애플리케이션 수준 Socket.IO 통합이 담당합니다.
+
+애플리케이션 종료 중 Socket.IO client 정리는 Socket.IO가 소유하지만 underlying HTTP server는 이를 제공한 platform adapter 또는 shared HTTP server 통합이 계속 소유합니다. 어댑터는 `io.close(...)` 전에 해당 HTTP server 참조를 분리하므로 client cleanup은 실행되지만 Socket.IO가 adapter-owned/shared HTTP listener를 닫지는 않습니다. 동일한 managed Socket.IO instance 주변에 별도의 manual socket-disconnect 경로를 추가하지 마세요.
+
 ### Guard 계약
 
 `auth.connection`은 namespace connect handler가 실행되기 전에 `SocketIoConnectionGuardContext`를 받습니다. `auth.message`는 message handler가 실행되기 전에 `SocketIoMessageGuardContext`를 받습니다. Guard는 `true`, `false`, 또는 `message`, optional `data`, optional `disconnect`를 가진 `SocketIoGuardRejection`을 반환할 수 있으며, message rejection은 `{ error, data }` 형태의 ACK payload를 사용합니다.
 
 ### Bun 전용 참고
 
-Bun path는 `@socket.io/bun-engine`을 통해 Socket.IO를 지원하지만 static CORS shape가 필요합니다. CORS delegate function과 `cors.origin` array 안의 boolean entry는 지원하지 않습니다. `@WebSocketGateway({ serverBacked })`는 Bun에서 지원하지 않습니다.
+Bun path는 `@socket.io/bun-engine`을 통해 Socket.IO를 지원하지만 static CORS shape가 필요합니다. CORS delegate function과 `cors.origin` array 안의 boolean entry는 지원하지 않습니다. `@WebSocketGateway({ serverBacked })`는 Bun에서 지원하지 않습니다. Bun의 HTTP request body limit(`maxRequestBodySize`)과 WebSocket frame limit(`websocket.maxPayloadLength`)은 별도 host contract입니다. 어댑터는 polling request와 websocket frame이 같은 inbound payload bound를 따르도록 두 값을 모두 `engine.maxHttpBufferSize`에서 매핑합니다.
 
 ### 모듈 등록
 `SocketIoModule.forRoot(...)`로 Socket.IO를 등록합니다.
