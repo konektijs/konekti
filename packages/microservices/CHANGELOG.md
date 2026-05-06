@@ -1,5 +1,14 @@
 # @fluojs/microservices
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- [#1638](https://github.com/fluojs/fluo/pull/1638) [`8e7acc7`](https://github.com/fluojs/fluo/commit/8e7acc789c2fb15c3a23401ffc478629b7f7b478) Thanks [@ayden94](https://github.com/ayden94)! - Fix TCP shutdown guards and gRPC streaming AbortSignal cleanup so closing microservice transports reject new work and release stream abort listeners reliably.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.5
 
 ### Minor Changes

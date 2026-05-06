@@ -1,5 +1,11 @@
 # @fluojs/studio
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- [#1639](https://github.com/fluojs/fluo/pull/1639) [`db1723c`](https://github.com/fluojs/fluo/commit/db1723cde769526a6ad73e19424fc78297ec745a) Thanks [@ayden94](https://github.com/ayden94)! - Preserve Studio viewer focus while users search or filter loaded snapshots, and document the packaged viewer entry separately from repo-local development commands.
+
 ## 1.0.0-beta.3
 
 ### Patch Changes

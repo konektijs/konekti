@@ -1,5 +1,14 @@
 # @fluojs/cache-manager
 
+## 1.0.0-beta.8
+
+### Patch Changes
+
+- [#1630](https://github.com/fluojs/fluo/pull/1630) [`c578602`](https://github.com/fluojs/fluo/commit/c578602e7491ebc6887723d0c7ac04d20f431849) Thanks [@ayden94](https://github.com/ayden94)! - Tighten Redis fractional TTL freshness and HTTP response cacheability boundaries so cache-manager avoids replaying expired Redis entries or non-success GET responses.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.7
 
 ### Minor Changes

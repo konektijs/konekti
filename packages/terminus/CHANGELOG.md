@@ -1,5 +1,15 @@
 # @fluojs/terminus
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- [#1629](https://github.com/fluojs/fluo/pull/1629) [`758d1df`](https://github.com/fluojs/fluo/commit/758d1dfbe2d4c5de32077f832cbbbca957a271a4) Thanks [@ayden94](https://github.com/ayden94)! - Reject blank health indicator result keys as down diagnostics and lazy-load Node filesystem access so root Terminus imports stay runtime-safe. Node-specific memory/disk indicators are also available from the `@fluojs/terminus/node` subpath.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab), [`d9bff54`](https://github.com/fluojs/fluo/commit/d9bff543e337eaa7654fae5e25dcaef2784fa8d1)]:
+  - @fluojs/di@1.0.0-beta.7
+  - @fluojs/drizzle@1.0.0-beta.4
+
 ## 1.0.0-beta.5
 
 ### Patch Changes
