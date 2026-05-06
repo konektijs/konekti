@@ -103,6 +103,12 @@ interface BunEngineCorsOptions {
   origin?: boolean | RegExp | string | Array<RegExp | string>;
 }
 
+interface BunEngineOptions {
+  cors?: BunEngineCorsOptions;
+  maxHttpBufferSize?: number;
+  path: string;
+}
+
 interface BunRealtimeBindingHost {
   configureRealtimeBinding(binding: BunRealtimeBinding | undefined): void;
 }
@@ -499,12 +505,8 @@ export class SocketIoLifecycleService
     return options;
   }
 
-  private createBunEngineOptions() {
-    const options: {
-      cors?: BunEngineCorsOptions;
-      maxHttpBufferSize?: number;
-      path: string;
-    } = {
+  private createBunEngineOptions(): BunEngineOptions {
+    const options: BunEngineOptions = {
       path: DEFAULT_SOCKETIO_ENGINE_PATH,
     };
 
@@ -541,6 +543,7 @@ export class SocketIoLifecycleService
 
   private createBunSocketIoBinding(engine: BunEngineServer): BunRealtimeBinding {
     const handler = engine.handler();
+    const maxHttpBufferSize = this.resolveMaxHttpBufferSize();
 
     return {
       fetch: async (request, server) => {
@@ -553,10 +556,10 @@ export class SocketIoLifecycleService
         return await engine.handleRequest(request, server as never);
       },
       idleTimeout: handler.idleTimeout,
-      maxRequestBodySize: handler.maxRequestBodySize,
+      maxRequestBodySize: maxHttpBufferSize,
       websocket: {
         close: handler.websocket.close as BunRealtimeBinding['websocket']['close'],
-        maxPayloadLength: handler.websocket.maxPayloadLength,
+        maxPayloadLength: maxHttpBufferSize,
         message: handler.websocket.message as BunRealtimeBinding['websocket']['message'],
         open: handler.websocket.open as BunRealtimeBinding['websocket']['open'],
       },
@@ -1161,8 +1164,8 @@ export class SocketIoLifecycleService
         reject(new Error(`Timed out while closing Socket.IO server after ${String(timeoutMs)}ms.`));
       }, timeoutMs);
 
-      // Prevent Socket.IO from stealing the HTTP server shutdown
-      (io as any).httpServer = undefined;
+      // Socket.IO owns client cleanup; the shared HTTP server remains owned by the platform adapter.
+      (io as Omit<Server, 'httpServer'> & { httpServer?: unknown }).httpServer = undefined;
 
       io.close(() => {
         if (settled) {
