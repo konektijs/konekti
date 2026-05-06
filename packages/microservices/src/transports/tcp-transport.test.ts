@@ -6,7 +6,7 @@ import { TcpMicroserviceTransport } from './tcp-transport.js';
 
 describe('TcpMicroserviceTransport', () => {
   it('closes sockets that exceed the inbound frame buffer cap', async () => {
-    const port = 40_000 + Math.floor(Math.random() * 10_000);
+    const port = 0;
     const handler = vi.fn(async () => undefined);
     const transport = new TcpMicroserviceTransport({ port, requestTimeoutMs: 1_000 });
 
@@ -17,7 +17,7 @@ describe('TcpMicroserviceTransport', () => {
 
       socket.once('close', () => resolve());
       socket.once('error', () => resolve());
-      socket.connect(port, '127.0.0.1', () => {
+      socket.connect((transport as unknown as { boundPort: number }).boundPort, '127.0.0.1', () => {
         socket.write('x'.repeat(1_048_577));
       });
 
@@ -30,7 +30,7 @@ describe('TcpMicroserviceTransport', () => {
   });
 
   it('removes abort listener after a request completes normally', async () => {
-    const port = 40_000 + Math.floor(Math.random() * 10_000);
+    const port = 0;
     const transport = new TcpMicroserviceTransport({ port, requestTimeoutMs: 1_000 });
 
     await transport.listen(async () => 'ok');
@@ -43,5 +43,19 @@ describe('TcpMicroserviceTransport', () => {
     expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
 
     await transport.close();
+  });
+
+  it('rejects send and emit after close() stops the listener', async () => {
+    const transport = new TcpMicroserviceTransport({ port: 0, requestTimeoutMs: 1_000 });
+
+    await transport.listen(async () => 'ok');
+    await transport.close();
+
+    await expect(transport.send('closed.pattern', {})).rejects.toThrow(
+      'TcpMicroserviceTransport is closing. Wait for close() to complete before send().',
+    );
+    await expect(transport.emit('closed.event', {})).rejects.toThrow(
+      'TcpMicroserviceTransport is closing. Wait for close() to complete before emit().',
+    );
   });
 });

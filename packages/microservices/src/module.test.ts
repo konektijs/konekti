@@ -329,7 +329,7 @@ describe('@fluojs/microservices', () => {
   });
 
   it('handles TCP transport send and receive', async () => {
-    const port = 39001;
+    const port = 0;
     const transport = new TcpMicroserviceTransport({ port });
 
     class Handler {
@@ -637,7 +637,6 @@ describe('@fluojs/microservices', () => {
     };
 
     class LoggerAwareTransport implements MicroserviceTransport {
-      private handler: TransportHandler | undefined;
       private logger: MicroserviceTransportLogger | undefined;
 
       setLogger(loggerInstance: MicroserviceTransportLogger): void {
@@ -653,7 +652,7 @@ describe('@fluojs/microservices', () => {
       }
 
       async listen(handler: TransportHandler): Promise<void> {
-        this.handler = handler;
+        void handler;
       }
 
       async send(): Promise<unknown> {

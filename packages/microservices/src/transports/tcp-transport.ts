@@ -24,6 +24,8 @@ const DEFAULT_MAX_FRAME_BYTES = 1_048_576;
  * simple first-party microservice setups where both sides can share the same framing contract.
  */
 export class TcpMicroserviceTransport implements MicroserviceTransport {
+  private boundPort: number | undefined;
+  private closing = false;
   private handler: TransportHandler | undefined;
   private listenPromise: Promise<void> | undefined;
   private readonly sockets = new Set<Socket>();
@@ -54,6 +56,7 @@ export class TcpMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once the TCP server is listening.
    */
   async listen(handler: TransportHandler): Promise<void> {
+    this.closing = false;
     this.handler = handler;
 
     if (this.server.listening) {
@@ -69,6 +72,7 @@ export class TcpMicroserviceTransport implements MicroserviceTransport {
       this.server.once('error', reject);
       this.server.listen(this.options.port, this.host, () => {
         this.server.off('error', reject);
+        this.boundPort = this.resolveBoundPort();
         resolve();
       });
     });
@@ -88,6 +92,7 @@ export class TcpMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves after the event frame is written.
    */
   async emit(pattern: string, payload: unknown): Promise<void> {
+    this.assertAcceptingOutbound('emit');
     await this.sendWirePacket({ kind: 'event', pattern, payload });
   }
 
@@ -100,6 +105,7 @@ export class TcpMicroserviceTransport implements MicroserviceTransport {
    * @returns The remote handler response payload.
    */
   async send(pattern: string, payload: unknown, signal?: AbortSignal): Promise<unknown> {
+    this.assertAcceptingOutbound('send');
     const requestId = randomRequestId();
     return await this.sendWirePacket({ kind: 'message', pattern, payload, requestId }, signal);
   }
@@ -110,6 +116,8 @@ export class TcpMicroserviceTransport implements MicroserviceTransport {
    * @returns A promise that resolves once the server is fully closed.
    */
   async close(): Promise<void> {
+    this.closing = true;
+
     if (this.listenPromise) {
       await this.listenPromise;
     }
@@ -121,6 +129,7 @@ export class TcpMicroserviceTransport implements MicroserviceTransport {
     this.sockets.clear();
 
     if (!this.server.listening) {
+      this.boundPort = undefined;
       return;
     }
 
@@ -134,6 +143,8 @@ export class TcpMicroserviceTransport implements MicroserviceTransport {
         resolve();
       });
     });
+
+    this.boundPort = undefined;
   }
 
   private async handleInboundPacket(socket: Socket, packet: TransportPacket): Promise<void> {
@@ -261,8 +272,36 @@ export class TcpMicroserviceTransport implements MicroserviceTransport {
       }
 
       socket.once('error', fail);
-      socket.connect(this.options.port, this.host);
+      socket.connect(this.resolveConnectPort(), this.host);
     });
+  }
+
+  private assertAcceptingOutbound(operation: 'emit' | 'send'): void {
+    if (this.closing) {
+      throw new Error(`TcpMicroserviceTransport is closing. Wait for close() to complete before ${operation}().`);
+    }
+
+    if (!this.server.listening || typeof this.boundPort !== 'number') {
+      throw new Error(`TcpMicroserviceTransport is not listening. Call listen() before ${operation}().`);
+    }
+  }
+
+  private resolveConnectPort(): number {
+    if (typeof this.boundPort === 'number') {
+      return this.boundPort;
+    }
+
+    return this.options.port;
+  }
+
+  private resolveBoundPort(): number {
+    const address = this.server.address();
+
+    if (address && typeof address === 'object') {
+      return address.port;
+    }
+
+    return this.options.port;
   }
 
   private bindSocketParser<TPacket>(socket: Socket, onPacket: (packet: TPacket) => void): void {
