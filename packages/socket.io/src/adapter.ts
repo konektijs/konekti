@@ -484,7 +484,9 @@ export class SocketIoLifecycleService
   }
 
   private createServerOptions(): Partial<ServerOptions> {
-    const options: Partial<ServerOptions> = {};
+    const options: Partial<ServerOptions> = {
+      cleanupEmptyChildNamespaces: false,
+    };
 
     options.cors = this.resolveCorsOptions();
 
@@ -500,12 +502,14 @@ export class SocketIoLifecycleService
   private createBunEngineOptions() {
     const options: {
       cors?: BunEngineCorsOptions;
+      maxHttpBufferSize?: number;
       path: string;
     } = {
       path: DEFAULT_SOCKETIO_ENGINE_PATH,
     };
 
     options.cors = normalizeCorsForBunEngine(this.resolveCorsOptions());
+    options.maxHttpBufferSize = this.resolveMaxHttpBufferSize();
 
     return options;
   }
@@ -1156,6 +1160,9 @@ export class SocketIoLifecycleService
         settled = true;
         reject(new Error(`Timed out while closing Socket.IO server after ${String(timeoutMs)}ms.`));
       }, timeoutMs);
+
+      // Prevent Socket.IO from stealing the HTTP server shutdown
+      (io as any).httpServer = undefined;
 
       io.close(() => {
         if (settled) {

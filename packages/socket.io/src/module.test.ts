@@ -842,6 +842,60 @@ describe('@fluojs/socket.io', () => {
     await app.close();
   });
 
+  it('disconnects Bun-style sockets when inbound payloads exceed the configured engine limit', async () => {
+    const port = await findAvailablePort();
+    const adapter = new TestBunSocketIoAdapter(port);
+
+    class GatewayState {
+      messages: unknown[] = [];
+    }
+
+    @Inject(GatewayState)
+    @WebSocketGateway({ path: '/bun-payload-limit' })
+    class PayloadGateway {
+      constructor(private readonly state: GatewayState) {}
+
+      @OnMessage('ping')
+      onPing(payload: unknown) {
+        this.state.messages.push(payload);
+      }
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [SocketIoModule.forRoot({
+        engine: {
+          maxHttpBufferSize: 32,
+        },
+        transports: ['polling'],
+      })],
+      providers: [GatewayState, PayloadGateway],
+    });
+
+    const app = await bootstrapApplication({
+      adapter,
+      rootModule: AppModule,
+    });
+    const state = await app.container.resolve<GatewayState>(GatewayState);
+
+    await app.listen();
+
+    const socket = createClient(`http://127.0.0.1:${String(port)}/bun-payload-limit`, {
+      reconnection: false,
+      transports: ['polling'],
+    });
+    await onceConnected(socket);
+
+    const disconnected = onceDisconnected(socket);
+    socket.emit('ping', 'x'.repeat(256));
+
+    expect(['transport close', 'transport error']).toContain(await disconnected);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(state.messages).toEqual([]);
+
+    await app.close();
+  });
+
   for (const scenario of supportedSocketIoAdapterScenarios) {
     it(`boots a real ${scenario.name} app and handles connect, message, room broadcast, and disconnect`, async () => {
     class GatewayState {
