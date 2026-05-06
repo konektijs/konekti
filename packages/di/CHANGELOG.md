@@ -1,5 +1,11 @@
 # @fluojs/di
 
+## 1.0.0-beta.7
+
+### Patch Changes
+
+- [#1633](https://github.com/fluojs/fluo/pull/1633) [`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab) Thanks [@ayden94](https://github.com/ayden94)! - Preserve every replacement passed to a multi-provider `override()` call and align DI circular-dependency guidance with the runtime `forwardRef()` contract.
+
 ## 1.0.0-beta.6
 
 ### Patch Changes

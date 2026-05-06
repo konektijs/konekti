@@ -1,5 +1,14 @@
 # @fluojs/notifications
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- [#1637](https://github.com/fluojs/fluo/pull/1637) [`8fb13ad`](https://github.com/fluojs/fluo/commit/8fb13ad86cdb78d4a7a0316c68aa75d6b317b69a) Thanks [@ayden94](https://github.com/ayden94)! - Fix notification fallback delivery IDs so channel deliveries without external IDs use deterministic request-derived IDs, and publish failed lifecycle events for missing-channel dispatch attempts before throwing configuration errors.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.3
 
 ### Minor Changes

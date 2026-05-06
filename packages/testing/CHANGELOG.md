@@ -1,5 +1,15 @@
 # @fluojs/testing
 
+## 1.0.0-beta.3
+
+### Patch Changes
+
+- [#1640](https://github.com/fluojs/fluo/pull/1640) [`f6e90f0`](https://github.com/fluojs/fluo/commit/f6e90f0cd781d481b98976425273ea952a170100) Thanks [@ayden94](https://github.com/ayden94)! - Preserve `createTestApp(...)` bootstrap middleware/options and align synchronous `TestingModuleRef.get(...)` singleton instances with later async resolution.
+
+- Updated dependencies [[`372a80d`](https://github.com/fluojs/fluo/commit/372a80d337f8b806f05693ed33ca45d6e4289115), [`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/config@1.0.0-beta.8
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.2
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @fluojs/cron
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- [#1632](https://github.com/fluojs/fluo/pull/1632) [`240be94`](https://github.com/fluojs/fluo/commit/240be9456a80759dc543eeeee93b4b453287630e) Thanks [@ayden94](https://github.com/ayden94)! - Use platform-neutral default distributed lock owner IDs, retain local lock ownership after Redis release failures so shutdown can retry, and document cron expression portability plus distributed-lock drift/fencing caveats.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.5
 
 ### Minor Changes

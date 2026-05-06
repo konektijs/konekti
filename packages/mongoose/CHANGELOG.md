@@ -1,5 +1,14 @@
 # @fluojs/mongoose
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- [#1634](https://github.com/fluojs/fluo/pull/1634) [`adb52ec`](https://github.com/fluojs/fluo/commit/adb52ec6bb684b87da9656f9cc8f3de208ff4ec9) Thanks [@ayden94](https://github.com/ayden94)! - Preserve Mongoose connection.transaction ambient session scope while tracking active sessions through shutdown so dispose hooks wait for transaction cleanup.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.3
 
 ### Minor Changes

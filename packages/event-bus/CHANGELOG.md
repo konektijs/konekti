@@ -1,5 +1,14 @@
 # @fluojs/event-bus
 
+## 1.0.0-beta.6
+
+### Patch Changes
+
+- [#1635](https://github.com/fluojs/fluo/pull/1635) [`eaddb13`](https://github.com/fluojs/fluo/commit/eaddb13cdc700762fcdb731ffb310018ad1d6205) Thanks [@ayden94](https://github.com/ayden94)! - Bound awaited transport publishes with the same timeout and abort controls as local handlers, drain in-flight awaited publish work during shutdown, and ignore new publishes once shutdown has started.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.5
 
 ### Minor Changes

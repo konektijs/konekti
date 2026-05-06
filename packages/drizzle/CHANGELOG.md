@@ -1,5 +1,14 @@
 # @fluojs/drizzle
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- [#1622](https://github.com/fluojs/fluo/pull/1622) [`d9bff54`](https://github.com/fluojs/fluo/commit/d9bff543e337eaa7654fae5e25dcaef2784fa8d1) Thanks [@ayden94](https://github.com/ayden94)! - Reject late request transactions after Drizzle shutdown begins and preserve request abort errors until the active Drizzle transaction lifecycle settles, so commit/rollback cleanup is not interrupted before the caller sees the abort reason.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.3
 
 ### Minor Changes
