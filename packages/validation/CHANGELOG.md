@@ -1,5 +1,11 @@
 # @fluojs/validation
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- [#1619](https://github.com/fluojs/fluo/pull/1619) [`b15ac1b`](https://github.com/fluojs/fluo/commit/b15ac1bacccf53b39862ef0243182107840e9a3a) Thanks [@ayden94](https://github.com/ayden94)! - Return deterministic validation errors for malformed validation roots and document nested DTO instance preservation during materialization.
+
 ## 1.0.0-beta.3
 
 ### Patch Changes

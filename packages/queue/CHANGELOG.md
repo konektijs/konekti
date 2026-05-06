@@ -1,5 +1,14 @@
 # @fluojs/queue
 
+## 1.0.0-beta.5
+
+### Patch Changes
+
+- [#1625](https://github.com/fluojs/fluo/pull/1625) [`995a55f`](https://github.com/fluojs/fluo/commit/995a55f1571eb160fded3b0f7df0a37c672e1c94) Thanks [@ayden94](https://github.com/ayden94)! - Serialize queue shutdown with in-flight startup so queue-owned BullMQ workers, queues, and Redis duplicate connections are closed reliably during overlapping application lifecycle transitions.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab)]:
+  - @fluojs/di@1.0.0-beta.7
+
 ## 1.0.0-beta.4
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @fluojs/vite
 
+## 1.0.0-beta.3
+
+### Minor Changes
+
+- [#1647](https://github.com/fluojs/fluo/pull/1647) [`4c3f271`](https://github.com/fluojs/fluo/commit/4c3f271514b264098b36d1f133fb8a1a7679bfd9) Thanks [@ayden94](https://github.com/ayden94)! - Align the Vite plugin peer dependency contract with its Babel runtime resolution and tighten transform boundaries for application TypeScript files.
+
+  This is a consumer-visible install contract change: `@babel/core` now requires `>=7.26.0`, `vite` now requires `>=6.2.0`, and the Babel decorator plugin/TypeScript preset are explicit peers. The minor bump is intentional for this beta package because consumers below those peer floors must update their build dependencies before upgrading.
+
 ## 1.0.0-beta.2
 
 ### Minor Changes

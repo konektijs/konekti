@@ -1,5 +1,17 @@
 # @fluojs/slack
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- [#1649](https://github.com/fluojs/fluo/pull/1649) [`9c46186`](https://github.com/fluojs/fluo/commit/9c461866856fc75d24c31c1641aab0fea7d375fe) Thanks [@ayden94](https://github.com/ayden94)! - Stop retrying permanent Slack webhook HTTP failures (such as 403, 404).
+
+  Previously, the built-in webhook transport would mistakenly retry all errors if the attempt count had not been exhausted, ignoring the intent to only retry transient (408, 429, 5xx) failures. Now, non-transient HTTP errors correctly throw `SlackTransportError` immediately, aligning with the documented behavioral contract.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab), [`8fb13ad`](https://github.com/fluojs/fluo/commit/8fb13ad86cdb78d4a7a0316c68aa75d6b317b69a)]:
+  - @fluojs/di@1.0.0-beta.7
+  - @fluojs/notifications@1.0.0-beta.4
+
 ## 1.0.0-beta.3
 
 ### Minor Changes

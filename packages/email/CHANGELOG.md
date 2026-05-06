@@ -1,5 +1,16 @@
 # @fluojs/email
 
+## 1.0.0-beta.4
+
+### Patch Changes
+
+- [#1646](https://github.com/fluojs/fluo/pull/1646) [`35043e1`](https://github.com/fluojs/fluo/commit/35043e1a737b7ca54c4a15f9a83321891e7168dd) Thanks [@ayden94](https://github.com/ayden94)! - Reject blank email recipients before transport handoff, honor aborted sends before rendering or provider delivery, and preserve lifecycle provider errors as diagnostic causes.
+
+- Updated dependencies [[`2159d4f`](https://github.com/fluojs/fluo/commit/2159d4f35993af7f5b6e056afd535a02d1831cab), [`8fb13ad`](https://github.com/fluojs/fluo/commit/8fb13ad86cdb78d4a7a0316c68aa75d6b317b69a), [`995a55f`](https://github.com/fluojs/fluo/commit/995a55f1571eb160fded3b0f7df0a37c672e1c94)]:
+  - @fluojs/di@1.0.0-beta.7
+  - @fluojs/notifications@1.0.0-beta.4
+  - @fluojs/queue@1.0.0-beta.5
+
 ## 1.0.0-beta.3
 
 ### Minor Changes
