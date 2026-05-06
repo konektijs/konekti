@@ -9,7 +9,13 @@ import type { CronModuleOptions, NormalizedCronModuleOptions } from './types.js'
 const DEFAULT_CRON_SHUTDOWN_TIMEOUT_MS = 10_000;
 
 function randomId(): string {
-  return `${process.pid}-${Math.random().toString(36).slice(2, 10)}`;
+  const randomUUID = globalThis.crypto?.randomUUID;
+
+  if (randomUUID) {
+    return randomUUID.call(globalThis.crypto);
+  }
+
+  return `cron-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function normalizeDistributedOptions(distributed: CronModuleOptions['distributed']): NormalizedCronModuleOptions['distributed'] {

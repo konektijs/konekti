@@ -33,6 +33,7 @@ These are scheduling concerns. They are not naturally expressed as one-time comm
 ## 12.2 Cron module wiring
 
 The README documents `CronModule.forRoot(...)` as the registration entrypoint. fluo supports cron expressions, fixed intervals, and one-time timeouts.
+Cron expressions can be written with five fields when minute-level scheduling is enough, or six fields when second-level scheduling is required. The built-in presets use six-field expressions for sub-minute schedules. Cron tasks start as part of the application bootstrap lifecycle rather than at decorator evaluation time, and dynamic registry cron tasks start when they are added to an already-started registry.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -110,6 +111,8 @@ In v2.1.0, the distributed cron flow works like this:
 6. When execution ends, the lock expires or is released.
 
 This pattern is easy to explain. That is a good sign. Distributed coordination should be explicit enough for operators to reason about during incidents.
+
+Lock release runs after task execution in a `finally` path. If Redis is temporarily unavailable during release, fluo keeps local ownership visible so shutdown can retry and operators can still see the pending lock. Teams should still treat Redis TTL and renewal as drift-sensitive coordination rather than a complete fencing system. When stale writes would be unsafe, the job body should include application-level idempotency or fencing checks.
 
 ## 12.5 Lock TTL and named Redis clients
 

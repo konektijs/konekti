@@ -8,7 +8,8 @@ import { bootstrapApplication, defineModule, type ApplicationLogger } from '@flu
 import { Cron, Interval, Timeout } from './decorators.js';
 import { CronExpression } from './expressions.js';
 import { getCronTaskMetadataEntries, getSchedulingTaskMetadataEntries } from './metadata.js';
-import { CronModule } from './module.js';
+import { CronModule, normalizeCronModuleOptions } from './module.js';
+import { CronLifecycleService } from './service.js';
 import { SCHEDULING_REGISTRY } from './tokens.js';
 import type { CronScheduleOptions, CronScheduledJob, CronScheduler, SchedulingRegistry } from './types.js';
 
@@ -159,6 +160,22 @@ class OverlappingRenewalRedisClient {
 
     this.locks.delete(key);
     return 1;
+  }
+}
+
+class ReleaseErrorOnceRedisClient extends InMemoryLockRedisClient {
+  releaseAttempts = 0;
+
+  override async eval(script: string, keysLength: number, key: string, owner: string, ttl?: string): Promise<number> {
+    if (script.includes('DEL')) {
+      this.releaseAttempts += 1;
+
+      if (this.releaseAttempts === 1) {
+        throw new Error('release failed once');
+      }
+    }
+
+    return await super.eval(script, keysLength, key, owner, ttl);
   }
 }
 
@@ -896,6 +913,48 @@ describe('@fluojs/cron', () => {
     expect(store.count).toBe(1);
   });
 
+  it('accepts five-field and six-field cron expressions and forwards no-overlap plus timezone options', async () => {
+    const scheduled = createManualScheduler();
+
+    class PortableCronService {
+      @Cron('*/5 * * * *', { name: 'five-field-cron', timezone: 'UTC' })
+      runFiveField() {}
+
+      @Cron('*/10 * * * * *', { name: 'six-field-cron', timezone: 'Asia/Seoul' })
+      runSixField() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [CronModule.forRoot({ scheduler: scheduled.scheduler })],
+      providers: [PortableCronService],
+    });
+
+    const app = await bootstrapApplication({ rootModule: AppModule });
+
+    expect(scheduled.records.map((record) => record.expression)).toEqual(['*/5 * * * *', '*/10 * * * * *']);
+    expect(scheduled.records.map((record) => record.options)).toEqual([
+      {
+        name: 'five-field-cron',
+        protect: true,
+        timezone: 'UTC',
+      },
+      {
+        name: 'six-field-cron',
+        protect: true,
+        timezone: 'Asia/Seoul',
+      },
+    ]);
+
+    await closeApplication(app);
+  });
+
+  it('creates platform-neutral distributed owner ids without process-derived prefixes', () => {
+    const normalized = normalizeCronModuleOptions();
+
+    expect(normalized.distributed.ownerId).toMatch(/^([0-9a-f-]{36}|cron-[a-z0-9]+-[a-z0-9]+)$/i);
+  });
+
   it('throws during decoration when @Cron() expression is invalid', () => {
     expect(() => {
       class InvalidCronTask {
@@ -1284,6 +1343,54 @@ describe('@fluojs/cron', () => {
     expect(loggerEvents.some((event) => event.includes('log:CronLifecycleService:Released distributed cron lock for lock-trace-task.'))).toBe(true);
 
     await closeApplication(app);
+  });
+
+  it('retains distributed lock ownership after a Redis release failure and retries during shutdown', async () => {
+    const scheduled = createManualScheduler();
+    const loggerEvents: string[] = [];
+    const redis = new ReleaseErrorOnceRedisClient();
+
+    class DistributedTaskService {
+      @Cron(CronExpression.EVERY_SECOND, {
+        distributed: true,
+        lockTtlMs: 60_000,
+        name: 'release-retry-task',
+      })
+      async run() {}
+    }
+
+    class AppModule {}
+    defineModule(AppModule, {
+      imports: [
+        CronModule.forRoot({
+          distributed: {
+            enabled: true,
+            keyPrefix: 'cron-release-retry',
+            lockTtlMs: 60_000,
+          },
+          scheduler: scheduled.scheduler,
+        }),
+      ],
+      providers: [DistributedTaskService],
+    });
+
+    const app = await bootstrapApplication({
+      logger: createLogger(loggerEvents),
+      providers: [{ provide: REDIS_CLIENT, useValue: redis }],
+      rootModule: AppModule,
+    });
+    const registry = await app.container.resolve(SCHEDULING_REGISTRY);
+    const statusService = registry as CronLifecycleService;
+
+    await scheduled.records[0]!.tick();
+
+    expect(statusService.createPlatformStatusSnapshot().details.ownedLocks).toBe(1);
+    expect(loggerEvents.some((event) => event.includes('Failed to release distributed cron lock for release-retry-task.'))).toBe(true);
+
+    await closeApplication(app);
+
+    expect(redis.releaseAttempts).toBe(2);
+    expect(statusService.createPlatformStatusSnapshot().details.ownedLocks).toBe(0);
   });
 
   it('awaits in-flight lock renewal attempts before deciding task success', async () => {

@@ -35,6 +35,7 @@ npm install @fluojs/cron croner
 Register the `CronModule` and use decorators to schedule your methods.
 
 Use `CronModule.forRoot(...)` to register scheduling for an application module.
+Cron expressions may use either five fields (`minute hour day month weekday`) or six fields (`second minute hour day month weekday`). The built-in `CronExpression` presets use six-field expressions when sub-minute precision is needed. Cron tasks start only after application bootstrap, dynamically registered cron tasks start when added to a started registry, and fluo forwards `timezone` plus no-overlap protection to the scheduler so one task instance does not overlap itself.
 
 ```typescript
 import { Module } from '@fluojs/core';
@@ -93,6 +94,8 @@ class AppModule {}
 Leave `distributed.clientName` unset to keep using the default Redis registration above. To use a non-default Redis connection for distributed locks, set `distributed.clientName` to the name registered through `RedisModule.forRoot({ name, ... })`.
 
 `distributed.lockTtlMs` must stay at or above `1_000ms`. fluo renews the Redis lock before that TTL expires, including the minimum supported `1_000ms` boundary.
+
+Each scheduler instance uses a platform-neutral default `distributed.ownerId`; set `distributed.ownerId` explicitly only when your deployment has a stronger stable-owner convention. Lock release runs in a `finally` path after task execution. If Redis release fails, fluo keeps local ownership in status snapshots and retries during shutdown; if Redis reports that another owner holds the key, local ownership is cleared because fencing has already moved elsewhere. Redis TTL and renewal timing are still drift-sensitive coordination primitives rather than hard fencing tokens, so long-running jobs should remain idempotent and use application-level fencing when stale work would be unsafe.
 
 ```typescript
 @Module({

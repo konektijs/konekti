@@ -281,6 +281,7 @@ export class CronDistributedLockManager {
           `Distributed cron lock for ${taskName} was already released or owned by another node.`,
           'CronLifecycleService',
         );
+        this.ownedLockKeys.delete(lockKey);
         return;
       }
 
@@ -288,14 +289,13 @@ export class CronDistributedLockManager {
         `Released distributed cron lock for ${taskName}.`,
         'CronLifecycleService',
       );
+      this.ownedLockKeys.delete(lockKey);
     } catch (error) {
       this.logger.error(
         `Failed to release distributed cron lock for ${taskName}.`,
         error,
         'CronLifecycleService',
       );
-    } finally {
-      this.ownedLockKeys.delete(lockKey);
     }
   }
 }
