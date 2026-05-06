@@ -1,6 +1,16 @@
 import { transformAsync } from '@babel/core';
 import type { Plugin } from 'vite';
 
+function shouldTransformTypeScriptApplicationFile(id: string): boolean {
+  const [filePath] = id.split('?', 1);
+
+  if (!filePath.endsWith('.ts') || filePath.endsWith('.d.ts')) {
+    return false;
+  }
+
+  return !filePath.includes('/node_modules/') && !filePath.includes('.test.') && !filePath.includes('.spec.');
+}
+
 /**
  * Creates the Vite transform plugin used by fluo starter projects to compile
  * TC39 standard decorator syntax through Babel before Vite bundles the app.
@@ -21,14 +31,16 @@ export function fluoDecoratorsPlugin(): Plugin {
   return {
     name: 'fluo-babel-decorators',
     async transform(code: string, id: string) {
-      if (!id.endsWith('.ts') || id.includes('.test.')) {
+      if (!shouldTransformTypeScriptApplicationFile(id)) {
         return null;
       }
+
+      const [filename] = id.split('?', 1);
 
       const result = await transformAsync(code, {
         babelrc: false,
         configFile: false,
-        filename: id,
+        filename,
         plugins: [['@babel/plugin-proposal-decorators', { version: '2023-11' }]],
         presets: [['@babel/preset-typescript', { allowDeclareFields: true }]],
         sourceMaps: true,
