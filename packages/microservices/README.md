@@ -2,7 +2,7 @@
 
 <p><strong><kbd>English</kbd></strong> <a href="./README.ko.md"><kbd>한국어</kbd></a></p>
 
-Transport-driven microservices for fluo. Build scalable, message-driven architectures with deep DI integration and support for multiple transport protocols including TCP, Redis, NATS, Kafka, RabbitMQ, and gRPC.
+Transport-driven microservices for fluo. Build scalable, message-driven architectures with deep DI integration and support for multiple transport protocols including TCP, Redis, NATS, Kafka, RabbitMQ, MQTT, and gRPC.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Optional transport-specific dependencies:
 ## When to Use
 
 - When building a **Distributed System** where services communicate via messages or events.
-- When you need a **Unified Programming Model** across different transport protocols (TCP, NATS, Kafka, etc.).
+- When you need a **Unified Programming Model** across different transport protocols (TCP, NATS, Kafka, MQTT, etc.).
 - When you require **Request-Response** or **Event-Driven** patterns between isolated services.
 - When integrating with specialized protocols like **gRPC** (including streaming support).
 
