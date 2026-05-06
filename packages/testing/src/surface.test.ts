@@ -122,6 +122,16 @@ describe('@fluojs/testing surface', () => {
     expect(koreanReadme).toContain('원래 `rootModule`과 컴파일된 `modules[].type` identity를 보존합니다');
   });
 
+  it('documents createTestApp bootstrap option and middleware preservation in both README mirrors', () => {
+    const englishReadme = readFileSync(resolve(packageRootPath, 'README.md'), 'utf8');
+    const koreanReadme = readFileSync(resolve(packageRootPath, 'README.ko.md'), 'utf8');
+
+    expect(englishReadme).toContain('accepts the same application bootstrap options as the runtime HTTP bootstrap');
+    expect(englishReadme).toContain('preserving caller-provided middleware');
+    expect(koreanReadme).toContain('runtime HTTP bootstrap과 같은 application bootstrap option을 받습니다');
+    expect(koreanReadme).toContain('호출자가 넘긴 middleware를 같은 app middleware chain 안에 보존합니다');
+  });
+
   it('build emits the published harness subpath files without blocking the Vitest worker event loop', async () => {
     await runBuild();
 

@@ -126,6 +126,7 @@ interface ContainerIntrospection {
   registrations: Map<Token, NormalizedProvider>;
   multiRegistrations: Map<Token, NormalizedProvider[]>;
   requestScopeEnabled?: boolean;
+  singletonCache: Map<Token, Promise<unknown>>;
 }
 
 function isContainerIntrospection(value: unknown): value is ContainerIntrospection {
@@ -138,12 +139,19 @@ function isContainerIntrospection(value: unknown): value is ContainerIntrospecti
     parent?: unknown;
     registrations?: unknown;
     requestScopeEnabled?: unknown;
+    singletonCache?: unknown;
   };
 
   const parentValid = candidate.parent === undefined || isContainerIntrospection(candidate.parent);
   const requestScopeValid = candidate.requestScopeEnabled === undefined || typeof candidate.requestScopeEnabled === 'boolean';
 
-  return candidate.registrations instanceof Map && candidate.multiRegistrations instanceof Map && parentValid && requestScopeValid;
+  return (
+    candidate.registrations instanceof Map &&
+    candidate.multiRegistrations instanceof Map &&
+    candidate.singletonCache instanceof Map &&
+    parentValid &&
+    requestScopeValid
+  );
 }
 
 function toContainerIntrospection(container: BootstrapResult['container']): ContainerIntrospection {
@@ -163,9 +171,15 @@ function isPromiseLike<T>(value: unknown): value is PromiseLike<T> {
 }
 
 interface SyncResolverState {
+  factoryResolutionKinds: WeakMap<NormalizedProvider, 'async' | 'sync'>;
   introspection: ContainerIntrospection;
   resolutionChain: Set<Token>;
-  singletonCache: Map<Token, unknown>;
+  singletonCache: Map<Token, Promise<unknown>>;
+  syncSingletonValues: Map<Token, unknown>;
+}
+
+function rootContainerIntrospection(target: ContainerIntrospection): ContainerIntrospection {
+  return target.parent ? rootContainerIntrospection(target.parent) : target;
 }
 
 function collectMultiProviders(target: ContainerIntrospection, token: Token): NormalizedProvider[] {
@@ -186,6 +200,93 @@ function lookupProvider(target: ContainerIntrospection, token: Token): Normalize
 
 function hasToken(state: SyncResolverState, token: Token): boolean {
   return lookupProvider(state.introspection, token) !== undefined || collectMultiProviders(state.introspection, token).length > 0;
+}
+
+function dependencyToken(entry: Token | ForwardRefFn | OptionalToken): Token {
+  if (isOptionalToken(entry)) {
+    return entry.token;
+  }
+
+  if (isForwardRef(entry)) {
+    return entry.forwardRef();
+  }
+
+  return entry as Token;
+}
+
+function trackFactoryResolutionKind(
+  provider: NormalizedProvider,
+  factoryResolutionKinds: WeakMap<NormalizedProvider, 'async' | 'sync'>,
+): void {
+  if (provider.type !== 'factory' || !provider.useFactory) {
+    return;
+  }
+
+  const originalFactory = provider.useFactory;
+  provider.useFactory = (...deps: unknown[]) => {
+    const value = originalFactory(...deps);
+    factoryResolutionKinds.set(provider, isPromiseLike(value) ? 'async' : 'sync');
+    return value;
+  };
+}
+
+function installFactoryResolutionTracking(
+  target: ContainerIntrospection,
+  factoryResolutionKinds: WeakMap<NormalizedProvider, 'async' | 'sync'>,
+): void {
+  if (target.parent) {
+    installFactoryResolutionTracking(target.parent, factoryResolutionKinds);
+  }
+
+  for (const provider of target.registrations.values()) {
+    trackFactoryResolutionKind(provider, factoryResolutionKinds);
+  }
+
+  for (const providers of target.multiRegistrations.values()) {
+    for (const provider of providers) {
+      trackFactoryResolutionKind(provider, factoryResolutionKinds);
+    }
+  }
+}
+
+function providerGraphIsSyncResolvable(state: SyncResolverState, token: Token, visited = new Set<Token>()): boolean {
+  if (visited.has(token)) {
+    return true;
+  }
+
+  visited.add(token);
+
+  try {
+    const provider = lookupProvider(state.introspection, token);
+    const multiProviders = collectMultiProviders(state.introspection, token);
+    const providers = provider ? [provider, ...multiProviders] : multiProviders;
+
+    return providers.every((candidate) => {
+      if (candidate.type === 'factory') {
+        return state.factoryResolutionKinds.get(candidate) === 'sync';
+      }
+
+      if (candidate.type === 'existing') {
+        return candidate.useExisting !== undefined && providerGraphIsSyncResolvable(state, candidate.useExisting, visited);
+      }
+
+      return candidate.inject.every((entry) => {
+        if (isOptionalToken(entry) && !hasToken(state, entry.token)) {
+          return true;
+        }
+
+        return providerGraphIsSyncResolvable(state, dependencyToken(entry), visited);
+      });
+    });
+  } finally {
+    visited.delete(token);
+  }
+}
+
+function canPromoteCachedSingleton(state: SyncResolverState, token: Token): boolean {
+  const provider = lookupProvider(state.introspection, token);
+
+  return provider !== undefined && provider.scope !== 'request' && providerGraphIsSyncResolvable(state, token);
 }
 
 function resolveSyncDependency(entry: Token | ForwardRefFn | OptionalToken, state: SyncResolverState): unknown {
@@ -255,12 +356,19 @@ function resolveSyncProvider(provider: NormalizedProvider, state: SyncResolverSt
     return instantiateSyncProvider(provider, state);
   }
 
+  if (state.syncSingletonValues.has(provider.provide)) {
+    return state.syncSingletonValues.get(provider.provide);
+  }
+
   if (state.singletonCache.has(provider.provide)) {
-    return state.singletonCache.get(provider.provide);
+    throw new Error(
+      `Token ${String(provider.provide)} was already resolved asynchronously. Use resolve() instead of get() for this provider.`,
+    );
   }
 
   const instance = instantiateSyncProvider(provider, state);
-  state.singletonCache.set(provider.provide, instance);
+  state.syncSingletonValues.set(provider.provide, instance);
+  state.singletonCache.set(provider.provide, Promise.resolve(instance));
   return instance;
 }
 
@@ -292,14 +400,35 @@ function resolveSyncToken(token: Token, state: SyncResolverState): unknown {
 
 function createSyncResolver(
   container: BootstrapResult['container'],
-): <T>(token: Token<T>) => T {
+): {
+  get<T>(token: Token<T>): T;
+  syncFromContainer(): Promise<void>;
+} {
+  const introspection = toContainerIntrospection(container);
+  const factoryResolutionKinds = new WeakMap<NormalizedProvider, 'async' | 'sync'>();
+
+  installFactoryResolutionTracking(introspection, factoryResolutionKinds);
+
   const state: SyncResolverState = {
-    introspection: toContainerIntrospection(container),
+    factoryResolutionKinds,
+    introspection,
     resolutionChain: new Set<Token>(),
-    singletonCache: new Map<Token, unknown>(),
+    singletonCache: rootContainerIntrospection(introspection).singletonCache,
+    syncSingletonValues: new Map<Token, unknown>(),
   };
 
-  return <T>(token: Token<T>): T => resolveSyncToken(token, state) as T;
+  return {
+    get: <T>(token: Token<T>): T => resolveSyncToken(token, state) as T,
+    syncFromContainer: async (): Promise<void> => {
+      for (const [token, promise] of state.singletonCache) {
+        if (!canPromoteCachedSingleton(state, token)) {
+          continue;
+        }
+
+        state.syncSingletonValues.set(token, await promise);
+      }
+    },
+  };
 }
 
 class DefaultOverrideProviderBuilder<T> implements OverrideProviderBuilder<T> {
@@ -416,13 +545,17 @@ class DefaultTestingModuleBuilder implements TestingModuleBuilder {
 
   private createTestingModuleRef(bootstrapped: BootstrapResult): TestingModuleRef {
     const dispatcher = createTestingDispatcher(bootstrapped);
-    const getSync = createSyncResolver(bootstrapped.container);
+    const syncResolver = createSyncResolver(bootstrapped.container);
 
     return {
       ...bootstrapped,
       has: (token) => bootstrapped.container.has(token),
-      get: (token) => getSync(token),
-      resolve: (token) => bootstrapped.container.resolve(token),
+      get: (token) => syncResolver.get(token),
+      resolve: async (token) => {
+        const value = await bootstrapped.container.resolve(token);
+        await syncResolver.syncFromContainer();
+        return value;
+      },
       resolveAll: async <T>(tokens: Token<T>[]): Promise<T[]> => {
         const results: T[] = [];
         const errors: Array<{ token: Token; error: unknown }> = [];
@@ -443,9 +576,15 @@ class DefaultTestingModuleBuilder implements TestingModuleBuilder {
           throw new Error(`Failed to resolve ${errors.length} of ${tokens.length} tokens:\n${summary}`);
         }
 
+        await syncResolver.syncFromContainer();
+
         return results;
       },
-      dispatch: (request: TestRequestWithOptions) => makeRequest(dispatcher, request),
+      dispatch: async (request: TestRequestWithOptions) => {
+        const response = await makeRequest(dispatcher, request);
+        await syncResolver.syncFromContainer();
+        return response;
+      },
     };
   }
 

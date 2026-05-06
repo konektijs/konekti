@@ -148,7 +148,7 @@ export async function runPlatformConformance(options: PlatformConformanceOptions
 
 ### Conformance Testing for Library Authors
 
-커스텀 유효성 검사 파이프나 로깅 인터셉터처럼 fluo를 확장하는 라이브러리를 개발한다면 사용자에게 적합성 테스트를 제공해야 합니다. 이는 라이브러리가 fluo 생태계 안에서 예상대로 동작하고 부수 효과를 일으키지 않음을 보장합니다. 라이브러리의 구체적인 동작 요구 사항을 정의할 수 있도록 확장 가능한 `BaseLibraryConformanceHarness`를 제공합니다.
+커스텀 유효성 검사 파이프나 로깅 인터셉터처럼 fluo를 확장하는 라이브러리를 개발한다면 사용자에게 적합성 테스트를 제공해야 합니다. 이는 라이브러리가 fluo 생태계 안에서 예상대로 동작하고 부수 효과를 일으키지 않음을 보장합니다. `@fluojs/testing`은 platform, HTTP adapter, web-runtime adapter, fetch-style WebSocket 계약을 위한 구체적인 harness subpath를 배포합니다. 전용 library conformance harness가 배포되기 전까지 custom library 저자는 이 패턴을 자신의 패키지 테스트 안에서 따르세요.
 
 커스텀 파이프의 경우 적합성 스위트는 유효하지 않은 입력을 처리하는 방식과 DI 컨테이너의 메타데이터를 올바르게 전파하는지에 집중합니다. 인터셉터의 경우 실행 순서와 동기 및 비동기 결과를 모두 올바르게 처리할 수 있는지에 집중합니다. 파이프 저자가 흔히 저지르는 실수는 중첩된 객체 변환을 누락하는 것입니다. 적합성 하네스에는 복잡한 DTO의 구조적 무결성을 준수하는지 확인하는 심층 검증 시나리오가 포함되어 있습니다.
 
@@ -167,7 +167,7 @@ export function runPipeConformance(pipe: Pipe, options: PipeOptions) {
 
 이러한 자동화된 검사는 fluo의 "플러그 가능한" 특성이 안정성을 희생하지 않도록 보장합니다. 프레임워크의 모든 확장 지점에는 라이브러리 저자가 안정적인 구현을 만들도록 안내하는 적합성 영역이 있습니다. 예를 들어, 커스텀 로깅 인터셉터는 요청 바디 스트림을 실수로 소비하지 않음을 증명해야 합니다. 그렇지 않으면 후속 컨트롤러가 페이로드를 읽지 못할 수 있습니다. 라이브러리 적합성 하네스에는 인터셉터가 헤더만 관찰해야 하는 경우 기본 `ReadableStream`이 올바르게 복제되거나 그대로 유지되는지 확인하는 "스트림 무결성" 테스트가 포함되어 있습니다.
 
-`@fluojs/testing/conformance`에서 사용되는 패턴을 따르면 사용자에게 표준화된 통합 검증 방법을 제공할 수 있습니다. 이는 생태계의 신뢰성을 높이고 사용자와의 신뢰를 쌓는 데 도움이 됩니다. 테스트의 일관성은 동작의 일관성으로 이어지며, 이것이 fluo 프레임워크가 지향하는 핵심 목표입니다. 자체 도구와 라이브러리를 만들 때도 이러한 철학을 개발 프로세스의 우선순위에 두어야 합니다.
+`@fluojs/testing/platform-conformance`와 다른 배포된 harness subpath에서 사용되는 패턴을 따르면 사용자에게 표준화된 통합 검증 방법을 제공할 수 있습니다. 이는 생태계의 신뢰성을 높이고 사용자와의 신뢰를 쌓는 데 도움이 됩니다. 테스트의 일관성은 동작의 일관성으로 이어지며, 이것이 fluo 프레임워크가 지향하는 핵심 목표입니다. 자체 도구와 라이브러리를 만들 때도 이러한 철학을 개발 프로세스의 우선순위에 두어야 합니다.
 
 기본 기능 외에도 라이브러리 저자를 위한 적합성 하네스는 메모리 효율성과 성능 오버헤드도 확인합니다. 예를 들어 인증을 수행하는 미들웨어는 큰 대기 시간을 만들거나 응답이 전송된 후에도 요청 객체에 대한 참조를 유지해서는 안 됩니다. 적합성 스위트에 통합된 내부 벤치마킹 도구는 라이브러리 저자에게 추상화 비용에 대한 즉각적인 피드백을 제공합니다.
 
@@ -205,7 +205,7 @@ WebSocket 하네스에는 "백프레셔(backpressure)" 테스트도 포함되어
 13장에서 커스텀 어댑터를 구현했다면, 이제 하네스를 사용해 이를 검증해야 합니다. 이는 어댑터가 fluo 동작 계약을 준수하는지 확인하는 핵심 테스트입니다. 이식성 하네스를 통과하면 기존 비즈니스 로직을 깨뜨리지 않고 서로 다른 런타임에 어댑터를 배포할 수 있다는 근거를 얻습니다.
 
 ```typescript
-import { createHttpAdapterPortabilityHarness } from '@fluojs/testing/portability';
+import { createHttpAdapterPortabilityHarness } from '@fluojs/testing/http-adapter-portability';
 import { myAdapter } from './my-adapter';
 
 const harness = createHttpAdapterPortabilityHarness({

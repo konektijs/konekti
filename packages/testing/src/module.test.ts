@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { Inject, Module, Scope as ScopeDecorator } from '@fluojs/core';
 import { Controller, Get, Post, type RequestContext } from '@fluojs/http';
-import type { Dispatcher } from '@fluojs/http';
+import type { Dispatcher, Middleware } from '@fluojs/http';
 
 import {
   createTestApp,
@@ -78,6 +78,25 @@ describe('@fluojs/testing', () => {
     expect(service.logger.name).toBe('logger');
   });
 
+  it('shares singleton identity between get() and resolve()', async () => {
+    class CounterService {
+      count = 0;
+    }
+
+    @Module({ providers: [CounterService] })
+    class ServiceModule {}
+
+    const testingModule = await createTestingModule({ rootModule: ServiceModule }).compile();
+
+    const syncService = testingModule.get<CounterService>(CounterService);
+    syncService.count = 7;
+
+    const asyncService = await testingModule.resolve<CounterService>(CounterService);
+
+    expect(asyncService).toBe(syncService);
+    expect(asyncService.count).toBe(7);
+  });
+
   it('overrides providers before resolution', async () => {
     class Logger {
       readonly name = 'logger';
@@ -151,6 +170,136 @@ describe('@fluojs/testing', () => {
 
     expect(() => testingModule.get<string>(TOKEN)).toThrow(/requires async resolution/);
     await expect(testingModule.resolve<string>(TOKEN)).resolves.toBe('async-value');
+  });
+
+  it('keeps async factory providers resolve-only after async singleton sync points', async () => {
+    const RESOLVE_TOKEN = Symbol('resolve-async-token');
+    const RESOLVE_ALL_TOKEN = Symbol('resolve-all-async-token');
+    const DISPATCH_TOKEN = Symbol('dispatch-async-token');
+
+    @Inject(DISPATCH_TOKEN)
+    @Controller('/async-singleton')
+    class AsyncSingletonController {
+      constructor(private readonly value: string) {}
+
+      @Get('/')
+      read() {
+        return { value: this.value };
+      }
+    }
+
+    @Module({
+      controllers: [AsyncSingletonController],
+      providers: [
+        {
+          provide: RESOLVE_TOKEN,
+          useFactory: async () => 'resolved-async-value',
+        },
+        {
+          provide: RESOLVE_ALL_TOKEN,
+          useFactory: async () => 'resolve-all-async-value',
+        },
+        {
+          provide: DISPATCH_TOKEN,
+          useFactory: async () => 'dispatch-async-value',
+        },
+      ],
+    })
+    class AsyncSingletonModule {}
+
+    const testingModule = await createTestingModule({ rootModule: AsyncSingletonModule }).compile();
+
+    await expect(testingModule.resolve<string>(RESOLVE_TOKEN)).resolves.toBe('resolved-async-value');
+    expect(() => testingModule.get<string>(RESOLVE_TOKEN)).toThrow(/already resolved asynchronously/);
+
+    await expect(testingModule.resolveAll<string>([RESOLVE_ALL_TOKEN])).resolves.toEqual(['resolve-all-async-value']);
+    expect(() => testingModule.get<string>(RESOLVE_ALL_TOKEN)).toThrow(/already resolved asynchronously/);
+
+    const response = await testingModule.dispatch({ method: 'GET', path: '/async-singleton' });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ value: 'dispatch-async-value' });
+    expect(() => testingModule.get<string>(DISPATCH_TOKEN)).toThrow(/already resolved asynchronously/);
+  });
+
+  it('promotes sync useFactory singletons after resolve() while preserving identity for get()', async () => {
+    const TOKEN = Symbol('sync-factory-token');
+    const value = { id: 'sync-factory-value' };
+
+    @Module({
+      providers: [
+        {
+          provide: TOKEN,
+          useFactory: () => value,
+        },
+      ],
+    })
+    class SyncFactoryModule {}
+
+    const testingModule = await createTestingModule({ rootModule: SyncFactoryModule }).compile();
+
+    const resolved = await testingModule.resolve<typeof value>(TOKEN);
+    const syncValue = testingModule.get<typeof value>(TOKEN);
+
+    expect(resolved).toBe(value);
+    expect(syncValue).toBe(resolved);
+  });
+
+  it('promotes classes depending on sync factories after resolve() while preserving get() identity', async () => {
+    const TOKEN = Symbol('sync-factory-dependency-token');
+    const dependency = { name: 'sync-dependency' };
+
+    @Inject(TOKEN)
+    class SyncFactoryConsumer {
+      constructor(readonly value: typeof dependency) {}
+    }
+
+    @Module({
+      providers: [
+        {
+          provide: TOKEN,
+          useFactory: () => dependency,
+        },
+        SyncFactoryConsumer,
+      ],
+    })
+    class SyncFactoryConsumerModule {}
+
+    const testingModule = await createTestingModule({ rootModule: SyncFactoryConsumerModule }).compile();
+
+    const resolved = await testingModule.resolve<SyncFactoryConsumer>(SyncFactoryConsumer);
+    const syncConsumer = testingModule.get<SyncFactoryConsumer>(SyncFactoryConsumer);
+
+    expect(resolved.value).toBe(dependency);
+    expect(syncConsumer).toBe(resolved);
+  });
+
+  it('keeps classes depending on useExisting aliases to async factories resolve-only after resolve()', async () => {
+    const SOURCE = Symbol('async-factory-source-token');
+    const ALIAS = Symbol('async-factory-alias-token');
+
+    @Inject(ALIAS)
+    class AliasAsyncConsumer {
+      constructor(readonly value: string) {}
+    }
+
+    @Module({
+      providers: [
+        {
+          provide: SOURCE,
+          useFactory: async () => 'async-aliased-value',
+        },
+        { provide: ALIAS, useExisting: SOURCE },
+        AliasAsyncConsumer,
+      ],
+    })
+    class AliasAsyncFactoryModule {}
+
+    const testingModule = await createTestingModule({ rootModule: AliasAsyncFactoryModule }).compile();
+
+    const resolved = await testingModule.resolve<AliasAsyncConsumer>(AliasAsyncConsumer);
+
+    expect(resolved.value).toBe('async-aliased-value');
+    expect(() => testingModule.get<AliasAsyncConsumer>(AliasAsyncConsumer)).toThrow(/already resolved asynchronously/);
   });
 
   it('treats direct function mocks in overrideProvider as useValue', async () => {
@@ -458,6 +607,28 @@ describe('createTestApp', () => {
     });
 
     await expect(app.close()).resolves.toBeUndefined();
+  });
+
+  it('preserves caller bootstrap middleware when adding test request context', async () => {
+    const middlewareCalls: string[] = [];
+    const callerMiddleware: Middleware = {
+      async handle(_context, next) {
+        middlewareCalls.push('caller');
+        await next();
+      },
+    };
+
+    const app = await createTestApp({
+      rootModule: AppModule,
+      middleware: [callerMiddleware],
+    });
+
+    const response = await app.request('GET', '/users/me').send();
+
+    expect(response.status).toBe(200);
+    expect(middlewareCalls).toEqual(['caller']);
+
+    await app.close();
   });
 
   it('injects principal into request context for e2e-style calls', async () => {

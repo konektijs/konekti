@@ -112,6 +112,8 @@ await app.close();
 
 `app.request(...).send()` is the preferred app-developer path because it keeps tests close to HTTP semantics without manual `FrameworkRequest`/`FrameworkResponse` stubs. Keep `app.dispatch(...)`, `makeRequest(...)`, and raw `FluoFactory.create(...)` tests for adapter/runtime contracts, framework internals, or compatibility cases where the low-level dispatch boundary itself is what the test must prove.
 
+`createTestApp(...)` accepts the same application bootstrap options as the runtime HTTP bootstrap, including `providers`, `filters`, `converters`, `interceptors`, `middleware`, `observers`, `versioning`, and diagnostics options. The testing helper prepends its request-context middleware while preserving caller-provided middleware in the same app middleware chain.
+
 ### Mock helpers from explicit subpaths
 
 ```ts
