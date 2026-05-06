@@ -186,8 +186,8 @@ async sendOrderConfirmation(order: Order) {
     channel: 'email',
     recipients: [order.customerEmail],
     subject: 'FluoShop order confirmation',
+    template: 'order-success',
     payload: {
-      template: 'order-success',
       templateData: {
         orderId: order.id,
         items: order.items,
