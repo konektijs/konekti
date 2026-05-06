@@ -54,13 +54,14 @@ class AppModule {}
 
 `MongooseModule` registers `MongooseConnection` with the fluo application lifecycle. The package does not create or own the raw Mongoose connection for you; pass a `dispose` hook when the application should close that external connection during shutdown.
 
-Shutdown preserves request transaction cleanup order:
+Shutdown preserves transaction cleanup order:
 
 1. Open request-scoped transactions are aborted with `Application shutdown interrupted an open request transaction.`
-2. Their Mongoose sessions finish `abortTransaction()` and `endSession()` cleanup.
-3. The configured `dispose(connection)` hook runs only after active request transactions have settled.
+2. Active ambient sessions are tracked until their transaction callback and session cleanup settle.
+3. Their Mongoose sessions finish `abortTransaction()` and `endSession()` cleanup.
+4. The configured `dispose(connection)` hook runs only after active request transactions and ambient session scopes have settled.
 
-`createMongoosePlatformStatusSnapshot(...)` reports `ready` while serving traffic, `shutting-down` while request transactions are draining, and `stopped` after the dispose hook completes. The status details include `sessionStrategy`, `transactionContext: 'als'`, resource ownership, and strict/session support diagnostics. Manual `transaction()` calls still use the same explicit-session contract as request-scoped transactions: repository code must pass `conn.currentSession()` into Mongoose model operations that participate in the transaction.
+`createMongoosePlatformStatusSnapshot(...)` reports `ready` while serving traffic, `shutting-down` while request transactions are draining, and `stopped` after the dispose hook completes. The status details include `sessionStrategy`, `transactionContext: 'als'`, active request/session counts, resource ownership, and strict/session support diagnostics. Manual `transaction()` calls still use the same explicit-session contract as request-scoped transactions: repository code must pass `conn.currentSession()` into Mongoose model operations that participate in the transaction. If the wrapped Mongoose connection exposes `connection.transaction(...)`, fluo delegates the transaction boundary to that API so Mongoose's own ambient-session scope is preserved while still exposing the same session through `currentSession()`.
 
 ## Common Patterns
 
@@ -91,6 +92,8 @@ await this.conn.transaction(async () => {
 ```
 
 If the wrapped connection does not implement `startSession()`, transactions fall back to direct execution by default. Set `strictTransactions: true` to throw `Transaction not supported: Mongoose connection does not implement startSession.` instead of falling back.
+
+Fluo never rewrites Mongoose operation options. If a model call passes an explicit `{ session }`, that option is left intact; if it omits one, repositories should not assume fluo will attach a session for them. Keep same-session parallel work and nested transaction expectations conservative: nested `MongooseConnection.transaction(...)` calls reuse the active boundary rather than opening a second MongoDB transaction on the same session.
 
 ### Request-scoped transactions
 

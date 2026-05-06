@@ -29,6 +29,14 @@ type ActiveRequestTransactionHandle = {
   settle(): void;
 };
 
+type ActiveSessionScope = {
+  settled: Promise<void>;
+};
+
+type ActiveSessionScopeHandle = {
+  settle(): void;
+};
+
 type MongooseRuntimeOptions = {
   strictTransactions: boolean;
 };
@@ -61,6 +69,7 @@ export class MongooseConnection<TConnection extends MongooseConnectionLike = Mon
 {
   private readonly sessions = new AsyncLocalStorage<MongooseSessionLike>();
   private readonly activeRequestTransactions = new Set<ActiveRequestTransaction>();
+  private readonly activeSessions = new Set<ActiveSessionScope>();
   private lifecycleState: 'ready' | 'shutting-down' | 'stopped' = 'ready';
 
   constructor(
@@ -105,7 +114,10 @@ export class MongooseConnection<TConnection extends MongooseConnectionLike = Mon
       transaction.abort(new Error('Application shutdown interrupted an open request transaction.'));
     }
 
-    await Promise.allSettled(Array.from(this.activeRequestTransactions, (transaction) => transaction.settled));
+    await Promise.allSettled([
+      ...Array.from(this.activeRequestTransactions, (transaction) => transaction.settled),
+      ...Array.from(this.activeSessions, (session) => session.settled),
+    ]);
 
     if (this.dispose) {
       await this.dispose(this.connection);
@@ -118,9 +130,11 @@ export class MongooseConnection<TConnection extends MongooseConnectionLike = Mon
   createPlatformStatusSnapshot() {
     return createMongoosePlatformStatusSnapshot({
       activeRequestTransactions: this.activeRequestTransactions.size,
-      hasActiveSession: this.sessions.getStore() !== undefined,
+      activeSessions: this.activeSessions.size,
+      hasActiveSession: this.activeSessions.size > 0,
       lifecycleState: this.lifecycleState,
       strictTransactions: this.connectionOptions.strictTransactions,
+      supportsConnectionTransaction: typeof this.connection.transaction === 'function',
       supportsStartSession: typeof this.connection.startSession === 'function',
     });
   }
@@ -144,18 +158,16 @@ export class MongooseConnection<TConnection extends MongooseConnectionLike = Mon
       return fn();
     }
 
+    if (typeof this.connection.transaction === 'function') {
+      return this.runConnectionTransaction(fn);
+    }
+
     const session = await this.resolveSession();
     if (!session) {
       return fn();
     }
 
-    try {
-      return await this.sessions.run(session, () =>
-        executeSessionTransaction(session, () => this.sessions.run(session, fn)),
-      );
-    } finally {
-      await session.endSession();
-    }
+    return this.runManualSessionTransaction(session, fn);
   }
 
   /**
@@ -181,29 +193,69 @@ export class MongooseConnection<TConnection extends MongooseConnectionLike = Mon
 
     const abortContext = createRequestAbortContext(signal);
     const active = this.trackActiveRequestTransaction(abortContext.controller);
-    let acquiredSession: MongooseSessionLike | undefined;
 
     try {
+      if (typeof this.connection.transaction === 'function') {
+        return await this.runConnectionTransaction(() => raceWithAbort(fn, abortContext.signal));
+      }
+
       const resolvedSession = await this.resolveSession();
       if (!resolvedSession) {
         return await raceWithAbort(fn, abortContext.signal);
       }
 
-      acquiredSession = resolvedSession;
-      return await this.sessions.run(resolvedSession, () =>
-        executeSessionTransaction(resolvedSession, () =>
-          this.sessions.run(resolvedSession, () => raceWithAbort(fn, abortContext.signal)),
-        ),
-      );
+      return await this.runManualSessionTransaction(resolvedSession, () => raceWithAbort(fn, abortContext.signal));
     } finally {
       abortContext.cleanup();
 
+      this.untrackActiveRequestTransaction(active);
+    }
+  }
+
+  private async runManualSessionTransaction<T>(session: MongooseSessionLike, fn: () => Promise<T>): Promise<T> {
+    const activeSession = this.trackActiveSession();
+
+    try {
+      return await this.sessions.run(session, () => executeSessionTransaction(session, fn));
+    } finally {
       try {
-        await acquiredSession?.endSession();
+        await session.endSession();
       } finally {
-        this.untrackActiveRequestTransaction(active);
+        activeSession.settle();
       }
     }
+  }
+
+  private async runConnectionTransaction<T>(fn: () => Promise<T>): Promise<T> {
+    const activeSession = this.trackActiveSession();
+
+    try {
+      if (typeof this.connection.transaction !== 'function') {
+        throw new Error('Mongoose connection transaction resolver initialization failed.');
+      }
+
+      return await this.connection.transaction((session) => this.sessions.run(session, fn));
+    } finally {
+      activeSession.settle();
+    }
+  }
+
+  private trackActiveSession(): ActiveSessionScopeHandle {
+    let settle!: () => void;
+    const active: ActiveSessionScope = {
+      settled: new Promise<void>((resolve) => {
+        settle = resolve;
+      }),
+    };
+
+    this.activeSessions.add(active);
+
+    return {
+      settle: () => {
+        this.activeSessions.delete(active);
+        settle();
+      },
+    };
   }
 
   private trackActiveRequestTransaction(controller: AbortController): ActiveRequestTransactionHandle {

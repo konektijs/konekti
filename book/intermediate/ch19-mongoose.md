@@ -23,7 +23,7 @@ This chapter covers how to integrate FluoShop's document-oriented data model int
 Mongoose is a widely used modeling layer for working with MongoDB in the Node.js ecosystem. Using the fluo-specific integration package gives you these benefits.
 
 - **Lifecycle Management**: It registers the provided connection in the application lifecycle and, when you supply `dispose(connection)`, runs that cleanup only after request-scoped transactions have drained during shutdown.
-- **Session Awareness**: The `MongooseConnection` service tracks MongoDB sessions across the call stack to preserve transaction boundaries.
+- **Session Awareness**: The `MongooseConnection` service tracks MongoDB sessions across the call stack and through shutdown cleanup to preserve transaction boundaries.
 - **Request-Scoped Transactions**: `MongooseTransactionInterceptor` can wrap an entire HTTP request in a MongoDB transaction.
 
 ## 19.2 Installation and Setup
@@ -79,11 +79,13 @@ export class ProductRepository {
 }
 ```
 
-The `conn.current()` method always returns the registered Mongoose connection. Transaction state is tracked separately through `conn.currentSession()`, so repository methods that participate in a transaction still need to pass that session into Mongoose model operations explicitly.
+The `conn.current()` method always returns the registered Mongoose connection. Transaction state is tracked separately through `conn.currentSession()`, so repository methods that participate in a transaction still need to pass that session into Mongoose model operations explicitly. Fluo does not overwrite existing Mongoose operation options; an explicit `{ session }` stays under the repository's control.
 
 ## 19.5 Transaction Management
 
 MongoDB transactions require an active **session**. Fluo reduces the caller's burden by grouping session creation, execution, and cleanup into one transaction wrapper.
+
+When the provided Mongoose connection exposes `connection.transaction(...)`, fluo delegates the transaction boundary to that API so Mongoose's own ambient-session scope and cleanup semantics remain intact. Otherwise it falls back to `startSession()`, `startTransaction()`, `commitTransaction()` / `abortTransaction()`, and `endSession()` directly. In both modes, `dispose(connection)` waits until active request transactions and session cleanup settle during application shutdown.
 
 ### Manual Transactions
 
