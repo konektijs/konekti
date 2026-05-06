@@ -307,6 +307,7 @@ export function resolveVerificationScope(changedFiles) {
     mode: 'scoped',
     reason: `scoped verification for ${packageNames.length} workspace package(s) from ${changedPackageNames.length} changed package(s)`,
     filters: packageNames.map((name) => `--filter=${name}`),
+    buildFilters: packageNames.map((name) => `--filter=${name}...`),
     packageNames,
     packageDirectories,
     testScriptPackageNames,
@@ -380,6 +381,7 @@ export function writeGithubOutput(result) {
   const lines = [
     `mode=${result.mode}`,
     `reason=${result.reason}`,
+    `build_filter_args=${(result.buildFilters ?? result.filters).join(' ')}`,
     `filter_args=${result.filters.join(' ')}`,
     `package_names=${result.packageNames.join(',')}`,
     `test_filter_args=${(result.testScriptPackageNames ?? []).map((name) => `--filter=${name}`).join(' ')}`,

@@ -15,6 +15,7 @@ jobs:
     outputs:
       mode: ${{ steps.resolve.outputs.mode }}
       reason: ${{ steps.resolve.outputs.reason }}
+      build_filter_args: ${{ steps.resolve.outputs.build_filter_args }}
       filter_args: ${{ steps.resolve.outputs.filter_args }}
       package_names: ${{ steps.resolve.outputs.package_names }}
       test_filter_args: ${{ steps.resolve.outputs.test_filter_args }}
@@ -55,7 +56,7 @@ jobs:
 
       - name: Build (scoped PR)
         if: github.event_name == 'pull_request' && needs.resolve-pr-verification-scope.outputs.mode == 'scoped'
-        run: pnpm -r --if-present ${{ needs.resolve-pr-verification-scope.outputs.filter_args }} run build
+        run: pnpm -r --if-present ${{ needs.resolve-pr-verification-scope.outputs.build_filter_args }} run build
 
       - name: Build (full)
         if: github.event_name != 'pull_request' || needs.resolve-pr-verification-scope.outputs.mode != 'scoped'
