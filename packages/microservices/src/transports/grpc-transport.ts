@@ -34,10 +34,12 @@ interface GrpcClientLike {
 interface GrpcReadableStreamLike {
   cancel?(): void;
   destroy?(err?: Error): void;
+  off?(event: string, listener: (...args: unknown[]) => void): this;
   on(event: 'data', listener: (data: unknown) => void): this;
   on(event: 'end', listener: () => void): this;
   on(event: 'error', listener: (err: Error) => void): this;
   on(event: string, listener: (...args: unknown[]) => void): this;
+  removeListener?(event: string, listener: (...args: unknown[]) => void): this;
 }
 
 interface GrpcDuplexStreamLike extends GrpcReadableStreamLike {
@@ -763,6 +765,17 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
         let error: Error | undefined;
         let waiting: { resolve: (result: IteratorResult<unknown>) => void; reject: (err: Error) => void } | undefined;
         let stream: GrpcReadableStreamLike | undefined;
+        let removeAbortListener: (() => void) | undefined;
+
+        const cleanupAbortListener = () => {
+          removeAbortListener?.();
+          removeAbortListener = undefined;
+        };
+
+        const finish = () => {
+          done = true;
+          cleanupAbortListener();
+        };
 
         const startStream = () => {
           if (stream) {
@@ -789,7 +802,7 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
           });
 
           stream.on('end', () => {
-            done = true;
+            finish();
 
             if (waiting) {
               const w = waiting;
@@ -799,7 +812,7 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
           });
 
           stream.on('error', (err: Error) => {
-            done = true;
+            finish();
 
             if (signal?.aborted) {
               error = new Error('gRPC server stream aborted.');
@@ -816,14 +829,14 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
 
           if (signal) {
             if (signal.aborted) {
-              done = true;
+              finish();
               error = new Error('gRPC server stream aborted.');
               stream.cancel?.();
               return;
             }
 
             const onAbort = () => {
-              done = true;
+              finish();
               error = new Error('gRPC server stream aborted.');
               stream?.cancel?.();
 
@@ -835,6 +848,7 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
             };
 
             signal.addEventListener('abort', onAbort, { once: true });
+            removeAbortListener = () => signal.removeEventListener('abort', onAbort);
           }
         };
 
@@ -862,7 +876,7 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
           },
 
           return(): Promise<IteratorResult<unknown>> {
-            done = true;
+            finish();
             stream?.cancel?.();
             return Promise.resolve({ value: undefined, done: true });
           },
@@ -885,6 +899,12 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
     const metadata = this.createMetadata(grpcKinds.message);
     let callStream: GrpcWritableStreamLike | undefined;
     let ended = false;
+    let cleanupAbortListener: (() => void) | undefined;
+
+    const cleanup = () => {
+      cleanupAbortListener?.();
+      cleanupAbortListener = undefined;
+    };
 
     const result = new Promise<unknown>((resolve, reject) => {
       if (signal?.aborted) {
@@ -899,6 +919,8 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
         runtime.client,
         metadata,
         (error: { code?: number; message?: string } | null, response: unknown) => {
+          cleanup();
+
           if (error) {
             if (signal?.aborted) {
               reject(new Error('gRPC client stream aborted.'));
@@ -927,6 +949,7 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
         };
 
         signal.addEventListener('abort', onAbort, { once: true });
+        cleanupAbortListener = () => signal.removeEventListener('abort', onAbort);
       }
     });
 
@@ -976,6 +999,7 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
     );
 
     let writerEnded = false;
+    let cleanupAbortListener: (() => void) | undefined;
 
     if (signal) {
       if (signal.aborted) {
@@ -991,10 +1015,11 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
         };
 
         signal.addEventListener('abort', onAbort, { once: true });
+        cleanupAbortListener = () => signal.removeEventListener('abort', onAbort);
       }
     }
 
-    const reader = grpcReadableToAsyncIterable(duplexStream, signal);
+    const reader = grpcReadableToAsyncIterable(duplexStream, signal, cleanupAbortListener);
 
     const writer: ServerStreamWriter = {
       write(data: unknown): void {
@@ -1281,13 +1306,29 @@ export class GrpcMicroserviceTransport implements MicroserviceTransport {
   }
 }
 
-function grpcReadableToAsyncIterable(stream: GrpcReadableStreamLike, signal?: AbortSignal): AsyncIterable<unknown> {
+function grpcReadableToAsyncIterable(
+  stream: GrpcReadableStreamLike,
+  signal?: AbortSignal,
+  externalAbortCleanup?: () => void,
+): AsyncIterable<unknown> {
   return {
     [Symbol.asyncIterator](): AsyncIterator<unknown> {
       const buffer: unknown[] = [];
       let done = false;
       let error: Error | undefined;
       let waiting: { resolve: (result: IteratorResult<unknown>) => void; reject: (err: Error) => void } | undefined;
+      let removeAbortListener: (() => void) | undefined;
+
+      const cleanupAbortListeners = () => {
+        removeAbortListener?.();
+        removeAbortListener = undefined;
+        externalAbortCleanup?.();
+      };
+
+      const finish = () => {
+        done = true;
+        cleanupAbortListeners();
+      };
 
       stream.on('data', (data: unknown) => {
         if (waiting) {
@@ -1300,7 +1341,7 @@ function grpcReadableToAsyncIterable(stream: GrpcReadableStreamLike, signal?: Ab
       });
 
       stream.on('end', () => {
-        done = true;
+        finish();
 
         if (waiting) {
           const w = waiting;
@@ -1310,7 +1351,7 @@ function grpcReadableToAsyncIterable(stream: GrpcReadableStreamLike, signal?: Ab
       });
 
       stream.on('error', (err: Error) => {
-        done = true;
+        finish();
 
         if (signal?.aborted) {
           error = new Error('gRPC stream aborted.');
@@ -1327,12 +1368,12 @@ function grpcReadableToAsyncIterable(stream: GrpcReadableStreamLike, signal?: Ab
 
       if (signal) {
         if (signal.aborted) {
-          done = true;
+          finish();
           error = new Error('gRPC stream aborted.');
           stream.cancel?.();
         } else {
           const onAbort = () => {
-            done = true;
+            finish();
             error = new Error('gRPC stream aborted.');
             stream.cancel?.();
 
@@ -1344,6 +1385,7 @@ function grpcReadableToAsyncIterable(stream: GrpcReadableStreamLike, signal?: Ab
           };
 
           signal.addEventListener('abort', onAbort, { once: true });
+          removeAbortListener = () => signal.removeEventListener('abort', onAbort);
         }
       }
 
@@ -1367,7 +1409,7 @@ function grpcReadableToAsyncIterable(stream: GrpcReadableStreamLike, signal?: Ab
         },
 
         return(): Promise<IteratorResult<unknown>> {
-          done = true;
+          finish();
           stream.cancel?.();
           return Promise.resolve({ value: undefined, done: true });
         },

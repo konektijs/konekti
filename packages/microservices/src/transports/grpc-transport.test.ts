@@ -140,25 +140,6 @@ class FakeReadableStream {
   }
 }
 
-class FakeDuplexStream extends FakeReadableStream {
-  private ended = false;
-  readonly written: unknown[] = [];
-
-  write(data: unknown): boolean {
-    if (!this.ended) {
-      this.written.push(data);
-    }
-
-    return true;
-  }
-
-  end(): void {
-    if (!this.ended) {
-      this.ended = true;
-    }
-  }
-}
-
 function createBidiStreamPair(): { clientStream: FakeBidiHalf; serverStream: FakeBidiHalf } {
   const clientStream = new FakeBidiHalf();
   const serverStream = new FakeBidiHalf();
@@ -931,6 +912,50 @@ describe('GrpcMicroserviceTransport', () => {
     await transport.close();
   });
 
+  it('serverStream() removes AbortSignal listener when the stream ends', async () => {
+    const { transport } = createGrpcTransport();
+
+    transport.listenServerStreaming(async (_pattern, _payload, writer) => {
+      writer.write({ value: 'done' });
+      writer.end();
+    });
+
+    await transport.listen(async () => undefined);
+
+    const controller = new AbortController();
+    const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+    const results: unknown[] = [];
+
+    for await (const item of transport.serverStream('MathService.StreamData', {}, controller.signal)) {
+      results.push(item);
+    }
+
+    expect(results).toEqual([{ value: 'done' }]);
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
+
+    await transport.close();
+  });
+
+  it('serverStream() removes AbortSignal listener when iterator return() cancels the call', async () => {
+    const { transport } = createGrpcTransport();
+
+    transport.listenServerStreaming(async (_pattern, _payload, writer) => {
+      writer.write({ value: 'first' });
+    });
+
+    await transport.listen(async () => undefined);
+
+    const controller = new AbortController();
+    const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+    const iterator = transport.serverStream('MathService.StreamData', {}, controller.signal)[Symbol.asyncIterator]();
+
+    await expect(iterator.next()).resolves.toEqual({ value: { value: 'first' }, done: false });
+    await expect(iterator.return?.()).resolves.toEqual({ value: undefined, done: true });
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
+
+    await transport.close();
+  });
+
   it('server-stream handler throw surfaces as an error on the client iterator, not a clean EOF', async () => {
     const { transport } = createGrpcTransport();
 
@@ -1042,6 +1067,35 @@ describe('GrpcMicroserviceTransport', () => {
     await transport.close();
   });
 
+  it('clientStream() removes AbortSignal listener when the response resolves', async () => {
+    const { transport } = createGrpcTransport();
+
+    transport.listenClientStreaming(async (_pattern, reader) => {
+      let sum = 0;
+
+      for await (const item of reader) {
+        sum += (item as { value: number }).value;
+      }
+
+      return { total: sum };
+    });
+
+    await transport.listen(async () => undefined);
+
+    const controller = new AbortController();
+    const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+    const { writer, result } = transport.clientStream('MathService.StreamAll', controller.signal);
+
+    writer.write({ value: 1 });
+    writer.write({ value: 2 });
+    writer.end();
+
+    await expect(result).resolves.toEqual({ total: 3 });
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
+
+    await transport.close();
+  });
+
   it('clientStream() throws when transport is not listening', () => {
     const { transport } = createGrpcTransport();
 
@@ -1130,6 +1184,38 @@ describe('GrpcMicroserviceTransport', () => {
       { pattern: 'MathService.StreamBidi', doubled: 4 },
       { pattern: 'MathService.StreamBidi', doubled: 6 },
     ]);
+
+    await transport.close();
+  });
+
+  it('bidiStream() removes AbortSignal listeners when the reader completes', async () => {
+    const { transport } = createGrpcTransport();
+
+    transport.listenBidiStreaming(async (_pattern, reader, writer) => {
+      for await (const item of reader) {
+        writer.write(item);
+      }
+
+      writer.end();
+    });
+
+    await transport.listen(async () => undefined);
+
+    const controller = new AbortController();
+    const removeEventListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+    const { reader, writer } = transport.bidiStream('MathService.StreamBidi', controller.signal);
+
+    writer.write({ value: 1 });
+    writer.end();
+
+    const results: unknown[] = [];
+
+    for await (const item of reader) {
+      results.push(item);
+    }
+
+    expect(results).toEqual([{ value: 1 }]);
+    expect(removeEventListenerSpy).toHaveBeenCalledWith('abort', expect.any(Function));
 
     await transport.close();
   });
