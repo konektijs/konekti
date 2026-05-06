@@ -513,6 +513,36 @@ describe('SlackModule', () => {
     }
   });
 
+  it.each([403, 404])('does not retry permanent webhook status %i failures', async (status) => {
+    vi.useFakeTimers();
+
+    try {
+      const fetchLike = vi.fn<SlackFetchLike>().mockResolvedValue({
+        ok: false,
+        status,
+        statusText: status === 403 ? 'Forbidden' : 'Not Found',
+        async text() {
+          return 'permanent upstream failure';
+        },
+      });
+      const transport = createSlackWebhookTransport({
+        fetch: fetchLike,
+        webhookUrl: 'https://hooks.slack.test/services/T000/B000/XXXX',
+      });
+
+      await expect(
+        transport.send({ attachments: [], blocks: [], channel: '#ops', text: 'Permanent failure' }, {}),
+      ).rejects.toThrowError(
+        new SlackTransportError(
+          `Slack webhook delivery failed with status ${String(status)} ${status === 403 ? 'Forbidden' : 'Not Found'} after 1 attempt(s). Upstream response body was omitted from the caller-visible error.`,
+        ),
+      );
+      expect(fetchLike).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('sanitizes webhook failure errors after bounded retries', async () => {
     vi.useFakeTimers();
 
