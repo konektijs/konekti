@@ -151,25 +151,26 @@ The queue adapter splits bulk notifications into individual background jobs and 
 
 ```typescript
 EmailModule.forRoot({
-  template: {
-    renderer: async (name, data) => {
+  renderer: {
+    render: async ({ payload, template }) => {
       // Rendering logic
-      return { html: `<h1>Hello, ${data.name}</h1>` };
+      const data = payload.templateData ?? {};
+      return { html: `<h1>Hello, ${String(data.name)}</h1>`, subject: template };
     },
   },
 });
 ```
 
-After registering a renderer, you can pass `templateData` in send requests to create template-based emails.
+After registering a renderer, notification requests can pass `template` and `payload.templateData` to create template-based emails. Explicit `payload.text`, `payload.html`, and `subject` values still override rendered fallbacks.
 
 ## 16.8 Status and Health Checks
 
-The Email system is an external dependency affected by network, authentication, and provider failures. Use `createEmailPlatformStatusSnapshot` to check transport status as an operational signal.
+The Email system is an external dependency affected by network, authentication, and provider failures. Use `EmailService.createPlatformStatusSnapshot()` to check transport status as an operational signal.
 
 ```typescript
-const snapshot = await createEmailPlatformStatusSnapshot(emailService);
-if (!snapshot.isReady) {
-  console.error('Email transport is offline:', snapshot.reason);
+const snapshot = emailService.createPlatformStatusSnapshot();
+if (snapshot.readiness.status !== 'ready') {
+  console.error('Email transport is offline:', snapshot.readiness.reason);
 }
 ```
 

@@ -151,25 +151,26 @@ NotificationsModule.forRootAsync({
 
 ```typescript
 EmailModule.forRoot({
-  template: {
-    renderer: async (name, data) => {
+  renderer: {
+    render: async ({ payload, template }) => {
       // 렌더링 로직
-      return { html: `<h1>안녕하세요 ${data.name}님</h1>` };
+      const data = payload.templateData ?? {};
+      return { html: `<h1>안녕하세요 ${String(data.name)}님</h1>`, subject: template };
     },
   },
 });
 ```
 
-렌더러를 등록하면 전송 요청에서 `templateData`를 넘겨 템플릿 기반 메일을 생성할 수 있습니다.
+렌더러를 등록하면 notification 요청에서 `template`과 `payload.templateData`를 넘겨 템플릿 기반 메일을 생성할 수 있습니다. 명시적인 `payload.text`, `payload.html`, `subject` 값은 렌더링된 fallback보다 우선합니다.
 
 ## 16.8 Status and Health Checks
 
-이메일 시스템은 네트워크, 인증, 공급자 장애의 영향을 받는 외부 의존성입니다. 트랜스포트 상태를 운영 지표로 확인하려면 `createEmailPlatformStatusSnapshot`을 사용합니다.
+이메일 시스템은 네트워크, 인증, 공급자 장애의 영향을 받는 외부 의존성입니다. 트랜스포트 상태를 운영 지표로 확인하려면 `EmailService.createPlatformStatusSnapshot()`을 사용합니다.
 
 ```typescript
-const snapshot = await createEmailPlatformStatusSnapshot(emailService);
-if (!snapshot.isReady) {
-  console.error('이메일 트랜스포트가 오프라인입니다:', snapshot.reason);
+const snapshot = emailService.createPlatformStatusSnapshot();
+if (snapshot.readiness.status !== 'ready') {
+  console.error('이메일 트랜스포트가 오프라인입니다:', snapshot.readiness.reason);
 }
 ```
 

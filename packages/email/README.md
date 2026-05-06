@@ -162,10 +162,13 @@ EmailModule.forRootAsync({
 Behavioral contract notes:
 
 - `EmailService.send(...)` resolves `defaultFrom` and `defaultReplyTo` before delivery.
+- `EmailService.send(...)` rejects blank `to` recipients before handoff so transports never receive an empty delivery target.
+- `EmailService.send(...)` and `EmailService.sendNotification(...)` honor an already-aborted `AbortSignal` before template rendering or transport handoff.
 - `EmailService.send(...)` preserves `accepted`, `pending`, and `rejected` recipients separately so partial provider failures stay caller-visible.
 - `EmailService.sendMany(...)` is fail-fast by default; pass `continueOnError: true` to collect failures in a batch result.
 - `EmailService.createPlatformStatusSnapshot()` exposes lifecycle, readiness, health, and transport ownership details for diagnostics.
 - The service initializes the configured transport during module bootstrap and closes factory-owned resources during application shutdown.
+- Transport `verify()` and `close()` provider errors are preserved as the `cause` of lifecycle failures for diagnostics.
 - Module options are trimmed and normalized before provider wiring, including sender defaults, notification channel names, and transport factory ownership.
 - The package never reads `process.env` directly. All configuration must enter through explicit options or DI.
 

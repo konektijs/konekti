@@ -162,10 +162,13 @@ EmailModule.forRootAsync({
 Behavioral contract 메모:
 
 - `EmailService.send(...)`는 전달 전에 `defaultFrom`과 `defaultReplyTo`를 해석합니다.
+- `EmailService.send(...)`는 빈 `to` 수신자를 transport handoff 전에 거부하므로 transport가 빈 전달 대상을 받지 않습니다.
+- `EmailService.send(...)`와 `EmailService.sendNotification(...)`은 이미 abort된 `AbortSignal`을 템플릿 렌더링 또는 transport handoff 전에 반영합니다.
 - `EmailService.send(...)`는 `accepted`, `pending`, `rejected` 수신자를 분리해 보존하므로 provider의 부분 실패가 호출자에게 그대로 보입니다.
 - `EmailService.sendMany(...)`는 기본적으로 fail-fast입니다. 실패를 batch result에 수집하려면 `continueOnError: true`를 전달합니다.
 - `EmailService.createPlatformStatusSnapshot()`은 diagnostics를 위해 lifecycle, readiness, health, transport ownership details를 노출합니다.
 - 서비스는 모듈 bootstrap 시 transport를 초기화하고, factory가 소유한 리소스만 애플리케이션 shutdown 시 닫습니다.
+- transport `verify()`와 `close()`에서 발생한 provider error는 diagnostics를 위해 lifecycle failure의 `cause`로 보존됩니다.
 - 모듈 옵션은 provider wiring 전에 trim 및 normalize됩니다. 여기에는 sender 기본값, notification channel 이름, transport factory 소유권이 포함됩니다.
 - 이 패키지는 절대로 `process.env`를 직접 읽지 않습니다. 모든 설정은 명시적인 옵션 또는 DI를 통해 들어와야 합니다.
 
